@@ -2,8 +2,7 @@
   <div class="detail-view">
     <div class="detail-top-row">
       <div class="detail-card-area">
-        <ProjectHeader :title="title" @edit="showEditModal = true" />
-        <ProjectMeta :project="p" />
+        <ProjectMeta :project="p" @edit="showEditModal = true" />
       </div>
       <div class="detail-sidebar" v-if="p">
         <CalendarWidget :projects="[p]" />
@@ -67,7 +66,6 @@
 import { ref, computed, watch } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
-import ProjectHeader from "./components/ProjectHeader.vue";
 import ProjectMeta from "./components/ProjectMeta.vue";
 import TabBar from "./components/TabBar.vue";
 import TaskTab from "./components/TaskTab.vue";
@@ -85,12 +83,6 @@ const allSets = ref([]);
 const taskTabRef = ref(null);
 const fileTabRef = ref(null);
 const noteTabRef = ref(null);
-
-const title = computed(() => {
-  if (!p.value) return "";
-  const set = allSets.value.find(s => s.id === p.value.projectSetId);
-  return `${set?.name || "未归类"}-${p.value.name}`;
-});
 
 const incompleteCount = computed(() => (p.value?.tasks || []).filter(t => !t.done).length);
 
@@ -160,7 +152,7 @@ async function doConfirm() {
 
 <style scoped>
 .detail-view { display: flex; flex-direction: column; padding: 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
-.detail-top-row { display: flex; flex-direction: row; gap: 16px; margin-bottom: 12px; align-items: flex-start; }
+.detail-top-row { display: flex; flex-direction: row; gap: 16px; margin-bottom: 12px; align-items: stretch; }
 .detail-card-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .detail-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; }
 .task-filter-select {
