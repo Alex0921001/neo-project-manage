@@ -142,6 +142,13 @@ export default function registerPluginUiRoutes(app, ctx) {
     const body = await c.req.json();
     try {
       const task = data.createTask(c.req.param("projectId"), body);
+      // 内联处理 fileRefs（避免 ESM 缓存问题）
+      if (body.fileRefs) {
+        const all = readProjects();
+        const proj = all.find(p => p.id === c.req.param("projectId"));
+        const t = proj?.tasks?.find(tk => tk.id === task.id);
+        if (t) { t.fileRefs = body.fileRefs; writeProjects(all); task.fileRefs = body.fileRefs; }
+      }
       return c.json({ ok: true, data: task });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -152,6 +159,13 @@ export default function registerPluginUiRoutes(app, ctx) {
     const body = await c.req.json();
     try {
       const task = data.updateTask(c.req.param("projectId"), c.req.param("taskId"), body);
+      // 内联处理 fileRefs
+      if (body.fileRefs !== undefined) {
+        const all = readProjects();
+        const proj = all.find(p => p.id === c.req.param("projectId"));
+        const t = proj?.tasks?.find(tk => tk.id === c.req.param("taskId"));
+        if (t) { t.fileRefs = body.fileRefs; writeProjects(all); task.fileRefs = body.fileRefs; }
+      }
       return c.json({ ok: true, data: task });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -179,7 +193,7 @@ export default function registerPluginUiRoutes(app, ctx) {
       const task = proj.tasks?.find(t => t.id === taskId);
       if (!task) throw new Error(`任务 ${taskId} 不存在`);
       if (!task.subtasks) task.subtasks = [];
-      const sub = { id: crypto.randomUUID().slice(0, 8), name: body.name, description: body.description || "", done: false };
+      const sub = { id: crypto.randomUUID().slice(0, 8), name: body.name, description: body.description || "", done: false, fileRefs: body.fileRefs || [] };
       task.subtasks.push(sub);
       writeProjects(all);
       return c.json({ ok: true, data: sub });
@@ -205,6 +219,7 @@ export default function registerPluginUiRoutes(app, ctx) {
       if (body.name !== undefined) sub.name = body.name;
       if (body.description !== undefined) sub.description = body.description;
       if (body.done !== undefined) sub.done = body.done;
+      if (body.fileRefs !== undefined) sub.fileRefs = body.fileRefs;
       writeProjects(all);
       return c.json({ ok: true, data: sub });
     } catch (e) {

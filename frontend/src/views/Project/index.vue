@@ -8,7 +8,8 @@
         v-show="tab === 'tasks'"
         ref="taskTabRef"
         :project-id="p.id"
-        :tasks="p.tasks || []"
+        :tasks="filteredTasks"
+        :files="p.files || []"
         @changed="loadProject"
         @confirm-ask="onConfirm"
       />
@@ -29,6 +30,11 @@
         @confirm-ask="onConfirm"
       />
       <template #action>
+        <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
+          <option value="all">全部</option>
+          <option value="incomplete">未完成</option>
+          <option value="done">已完成</option>
+        </select>
         <button class="btn-icon" @click="onTabAction" title="新建">+</button>
       </template>
     </TabBar>
@@ -85,6 +91,15 @@ const tabKey = `neo-pm-tab-${props.projectId}`;
 const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 
+// ===== 任务筛选 =====
+const taskFilter = ref("all");
+const filteredTasks = computed(() => {
+  const all = p.value?.tasks || [];
+  if (taskFilter.value === "incomplete") return all.filter(t => !t.done);
+  if (taskFilter.value === "done") return all.filter(t => t.done);
+  return all;
+});
+
 // ===== Load =====
 async function loadProject() {
   if (!props.projectId) return;
@@ -137,4 +152,10 @@ async function doConfirm() {
 
 <style scoped>
 .detail-view { display: flex; flex-direction: column; padding: 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.task-filter-select {
+  padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 12px; background: var(--bg-card); color: var(--text); outline: none;
+  cursor: pointer; font-family: inherit; margin-right: 6px;
+}
+.task-filter-select:focus { border-color: var(--accent); }
 </style>

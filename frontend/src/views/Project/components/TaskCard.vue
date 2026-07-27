@@ -13,12 +13,21 @@
     <div v-if="expanded" class="task-card-body">
       <p v-if="task.description" class="task-desc" v-html="task.description"></p>
       <p v-else class="task-desc" style="color:var(--text-tertiary)">暂无描述</p>
+
+      <div v-if="fileRefsList.length" class="file-refs-row">
+        <span class="file-refs-row-label">关联文件</span>
+        <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" @click="openFile(f)">{{ f.name }}</span>
+      </div>
+
       <div v-if="task.subtasks && task.subtasks.length" class="subtask-list">
         <div v-for="s in task.subtasks" :key="s.id" class="subtask-item">
           <input type="checkbox" :checked="s.done" @change="$emit('toggle-subtask', task.id, s.id, $event.target.checked)" class="subtask-check">
           <div class="subtask-content">
             <span :class="['subtask-name', { 'subtask-done': s.done }]">{{ s.name }}</span>
             <span v-if="s.description" class="subtask-desc" v-html="s.description"></span>
+            <div v-if="subFileRefs(s).length" class="subtask-file-refs">
+              <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" @click="openFile(f)">{{ f.name }}</span>
+            </div>
           </div>
           <div class="subtask-actions">
             <button class="subtask-act" @click.stop="$emit('edit-subtask', task, s)" title="编辑子任务">✎</button>
@@ -31,10 +40,30 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-defineProps({ task: Object });
+import { ref, computed } from "vue";
+import { api } from "../../../api.js";
+
+const props = defineProps({
+  task: Object,
+  files: { type: Array, default: () => [] },
+});
 defineEmits(["toggle-done", "edit", "subtask", "delete", "toggle-subtask", "delete-subtask", "edit-subtask"]);
 const expanded = ref(true);
+
+const fileRefsList = computed(() => {
+  const ids = props.task.fileRefs || [];
+  return ids.map(id => props.files.find(f => f.id === id)).filter(Boolean);
+});
+
+function subFileRefs(sub) {
+  const ids = sub.fileRefs || [];
+  return ids.map(id => props.files.find(f => f.id === id)).filter(Boolean);
+}
+
+async function openFile(f) {
+  if (!f?.path) return;
+  await api(`api/open-file?path=${encodeURIComponent(f.path)}`);
+}
 </script>
 
 <style scoped>
@@ -65,21 +94,35 @@ const expanded = ref(true);
 .btn-icon-sm-danger:hover { background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
 .task-card-body { padding: 0 12px 10px calc(12px + 16px + 8px + 24px + 8px); animation: slideDown 0.2s ease-out; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.task-desc { margin: 0 0 8px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.task-desc { margin: 0 0 6px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+/* 关联文件 */
+.file-refs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.file-refs-row-label { font-size: 11px; color: var(--text-tertiary); font-weight: 500; }
+.file-ref-link {
+  padding: 2px 10px; border-radius: 10px; background: var(--bg);
+  font-size: 12px; color: var(--accent); cursor: pointer; border: 1px solid var(--border-light);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.file-ref-link:hover { background: oklch(from var(--accent) l c h / 0.1); border-color: var(--accent); text-decoration: underline; }
+.file-ref-sm { font-size: 11px; padding: 1px 8px; }
+
+/* 子任务 */
 .subtask-list { border-top: 1px solid var(--border-light); padding-top: 6px; margin-top: 6px; }
-.subtask-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
-.subtask-check { width: 13px; height: 13px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+.subtask-item { display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; }
+.subtask-check { width: 13px; height: 13px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; margin-top: 2px; }
 .subtask-content { flex: 1; min-width: 0; }
-.subtask-name { font-size: 13px; color: var(--text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subtask-name { font-size: 13px; color: var(--text-secondary); display: block; word-break: break-word; }
 .subtask-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; display: block; }
 .subtask-done { text-decoration: line-through; color: var(--text-tertiary); }
+.subtask-file-refs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
 .subtask-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); flex-shrink: 0; }
 .subtask-item:hover .subtask-actions { opacity: 1; }
 .subtask-act, .subtask-del {
   width: 24px; height: 24px; border: none; border-radius: 4px; background: transparent;
   cursor: pointer; font-size: 14px; line-height: 1; display: inline-flex;
   align-items: center; justify-content: center; color: var(--text-tertiary);
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out); padding: 0;
 }
 .subtask-act:hover { background: var(--bg-hover); color: var(--text); }
 .subtask-del:hover { background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
