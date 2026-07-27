@@ -1,0 +1,22 @@
+{
+  "manifestVersion": 1,
+  "id": "neo-project-manage",
+  "name": "项目管理",
+  "version": "0.1.0",
+  "description": "项目与任务管理工具。支持 Agent 读取项目数据、创建任务、对接禅道。",
+  "minAppVersion": "0.159.0",
+  "trust": "full-access",
+  "ui": {
+    "hostCapabilities": [
+      "external.open",
+      "clipboard.writeText"
+    ]
+  },
+  "contributes": {
+    "page": {
+      "title": "项目管理",
+      "route": "/page",
+      "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><rect x=\"3\" y=\"4\" width=\"4\" height=\"5\" rx=\"1\"/><rect x=\"10\" y=\"4\" width=\"4\" height=\"9\" rx=\"1\"/><rect x=\"17\" y=\"4\" width=\"4\" height=\"7\" rx=\"1\"/><path d=\"M3 14h4v5\"/><path d=\"M10 17h4v2\"/><path d=\"M17 15h4v4\"/></svg>"
+    }
+  }
+}
