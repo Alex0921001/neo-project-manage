@@ -54,6 +54,13 @@ ${hanaLink}
 
 export default function registerPluginUiRoutes(app, ctx) {
   const data = createDataAccess(ctx.dataDir);
+  const PROJS_PATH = path.join(ctx.dataDir, "projects.json");
+
+  // 内联子任务读写函数，绕过 data.js 的 ESM 缓存问题
+  function readProjects() {
+    try { const raw = fs.readFileSync(PROJS_PATH, "utf-8").trim(); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  }
+  function writeProjects(items) { fs.mkdirSync(path.dirname(PROJS_PATH), { recursive: true }); fs.writeFileSync(PROJS_PATH, JSON.stringify(items, null, 2), "utf-8"); }
 
 // ===== Page Shell =====
   app.get("/page", (c) => {
@@ -154,6 +161,72 @@ export default function registerPluginUiRoutes(app, ctx) {
   app.delete("/api/projects/:projectId/tasks/:taskId", (c) => {
     try {
       data.deleteTask(c.req.param("projectId"), c.req.param("taskId"));
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  // ===== Sub Tasks =====
+  app.post("/api/projects/:projectId/tasks/:taskId/subtasks", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      if (!task.subtasks) task.subtasks = [];
+      const sub = { id: crypto.randomUUID().slice(0, 8), name: body.name, description: body.description || "", done: false };
+      task.subtasks.push(sub);
+      writeProjects(all);
+      return c.json({ ok: true, data: sub });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const subId = c.req.param("subtaskId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      if (!task.subtasks) task.subtasks = [];
+      const sub = task.subtasks.find(s => s.id === subId);
+      if (!sub) throw new Error(`子任务 ${subId} 不存在`);
+      if (body.name !== undefined) sub.name = body.name;
+      if (body.description !== undefined) sub.description = body.description;
+      if (body.done !== undefined) sub.done = body.done;
+      writeProjects(all);
+      return c.json({ ok: true, data: sub });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.delete("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId", (c) => {
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const subId = c.req.param("subtaskId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      if (!task.subtasks) task.subtasks = [];
+      const idx = task.subtasks.findIndex(s => s.id === subId);
+      if (idx === -1) throw new Error(`子任务 ${subId} 不存在`);
+      task.subtasks.splice(idx, 1);
+      writeProjects(all);
       return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);

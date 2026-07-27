@@ -127,6 +127,8 @@ async function doConfirm() {
     res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE" });
   } else if (action === "delete-note") {
     res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE" });
+  } else if (action === "delete-subtask") {
+    res = await api(`api/projects/${props.projectId}/tasks/${payload.taskId}/subtasks/${payload.subId}`, { method: "DELETE" });
   }
   if (res?.ok) { toast("已删除"); loadProject(); }
   else if (res) toast(res.error || "删除失败", "error");

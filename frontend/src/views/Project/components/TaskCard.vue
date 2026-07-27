@@ -6,13 +6,26 @@
       <span :class="['task-name', { 'task-done': task.done }]">{{ task.name }}</span>
       <div class="task-card-actions">
         <button class="btn-icon-sm" @click.stop="$emit('edit', task)" title="编辑">✎</button>
+        <button class="btn-icon-sm" @click.stop="$emit('subtask', task)" title="子任务">⋔</button>
         <button class="btn-icon-sm btn-icon-sm-danger" @click.stop="$emit('delete', task.id)" title="删除">✕</button>
       </div>
-      <span class="expand-arrow">{{ expanded ? '▾' : '▸' }}</span>
     </div>
     <div v-if="expanded" class="task-card-body">
       <p v-if="task.description" class="task-desc" v-html="task.description"></p>
       <p v-else class="task-desc" style="color:var(--text-tertiary)">暂无描述</p>
+      <div v-if="task.subtasks && task.subtasks.length" class="subtask-list">
+        <div v-for="s in task.subtasks" :key="s.id" class="subtask-item">
+          <input type="checkbox" :checked="s.done" @change="$emit('toggle-subtask', task.id, s.id, $event.target.checked)" class="subtask-check">
+          <div class="subtask-content">
+            <span :class="['subtask-name', { 'subtask-done': s.done }]">{{ s.name }}</span>
+            <span v-if="s.description" class="subtask-desc" v-html="s.description"></span>
+          </div>
+          <div class="subtask-actions">
+            <button class="subtask-act" @click.stop="$emit('edit-subtask', task, s)" title="编辑子任务">✎</button>
+            <button class="subtask-del" @click.stop="$emit('delete-subtask', task.id, s.id)" title="删除子任务">✕</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -20,7 +33,7 @@
 <script setup>
 import { ref } from "vue";
 defineProps({ task: Object });
-defineEmits(["toggle-done", "edit", "delete"]);
+defineEmits(["toggle-done", "edit", "subtask", "delete", "toggle-subtask", "delete-subtask", "edit-subtask"]);
 const expanded = ref(true);
 </script>
 
@@ -33,7 +46,7 @@ const expanded = ref(true);
 .task-card:hover { border-color: var(--border); box-shadow: var(--shadow-sm); }
 .task-card-done { opacity: 0.55; filter: grayscale(0.6); }
 .task-card-header {
-  display: grid; grid-template-columns: 16px 24px 1fr auto 16px;
+  display: grid; grid-template-columns: 16px 24px 1fr auto;
   align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; user-select: none;
 }
 .task-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
@@ -50,8 +63,24 @@ const expanded = ref(true);
 }
 .btn-icon-sm:hover { background: var(--bg-hover); color: var(--text); }
 .btn-icon-sm-danger:hover { background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
-.expand-arrow { font-size: 11px; color: var(--text-tertiary); text-align: center; }
 .task-card-body { padding: 0 12px 10px calc(12px + 16px + 8px + 24px + 8px); animation: slideDown 0.2s ease-out; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.task-desc { margin: 0; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.task-desc { margin: 0 0 8px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.subtask-list { border-top: 1px solid var(--border-light); padding-top: 6px; margin-top: 6px; }
+.subtask-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; }
+.subtask-check { width: 13px; height: 13px; cursor: pointer; accent-color: var(--accent); flex-shrink: 0; }
+.subtask-content { flex: 1; min-width: 0; }
+.subtask-name { font-size: 13px; color: var(--text-secondary); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.subtask-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; display: block; }
+.subtask-done { text-decoration: line-through; color: var(--text-tertiary); }
+.subtask-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); flex-shrink: 0; }
+.subtask-item:hover .subtask-actions { opacity: 1; }
+.subtask-act, .subtask-del {
+  width: 24px; height: 24px; border: none; border-radius: 4px; background: transparent;
+  cursor: pointer; font-size: 14px; line-height: 1; display: inline-flex;
+  align-items: center; justify-content: center; color: var(--text-tertiary);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.subtask-act:hover { background: var(--bg-hover); color: var(--text); }
+.subtask-del:hover { background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
 </style>
