@@ -1,7 +1,14 @@
 <template>
   <div class="detail-view">
-    <ProjectHeader :title="title" @edit="showEditModal = true" />
-    <ProjectMeta :project="p" />
+    <div class="detail-top-row">
+      <div class="detail-card-area">
+        <ProjectHeader :title="title" @edit="showEditModal = true" />
+        <ProjectMeta :project="p" />
+      </div>
+      <div class="detail-sidebar" v-if="p">
+        <CalendarWidget :projects="[p]" />
+      </div>
+    </div>
 
     <TabBar v-model="tab" :task-count="incompleteCount" :file-count="(p?.files || []).length" :note-count="(p?.notes || []).length">
       <TaskTab
@@ -68,6 +75,7 @@ import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
+import CalendarWidget from "./components/CalendarWidget.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -152,6 +160,9 @@ async function doConfirm() {
 
 <style scoped>
 .detail-view { display: flex; flex-direction: column; padding: 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+.detail-top-row { display: flex; flex-direction: row; gap: 16px; margin-bottom: 12px; align-items: flex-start; }
+.detail-card-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.detail-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; }
 .task-filter-select {
   padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   font-size: 12px; background: var(--bg-card); color: var(--text); outline: none;

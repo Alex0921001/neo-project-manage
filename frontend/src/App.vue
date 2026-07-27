@@ -2,6 +2,7 @@
   <div id="app-root">
     <div class="tab-bar">
       <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">📋 项目</button>
+      <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">📅 日历</button>
       <button :class="['tab-btn', { active: view === 'zentao' }]" @click="goZentao">🐞 禅道</button>
     </div>
 
@@ -18,6 +19,10 @@
       @back="goHome"
     />
 
+    <div v-show="view === 'calendar'" class="calendar-page">
+      <CalendarWidget :projects="allProjects" :compact="false" />
+    </div>
+
     <ZentaoView v-show="view === 'zentao'" />
 
     <div id="toast-container"></div>
@@ -30,15 +35,23 @@ import { api, reportHeight } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
 import ZentaoView from "./views/Zentao/index.vue";
+import CalendarWidget from "./views/Project/components/CalendarWidget.vue";
 
 const view = ref("home");
 const projectId = ref(null);
 const homeRef = ref(null);
+const allProjects = ref([]);
+
+async function loadAllProjects() {
+  const res = await api("api/projects");
+  if (res?.ok) allProjects.value = res.data || [];
+}
 
 function goHome() {
   view.value = "home";
   projectId.value = null;
   saveState();
+  loadAllProjects();
   nextTick(() => homeRef.value?.refresh?.());
 }
 
@@ -46,6 +59,13 @@ function goZentao() {
   view.value = "zentao";
   projectId.value = null;
   saveState();
+}
+
+function goCalendar() {
+  view.value = "calendar";
+  projectId.value = null;
+  saveState();
+  loadAllProjects();
 }
 
 function openProject(id) {
@@ -76,6 +96,7 @@ function restoreState() {
 onMounted(() => {
   window.parent.postMessage({ source: "hana-plugin", type: "ready" }, "*");
   restoreState();
+  loadAllProjects();
   reportHeight();
   const ro = new ResizeObserver(() => reportHeight());
   ro.observe(document.body);
@@ -302,4 +323,10 @@ input, textarea, select { font-family: inherit; }
 .modal-actions .btn-danger { background: oklch(0.5 0.18 30); color: #fff; border-color: oklch(0.5 0.18 30); }
 .modal-actions .btn-danger:hover { background: oklch(0.45 0.2 30); }
 .modal-wide { max-width: 600px; width: 90%; }
+
+/* === Calendar Page === */
+.calendar-page {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 24px 20px; overflow-y: auto;
+}
 </style>

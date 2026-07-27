@@ -17,7 +17,7 @@ function statusClass(s) {
 <style scoped>
 .detail-meta {
   display: grid; grid-template-columns: auto 1fr; gap: 8px 16px;
-  font-size: 13px; margin-bottom: 24px;
+  font-size: 13px;
   padding: 16px; background: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-light);
