@@ -97,11 +97,9 @@ const confirmDel = ref({ show: false, ann: null });
 const target = computed(() => props.subtask || props.task || null);
 const targetDone = computed(() => !!target.value?.done);
 const targetLabel = computed(() => {
-  if (props.subtask) {
-    const parent = props.task;
-    return parent ? `${parent.name} › ${props.subtask.name}` : props.subtask.name;
-  }
-  if (props.task) return props.task.name;
+  // 只显示当前对象的名字（不拼接父任务名），避免路径过长
+  if (props.subtask) return props.subtask.name || "";
+  if (props.task) return props.task.name || "";
   return "";
 });
 

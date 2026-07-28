@@ -73,7 +73,7 @@
               @select-annotation="onSelectAnnotation"
             />
           </div>
-          <div v-if="doneTasks.length" class="task-group">
+          <div v-if="doneTasks.length" class="task-group task-group-done">
             <div class="task-group-header">
               <span class="task-group-title">已完成</span>
               <span class="task-group-count">{{ doneTasks.length }}</span>
@@ -349,24 +349,42 @@ defineExpose({ openAdd });
   min-height: 0;
   overflow: hidden;
 }
-.task-group { margin-bottom: 20px; }
+.task-group {
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.task-group > :deep(.task-card) { margin-bottom: 0; }
 .task-group-header {
   display: flex; align-items: center; gap: 8px;
-  margin-bottom: 10px; padding: 0 2px;
-  border-bottom: 1px solid var(--border-light);
-  padding-bottom: 6px;
+  margin-bottom: 10px; padding: 0 2px 6px;
+  border-bottom: 1px dashed oklch(0.86 0.05 85);
 }
 .task-group-title {
-  font-size: 12px; font-weight: 600; color: var(--text-secondary);
-  letter-spacing: 0.02em; text-transform: uppercase;
+  font-size: 11px; font-weight: 700; color: oklch(0.45 0.08 75);
+  letter-spacing: 0.06em; text-transform: uppercase;
 }
 .task-group-count {
-  display: inline-block;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  font-size: 11px; font-weight: 600;
-  padding: 1px 7px; border-radius: 10px;
-  line-height: 1.4;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px;
+  background: oklch(0.93 0.08 85);
+  color: oklch(0.40 0.12 75);
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 8px;
+  line-height: 1.3;
+}
+
+/* 已完成分组：绿调 */
+.task-group.task-group-done .task-group-header {
+  border-bottom-color: oklch(0.82 0.10 145);
+}
+.task-group.task-group-done .task-group-title {
+  color: oklch(0.40 0.14 145);
+}
+.task-group.task-group-done .task-group-count {
+  background: oklch(0.90 0.12 145);
+  color: oklch(0.28 0.14 145);
 }
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
 .task-full-form {
