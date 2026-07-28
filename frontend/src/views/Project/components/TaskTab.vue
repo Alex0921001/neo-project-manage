@@ -61,13 +61,13 @@
               v-for="t in undoneTasks" :key="t.id"
               :task="t"
               :files="files"
-              :active-task-id="activeTaskId"
-              :active-subtask-id="activeSubtaskId"
-              @toggle-done="toggleDone"
+              @complete="completeTask"
+              @activate="activateTask"
+              @complete-subtask="completeSubtask"
+              @activate-subtask="activateSubtask"
               @edit="startEdit"
               @subtask="startSubtask"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-              @toggle-subtask="toggleSubtaskDone"
               @edit-subtask="startEditSubtask"
               @delete-subtask="deleteSubtask"
               @select-annotation="onSelectAnnotation"
@@ -82,13 +82,13 @@
               v-for="t in doneTasks" :key="t.id"
               :task="t"
               :files="files"
-              :active-task-id="activeTaskId"
-              :active-subtask-id="activeSubtaskId"
-              @toggle-done="toggleDone"
+              @complete="completeTask"
+              @activate="activateTask"
+              @complete-subtask="completeSubtask"
+              @activate-subtask="activateSubtask"
               @edit="startEdit"
               @subtask="startSubtask"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-              @toggle-subtask="toggleSubtaskDone"
               @edit-subtask="startEditSubtask"
               @delete-subtask="deleteSubtask"
               @select-annotation="onSelectAnnotation"
@@ -103,6 +103,7 @@
           :subtask="activeSubtask"
           :tasks="tasks"
           @changed="() => emit('changed')"
+          @close="closeAnnotation"
         />
       </aside>
     </div>
@@ -133,14 +134,13 @@ const activeSubtask = computed(() => {
 });
 
 function onSelectAnnotation({ taskId, subtaskId }) {
-  // 同一个目标 → 取消选中；否则切换
-  if (activeTaskId.value === taskId && activeSubtaskId.value === (subtaskId || "")) {
-    activeTaskId.value = "";
-    activeSubtaskId.value = "";
-    return;
-  }
+  // 📌 / 📝 点击只展开便利贴面板，不负责关闭
   activeTaskId.value = taskId;
   activeSubtaskId.value = subtaskId || "";
+}
+function closeAnnotation() {
+  activeTaskId.value = "";
+  activeSubtaskId.value = "";
 }
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
@@ -280,13 +280,44 @@ async function submitInline() {
 
 function load() { emit("changed"); }
 
-async function toggleDone(id, done) {
-  await api(`api/projects/${props.projectId}/tasks/${id}`, { method: "PUT", body: JSON.stringify({ done }) });
+// ===== 完成（带校验）=====
+async function completeTask(id) {
+  const task = props.tasks.find(t => t.id === id);
+  if (!task) return;
+  const issues = [];
+  const pendingSubs = (task.subtasks || []).filter(s => !s.done);
+  if (pendingSubs.length) issues.push(`${pendingSubs.length} 个子任务未完成`);
+  const pendingAnns = (task.annotations || []).filter(a => !a.confirmed);
+  if (pendingAnns.length) issues.push(`${pendingAnns.length} 条批注未确认`);
+  if (issues.length) {
+    toast(`无法完成任务：${issues.join("、")}`, "error");
+    return;
+  }
+  await api(`api/projects/${props.projectId}/tasks/${id}`, { method: "PUT", body: JSON.stringify({ done: true }) });
   load();
 }
 
-async function toggleSubtaskDone(taskId, subId, done) {
-  await api(`api/projects/${props.projectId}/tasks/${taskId}/subtasks/${subId}`, { method: "PUT", body: JSON.stringify({ done }) });
+// ===== 激活（不校验，直接设为未完成）=====
+async function activateTask(id) {
+  await api(`api/projects/${props.projectId}/tasks/${id}`, { method: "PUT", body: JSON.stringify({ done: false }) });
+  load();
+}
+
+async function completeSubtask(taskId, subId) {
+  const task = props.tasks.find(t => t.id === taskId);
+  const sub = task?.subtasks?.find(s => s.id === subId);
+  if (!sub) return;
+  const pendingAnns = (sub.annotations || []).filter(a => !a.confirmed);
+  if (pendingAnns.length) {
+    toast(`无法完成子任务：${pendingAnns.length} 条批注未确认`, "error");
+    return;
+  }
+  await api(`api/projects/${props.projectId}/tasks/${taskId}/subtasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: true }) });
+  load();
+}
+
+async function activateSubtask(taskId, subId) {
+  await api(`api/projects/${props.projectId}/tasks/${taskId}/subtasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: false }) });
   load();
 }
 

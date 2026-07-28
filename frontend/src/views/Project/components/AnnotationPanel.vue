@@ -1,8 +1,11 @@
 <template>
   <div class="annot-panel">
     <div class="annot-head">
-      <span class="annot-title">便利贴</span>
-      <span v-if="target" class="annot-target">{{ targetLabel }}</span>
+      <div class="annot-head-left">
+        <span class="annot-title">便利贴</span>
+        <span v-if="target" class="annot-target">{{ targetLabel }}</span>
+      </div>
+      <button class="annot-close" title="关闭便利贴面板" @click="emit('close')">✕</button>
     </div>
 
     <div v-if="!target" class="annot-empty">
@@ -11,6 +14,7 @@
     </div>
 
     <div v-else class="annot-body">
+      <!-- 便利贴列表：仅展示每一条便利贴，完成态不再有确认按钮 -->
       <div class="sticky-board">
         <template v-if="sortedAnnotations.length">
           <div
@@ -23,6 +27,7 @@
               <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
               <div class="sticky-actions">
                 <button
+                  v-if="!targetDone"
                   class="sticky-confirm"
                   :class="{ 'sticky-confirm-on': a.confirmed }"
                   :title="a.confirmed ? '取消确认' : '确认这条批注'"
@@ -31,15 +36,18 @@
                   <svg v-if="!a.confirmed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
                   <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
                 </button>
-                <button class="sticky-del" @click="remove(a)" title="删除">✕</button>
+                <button class="sticky-del" @click="askRemove(a)" title="删除">✕</button>
               </div>
             </div>
           </div>
         </template>
-        <div v-else class="sticky-empty">暂无批注，写一条吧 👇</div>
+        <div v-else class="sticky-empty">
+          {{ targetDone ? '该任务没有批注' : '暂无批注，写一条吧 👇' }}
+        </div>
       </div>
 
-      <div class="annot-compose">
+      <!-- 输入区：仅未完成态显示 -->
+      <div v-if="!targetDone" class="annot-compose">
         <textarea
           v-model="input"
           rows="2"
@@ -56,6 +64,13 @@
         </div>
       </div>
     </div>
+
+    <ConfirmModal
+      :show="confirmDel.show"
+      :message="`确定要删除这条批注吗？\n\n“${confirmDel.ann?.content?.slice(0, 60) || ''}${(confirmDel.ann?.content || '').length > 60 ? '…' : ''}”`"
+      @close="cancelRemove"
+      @confirm="doRemove"
+    />
   </div>
 </template>
 
@@ -63,6 +78,7 @@
 import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import ConfirmModal from "../../../components/ConfirmModal.vue";
 
 const props = defineProps({
   projectId: String,
@@ -70,12 +86,16 @@ const props = defineProps({
   subtask: Object,
   tasks: Array,
 });
-const emit = defineEmits(["changed"]);
+const emit = defineEmits(["changed", "close"]);
 
 const input = ref("");
 const saving = ref(false);
 
+// 删除二次确认
+const confirmDel = ref({ show: false, ann: null });
+
 const target = computed(() => props.subtask || props.task || null);
+const targetDone = computed(() => !!target.value?.done);
 const targetLabel = computed(() => {
   if (props.subtask) {
     const parent = props.task;
@@ -98,12 +118,9 @@ const annotations = computed(() => {
   return [];
 });
 
-// 未确认在前（按 createdAt 倒序），已确认在后（按 createdAt 倒序）
+// 排序：未确认在前（按 createdAt 倒序），已确认在后（按 createdAt 倒序）
 const sortedAnnotations = computed(() => {
-  const list = annotations.value.map(a => ({
-    ...a,
-    confirmed: !!a.confirmed,
-  }));
+  const list = annotations.value.map(a => ({ ...a, confirmed: !!a.confirmed }));
   const pending = list.filter(a => !a.confirmed);
   const done = list.filter(a => a.confirmed);
   const byTimeDesc = (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -160,6 +177,19 @@ async function remove(ann) {
   else toast(res.error || "删除失败", "error");
 }
 
+function askRemove(ann) {
+  confirmDel.value = { show: true, ann };
+}
+function cancelRemove() {
+  confirmDel.value = { show: false, ann: null };
+}
+async function doRemove() {
+  const ann = confirmDel.value.ann;
+  confirmDel.value = { show: false, ann: null };
+  if (!ann) return;
+  await remove(ann);
+}
+
 async function toggleConfirm(ann) {
   const res = await api(buildUrl(ann.id), {
     method: "PUT",
@@ -184,21 +214,44 @@ async function toggleConfirm(ann) {
 }
 
 .annot-head {
-  display: flex; justify-content: space-between; align-items: baseline;
+  display: flex; justify-content: space-between; align-items: center;
   padding-bottom: 10px; margin-bottom: 10px;
   border-bottom: 1px dashed oklch(0.86 0.05 85);
   flex-shrink: 0;
+  gap: 8px;
+}
+.annot-head-left {
+  display: flex; align-items: baseline; gap: 8px;
+  min-width: 0; flex: 1;
 }
 .annot-title {
   font-size: 13px; font-weight: 700; color: oklch(0.45 0.10 80);
   letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 .annot-target {
   font-size: 11px; color: oklch(0.55 0.08 70);
   background: oklch(0.95 0.05 85);
   padding: 2px 8px; border-radius: 10px;
-  max-width: 60%; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
+}
+.annot-close {
+  width: 24px; height: 24px;
+  border: 1px solid oklch(0.86 0.05 85);
+  background: oklch(0.99 0.02 90);
+  color: oklch(0.55 0.08 70);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 100ms var(--ease-out);
+}
+.annot-close:hover {
+  background: oklch(0.93 0.05 30 / 0.4);
+  color: oklch(0.45 0.18 30);
+  border-color: oklch(0.65 0.13 30);
 }
 
 .annot-empty {
@@ -212,7 +265,7 @@ async function toggleConfirm(ann) {
 
 .annot-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 
-/* 仅本区域滚动 */
+/* 便利贴列表：完成态只展示便利贴，未完成态便利贴在 sticky-board 上半部分 */
 .sticky-board {
   flex: 1; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 8px;
@@ -272,7 +325,7 @@ async function toggleConfirm(ann) {
 }
 .sticky-del:hover { background: oklch(0.88 0.10 30 / 0.4); color: oklch(0.45 0.18 30); }
 
-/* 输入区：固定不滚 */
+/* 输入区：仅未完成态显示 */
 .annot-compose {
   border-top: 1px dashed oklch(0.86 0.05 85);
   padding-top: 10px;
