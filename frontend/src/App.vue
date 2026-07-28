@@ -20,7 +20,7 @@
     />
 
     <div v-show="view === 'calendar'" class="calendar-page">
-      <CalendarWidget :projects="allProjects" :compact="false" />
+      <CalendarWidget :projects="allProjects" :compact="false" @select="openProject" />
     </div>
 
     <ZentaoView v-show="view === 'zentao'" />

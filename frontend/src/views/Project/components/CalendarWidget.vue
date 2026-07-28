@@ -15,15 +15,16 @@ const props = defineProps({
   projects: { type: Array, default: () => [] },
   compact: { type: Boolean, default: true },
 });
+const emit = defineEmits(["select"]);
 
-// ===== 调色板 =====
+// ===== 糖果色调色板 =====
 const palette = [
-  "oklch(0.62 0.15 250)",
-  "oklch(0.62 0.15 150)",
-  "oklch(0.62 0.15 30)",
-  "oklch(0.62 0.15 330)",
-  "oklch(0.62 0.15 200)",
-  "oklch(0.62 0.15 90)",
+  "oklch(0.72 0.13 25)",    // 蜜桃粉
+  "oklch(0.75 0.11 135)",   // 薄荷绿
+  "oklch(0.72 0.13 275)",   // 薰衣草紫
+  "oklch(0.80 0.12 85)",    // 柠檬黄
+  "oklch(0.75 0.11 220)",   // 天空蓝
+  "oklch(0.78 0.10 350)",   // 樱花粉
 ];
 
 // ===== 事件映射：每个项目一个事件，让 FC 默认处理多日渲染 =====
@@ -59,7 +60,8 @@ const fcOptions = computed(() => ({
   selectable: false,
   events: fcEvents.value,
   eventClick(info) {
-    console.log("点击项目：", info.event.title);
+    const pid = info.event.extendedProps?.projectId;
+    if (pid) emit("select", pid);
   },
 }));
 </script>
@@ -159,6 +161,11 @@ const fcOptions = computed(() => ({
   font-size: 12px;
   padding: 1px 4px;
   margin: 1px 0;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+.cal-widget:not(.cal-compact) .fc .fc-daygrid-event:hover {
+  filter: brightness(0.95);
 }
 
 /* ---------- 侧边栏 compact ---------- */
@@ -211,6 +218,8 @@ const fcOptions = computed(() => ({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
 }
 .cal-compact .fc .fc-daygrid-more-link {
   font-size: 7px;

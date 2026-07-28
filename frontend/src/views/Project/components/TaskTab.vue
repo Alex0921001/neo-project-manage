@@ -50,18 +50,44 @@
     <!-- 列表模式 -->
     <template v-else>
       <div v-if="!tasks.length" class="empty-state">暂无任务</div>
-      <TaskCard
-        v-for="t in tasks" :key="t.id"
-        :task="t"
-        :files="files"
-        @toggle-done="toggleDone"
-        @edit="startEdit"
-        @subtask="startSubtask"
-        @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-        @toggle-subtask="toggleSubtaskDone"
-        @edit-subtask="startEditSubtask"
-        @delete-subtask="deleteSubtask"
-      />
+      <template v-else>
+        <div v-if="undoneTasks.length" class="task-group">
+          <div class="task-group-header">
+            <span class="task-group-title">未完成</span>
+            <span class="task-group-count">{{ undoneTasks.length }}</span>
+          </div>
+          <TaskCard
+            v-for="t in undoneTasks" :key="t.id"
+            :task="t"
+            :files="files"
+            @toggle-done="toggleDone"
+            @edit="startEdit"
+            @subtask="startSubtask"
+            @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+            @toggle-subtask="toggleSubtaskDone"
+            @edit-subtask="startEditSubtask"
+            @delete-subtask="deleteSubtask"
+          />
+        </div>
+        <div v-if="doneTasks.length" class="task-group">
+          <div class="task-group-header">
+            <span class="task-group-title">已完成</span>
+            <span class="task-group-count">{{ doneTasks.length }}</span>
+          </div>
+          <TaskCard
+            v-for="t in doneTasks" :key="t.id"
+            :task="t"
+            :files="files"
+            @toggle-done="toggleDone"
+            @edit="startEdit"
+            @subtask="startSubtask"
+            @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+            @toggle-subtask="toggleSubtaskDone"
+            @edit-subtask="startEditSubtask"
+            @delete-subtask="deleteSubtask"
+          />
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -78,6 +104,14 @@ const props = defineProps({
   files: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
+
+// ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
+const undoneTasks = computed(() =>
+  props.tasks.filter(t => !t.done).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+);
+const doneTasks = computed(() =>
+  props.tasks.filter(t => t.done).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+);
 
 // 内联表单状态
 const inlineMode = ref(false);
@@ -220,6 +254,25 @@ defineExpose({ openAdd });
 
 <style scoped>
 .area-section { margin-bottom: 24px; }
+.task-group { margin-bottom: 20px; }
+.task-group-header {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px; padding: 0 2px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 6px;
+}
+.task-group-title {
+  font-size: 12px; font-weight: 600; color: var(--text-secondary);
+  letter-spacing: 0.02em; text-transform: uppercase;
+}
+.task-group-count {
+  display: inline-block;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-size: 11px; font-weight: 600;
+  padding: 1px 7px; border-radius: 10px;
+  line-height: 1.4;
+}
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
 .task-full-form {
   padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md);
