@@ -1,5 +1,5 @@
 <template>
-  <div :class="['project-card', `status-${statusKey(project.status)}`]" @click="$emit('open', project.id)">
+  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)">
     <!-- 彩色侧边条按状态变色 -->
     <div class="card-accent"></div>
 
@@ -14,9 +14,9 @@
           <div class="card-sub">
             <span class="card-set">{{ setLabel }}</span>
             <span class="card-dot">·</span>
-            <span :class="['card-status', statusClass(project.status)]">
+            <span :class="['card-status', statusClass(displayStatus)]">
               <span class="status-dot"></span>
-              {{ project.status }}
+              {{ displayStatus }}
             </span>
           </div>
         </div>
@@ -75,10 +75,11 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import { computeDisplayStatus } from "../../../utils/status.js";
 
 const props = defineProps({
   project: { type: Object, required: true },
-  setLabel: { type: String, default: "未归类" },
+  setLabel: { type: String, default: "" },
 });
 defineEmits(["open", "edit", "delete"]);
 
@@ -90,6 +91,8 @@ function statusClass(s) {
 function statusKey(s) {
   return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay" })[s] || "todo";
 }
+
+const displayStatus = computed(() => computeDisplayStatus(props.project));
 
 const doneTaskCount = computed(() => {
   return (props.project.taskCount || 0) - (props.project.incompleteTaskCount || 0);

@@ -201,8 +201,8 @@ async function toggleConfirm(ann) {
 <style scoped>
 .annot-panel {
   display: flex; flex-direction: column;
-  height: 100%;
-  min-height: 0;
+  flex: 1;
+  min-height: 360px;
   background: linear-gradient(135deg, oklch(0.97 0.02 90), oklch(0.96 0.02 80));
   border: 1px solid oklch(0.86 0.05 85);
   border-radius: var(--radius-md);

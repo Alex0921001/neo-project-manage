@@ -17,8 +17,9 @@ export async function execute(input, toolCtx) {
   }
   const lines = projects.map(
     (p) => {
-      const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴" }[p.status] || "⚪";
-      return `${statusIcon} ${p.name} [状态: ${p.status}] [ID: ${p.id}]`;
+      const displayStatus = data.computeStatus(p);
+      const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴" }[displayStatus] || "⚪";
+      return `${statusIcon} ${p.name} [状态: ${displayStatus}] [ID: ${p.id}]`;
     }
   );
   return { content: [{ type: "text", text: lines.join("\n") }] };

@@ -76,6 +76,7 @@
 import { ref, reactive, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { computeDisplayStatus } from "../../../utils/status.js";
 import ProjectCard from "./ProjectCard.vue";
 import ProjectFormModal from "./ProjectFormModal.vue";
 
@@ -103,10 +104,10 @@ const filteredProjects = computed(() => {
   return projects.value.filter((p) => (p.name || "").toLowerCase().includes(q));
 });
 
-// ===== 分组 =====
+// ===== 分组（基于展示状态：已延期合并到待开始组） =====
 const groupedProjects = computed(() => {
   const list = filteredProjects.value;
-  const by = (s) => list.filter(p => p.status === s).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const by = (s) => list.filter(p => computeDisplayStatus(p) === s).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   return [
     { key: "doing", label: "进行中", items: by("进行中") },
     { key: "todo", label: "待开始", items: [...by("待开始"), ...by("已延期")] },
@@ -115,9 +116,9 @@ const groupedProjects = computed(() => {
 });
 
 function getSetName(projectSetId) {
-  if (!projectSetId) return "未归类";
+  if (!projectSetId) return "";
   const set = props.sets.find((s) => s.id === projectSetId);
-  return set ? set.name : "未归类";
+  return set ? set.name : "";
 }
 
 // ===== Load =====

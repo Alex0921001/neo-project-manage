@@ -19,9 +19,9 @@ const props = defineProps({
 const emit = defineEmits(["select"]);
 
 function getSetName(projectSetId) {
-  if (!projectSetId) return "未归类";
+  if (!projectSetId) return "";
   const set = props.sets.find(s => s.id === projectSetId);
-  return set ? set.name : "未归类";
+  return set ? set.name : "";
 }
 
 // ===== 糖果色调色板 =====
@@ -43,8 +43,10 @@ const fcEvents = computed(() =>
       endDate.setDate(endDate.getDate() + 1); // FC 左闭右开
       const setName = getSetName(p.projectSetId);
       const projectName = p.name || "未命名";
+      // 没有项目集时不再拼接 "未归类-" 前缀
+      const title = setName ? `${setName}-${projectName}` : projectName;
       return {
-        title: `${setName}-${projectName}`,
+        title,
         start: p.planStart,
         end: endDate.toISOString().slice(0, 10),
         backgroundColor: palette[idx % palette.length],

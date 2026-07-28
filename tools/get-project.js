@@ -15,11 +15,12 @@ export async function execute(input, toolCtx) {
   const project = data.getProject(input.id);
   if (!project) throw new Error(`项目 ${input.id} 不存在`);
 
-  const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴" }[project.status] || "⚪";
+  const displayStatus = data.computeStatus(project);
+  const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴" }[displayStatus] || "⚪";
   const lines = [
     `${statusIcon} ${project.name}`,
     `描述: ${project.description || "-"}`,
-    `状态: ${project.status}`,
+    `状态: ${displayStatus}`,
     `成员: ${project.members?.join(", ") || "-"}`,
     `计划: ${project.planStart || "-"} ~ ${project.planEnd || "-"}`,
     `--- 任务 (${project.tasks?.length || 0}) ---`,

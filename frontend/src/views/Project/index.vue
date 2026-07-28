@@ -1,27 +1,9 @@
 <template>
   <div class="detail-view">
-    <!-- 顶部导航栏 -->
-    <header class="detail-header">
-      <button class="back-btn" @click="$emit('back')" title="返回项目列表">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
-      <div class="header-breadcrumb">
-        <span class="breadcrumb-label">项目</span>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="breadcrumb-sep"><polyline points="9 18 15 12 9 6"/></svg>
-        <span class="breadcrumb-current">{{ fullBreadcrumb }}</span>
-      </div>
-      <div class="header-actions">
-        <button v-if="p" class="header-btn header-btn-secondary" @click="showEditModal = true">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          编辑项目
-        </button>
-      </div>
-    </header>
-
     <!-- 主区：左侧详情卡 + 右侧 sticky 日历 -->
     <div class="detail-main">
       <div class="detail-left">
-        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" />
+        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" />
       </div>
       <div class="detail-right">
         <CalendarWidget :projects="[p]" />
@@ -213,94 +195,6 @@ async function doConfirm() {
   background: #f9fafb;
   overflow: hidden;
 }
-
-/* ===== 顶部导航栏 ===== */
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 24px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-  flex-shrink: 0;
-  z-index: 10;
-}
-.back-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  border-radius: 8px;
-  cursor: pointer;
-  color: #6b7280;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease-out;
-  flex-shrink: 0;
-}
-.back-btn:hover { background: #f3f4f6; color: #111827; border-color: #d1d5db; }
-.back-btn:active { transform: translateX(-1px); }
-
-.header-breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  font-weight: 500;
-}
-.breadcrumb-label {
-  color: #6b7280;
-}
-.breadcrumb-sep { color: #d1d5db; }
-.breadcrumb-current {
-  color: #111827;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 480px;
-}
-
-.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.header-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease-out;
-  font-family: inherit;
-  letter-spacing: 0.01em;
-}
-.header-btn-secondary {
-  background: #ffffff;
-  color: #4b5563;
-  border: 1px solid #e5e7eb;
-}
-.header-btn-secondary:hover {
-  background: #f9fafb;
-  color: #111827;
-  border-color: #d1d5db;
-}
-.header-btn-primary {
-  background: #111827;
-  color: #ffffff;
-  border: 1px solid #111827;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.header-btn-primary:hover {
-  background: #1f2937;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.20);
-}
-.header-btn-primary:active { transform: translateY(0); }
 
 /* ===== 主区 ===== */
 .detail-main {

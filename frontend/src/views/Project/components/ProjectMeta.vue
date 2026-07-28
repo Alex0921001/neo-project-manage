@@ -1,7 +1,10 @@
 <template>
   <div class="detail-meta">
-    <!-- 头部：标题 + 编辑（顶部面包屑已有返回按钮） -->
+    <!-- 头部：返回 + 标题 + 编辑 -->
     <div class="meta-head">
+      <button class="btn-back" @click="$emit('back')" title="返回项目列表">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
       <span class="meta-title" v-if="project?.name">{{ fullTitle }}</span>
       <span v-else class="meta-title meta-title-empty">未命名项目</span>
       <button class="icon-btn" v-if="project" @click="$emit('edit')" title="编辑项目">
@@ -11,9 +14,9 @@
 
     <!-- 状态徽标 + 距离天数（高亮卡片）-->
     <div class="meta-headline">
-      <div :class="['meta-status-chip', statusClass(project?.status)]">
+      <div :class="['meta-status-chip', statusClass(displayStatus)]">
         <span class="status-dot"></span>
-        <span>{{ project?.status || '待开始' }}</span>
+        <span>{{ displayStatus || '待开始' }}</span>
       </div>
       <div v-if="countdownText" :class="['meta-countdown', countdownClass]">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -71,12 +74,13 @@
 
 <script setup>
 import { computed } from "vue";
+import { computeDisplayStatus } from "../../../utils/status.js";
 
 const props = defineProps({
   project: Object,
   setLabel: { type: String, default: "" },
 });
-defineEmits(["edit"]);
+defineEmits(["edit", "back"]);
 
 const fullTitle = computed(() => {
   if (!props.project) return "";
@@ -93,6 +97,8 @@ function statusClass(s) {
     "已延期": "status-delay",
   }[s] || "status-todo";
 }
+
+const displayStatus = computed(() => computeDisplayStatus(props.project));
 
 // 距离天数
 const today = new Date();
@@ -200,12 +206,29 @@ function avatarColor(name) {
   flex-shrink: 0;
   padding: 0;
 }
-.icon-btn:hover {
+.btn-back {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  padding: 0;
+}
+.icon-btn:hover,
+.btn-back:hover {
   background: #f3f4f6;
   color: #111827;
   border-color: #9ca3af;
 }
-.icon-btn svg { display: block; }
+.icon-btn svg,
+.btn-back svg { display: block; }
 
 /* 状态徽标 + 距离天数（高亮行）*/
 .meta-headline {
