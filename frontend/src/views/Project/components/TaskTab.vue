@@ -346,7 +346,8 @@ defineExpose({ openAdd });
 .task-tab-annot {
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
-  min-height: 360px;
+  min-height: 480px;
+  height: 100%;
   align-self: stretch;
   overflow: hidden;
 }

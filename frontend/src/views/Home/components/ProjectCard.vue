@@ -147,7 +147,7 @@ const iconBg = computed(() => {
 }
 .status-doing .card-accent { background: #3b82f6; }
 .status-done .card-accent { background: #10b981; }
-.status-todo .card-accent { background: #94a3b8; }
+.status-todo .card-accent { background: #f59e0b; }
 .status-delay .card-accent { background: #ef4444; }
 
 .card-content {
@@ -219,10 +219,10 @@ const iconBg = computed(() => {
   border-radius: 50%;
   background: currentColor;
 }
-.status-todo { background: #f9fafb; color: #6b7280; border-color: #e5e7eb; }
-.status-doing { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
-.status-done { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-.status-delay { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.status-todo { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.status-doing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.status-done { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
 /* menu */
 .card-menu { position: relative; flex-shrink: 0; }
@@ -301,7 +301,7 @@ const iconBg = computed(() => {
   background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
 }
 .status-todo .progress-fill {
-  background: #cbd5e1;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
 }
 .status-delay .progress-fill {
   background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);

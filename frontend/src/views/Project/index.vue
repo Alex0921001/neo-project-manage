@@ -205,7 +205,7 @@ async function doConfirm() {
   padding: 20px 24px;
   overflow: visible;
 }
-.detail-left { min-width: 0; }
+.detail-left { min-width: 0; display: flex; flex-direction: column; }
 .detail-right { min-width: 0; min-height: 380px; display: flex; flex-direction: column; }
 
 /* ===== Tab 区 ===== */
@@ -277,6 +277,32 @@ async function doConfirm() {
   gap: 8px;
   padding-right: 6px;
 }
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+}
+.header-btn-primary {
+  background: #111827;
+  color: #ffffff;
+  border: 1px solid #111827;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.header-btn-primary:hover {
+  background: #1f2937;
+  border-color: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.20);
+}
+.header-btn-primary:active { transform: translateY(0); }
 .task-filter-select {
   padding: 6px 10px;
   border: 1px solid #e5e7eb;

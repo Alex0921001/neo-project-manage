@@ -280,20 +280,24 @@ input, textarea, select { font-family: inherit; }
 
 /* === Status Badges === */
 .status-todo {
-  background: oklch(0.93 0.1 85);
-  color: oklch(0.5 0.15 85);
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fde68a;
 }
 .status-doing {
-  background: oklch(0.91 0.06 250);
-  color: oklch(0.35 0.2 250);
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #bfdbfe;
 }
 .status-done {
-  background: oklch(0.92 0.07 160);
-  color: oklch(0.35 0.15 160);
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
 }
 .status-delay {
-  background: oklch(0.93 0.08 30);
-  color: oklch(0.5 0.2 30);
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
 }
 
 /* === Empty State === */

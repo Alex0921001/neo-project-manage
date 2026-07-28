@@ -18,7 +18,9 @@
         <div>
           <label>状态</label>
           <select v-model="form.status">
-            <option>待开始</option><option>进行中</option><option>已完成</option>
+            <option value="待开始">待开始</option>
+            <option value="进行中">进行中</option>
+            <option value="已完成">已完成</option>
           </select>
         </div>
         <div>
@@ -71,7 +73,8 @@ watch(() => props.show, (v) => {
       form.description = d.description || "";
       form.planStart = d.planStart || "";
       form.planEnd = d.planEnd || "";
-      form.status = d.status;
+      // 防御：状态不在三个合法选项内时 fallback 到 "待开始"，避免 select 显示空白
+      form.status = ["待开始", "进行中", "已完成"].includes(d.status) ? d.status : "待开始";
       form.projectSetId = d.projectSetId || "";
       form.membersText = (d.members || []).join(", ");
     } else {

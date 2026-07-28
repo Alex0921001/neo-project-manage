@@ -258,10 +258,10 @@ function avatarColor(name) {
   background: currentColor;
   box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px currentColor;
 }
-.status-todo { background: #ffffff; color: #6b7280; border-color: #d1d5db; }
-.status-doing { background: #f3f4f6; color: #374151; border-color: #9ca3af; }
-.status-done { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
-.status-delay { background: #f3f4f6; color: #111827; border-color: #374151; }
+.status-todo { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.status-doing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.status-done { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
+.status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
 /* 距离天数 */
 .meta-countdown {
@@ -288,9 +288,10 @@ function avatarColor(name) {
 .meta-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
   gap: 10px;
   flex: 1;
-  align-content: start;
+  min-height: 0;
 }
 .meta-card {
   background: #f9fafb;
