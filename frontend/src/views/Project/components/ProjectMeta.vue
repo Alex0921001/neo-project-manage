@@ -1,10 +1,7 @@
 <template>
   <div class="detail-meta">
-    <!-- 头部：返回 + 标题 + 编辑 -->
+    <!-- 头部：标题 + 编辑（顶部面包屑已有返回按钮） -->
     <div class="meta-head">
-      <button class="btn-back" @click="$emit('back')" title="返回项目列表">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      </button>
       <span class="meta-title" v-if="project?.name">{{ fullTitle }}</span>
       <span v-else class="meta-title meta-title-empty">未命名项目</span>
       <button class="icon-btn" v-if="project" @click="$emit('edit')" title="编辑项目">
@@ -79,7 +76,7 @@ const props = defineProps({
   project: Object,
   setLabel: { type: String, default: "" },
 });
-defineEmits(["edit", "back"]);
+defineEmits(["edit"]);
 
 const fullTitle = computed(() => {
   if (!props.project) return "";
@@ -188,7 +185,6 @@ function avatarColor(name) {
 }
 .meta-title-empty { color: #9ca3af; font-weight: 500; }
 
-.btn-back,
 .icon-btn {
   width: 28px;
   height: 28px;
@@ -204,13 +200,11 @@ function avatarColor(name) {
   flex-shrink: 0;
   padding: 0;
 }
-.btn-back:hover,
 .icon-btn:hover {
   background: #f3f4f6;
   color: #111827;
   border-color: #9ca3af;
 }
-.btn-back svg,
 .icon-btn svg { display: block; }
 
 /* 状态徽标 + 距离天数（高亮行）*/

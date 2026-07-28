@@ -21,7 +21,7 @@
     <!-- 主区：左侧详情卡 + 右侧 sticky 日历 -->
     <div class="detail-main">
       <div class="detail-left">
-        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" />
+        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" />
       </div>
       <div class="detail-right">
         <CalendarWidget :projects="[p]" />
@@ -312,7 +312,7 @@ async function doConfirm() {
   overflow: visible;
 }
 .detail-left { min-width: 0; }
-.detail-right { min-width: 0; }
+.detail-right { min-width: 0; min-height: 380px; display: flex; flex-direction: column; }
 
 /* ===== Tab 区 ===== */
 .tab-section {
