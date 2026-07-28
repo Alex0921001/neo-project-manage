@@ -9,9 +9,9 @@
     </div>
     <dl class="meta-grid">
       <dt>状态</dt><dd><span :class="['card-status', statusClass(project?.status)]">{{ project?.status || '-' }}</span></dd>
-      <dt>描述</dt><dd class="meta-desc">{{ project?.description || '-' }}</dd>
-      <dt>成员</dt><dd>{{ (project?.members || []).join('、') || '-' }}</dd>
       <dt>计划</dt><dd>{{ project?.planStart || '-' }} ~ {{ project?.planEnd || '-' }}</dd>
+      <dt>成员</dt><dd>{{ (project?.members || []).join('、') || '-' }}</dd>
+      <dt>描述</dt><dd class="meta-desc">{{ project?.description || '-' }}</dd>
     </dl>
   </div>
 </template>

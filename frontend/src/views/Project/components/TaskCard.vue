@@ -48,7 +48,8 @@ const props = defineProps({
   files: { type: Array, default: () => [] },
 });
 defineEmits(["toggle-done", "edit", "subtask", "delete", "toggle-subtask", "delete-subtask", "edit-subtask"]);
-const expanded = ref(true);
+// 默认展开规则：未完成展开，已完成折叠
+const expanded = ref(!props.task.done);
 
 const fileRefsList = computed(() => {
   const ids = props.task.fileRefs || [];

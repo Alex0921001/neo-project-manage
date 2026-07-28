@@ -20,7 +20,7 @@
     />
 
     <div v-show="view === 'calendar'" class="calendar-page">
-      <CalendarWidget :projects="allProjects" :compact="false" @select="openProject" />
+      <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" />
     </div>
 
     <ZentaoView v-show="view === 'zentao'" />
@@ -41,11 +41,16 @@ const view = ref("home");
 const projectId = ref(null);
 const homeRef = ref(null);
 const allProjects = ref([]);
+const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
 
 async function loadAllProjects() {
-  const res = await api("api/projects");
-  if (res?.ok) allProjects.value = res.data || [];
+  const [pr, sr] = await Promise.all([
+    api("api/projects"),
+    api("api/project-sets"),
+  ]);
+  if (pr?.ok) allProjects.value = pr.data || [];
+  if (sr?.ok) allSets.value = sr.data || [];
 }
 
 function goHome() {

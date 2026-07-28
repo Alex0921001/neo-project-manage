@@ -106,12 +106,19 @@ const props = defineProps({
 const emit = defineEmits(["changed", "confirm-ask"]);
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
-const undoneTasks = computed(() =>
-  props.tasks.filter(t => !t.done).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-);
-const doneTasks = computed(() =>
-  props.tasks.filter(t => t.done).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-);
+function sortByCreatedDesc(arr) {
+  return arr
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => {
+      const ta = a.t.createdAt ? new Date(a.t.createdAt).getTime() : 0;
+      const tb = b.t.createdAt ? new Date(b.t.createdAt).getTime() : 0;
+      if (ta !== tb) return tb - ta;
+      return b.i - a.i; // 旧数据无 createdAt 时，按数组索引倒序（新 push 的在末尾）
+    })
+    .map(x => x.t);
+}
+const undoneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => !t.done)));
+const doneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => t.done)));
 
 // 内联表单状态
 const inlineMode = ref(false);

@@ -13,9 +13,16 @@ import zhCn from "@fullcalendar/core/locales/zh-cn";
 
 const props = defineProps({
   projects: { type: Array, default: () => [] },
+  sets: { type: Array, default: () => [] },
   compact: { type: Boolean, default: true },
 });
 const emit = defineEmits(["select"]);
+
+function getSetName(projectSetId) {
+  if (!projectSetId) return "未归类";
+  const set = props.sets.find(s => s.id === projectSetId);
+  return set ? set.name : "未归类";
+}
 
 // ===== 糖果色调色板 =====
 const palette = [
@@ -34,14 +41,16 @@ const fcEvents = computed(() =>
       if (!p.planStart || !p.planEnd) return null;
       const endDate = new Date(p.planEnd);
       endDate.setDate(endDate.getDate() + 1); // FC 左闭右开
+      const setName = getSetName(p.projectSetId);
+      const projectName = p.name || "未命名";
       return {
-        title: p.name || "未命名",
+        title: `${setName}-${projectName}`,
         start: p.planStart,
         end: endDate.toISOString().slice(0, 10),
         backgroundColor: palette[idx % palette.length],
         borderColor: palette[idx % palette.length],
         textColor: "#fff",
-        extendedProps: { projectId: p.id },
+        extendedProps: { projectId: p.id, projectName, setName },
       };
     })
     .filter(Boolean)
@@ -136,6 +145,11 @@ const fcOptions = computed(() => ({
 .cal-widget:not(.cal-compact) .fc .fc-day-today {
   background: oklch(0.94 0.04 240) !important;
   position: relative;
+  z-index: 3;
+}
+.cal-widget:not(.cal-compact) .fc .fc-day-today .fc-daygrid-day-top {
+  position: relative;
+  z-index: 4;
 }
 .cal-widget:not(.cal-compact) .fc .fc-day-today::before {
   content: '';
@@ -144,7 +158,7 @@ const fcOptions = computed(() => ({
   border: 1.5px solid oklch(0.55 0.15 240);
   border-radius: 4px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 5;
 }
 .cal-widget:not(.cal-compact) .fc .fc-day-today .fc-daygrid-day-number {
   background: transparent !important;
@@ -189,6 +203,11 @@ const fcOptions = computed(() => ({
 .cal-compact .fc .fc-day-today {
   background: oklch(0.94 0.04 240) !important;
   position: relative;
+  z-index: 3;
+}
+.cal-compact .fc .fc-day-today .fc-daygrid-day-top {
+  position: relative;
+  z-index: 4;
 }
 .cal-compact .fc .fc-day-today::before {
   content: '';
@@ -197,7 +216,7 @@ const fcOptions = computed(() => ({
   border: 1.5px solid oklch(0.55 0.15 240);
   border-radius: 3px;
   pointer-events: none;
-  z-index: 2;
+  z-index: 5;
 }
 .cal-compact .fc .fc-day-today .fc-daygrid-day-number {
   background: transparent !important;
