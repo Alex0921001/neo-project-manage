@@ -1,10 +1,20 @@
 <template>
-  <div :class="['task-card', { 'task-card-done': task.done }]">
+  <div :class="['task-card', { 'task-card-done': task.done, 'task-card-active': isActive }]">
     <div class="task-card-header" @click="expanded = !expanded">
       <input type="checkbox" :checked="task.done" @change="$emit('toggle-done', task.id, $event.target.checked)" class="task-check" @click.stop>
       <span class="task-idx">#{{ task.index }}</span>
-      <span :class="['task-name', { 'task-done': task.done }]">{{ task.name }}</span>
+      <div class="task-card-title">
+        <span :class="['task-name', { 'task-done': task.done }]">{{ task.name }}</span>
+        <button
+          v-if="annotCount > 0"
+          class="annot-badge"
+          :class="{ 'annot-badge-active': isActive && !activeSubtaskId }"
+          :title="`查看 ${annotCount} 条批注`"
+          @click.stop="$emit('select-annotation', { taskId: task.id })"
+        >📌 {{ annotCount }}</button>
+      </div>
       <div class="task-card-actions">
+        <button class="btn-icon-sm" @click.stop="$emit('select-annotation', { taskId: task.id })" title="批注">📝</button>
         <button class="btn-icon-sm" @click.stop="$emit('edit', task)" title="编辑">✎</button>
         <button class="btn-icon-sm" @click.stop="$emit('subtask', task)" title="子任务">⋔</button>
         <button class="btn-icon-sm btn-icon-sm-danger" @click.stop="$emit('delete', task.id)" title="删除">✕</button>
@@ -30,6 +40,14 @@
             </div>
           </div>
           <div class="subtask-actions">
+            <button
+              v-if="(s.annotations || []).length > 0"
+              class="annot-badge annot-badge-sm"
+              :class="{ 'annot-badge-active': isActive && activeSubtaskId === s.id }"
+              :title="`查看 ${(s.annotations || []).length} 条批注`"
+              @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
+            >📌 {{ (s.annotations || []).length }}</button>
+            <button class="subtask-act" @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })" title="批注">📝</button>
             <button class="subtask-act" @click.stop="$emit('edit-subtask', task, s)" title="编辑子任务">✎</button>
             <button class="subtask-del" @click.stop="$emit('delete-subtask', task.id, s.id)" title="删除子任务">✕</button>
           </div>
@@ -46,10 +64,15 @@ import { api } from "../../../api.js";
 const props = defineProps({
   task: Object,
   files: { type: Array, default: () => [] },
+  activeTaskId: { type: String, default: "" },
+  activeSubtaskId: { type: String, default: "" },
 });
-defineEmits(["toggle-done", "edit", "subtask", "delete", "toggle-subtask", "delete-subtask", "edit-subtask"]);
+const emit = defineEmits(["toggle-done", "edit", "subtask", "delete", "toggle-subtask", "delete-subtask", "edit-subtask", "select-annotation"]);
 // 默认展开规则：未完成展开，已完成折叠
 const expanded = ref(!props.task.done);
+
+const annotCount = computed(() => (props.task.annotations || []).length);
+const isActive = computed(() => props.activeTaskId === props.task.id);
 
 const fileRefsList = computed(() => {
   const ids = props.task.fileRefs || [];
@@ -71,18 +94,42 @@ async function openFile(f) {
 .task-card {
   border: 1px solid var(--border-light); border-radius: var(--radius-md);
   background: var(--bg-card); margin-bottom: 8px; overflow: hidden;
-  transition: box-shadow var(--duration-fast) var(--ease-out);
+  transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
 .task-card:hover { border-color: var(--border); box-shadow: var(--shadow-sm); }
 .task-card-done { opacity: 0.55; filter: grayscale(0.6); }
+.task-card-active {
+  border-color: oklch(0.72 0.13 80);
+  box-shadow: 0 0 0 2px oklch(0.92 0.10 90 / 0.5);
+}
+
+/* 批注徽标 */
+.annot-badge {
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 1px 8px; border-radius: 10px;
+  background: oklch(0.95 0.10 90);
+  color: oklch(0.40 0.10 80);
+  font-size: 11px; font-weight: 600;
+  border: 1px solid oklch(0.88 0.08 85);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.annot-badge:hover { background: oklch(0.92 0.10 85); border-color: oklch(0.65 0.13 80); }
+.annot-badge-active {
+  background: oklch(0.72 0.13 80); color: #fff;
+  border-color: oklch(0.65 0.13 80);
+}
+.annot-badge-sm { font-size: 10px; padding: 1px 6px; }
 .task-card-header {
   display: grid; grid-template-columns: 16px 24px 1fr auto;
   align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; user-select: none;
 }
+.task-card-title { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .task-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
 .task-done { text-decoration: line-through; color: var(--text-tertiary); }
 .task-idx { color: var(--text-tertiary); font-size: 12px; font-family: var(--font-mono, monospace); text-align: right; }
-.task-name { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-name { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .task-card-actions { display: flex; gap: 2px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); }
 .task-card:hover .task-card-actions { opacity: 1; }
 .btn-icon-sm {

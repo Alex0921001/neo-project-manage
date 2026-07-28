@@ -248,6 +248,171 @@ export default function registerPluginUiRoutes(app, ctx) {
     }
   });
 
+  // ===== Annotations (便利贴/批注) =====
+  function ensureField(obj, key) {
+    if (!obj[key]) obj[key] = [];
+  }
+
+  // 任务批注
+  app.post("/api/projects/:projectId/tasks/:taskId/annotations", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "annotations");
+      const ann = {
+        id: crypto.randomUUID().slice(0, 8),
+        content: (body.content || "").trim(),
+        createdAt: new Date().toISOString(),
+        confirmed: false,
+        confirmedAt: null,
+      };
+      if (!ann.content) throw new Error("批注内容不能为空");
+      task.annotations.push(ann);
+      writeProjects(all);
+      return c.json({ ok: true, data: ann });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.delete("/api/projects/:projectId/tasks/:taskId/annotations/:annId", (c) => {
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const annId = c.req.param("annId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "annotations");
+      const idx = task.annotations.findIndex(a => a.id === annId);
+      if (idx === -1) throw new Error(`批注 ${annId} 不存在`);
+      task.annotations.splice(idx, 1);
+      writeProjects(all);
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:projectId/tasks/:taskId/annotations/:annId", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const annId = c.req.param("annId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "annotations");
+      const ann = task.annotations.find(a => a.id === annId);
+      if (!ann) throw new Error(`批注 ${annId} 不存在`);
+      if (body.confirmed !== undefined) {
+        ann.confirmed = !!body.confirmed;
+        ann.confirmedAt = ann.confirmed ? new Date().toISOString() : null;
+      }
+      writeProjects(all);
+      return c.json({ ok: true, data: ann });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  // 子任务批注
+  app.post("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId/annotations", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const subId = c.req.param("subtaskId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "subtasks");
+      const sub = task.subtasks.find(s => s.id === subId);
+      if (!sub) throw new Error(`子任务 ${subId} 不存在`);
+      ensureField(sub, "annotations");
+      const ann = {
+        id: crypto.randomUUID().slice(0, 8),
+        content: (body.content || "").trim(),
+        createdAt: new Date().toISOString(),
+        confirmed: false,
+        confirmedAt: null,
+      };
+      if (!ann.content) throw new Error("批注内容不能为空");
+      sub.annotations.push(ann);
+      writeProjects(all);
+      return c.json({ ok: true, data: ann });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.delete("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId/annotations/:annId", (c) => {
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const subId = c.req.param("subtaskId");
+      const annId = c.req.param("annId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "subtasks");
+      const sub = task.subtasks.find(s => s.id === subId);
+      if (!sub) throw new Error(`子任务 ${subId} 不存在`);
+      ensureField(sub, "annotations");
+      const idx = sub.annotations.findIndex(a => a.id === annId);
+      if (idx === -1) throw new Error(`批注 ${annId} 不存在`);
+      sub.annotations.splice(idx, 1);
+      writeProjects(all);
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId/annotations/:annId", async (c) => {
+    const body = await c.req.json();
+    try {
+      const projId = c.req.param("projectId");
+      const taskId = c.req.param("taskId");
+      const subId = c.req.param("subtaskId");
+      const annId = c.req.param("annId");
+      const all = readProjects();
+      const proj = all.find(p => p.id === projId);
+      if (!proj) throw new Error(`项目 ${projId} 不存在`);
+      const task = proj.tasks?.find(t => t.id === taskId);
+      if (!task) throw new Error(`任务 ${taskId} 不存在`);
+      ensureField(task, "subtasks");
+      const sub = task.subtasks.find(s => s.id === subId);
+      if (!sub) throw new Error(`子任务 ${subId} 不存在`);
+      ensureField(sub, "annotations");
+      const ann = sub.annotations.find(a => a.id === annId);
+      if (!ann) throw new Error(`批注 ${annId} 不存在`);
+      if (body.confirmed !== undefined) {
+        ann.confirmed = !!body.confirmed;
+        ann.confirmedAt = ann.confirmed ? new Date().toISOString() : null;
+      }
+      writeProjects(all);
+      return c.json({ ok: true, data: ann });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // ===== Files =====
   app.post("/api/projects/:projectId/files", async (c) => {
     const body = await c.req.json();

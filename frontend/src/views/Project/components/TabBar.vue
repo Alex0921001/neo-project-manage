@@ -47,7 +47,10 @@ defineEmits(["update:modelValue"]);
 .border-tab:last-child { border-right: none; }
 .border-tab:hover { color: var(--text-secondary); background: oklch(0.93 0.005 270); }
 .border-tab.active { background: var(--bg-card); color: var(--accent); border-bottom-color: var(--bg-card); }
-.border-tab-content { background: var(--bg-card); padding: 16px; flex: 1; overflow-y: auto; min-height: 0; }
+.border-tab-content {
+  background: var(--bg-card); padding: 16px; flex: 1; overflow-y: auto; min-height: 0;
+  display: flex; flex-direction: column;
+}
 .tab-count {
   display: inline-block; background: var(--accent-subtle); color: var(--accent);
   font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px;

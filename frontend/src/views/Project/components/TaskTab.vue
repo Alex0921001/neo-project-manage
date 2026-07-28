@@ -47,48 +47,65 @@
       </div>
     </div>
 
-    <!-- 列表模式 -->
-    <template v-else>
-      <div v-if="!tasks.length" class="empty-state">暂无任务</div>
-      <template v-else>
-        <div v-if="undoneTasks.length" class="task-group">
-          <div class="task-group-header">
-            <span class="task-group-title">未完成</span>
-            <span class="task-group-count">{{ undoneTasks.length }}</span>
+    <!-- 列表模式：左侧任务列表 + 右侧便利贴 -->
+    <div v-else class="task-tab-layout">
+      <div class="task-tab-list">
+        <div v-if="!tasks.length" class="empty-state">暂无任务</div>
+        <template v-else>
+          <div v-if="undoneTasks.length" class="task-group">
+            <div class="task-group-header">
+              <span class="task-group-title">未完成</span>
+              <span class="task-group-count">{{ undoneTasks.length }}</span>
+            </div>
+            <TaskCard
+              v-for="t in undoneTasks" :key="t.id"
+              :task="t"
+              :files="files"
+              :active-task-id="activeTaskId"
+              :active-subtask-id="activeSubtaskId"
+              @toggle-done="toggleDone"
+              @edit="startEdit"
+              @subtask="startSubtask"
+              @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+              @toggle-subtask="toggleSubtaskDone"
+              @edit-subtask="startEditSubtask"
+              @delete-subtask="deleteSubtask"
+              @select-annotation="onSelectAnnotation"
+            />
           </div>
-          <TaskCard
-            v-for="t in undoneTasks" :key="t.id"
-            :task="t"
-            :files="files"
-            @toggle-done="toggleDone"
-            @edit="startEdit"
-            @subtask="startSubtask"
-            @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-            @toggle-subtask="toggleSubtaskDone"
-            @edit-subtask="startEditSubtask"
-            @delete-subtask="deleteSubtask"
-          />
-        </div>
-        <div v-if="doneTasks.length" class="task-group">
-          <div class="task-group-header">
-            <span class="task-group-title">已完成</span>
-            <span class="task-group-count">{{ doneTasks.length }}</span>
+          <div v-if="doneTasks.length" class="task-group">
+            <div class="task-group-header">
+              <span class="task-group-title">已完成</span>
+              <span class="task-group-count">{{ doneTasks.length }}</span>
+            </div>
+            <TaskCard
+              v-for="t in doneTasks" :key="t.id"
+              :task="t"
+              :files="files"
+              :active-task-id="activeTaskId"
+              :active-subtask-id="activeSubtaskId"
+              @toggle-done="toggleDone"
+              @edit="startEdit"
+              @subtask="startSubtask"
+              @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+              @toggle-subtask="toggleSubtaskDone"
+              @edit-subtask="startEditSubtask"
+              @delete-subtask="deleteSubtask"
+              @select-annotation="onSelectAnnotation"
+            />
           </div>
-          <TaskCard
-            v-for="t in doneTasks" :key="t.id"
-            :task="t"
-            :files="files"
-            @toggle-done="toggleDone"
-            @edit="startEdit"
-            @subtask="startSubtask"
-            @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-            @toggle-subtask="toggleSubtaskDone"
-            @edit-subtask="startEditSubtask"
-            @delete-subtask="deleteSubtask"
-          />
-        </div>
-      </template>
-    </template>
+        </template>
+      </div>
+      <aside v-if="activeTaskId" class="task-tab-annot">
+        <AnnotationPanel
+          :project-id="projectId"
+          :task="activeTask"
+          :subtask="activeSubtask"
+          :tasks="tasks"
+          @changed="() => emit('changed')"
+        />
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -97,6 +114,7 @@ import { ref, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
+import AnnotationPanel from "./AnnotationPanel.vue";
 
 const props = defineProps({
   projectId: String,
@@ -104,6 +122,26 @@ const props = defineProps({
   files: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
+
+// ===== 当前选中的批注目标 =====
+const activeTaskId = ref("");
+const activeSubtaskId = ref("");
+const activeTask = computed(() => props.tasks.find(t => t.id === activeTaskId.value) || null);
+const activeSubtask = computed(() => {
+  if (!activeTask.value || !activeSubtaskId.value) return null;
+  return (activeTask.value.subtasks || []).find(s => s.id === activeSubtaskId.value) || null;
+});
+
+function onSelectAnnotation({ taskId, subtaskId }) {
+  // 同一个目标 → 取消选中；否则切换
+  if (activeTaskId.value === taskId && activeSubtaskId.value === (subtaskId || "")) {
+    activeTaskId.value = "";
+    activeSubtaskId.value = "";
+    return;
+  }
+  activeTaskId.value = taskId;
+  activeSubtaskId.value = subtaskId || "";
+}
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
 function sortByCreatedDesc(arr) {
@@ -260,7 +298,26 @@ defineExpose({ openAdd });
 </script>
 
 <style scoped>
-.area-section { margin-bottom: 24px; }
+.area-section {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+  margin-bottom: 24px;
+}
+.task-tab-layout {
+  display: flex; gap: 16px; align-items: stretch;
+  flex: 1; min-height: 0;
+}
+.task-tab-list {
+  flex: 1; min-width: 0; min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.task-tab-annot {
+  width: 320px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
 .task-group { margin-bottom: 20px; }
 .task-group-header {
   display: flex; align-items: center; gap: 8px;
