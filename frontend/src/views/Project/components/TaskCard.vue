@@ -9,13 +9,17 @@
         class="status-btn status-btn-complete"
         title="点击设为完成"
         @click.stop="$emit('complete', task.id)"
-      >✓</button>
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </button>
       <button
         v-else
         class="status-btn status-btn-activate"
         title="点击重新激活（设为未完成）"
         @click.stop="$emit('activate', task.id)"
-      >↻</button>
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+      </button>
       <span class="task-idx">#{{ task.index }}</span>
       <div class="task-card-title">
         <span :class="['task-name', { 'task-done': task.done }]">{{ task.name }}</span>
@@ -26,16 +30,24 @@
           @click.stop="$emit('select-annotation', { taskId: task.id })"
         >📌 {{ annotCount }}</span>
         <button
-          v-if="!task.done || annotCount > 0"
+          v-if="!task.done && annotCount === 0"
           class="icon-btn"
-          :title="task.done ? '查看批注' : '添加/查看批注'"
+          title="添加批注"
           @click.stop="$emit('select-annotation', { taskId: task.id })"
-        >📝</button>
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </button>
       </div>
       <div class="task-card-actions">
-        <button v-if="!task.done" class="icon-btn" title="编辑" @click.stop="$emit('edit', task)">✎</button>
-        <button v-if="!task.done" class="icon-btn" title="子任务" @click.stop="$emit('subtask', task)">⋔</button>
-        <button class="icon-btn icon-btn-danger" @click.stop="$emit('delete', task.id)" title="删除">✕</button>
+        <button v-if="!task.done" class="icon-btn" title="编辑" @click.stop="$emit('edit', task)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        </button>
+        <button v-if="!task.done" class="icon-btn" title="添加子任务" @click.stop="$emit('subtask', task)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button class="icon-btn icon-btn-danger" @click.stop="$emit('delete', task.id)" title="删除">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
@@ -54,13 +66,17 @@
             class="status-btn status-btn-sm status-btn-complete"
             title="点击设为完成"
             @click.stop="$emit('complete-subtask', task.id, s.id)"
-          >✓</button>
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </button>
           <button
             v-else
             class="status-btn status-btn-sm status-btn-activate"
             title="点击重新激活"
             @click.stop="$emit('activate-subtask', task.id, s.id)"
-          >↻</button>
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+          </button>
           <div class="subtask-content">
             <span :class="['subtask-name', { 'subtask-done': s.done }]">{{ s.name }}</span>
             <span v-if="s.description" class="subtask-desc" v-html="s.description"></span>
@@ -76,13 +92,19 @@
               @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
             >📌 {{ (s.annotations || []).length }}</span>
             <button
-              v-if="!s.done || (s.annotations || []).length > 0"
+              v-if="!s.done && (s.annotations || []).length === 0"
               class="icon-btn icon-btn-sm"
-              :title="s.done ? '查看批注' : '添加/查看批注'"
+              title="添加批注"
               @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
-            >📝</button>
-            <button v-if="!s.done" class="icon-btn icon-btn-sm" title="编辑子任务" @click.stop="$emit('edit-subtask', task, s)">✎</button>
-            <button class="icon-btn icon-btn-sm icon-btn-danger" @click.stop="$emit('delete-subtask', task.id, s.id)" title="删除子任务">✕</button>
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </button>
+            <button v-if="!s.done" class="icon-btn icon-btn-sm" title="编辑子任务" @click.stop="$emit('edit-subtask', task, s)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            </button>
+            <button class="icon-btn icon-btn-sm icon-btn-danger" @click.stop="$emit('delete-subtask', task.id, s.id)" title="删除子任务">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
           </div>
         </div>
       </div>
@@ -202,7 +224,9 @@ async function openFile(f) {
   justify-content: center;
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
+  padding: 0;
 }
+.status-btn svg { display: block; }
 .status-btn-sm { width: 18px; height: 18px; font-size: 10px; }
 .status-btn-complete {
   background: oklch(0.99 0.01 85);
@@ -228,16 +252,16 @@ async function openFile(f) {
   transform: scale(1.08);
 }
 
-/* ===== 统一图标按钮样式（📝 ✎ ⋔ ✕）===== */
+/* ===== 统一图标按钮样式（SVG icons）===== */
 .icon-btn {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: oklch(0.45 0.08 80);
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
@@ -245,9 +269,10 @@ async function openFile(f) {
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
   padding: 0;
-  font-family: var(--font-mono, monospace);
 }
-.icon-btn-sm { width: 22px; height: 22px; font-size: 12px; border-radius: 4px; }
+.icon-btn svg { display: block; }
+.icon-btn-sm { width: 20px; height: 20px; border-radius: 4px; }
+.icon-btn-sm svg { width: 12px; height: 12px; }
 .icon-btn:hover {
   background: oklch(0.94 0.06 85);
   color: oklch(0.35 0.10 80);
@@ -293,14 +318,12 @@ async function openFile(f) {
   color: oklch(0.55 0.04 80);
 }
 
-/* actions 区 */
+/* actions 区：默认显示 */
 .task-card-actions {
   display: flex;
   gap: 2px;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  opacity: 1;
 }
-.task-card:hover .task-card-actions { opacity: 1; }
 
 /* body */
 .task-card-body {
@@ -478,9 +501,6 @@ async function openFile(f) {
 .subtask-actions {
   display: flex;
   gap: 2px;
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
 }
-.subtask-item:hover .subtask-actions { opacity: 1; }
 </style>
