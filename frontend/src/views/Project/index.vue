@@ -154,7 +154,7 @@ async function doConfirm() {
 .detail-view { display: flex; flex-direction: column; padding: 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
 .detail-top-row { display: flex; flex-direction: row; gap: 16px; margin-bottom: 12px; align-items: stretch; }
 .detail-card-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.detail-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; }
+.detail-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 320px; }
 .task-filter-select {
   padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   font-size: 12px; background: var(--bg-card); color: var(--text); outline: none;

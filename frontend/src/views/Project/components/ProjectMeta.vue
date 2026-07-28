@@ -30,7 +30,8 @@ function statusClass(s) {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  min-height: 240px;
+  flex: 1;
+  min-height: 320px;
 }
 .meta-head {
   display: flex;
