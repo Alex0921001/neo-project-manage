@@ -27,16 +27,34 @@
       <!-- 关联文件 -->
       <div v-if="files && files.length" class="file-refs-area">
         <label class="file-refs-label">关联文件</label>
-        <div class="file-refs-tags">
+        <div v-if="formFileRefs.length" class="file-refs-tags">
           <span v-for="fid in formFileRefs" :key="fid" class="file-tag">
-            {{ fileMap[fid]?.name || fid }}
+            <svg class="file-tag-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="file-tag-name">{{ fileMap[fid]?.name || fid }}</span>
             <span class="file-tag-del" @click="removeFileRef(fid)">✕</span>
           </span>
         </div>
-        <select class="file-refs-select" @change="addFileRef($event)">
-          <option value="">+ 添加文件</option>
-          <option v-for="f in availableFiles" :key="f.id" :value="f.id">{{ f.name }}</option>
-        </select>
+        <div v-else class="file-refs-empty">暂未关联文件</div>
+        <div class="file-add-dropdown" ref="fileDropdownRef">
+          <button type="button" class="file-add-trigger" @click="fileDropdownOpen = !fileDropdownOpen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>添加关联文件</span>
+            <svg class="file-add-caret" :class="{ open: fileDropdownOpen }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div v-if="fileDropdownOpen" class="file-add-menu">
+            <div v-if="!availableFiles.length" class="file-add-empty">暂无可添加的文件</div>
+            <button
+              v-for="f in availableFiles"
+              :key="f.id"
+              type="button"
+              class="file-add-item"
+              @mousedown.prevent="addFileRef(f.id)"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span class="file-add-item-name">{{ f.name }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="inline-actions">
@@ -111,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
@@ -168,6 +186,17 @@ const formDesc = ref("");
 const formFileRefs = ref([]);
 const submitErr = ref(false);
 
+// 文件下拉开关
+const fileDropdownOpen = ref(false);
+const fileDropdownRef = ref(null);
+function onDocMouseDown(e) {
+  if (fileDropdownOpen.value && fileDropdownRef.value && !fileDropdownRef.value.contains(e.target)) {
+    fileDropdownOpen.value = false;
+  }
+}
+onMounted(() => document.addEventListener("mousedown", onDocMouseDown));
+onUnmounted(() => document.removeEventListener("mousedown", onDocMouseDown));
+
 // 文件查找 & 可添加列表
 const fileMap = computed(() => {
   const m = {};
@@ -184,6 +213,7 @@ function resetForm() {
   formDesc.value = "";
   formFileRefs.value = [];
   submitErr.value = false;
+  fileDropdownOpen.value = false;
 }
 
 function openAdd() {
@@ -226,12 +256,14 @@ function startEditSubtask(task, sub) {
 
 function closeInline() {
   inlineMode.value = false;
+  fileDropdownOpen.value = false;
 }
 
-function addFileRef(e) {
-  const fid = e.target.value;
-  if (fid && !formFileRefs.value.includes(fid)) formFileRefs.value.push(fid);
-  e.target.value = "";
+function addFileRef(fid) {
+  if (fid && !formFileRefs.value.includes(fid)) {
+    formFileRefs.value.push(fid);
+    fileDropdownOpen.value = false; // 选中后自动关闭下拉
+  }
 }
 function removeFileRef(fid) {
   const idx = formFileRefs.value.indexOf(fid);
@@ -423,18 +455,119 @@ defineExpose({ openAdd });
 .field-err { margin: -8px 0 0; font-size: 12px; color: oklch(0.55 0.2 30); }
 .file-refs-area { margin-top: 10px; }
 .file-refs-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
-.file-refs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.file-refs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.file-refs-empty {
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
 .file-tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 4px 3px 8px; border-radius: 12px; border: 1px solid var(--border);
   font-size: 12px; color: var(--text); background: oklch(from var(--accent) l c h / 0.08);
+  max-width: 100%; min-width: 0;
 }
-.file-tag-del { cursor: pointer; font-size: 10px; color: var(--text-tertiary); line-height: 1; }
-.file-tag-del:hover { color: oklch(0.5 0.18 30); }
-.file-refs-select {
-  padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 12px; background: var(--bg-card); color: var(--text); outline: none;
-  cursor: pointer; font-family: inherit;
+.file-tag-icon { color: var(--text-tertiary); flex-shrink: 0; }
+.file-tag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.file-tag-del {
+  cursor: pointer; font-size: 11px; color: var(--text-tertiary); line-height: 1;
+  width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; flex-shrink: 0; transition: all 0.15s;
 }
-.file-refs-select:focus { border-color: var(--accent); }
+.file-tag-del:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
+
+/* 自定义文件下拉 */
+.file-add-dropdown { position: relative; }
+.file-add-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+.file-add-trigger:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+  color: #374151;
+}
+.file-add-trigger:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.file-add-trigger > span { flex: 1; font-weight: 500; }
+.file-add-caret {
+  color: #9ca3af;
+  transition: transform 0.18s ease-out;
+  flex-shrink: 0;
+}
+.file-add-caret.open { transform: rotate(180deg); }
+
+.file-add-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: file-menu-slide-up 0.16s ease-out;
+  transform-origin: bottom center;
+}
+@keyframes file-menu-slide-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.file-add-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #1f2937;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+.file-add-item:hover, .file-add-item:focus {
+  background: #eff6ff;
+  color: #1e40af;
+  outline: none;
+}
+.file-add-item svg { color: #9ca3af; flex-shrink: 0; }
+.file-add-item:hover svg { color: var(--accent); }
+.file-add-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.file-add-empty {
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
 </style>

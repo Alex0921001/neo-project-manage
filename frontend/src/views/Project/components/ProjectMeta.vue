@@ -44,16 +44,17 @@
           成员
         </div>
         <div class="meta-card-value">
-          <span v-if="(project?.members || []).length" class="member-avatars">
+          <div v-if="(project?.members || []).length" class="member-pills">
             <span
-              v-for="(m, i) in (project?.members || []).slice(0, 5)"
+              v-for="m in project.members"
               :key="m"
-              class="member-avatar"
-              :style="{ background: avatarColor(m), zIndex: 100 - i }"
+              class="member-pill"
               :title="m"
-            >{{ m.slice(0, 1) }}</span>
-            <span v-if="(project?.members || []).length > 5" class="member-more">+{{ (project?.members || []).length - 5 }}</span>
-          </span>
+            >
+              <span class="member-pill-avatar" :style="{ background: avatarColor(m) }">{{ m.slice(0, 1) }}</span>
+              <span class="member-pill-name">{{ m }}</span>
+            </span>
+          </div>
           <span v-else class="meta-empty">未指定</span>
         </div>
       </div>
@@ -345,41 +346,46 @@ function avatarColor(name) {
 .meta-desc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
 .meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
 
-/* 成员头像 */
-.member-avatars {
+/* 成员 pill：头像 + 姓名，姓名能完整显示 */
+.member-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.member-pill {
   display: inline-flex;
   align-items: center;
-  position: relative;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px 0 2px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  max-width: 100%;
+  font-size: 11px;
+  color: #374151;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 0;
 }
-.member-avatar {
-  width: 26px;
-  height: 26px;
+.member-pill-avatar {
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  border: 2px solid #f9fafb;
-  margin-left: -6px;
   flex-shrink: 0;
   letter-spacing: 0;
 }
-.member-avatar:first-child { margin-left: 0; }
-.member-more {
-  margin-left: -6px;
-  background: #e5e7eb;
-  color: #4b5563;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  border: 2px solid #f9fafb;
-  flex-shrink: 0;
+.member-pill-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 90px;
 }
 </style>

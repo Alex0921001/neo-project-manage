@@ -51,9 +51,6 @@
     <!-- Add Modal -->
     <div v-if="showAddForm" class="modal-overlay" @click.self="showAddForm = false">
       <div class="modal">
-        <div class="modal-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-        </div>
         <h3>新建项目集</h3>
         <label>名称</label>
         <input v-model="addName" type="text" maxlength="10" placeholder="最多10字" @keyup.enter="doAdd">
@@ -67,9 +64,6 @@
     <!-- Edit Modal -->
     <div v-if="editTarget" class="modal-overlay" @click.self="editTarget = null">
       <div class="modal">
-        <div class="modal-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-        </div>
         <h3>编辑项目集</h3>
         <label>名称</label>
         <input v-model="editTarget.name" type="text" maxlength="10" @keyup.enter="doEdit">
@@ -316,17 +310,6 @@ function startDelete(s) {
   width: 360px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.20), 0 4px 12px rgba(0, 0, 0, 0.10);
   animation: rise 0.2s ease-out;
-}
-.modal-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: #f3f4f6;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  margin-bottom: 12px;
 }
 .modal h3 {
   margin: 0 0 16px;
