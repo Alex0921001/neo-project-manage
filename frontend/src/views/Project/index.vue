@@ -1,49 +1,93 @@
 <template>
   <div class="detail-view">
-    <div class="detail-top-row">
-      <div class="detail-card-area">
-        <ProjectMeta :project="p" @edit="showEditModal = true" @back="$emit('back')" />
+    <!-- 顶部导航栏 -->
+    <header class="detail-header">
+      <button class="back-btn" @click="$emit('back')" title="返回项目列表">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="header-breadcrumb">
+        <span class="breadcrumb-label">项目</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="breadcrumb-sep"><polyline points="9 18 15 12 9 6"/></svg>
+        <span class="breadcrumb-current">{{ fullBreadcrumb }}</span>
       </div>
-      <div class="detail-sidebar" v-if="p">
+      <div class="header-actions">
+        <button v-if="p" class="header-btn header-btn-secondary" @click="showEditModal = true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          编辑项目
+        </button>
+      </div>
+    </header>
+
+    <!-- 主区：左侧详情卡 + 右侧 sticky 日历 -->
+    <div class="detail-main">
+      <div class="detail-left">
+        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" />
+      </div>
+      <div class="detail-right">
         <CalendarWidget :projects="[p]" />
       </div>
     </div>
 
-    <TabBar v-model="tab" :task-count="incompleteCount" :file-count="(p?.files || []).length" :note-count="(p?.notes || []).length">
-      <TaskTab
-        v-show="tab === 'tasks'"
-        ref="taskTabRef"
-        :project-id="p.id"
-        :tasks="filteredTasks"
-        :files="p.files || []"
-        @changed="loadProject"
-        @confirm-ask="onConfirm"
-      />
-      <FileTab
-        v-show="tab === 'files'"
-        ref="fileTabRef"
-        :project-id="p.id"
-        :files="p.files || []"
-        @changed="loadProject"
-        @confirm-ask="onConfirm"
-      />
-      <NoteTab
-        v-show="tab === 'notes'"
-        ref="noteTabRef"
-        :project-id="p.id"
-        :notes="p.notes || []"
-        @changed="loadProject"
-        @confirm-ask="onConfirm"
-      />
-      <template #action>
-        <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
-          <option value="all">全部</option>
-          <option value="incomplete">未完成</option>
-          <option value="done">已完成</option>
-        </select>
-        <button class="btn-icon" @click="onTabAction" title="新建">+</button>
-      </template>
-    </TabBar>
+    <!-- Tab 区 -->
+    <section class="tab-section">
+      <div class="tab-bar">
+        <button class="tab-btn" :class="{ active: tab === 'tasks' }" @click="tab = 'tasks'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+          任务
+          <span class="tab-pill">{{ incompleteCount }}</span>
+        </button>
+        <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          文件
+          <span class="tab-pill">{{ (p?.files || []).length }}</span>
+        </button>
+        <button class="tab-btn" :class="{ active: tab === 'notes' }" @click="tab = 'notes'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          备注
+          <span class="tab-pill">{{ (p?.notes || []).length }}</span>
+        </button>
+        <div class="tab-bar-spacer"></div>
+        <div class="tab-bar-right">
+          <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
+            <option value="all">全部任务</option>
+            <option value="incomplete">仅未完成</option>
+            <option value="done">仅已完成</option>
+          </select>
+          <button class="header-btn header-btn-primary" @click="onTabAction">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            新建
+          </button>
+        </div>
+      </div>
+      <div class="tab-content">
+        <TaskTab
+          v-show="tab === 'tasks'"
+          ref="taskTabRef"
+          :project-id="p.id"
+          :tasks="filteredTasks"
+          :files="p.files || []"
+          @changed="loadProject"
+          @confirm-ask="onConfirm"
+        />
+        <FileTab
+          v-show="tab === 'files'"
+          ref="fileTabRef"
+          :project-id="p.id"
+          :files="p.files || []"
+          @changed="loadProject"
+          @confirm-ask="onConfirm"
+        />
+        <NoteTab
+          v-show="tab === 'notes'"
+          ref="noteTabRef"
+          :project-id="p.id"
+          :notes="p.notes || []"
+          @changed="loadProject"
+          @confirm-ask="onConfirm"
+        />
+      </div>
+    </section>
+
     <ProjectFormModal
       :show="showEditModal"
       mode="edit"
@@ -67,7 +111,6 @@ import { ref, computed, watch } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
-import TabBar from "./components/TabBar.vue";
 import TaskTab from "./components/TaskTab.vue";
 import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
@@ -85,6 +128,17 @@ const fileTabRef = ref(null);
 const noteTabRef = ref(null);
 
 const incompleteCount = computed(() => (p.value?.tasks || []).filter(t => !t.done).length);
+
+const currentSetLabel = computed(() => {
+  if (!p.value?.projectSetId) return "";
+  const s = allSets.value.find(s => s.id === p.value.projectSetId);
+  return s ? s.name : "";
+});
+const fullBreadcrumb = computed(() => {
+  if (!p.value) return "加载中...";
+  const name = p.value.name || "";
+  return currentSetLabel.value ? `${currentSetLabel.value} - ${name}` : name;
+});
 
 // ===== Tab =====
 const tabKey = `neo-pm-tab-${props.projectId}`;
@@ -151,14 +205,205 @@ async function doConfirm() {
 </script>
 
 <style scoped>
-.detail-view { display: flex; flex-direction: column; padding: 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
-.detail-top-row { display: flex; flex-direction: row; gap: 16px; margin-bottom: 12px; align-items: stretch; }
-.detail-card-area { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.detail-sidebar { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 320px; }
-.task-filter-select {
-  padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 12px; background: var(--bg-card); color: var(--text); outline: none;
-  cursor: pointer; font-family: inherit; margin-right: 6px;
+.detail-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #f9fafb;
+  overflow: hidden;
 }
-.task-filter-select:focus { border-color: var(--accent); }
+
+/* ===== 顶部导航栏 ===== */
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  flex-shrink: 0;
+  z-index: 10;
+}
+.back-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease-out;
+  flex-shrink: 0;
+}
+.back-btn:hover { background: #f3f4f6; color: #111827; border-color: #d1d5db; }
+.back-btn:active { transform: translateX(-1px); }
+
+.header-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+.breadcrumb-label {
+  color: #6b7280;
+}
+.breadcrumb-sep { color: #d1d5db; }
+.breadcrumb-current {
+  color: #111827;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 480px;
+}
+
+.header-actions { display: flex; gap: 8px; flex-shrink: 0; }
+.header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  font-family: inherit;
+  letter-spacing: 0.01em;
+}
+.header-btn-secondary {
+  background: #ffffff;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+.header-btn-secondary:hover {
+  background: #f9fafb;
+  color: #111827;
+  border-color: #d1d5db;
+}
+.header-btn-primary {
+  background: #111827;
+  color: #ffffff;
+  border: 1px solid #111827;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.header-btn-primary:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.20);
+}
+.header-btn-primary:active { transform: translateY(0); }
+
+/* ===== 主区 ===== */
+.detail-main {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 16px;
+  padding: 20px 24px;
+  overflow: visible;
+}
+.detail-left { min-width: 0; }
+.detail-right { min-width: 0; }
+
+/* ===== Tab 区 ===== */
+.tab-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  margin: 0 24px 24px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  overflow: hidden;
+}
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  font-family: inherit;
+  transition: all 0.15s ease-out;
+}
+.tab-btn:hover { background: #f3f4f6; color: #1f2937; }
+.tab-btn.active {
+  background: #f3f4f6;
+  color: #111827;
+}
+.tab-btn.active svg { color: #111827; }
+.tab-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 0 6px;
+  height: 18px;
+  background: #e5e7eb;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+.tab-btn.active .tab-pill {
+  background: #111827;
+  color: #ffffff;
+}
+.tab-bar-spacer { flex: 1; }
+.tab-bar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 6px;
+}
+.task-filter-select {
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s ease-out;
+}
+.task-filter-select:hover { border-color: #d1d5db; }
+.task-filter-select:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); }
+
+.tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px;
+  background: #f9fafb;
+}
 </style>

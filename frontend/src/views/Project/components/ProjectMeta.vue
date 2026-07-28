@@ -1,97 +1,367 @@
 <template>
   <div class="detail-meta">
+    <!-- 头部：返回 + 标题 + 编辑 -->
     <div class="meta-head">
-      <button class="btn-back" @click="$emit('back')" title="返回">
+      <button class="btn-back" @click="$emit('back')" title="返回项目列表">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <span class="meta-title" v-if="project?.name">{{ project.name }}</span>
-      <button class="btn-icon-sm" v-if="project" @click="$emit('edit')" title="编辑">✎</button>
+      <span class="meta-title" v-if="project?.name">{{ fullTitle }}</span>
+      <span v-else class="meta-title meta-title-empty">未命名项目</span>
+      <button class="icon-btn" v-if="project" @click="$emit('edit')" title="编辑项目">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
     </div>
-    <dl class="meta-grid">
-      <dt>状态</dt><dd><span :class="['card-status', statusClass(project?.status)]">{{ project?.status || '-' }}</span></dd>
-      <dt>计划</dt><dd>{{ project?.planStart || '-' }} ~ {{ project?.planEnd || '-' }}</dd>
-      <dt>成员</dt><dd>{{ (project?.members || []).join('、') || '-' }}</dd>
-      <dt>描述</dt><dd class="meta-desc">{{ project?.description || '-' }}</dd>
-    </dl>
+
+    <!-- 状态徽标 + 距离天数（高亮卡片）-->
+    <div class="meta-headline">
+      <div :class="['meta-status-chip', statusClass(project?.status)]">
+        <span class="status-dot"></span>
+        <span>{{ project?.status || '待开始' }}</span>
+      </div>
+      <div v-if="countdownText" :class="['meta-countdown', countdownClass]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>{{ countdownText }}</span>
+      </div>
+    </div>
+
+    <!-- 字段卡片网格 -->
+    <div class="meta-grid">
+      <div class="meta-card">
+        <div class="meta-card-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          计划周期
+        </div>
+        <div class="meta-card-value meta-card-date">
+          <div>{{ project?.planStart || '—' }}</div>
+          <div class="meta-card-date-sep">至</div>
+          <div>{{ project?.planEnd || '—' }}</div>
+        </div>
+      </div>
+
+      <div class="meta-card">
+        <div class="meta-card-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          成员
+        </div>
+        <div class="meta-card-value">
+          <span v-if="(project?.members || []).length" class="member-avatars">
+            <span
+              v-for="(m, i) in (project?.members || []).slice(0, 5)"
+              :key="m"
+              class="member-avatar"
+              :style="{ background: avatarColor(m), zIndex: 100 - i }"
+              :title="m"
+            >{{ m.slice(0, 1) }}</span>
+            <span v-if="(project?.members || []).length > 5" class="member-more">+{{ (project?.members || []).length - 5 }}</span>
+          </span>
+          <span v-else class="meta-empty">未指定</span>
+        </div>
+      </div>
+
+      <div class="meta-card meta-card-wide">
+        <div class="meta-card-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          描述
+        </div>
+        <div class="meta-card-value meta-desc">
+          <span v-if="project?.description">{{ project.description }}</span>
+          <span v-else class="meta-empty">暂无描述</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-defineProps({ project: Object });
+import { computed } from "vue";
+
+const props = defineProps({
+  project: Object,
+  setLabel: { type: String, default: "" },
+});
 defineEmits(["edit", "back"]);
+
+const fullTitle = computed(() => {
+  if (!props.project) return "";
+  const name = props.project.name || "";
+  if (props.setLabel) return `${props.setLabel} - ${name}`;
+  return name;
+});
+
 function statusClass(s) {
-  return { "待开始": "status-todo", "进行中": "status-doing", "已完成": "status-done", "已延期": "status-delay" }[s] || "status-todo";
+  return {
+    "待开始": "status-todo",
+    "进行中": "status-doing",
+    "已完成": "status-done",
+    "已延期": "status-delay",
+  }[s] || "status-todo";
+}
+
+// 距离天数
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+function daysBetween(d1, d2) {
+  return Math.round((d2.getTime() - d1.getTime()) / 86400000);
+}
+
+const countdown = computed(() => {
+  if (!props.project) return null;
+  const start = props.project.planStart ? new Date(props.project.planStart) : null;
+  const end = props.project.planEnd ? new Date(props.project.planEnd) : null;
+  if (!start && !end) return null;
+
+  const status = props.project.status;
+  if (status === "已完成") {
+    return { kind: "done", days: 0, text: "已完成" };
+  }
+  if (end) {
+    const endDay = new Date(end);
+    endDay.setHours(0, 0, 0, 0);
+    const diff = daysBetween(today, endDay);
+    if (diff > 0) return { kind: "future", days: diff, text: `距离结束还有 ${diff} 天` };
+    if (diff === 0) return { kind: "today", days: 0, text: `今天结束` };
+    if (diff < 0) return { kind: "overdue", days: -diff, text: `已延期 ${-diff} 天` };
+  }
+  if (start) {
+    const startDay = new Date(start);
+    startDay.setHours(0, 0, 0, 0);
+    const diff = daysBetween(today, startDay);
+    if (diff > 0) return { kind: "future", days: diff, text: `距离开始还有 ${diff} 天` };
+    if (diff === 0) return { kind: "today", days: 0, text: `今天开始` };
+    if (diff < 0) return { kind: "started", days: -diff, text: `已开始 ${-diff} 天` };
+  }
+  return null;
+});
+
+const countdownText = computed(() => countdown.value?.text || "");
+const countdownClass = computed(() => `countdown-${countdown.value?.kind || "neutral"}`);
+
+// 成员头像颜色
+const avatarPalette = [
+  "oklch(0.62 0.10 240)",
+  "oklch(0.62 0.10 180)",
+  "oklch(0.62 0.10 280)",
+  "oklch(0.62 0.10 320)",
+  "oklch(0.62 0.08 60)",
+  "oklch(0.58 0.10 200)",
+  "oklch(0.58 0.08 145)",
+];
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return avatarPalette[h % avatarPalette.length];
 }
 </script>
 
 <style scoped>
 .detail-meta {
-  background: var(--bg-card);
+  background: #ffffff;
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
-  padding: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 18px;
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 320px;
+  min-height: 360px;
+  gap: 14px;
 }
+
+/* header */
 .meta-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 14px;
+  padding-bottom: 4px;
 }
 .meta-title {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: var(--text);
+  color: #1f2937;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.meta-title-empty { color: #9ca3af; font-weight: 500; }
+
+.btn-back,
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  padding: 0;
+}
+.btn-back:hover,
+.icon-btn:hover {
+  background: #f3f4f6;
+  color: #111827;
+  border-color: #9ca3af;
+}
+.btn-back svg,
+.icon-btn svg { display: block; }
+
+/* 状态徽标 + 距离天数（高亮行）*/
+.meta-headline {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+}
+.meta-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px currentColor;
+}
+.status-todo { background: #ffffff; color: #6b7280; border-color: #d1d5db; }
+.status-doing { background: #f3f4f6; color: #374151; border-color: #9ca3af; }
+.status-done { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.status-delay { background: #f3f4f6; color: #111827; border-color: #374151; }
+
+/* 距离天数 */
+.meta-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+}
+.meta-countdown svg { display: block; flex-shrink: 0; }
+.countdown-future { background: #ffffff; color: #374151; border-color: #d1d5db; }
+.countdown-today { background: #f9fafb; color: #111827; border-color: #6b7280; font-weight: 700; }
+.countdown-overdue { background: #f3f4f6; color: #111827; border-color: #1f2937; font-weight: 700; }
+.countdown-started { background: #f9fafb; color: #4b5563; border-color: #e5e7eb; }
+.countdown-done { background: #f9fafb; color: #4b5563; border-color: #e5e7eb; }
+
+/* 字段卡片网格 */
 .meta-grid {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px 16px;
-  font-size: 13px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   flex: 1;
   align-content: start;
 }
-.meta-grid dt { color: var(--text-secondary); font-weight: 500; line-height: 1.6; }
-.meta-grid dd { font-weight: 500; line-height: 1.6; word-break: break-word; }
-.meta-desc { color: var(--text-secondary); font-weight: 400; }
-.card-status {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 8px;
+.meta-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.meta-card:hover {
+  border-color: #9ca3af;
+  background: #ffffff;
+}
+.meta-card-wide { grid-column: 1 / -1; }
+.meta-card-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
-.btn-icon-sm {
-  width: 26px; height: 26px;
-  border: 1px solid var(--border-light); border-radius: 4px;
-  background: transparent; cursor: pointer; font-size: 13px;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--text-tertiary);
-  transition: all var(--duration-fast) var(--ease-out);
+.meta-card-label svg { display: block; opacity: 0.7; }
+.meta-card-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.45;
+}
+.meta-card-date {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
+}
+.meta-card-date-sep { color: #9ca3af; font-size: 12px; }
+.meta-desc {
+  font-weight: 400;
+  color: #4b5563;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 96px;
+  overflow-y: auto;
+}
+.meta-desc::-webkit-scrollbar { width: 4px; }
+.meta-desc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+.meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
+
+/* 成员头像 */
+.member-avatars {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+.member-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid #f9fafb;
+  margin-left: -6px;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+.member-avatar:first-child { margin-left: 0; }
+.member-more {
+  margin-left: -6px;
+  background: #e5e7eb;
+  color: #4b5563;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid #f9fafb;
   flex-shrink: 0;
 }
-.btn-icon-sm:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
-.btn-back {
-  width: 28px; height: 28px;
-  border: 1px solid var(--border-light); border-radius: var(--radius-sm);
-  background: var(--bg-card); cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  color: var(--text-secondary);
-  transition: all var(--duration-fast) var(--ease-out);
-  flex-shrink: 0;
-  margin-right: 2px;
-}
-.btn-back:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
 </style>
