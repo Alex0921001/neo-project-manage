@@ -2,7 +2,7 @@
   <div :class="['area-section', { 'mode-form': inlineMode }]">
     <!-- 统一内联表单 -->
     <div v-if="inlineMode" class="task-full-form">
-      <h4 style="margin-bottom:12px">
+      <h4>
         <template v-if="subtaskParent">
           子任务 · （父级任务：{{ subtaskParent.name }}）
         </template>
@@ -11,7 +11,7 @@
       </h4>
       <textarea
         v-model="formName"
-        rows="3"
+        rows="2"
         placeholder="任务名称"
         class="task-inline-input task-name-area"
         :class="{ err: submitErr && !formName.trim() }"
@@ -19,7 +19,7 @@
       <p v-if="submitErr && !formName.trim()" class="field-err">请填写任务名称</p>
       <textarea
         v-model="formDesc"
-        rows="6"
+        rows="3"
         placeholder="任务描述（可选）"
         class="task-inline-textarea"
       ></textarea>
@@ -422,39 +422,98 @@ defineExpose({ openAdd });
 }
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
 .task-full-form {
-  padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-md);
-  background: var(--bg-card);
-  flex: 1; display: flex; flex-direction: column;
+  padding: 16px;
+  border: 1px solid oklch(0.90 0.04 80);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff, oklch(0.99 0.01 90));
+  flex: 1;
+  display: flex; flex-direction: column;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.task-full-form h4 {
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  padding-bottom: 10px;
+  border-bottom: 1px solid oklch(0.92 0.03 80);
 }
 .task-inline-input {
-  width: 100%; padding: 8px 10px;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 13px; background: #fff; color: var(--text); outline: none;
+  width: 100%; padding: 9px 12px;
+  border: 1px solid oklch(0.88 0.04 80); border-radius: 8px;
+  font-size: 13.5px; background: #fff; color: oklch(0.25 0.04 80); outline: none;
+  font-family: inherit; line-height: 1.65;
+  field-sizing: content;
+  max-height: 80px;
+  resize: none;
+  overflow: hidden;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-.task-inline-input:focus { border-color: var(--accent); }
+.task-inline-input:focus {
+  border-color: oklch(0.65 0.13 80);
+  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.12);
+}
 .task-inline-textarea {
-  width: 100%; padding: 8px 10px;
-  border: 1px solid var(--border); border-radius: var(--radius-sm);
-  font-size: 13px; font-family: inherit; line-height: 1.6; resize: none;
-  background: #fff; color: var(--text); outline: none;
-  flex: 1; min-height: 0; margin-top: 10px; word-break: break-word;
+  width: 100%; padding: 9px 12px;
+  border: 1px solid oklch(0.88 0.04 80); border-radius: 8px;
+  font-size: 13.5px; font-family: inherit; line-height: 1.65; resize: none;
+  background: #fff; color: oklch(0.25 0.04 80); outline: none;
+  margin-top: 10px; word-break: break-word;
+  flex: 1 1 auto;
+  min-height: 80px;
+  overflow-y: auto;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-.task-inline-textarea:focus { border-color: var(--accent); }
-.inline-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.task-inline-textarea:focus {
+  border-color: oklch(0.65 0.13 80);
+  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.12);
+}
+.task-inline-textarea::-webkit-scrollbar { width: 4px; }
+.task-inline-textarea::-webkit-scrollbar-thumb {
+  background: oklch(0.85 0.05 80);
+  border-radius: 2px;
+}
+.inline-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; align-items: center; }
 .inline-actions button {
-  padding: 6px 16px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); cursor: pointer;
+  padding: 6px 16px; border-radius: 6px;
   font-size: 12px; font-weight: 500;
-  transition: all 150ms var(--ease-out);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 120ms var(--ease-out);
 }
-.inline-actions button:not(.btn-primary):hover { background: var(--bg-hover); }
-.inline-actions .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.inline-actions .btn-primary:hover { background: var(--accent-hover); }
-.err { border-color: oklch(0.55 0.2 30); }
+.inline-actions button:not(.btn-primary) {
+  background: #fff;
+  border-color: oklch(0.88 0.04 80);
+  color: oklch(0.45 0.05 80);
+}
+.inline-actions button:not(.btn-primary):hover {
+  background: oklch(0.97 0.02 80);
+  border-color: oklch(0.78 0.05 80);
+}
+.inline-actions .btn-primary {
+  background: linear-gradient(180deg, oklch(0.72 0.13 78), oklch(0.66 0.13 75));
+  color: #fff;
+  border-color: oklch(0.60 0.13 73);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.inline-actions .btn-primary:hover {
+  background: linear-gradient(180deg, oklch(0.66 0.13 75), oklch(0.60 0.13 72));
+  border-color: oklch(0.54 0.13 70);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+  transform: translateY(-0.5px);
+}
+.inline-actions .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.err { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08); }
 .task-name-area { resize: none; margin-bottom: 10px; word-break: break-word; }
-.field-err { margin: -8px 0 0; font-size: 12px; color: oklch(0.55 0.2 30); }
+.field-err { margin: -8px 0 0; font-size: 12px; color: #dc2626; }
 .file-refs-area { margin-top: 10px; }
-.file-refs-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.file-refs-label { display: block; font-size: 12px; font-weight: 500; color: oklch(0.45 0.05 80); margin-bottom: 6px; }
 .file-refs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .file-refs-empty {
   margin-bottom: 8px;
