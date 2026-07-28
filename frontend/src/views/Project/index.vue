@@ -2,7 +2,7 @@
   <div class="detail-view">
     <div class="detail-top-row">
       <div class="detail-card-area">
-        <ProjectMeta :project="p" @edit="showEditModal = true" />
+        <ProjectMeta :project="p" @edit="showEditModal = true" @back="$emit('back')" />
       </div>
       <div class="detail-sidebar" v-if="p">
         <CalendarWidget :projects="[p]" />

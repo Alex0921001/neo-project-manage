@@ -41,7 +41,7 @@ const emit = defineEmits(["open-project"]);
 const leftWidth = ref(270);
 const refreshKey = ref(0);
 let resizing = false;
-const STATE_KEY = "neo-pm-state";
+const STATE_KEY = "neo-pm-home";
 function saveState(k, v) {
   try { const s = JSON.parse(localStorage.getItem(STATE_KEY) || "{}"); s[k] = v; localStorage.setItem(STATE_KEY, JSON.stringify(s)); } catch {} 
 }

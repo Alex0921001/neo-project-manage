@@ -1,6 +1,9 @@
 <template>
   <div class="detail-meta">
     <div class="meta-head">
+      <button class="btn-back" @click="$emit('back')" title="返回">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
       <span class="meta-title" v-if="project?.name">{{ project.name }}</span>
       <button class="btn-icon-sm" v-if="project" @click="$emit('edit')" title="编辑">✎</button>
     </div>
@@ -15,7 +18,7 @@
 
 <script setup>
 defineProps({ project: Object });
-defineEmits(["edit"]);
+defineEmits(["edit", "back"]);
 function statusClass(s) {
   return { "待开始": "status-todo", "进行中": "status-doing", "已完成": "status-done", "已延期": "status-delay" }[s] || "status-todo";
 }
@@ -80,4 +83,15 @@ function statusClass(s) {
   flex-shrink: 0;
 }
 .btn-icon-sm:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
+.btn-back {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border-light); border-radius: var(--radius-sm);
+  background: var(--bg-card); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+.btn-back:hover { background: var(--bg-hover); color: var(--accent); border-color: var(--accent); }
 </style>

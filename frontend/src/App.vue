@@ -16,7 +16,7 @@
       v-show="view === 'project'"
       v-if="projectId"
       :project-id="projectId"
-      @back="goHome"
+      @back="goBack"
     />
 
     <div v-show="view === 'calendar'" class="calendar-page">
@@ -41,6 +41,7 @@ const view = ref("home");
 const projectId = ref(null);
 const homeRef = ref(null);
 const allProjects = ref([]);
+const historyStack = ref([]); // [{ view, projectId }]
 
 async function loadAllProjects() {
   const res = await api("api/projects");
@@ -50,6 +51,7 @@ async function loadAllProjects() {
 function goHome() {
   view.value = "home";
   projectId.value = null;
+  historyStack.value = [];
   saveState();
   loadAllProjects();
   nextTick(() => homeRef.value?.refresh?.());
@@ -58,44 +60,97 @@ function goHome() {
 function goZentao() {
   view.value = "zentao";
   projectId.value = null;
+  historyStack.value = [];
   saveState();
 }
 
 function goCalendar() {
   view.value = "calendar";
   projectId.value = null;
+  historyStack.value = [];
   saveState();
   loadAllProjects();
 }
 
 function openProject(id) {
+  // 记录当前状态，返回时跳转
+  if (view.value !== "project" || projectId.value !== id) {
+    historyStack.value.push({ view: view.value, projectId: projectId.value });
+  }
   projectId.value = id;
   view.value = "project";
   saveState();
 }
 
+function goBack() {
+  const prev = historyStack.value.pop();
+  if (prev) {
+    view.value = prev.view;
+    projectId.value = prev.projectId;
+  } else {
+    view.value = "home";
+    projectId.value = null;
+    nextTick(() => homeRef.value?.refresh?.());
+  }
+  saveState();
+  if (view.value === "home" || view.value === "calendar") loadAllProjects();
+}
+
 // ===== Persistence =====
 const STORAGE_KEY = "neo-pm-state";
+const STATE_VERSION = 1;
+let saveTimer = null;
+
 function saveState() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ view: view.value, projectId: projectId.value }));
-  } catch { /* ignore */ }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        v: STATE_VERSION,
+        view: view.value,
+        projectId: projectId.value,
+        historyStack: historyStack.value.slice(-10), // 上限保护
+      }));
+    } catch { /* ignore */ }
+  }, 300);
 }
-function restoreState() {
+
+async function restoreState() {
+  let state = null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
-    const state = JSON.parse(raw);
-    if (state.view === "project" && state.projectId) {
-      projectId.value = state.projectId;
-      view.value = "project";
-    }
-  } catch { /* ignore */ }
+    state = JSON.parse(raw);
+    if (!state || state.v !== STATE_VERSION) return;
+  } catch { return; }
+  if (!state) return;
+
+  // 恢复路由栈
+  if (Array.isArray(state.historyStack)) {
+    historyStack.value = state.historyStack.filter(s => s && typeof s.view === "string");
+  }
+
+  // 恢复视图；项目详情页需校验项目是否还存在
+  if (state.view === "project" && state.projectId) {
+    try {
+      const res = await api(`api/projects/${state.projectId}`);
+      if (res?.ok) {
+        projectId.value = state.projectId;
+        view.value = "project";
+      } else {
+        // 项目不存在或被删除，重置
+        historyStack.value = [];
+      }
+    } catch { /* keep default */ }
+  } else if (["home", "calendar", "zentao"].includes(state.view)) {
+    view.value = state.view;
+    projectId.value = null;
+  }
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.parent.postMessage({ source: "hana-plugin", type: "ready" }, "*");
-  restoreState();
+  await restoreState();
   loadAllProjects();
   reportHeight();
   const ro = new ResizeObserver(() => reportHeight());
