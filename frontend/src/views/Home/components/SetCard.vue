@@ -3,7 +3,7 @@
     :class="['set-card', { active: isActive }]"
     @click="$emit('select', set.id)"
   >
-    <div class="set-color" :style="{ background: cardColor }"></div>
+    <div class="set-color" :style="{ background: color }"></div>
     <div class="set-main">
       <div class="set-name">{{ set.name }}</div>
       <div class="set-meta">{{ set.projectCount }} 个项目</div>
@@ -27,31 +27,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref } from "vue";
 
 const props = defineProps({
   set: { type: Object, required: true },
   isActive: { type: Boolean, default: false },
+  color: { type: String, default: "" },
 });
 defineEmits(["select", "edit", "delete"]);
 
 const open = ref(false);
-
-const cardColor = computed(() => {
-  let h = 0;
-  for (let i = 0; i < props.set.name.length; i++) h = (h * 31 + props.set.name.charCodeAt(i)) >>> 0;
-  const palette = [
-    "linear-gradient(135deg, #fde68a, #f59e0b)",
-    "linear-gradient(135deg, #bbf7d0, #10b981)",
-    "linear-gradient(135deg, #bae6fd, #0284c7)",
-    "linear-gradient(135deg, #fbcfe8, #db2777)",
-    "linear-gradient(135deg, #ddd6fe, #7c3aed)",
-    "linear-gradient(135deg, #fed7aa, #ea580c)",
-    "linear-gradient(135deg, #a5f3fc, #06b6d4)",
-    "linear-gradient(135deg, #d1d5db, #4b5563)",
-  ];
-  return palette[h % palette.length];
-});
 </script>
 
 <style scoped>

@@ -86,15 +86,23 @@ export default function registerPluginUiRoutes(app, ctx) {
 
   app.post("/api/project-sets", async (c) => {
     const body = await c.req.json();
-    const set = data.createProjectSet(body);
-    return c.json({ ok: true, data: set });
+    try {
+      const set = data.createProjectSet(body);
+      return c.json({ ok: true, data: set });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
   });
 
   app.put("/api/project-sets/:id", async (c) => {
     const body = await c.req.json();
-    const set = data.updateProjectSet(c.req.param("id"), body);
-    if (!set) return c.json({ ok: false, error: "项目集不存在" }, 404);
-    return c.json({ ok: true, data: set });
+    try {
+      const set = data.updateProjectSet(c.req.param("id"), body);
+      if (!set) return c.json({ ok: false, error: "项目集不存在" }, 404);
+      return c.json({ ok: true, data: set });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
   });
 
   app.delete("/api/project-sets/:id", (c) => {

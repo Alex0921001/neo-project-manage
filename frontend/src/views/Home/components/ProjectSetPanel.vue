@@ -39,10 +39,11 @@
 
     <div v-if="filteredSets.length === 0 && search" class="empty-state">暂无匹配</div>
     <SetCard
-      v-for="s in filteredSets"
+      v-for="(s, idx) in filteredSets"
       :key="s.id"
       :set="s"
       :is-active="s.id === selectedId"
+      :color="pickPaletteColor(idx)"
       @select="$emit('select-set', s.id)"
       @edit="startEdit"
       @delete="startDelete"
@@ -80,6 +81,7 @@
 import { ref, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { pickPaletteColor } from "../../../utils/palette.js";
 import SetCard from "./SetCard.vue";
 
 const props = defineProps({
@@ -107,6 +109,10 @@ const totalProjectCount = computed(() => {
 async function doAdd() {
   const name = addName.value.trim();
   if (!name) return toast("请输入名称", "error");
+  // 前端唯一性校验（后端会双重校验，但避免无意义请求）
+  if (props.sets.some((s) => s.name.trim() === name)) {
+    return toast(`项目集名称「${name}」已存在`, "error");
+  }
   const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }) });
   if (res.ok) { toast("已创建"); showAddForm.value = false; addName.value = ""; emit("changed"); }
   else toast(res.error || "创建失败", "error");
@@ -116,7 +122,12 @@ function startEdit(s) { editTarget.value = { id: s.id, name: s.name }; }
 async function doEdit() {
   const d = editTarget.value;
   if (!d || !d.name.trim()) return toast("请输入名称", "error");
-  const res = await api(`api/project-sets/${d.id}`, { method: "PUT", body: JSON.stringify({ name: d.name.trim() }) });
+  const name = d.name.trim();
+  // 前端唯一性校验：不能与其他项目集同名（排除自己）
+  if (props.sets.some((s) => s.id !== d.id && s.name.trim() === name)) {
+    return toast(`项目集名称「${name}」已被其他项目集使用`, "error");
+  }
+  const res = await api(`api/project-sets/${d.id}`, { method: "PUT", body: JSON.stringify({ name }) });
   if (res.ok) { toast("已更新"); editTarget.value = null; emit("changed"); }
   else toast(res.error || "更新失败", "error");
 }
