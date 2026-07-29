@@ -239,34 +239,63 @@ function updateConnector() {
 
 watch([activeTaskId, activeSubtaskId], updateConnector);
 
+// 动态调整便利贴面板的 sticky top：跟随选中任务的视口位置
+function updatePanelStickyTop() {
+  const annotPanel = layoutRef.value?.querySelector(".task-tab-annot");
+  if (!annotPanel) return;
+  // 未选中任务：面板走默认 top（16px）
+  if (!activeTaskId.value) {
+    annotPanel.style.removeProperty("--annot-sticky-top");
+    return;
+  }
+  let targetEl = null;
+  if (activeSubtaskId.value) {
+    targetEl = layoutRef.value?.querySelector(`[data-connector-id="sub-${activeSubtaskId.value}"]`);
+  }
+  if (!targetEl) {
+    targetEl = layoutRef.value?.querySelector(`[data-connector-id="task-${activeTaskId.value}"]`);
+  }
+  if (!targetEl) return;
+  const taskRect = targetEl.getBoundingClientRect();
+  // 面板顶部贴近选中任务顶部，最少距离视口顶 16px
+  const desiredTop = Math.max(16, Math.round(taskRect.top));
+  annotPanel.style.setProperty("--annot-sticky-top", `${desiredTop}px`);
+}
+
+watch([activeTaskId, activeSubtaskId], updatePanelStickyTop);
+
 // resize / scroll / DOM 变化时重算
 let resizeObserver = null;
 let mutationObserver = null;
+function onLayoutChange() {
+  updateConnector();
+  updatePanelStickyTop();
+}
 onMounted(() => {
-  window.addEventListener("resize", updateConnector);
+  window.addEventListener("resize", onLayoutChange);
   const list = layoutRef.value?.querySelector(".task-tab-list");
-  if (list) list.addEventListener("scroll", updateConnector);
-  // 外层滚动容器滚动时重算连接线（便利贴面板是 sticky）
+  if (list) list.addEventListener("scroll", onLayoutChange);
+  // 外层滚动容器滚动时重算连接线和面板位置（sticky 面板需要跟随）
   const detailView = document.querySelector(".detail-view");
-  if (detailView) detailView.addEventListener("scroll", updateConnector, { passive: true });
+  if (detailView) detailView.addEventListener("scroll", onLayoutChange, { passive: true });
   if (layoutRef.value && "ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(updateConnector);
+    resizeObserver = new ResizeObserver(onLayoutChange);
     resizeObserver.observe(layoutRef.value);
     if (list) resizeObserver.observe(list);
   }
   // 监听任务列 DOM 变化（如展开/折叠子任务）
   if (list && "MutationObserver" in window) {
-    mutationObserver = new MutationObserver(updateConnector);
+    mutationObserver = new MutationObserver(onLayoutChange);
     mutationObserver.observe(list, { childList: true, subtree: true, attributes: false });
   }
-  updateConnector();
+  onLayoutChange();
 });
 onUnmounted(() => {
-  window.removeEventListener("resize", updateConnector);
+  window.removeEventListener("resize", onLayoutChange);
   const list = layoutRef.value?.querySelector(".task-tab-list");
-  if (list) list.removeEventListener("scroll", updateConnector);
+  if (list) list.removeEventListener("scroll", onLayoutChange);
   const detailView = document.querySelector(".detail-view");
-  if (detailView) detailView.removeEventListener("scroll", updateConnector);
+  if (detailView) detailView.removeEventListener("scroll", onLayoutChange);
   if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
   if (mutationObserver) { mutationObserver.disconnect(); mutationObserver = null; }
 });
@@ -489,7 +518,7 @@ defineExpose({ openAdd });
 }
 .task-tab-annot {
   position: sticky;
-  top: 16px;
+  top: var(--annot-sticky-top, 16px);
   z-index: 1;
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
