@@ -70,7 +70,7 @@
         >
           <span class="note-card-accent" aria-hidden="true"></span>
           <span class="note-card-quote" aria-hidden="true">❝</span>
-          <p class="note-content">{{ n.content }}</p>
+          <p class="note-content" v-html="formatDescription(n.content)"></p>
           <div class="note-bottom">
             <span class="note-date">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -95,6 +95,7 @@
 import { ref } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   projectId: String,
@@ -298,7 +299,6 @@ defineExpose({ openAdd: startAdd });
   font-size: 13.5px;
   line-height: 1.7;
   color: oklch(0.25 0.04 80);
-  white-space: pre-wrap;
   word-break: break-word;
   letter-spacing: 0.005em;
 }

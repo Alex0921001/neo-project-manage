@@ -79,7 +79,7 @@
           描述
         </div>
         <div class="meta-card-value meta-desc">
-          <span v-if="project?.description">{{ project.description }}</span>
+          <div v-if="project?.description" class="meta-desc-body" v-html="formatDescription(project.description)"></div>
           <span v-else class="meta-empty">暂无描述</span>
         </div>
       </div>
@@ -90,6 +90,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
+import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   project: Object,
@@ -454,6 +455,16 @@ function avatarColor(name) {
   max-height: 96px;
   overflow-y: auto;
 }
+.meta-desc-body {
+  font-weight: 400;
+  color: #4b5563;
+  word-break: break-word;
+  line-height: 1.6;
+}
+.meta-desc-body :deep(p) { margin: 0 0 4px; }
+.meta-desc-body :deep(p:last-child) { margin-bottom: 0; }
+.meta-desc-body :deep(ul),
+.meta-desc-body :deep(ol) { margin: 4px 0; padding-left: 18px; }
 .meta-desc::-webkit-scrollbar { width: 4px; }
 .meta-desc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
 .meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }

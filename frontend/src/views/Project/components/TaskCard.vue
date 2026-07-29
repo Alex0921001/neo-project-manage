@@ -51,7 +51,7 @@
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
-      <p v-if="task.description" class="task-desc" v-html="task.description"></p>
+      <p v-if="task.description" class="task-desc" v-html="formatDescription(task.description)"></p>
       <p v-else class="task-desc task-desc-empty">暂无描述</p>
 
       <div v-if="fileRefsList.length" class="file-refs-row">
@@ -79,7 +79,7 @@
           </button>
           <div class="subtask-content">
             <span :class="['subtask-name', { 'subtask-done': s.done }]">{{ s.name }}</span>
-            <span v-if="s.description" class="subtask-desc" v-html="s.description"></span>
+            <span v-if="s.description" class="subtask-desc" v-html="formatDescription(s.description)"></span>
             <div v-if="subFileRefs(s).length" class="subtask-file-refs">
               <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" @click.stop="openFile(f)">{{ f.name }}</span>
             </div>
@@ -115,6 +115,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { api } from "../../../api.js";
+import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   task: { type: Object, required: true },
