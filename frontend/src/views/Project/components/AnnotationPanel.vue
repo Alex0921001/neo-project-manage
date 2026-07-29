@@ -22,7 +22,7 @@
             :key="a.id"
             :class="['sticky', { 'sticky-done': a.confirmed }]"
           >
-            <p class="sticky-content">{{ a.content }}</p>
+            <p class="sticky-content" v-html="formatDescription(a.content)"></p>
             <div class="sticky-foot">
               <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
               <div class="sticky-actions">
@@ -79,6 +79,7 @@ import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   projectId: String,
