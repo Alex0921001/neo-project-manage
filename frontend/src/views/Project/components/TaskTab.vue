@@ -74,7 +74,21 @@
     </div>
 
     <!-- 列表模式：左侧任务列表 + 右侧便利贴 -->
-    <div v-else class="task-tab-layout">
+    <div v-else class="task-tab-layout" ref="layoutRef">
+      <!-- 跨容器引导线 SVG：从选中任务/子任务指向便利贴面板 -->
+      <svg
+        class="connector-svg"
+        :viewBox="connectorViewBox"
+        preserveAspectRatio="none"
+        v-show="connectorPath"
+        aria-hidden="true"
+      >
+        <path :d="connectorPath" class="connector-path" />
+        <circle :cx="connectorStart.x" :cy="connectorStart.y" r="3.5" class="connector-dot-start" />
+        <circle :cx="connectorEnd.x" :cy="connectorEnd.y" r="5" class="connector-dot-end" />
+        <circle :cx="connectorEnd.x" :cy="connectorEnd.y" r="2" class="connector-dot-end-inner" />
+      </svg>
+
       <div class="task-tab-list">
         <div v-if="!tasks.length" class="empty-state">暂无任务</div>
         <template v-else>
@@ -137,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
@@ -168,6 +182,75 @@ function closeAnnotation() {
   activeTaskId.value = "";
   activeSubtaskId.value = "";
 }
+
+// ===== 跨容器引导线：SVG 从选中任务/子任务画曲线到便利贴面板顶部 =====
+const layoutRef = ref(null);
+const connectorPath = ref("");
+const connectorStart = ref({ x: 0, y: 0 });
+const connectorEnd = ref({ x: 0, y: 0 });
+const connectorViewBox = ref("0 0 0 0");
+
+function updateConnector() {
+  if (!activeTaskId.value || !layoutRef.value) {
+    connectorPath.value = "";
+    return;
+  }
+  nextTick(() => {
+    const layout = layoutRef.value;
+    if (!layout) { connectorPath.value = ""; return; }
+
+    // 起点：选中任务/子任务的连接标识
+    const id = activeSubtaskId.value
+      ? `sub-${activeSubtaskId.value}`
+      : `task-${activeTaskId.value}`;
+    const targetEl = layout.querySelector(`[data-connector-id="${id}"]`);
+    const annotPanel = layout.querySelector(".task-tab-annot");
+    if (!targetEl || !annotPanel) { connectorPath.value = ""; return; }
+
+    const tRect = targetEl.getBoundingClientRect();
+    const aRect = annotPanel.getBoundingClientRect();
+    const lRect = layout.getBoundingClientRect();
+
+    // 起点：选中元素右侧中心
+    const x1 = Math.max(0, tRect.right - lRect.left);
+    const y1 = tRect.top + tRect.height / 2 - lRect.top;
+    // 终点：便利贴面板左侧偏上（顶部标签附近）
+    const x2 = Math.max(0, aRect.left - lRect.left);
+    const y2 = aRect.top + 18 - lRect.top;
+
+    const dx = x2 - x1;
+    const cpx1 = x1 + dx * 0.5;
+    const cpx2 = x2 - dx * 0.3;
+
+    connectorStart.value = { x: x1, y: y1 };
+    connectorEnd.value = { x: x2, y: y2 };
+    connectorPath.value = `M ${x1} ${y1} C ${cpx1} ${y1}, ${cpx2} ${y2}, ${x2} ${y2}`;
+    connectorViewBox.value = `0 0 ${lRect.width} ${lRect.height}`;
+  });
+}
+
+watch([activeTaskId, activeSubtaskId], updateConnector);
+
+// resize / scroll / DOM 变化时重算
+let resizeObserver = null;
+onMounted(() => {
+  window.addEventListener("resize", updateConnector);
+  const list = layoutRef.value?.querySelector(".task-tab-list");
+  if (list) list.addEventListener("scroll", updateConnector);
+  if (layoutRef.value && "ResizeObserver" in window) {
+    resizeObserver = new ResizeObserver(updateConnector);
+    resizeObserver.observe(layoutRef.value);
+    const list = layoutRef.value.querySelector(".task-tab-list");
+    if (list) resizeObserver.observe(list);
+  }
+  updateConnector();
+});
+onUnmounted(() => {
+  window.removeEventListener("resize", updateConnector);
+  const list = layoutRef.value?.querySelector(".task-tab-list");
+  if (list) list.removeEventListener("scroll", updateConnector);
+  if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+});
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
 function sortByCreatedDesc(arr) {
@@ -375,21 +458,62 @@ defineExpose({ openAdd });
   margin-bottom: 24px;
 }
 .task-tab-layout {
+  position: relative;
   display: flex; gap: 16px; align-items: stretch;
   flex: 1; min-height: 0;
 }
 .task-tab-list {
+  position: relative;
+  z-index: 1;
   flex: 1; min-width: 0; min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
 }
 .task-tab-annot {
+  position: relative;
+  z-index: 1;
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
   min-height: 480px;
   height: 100%;
   align-self: stretch;
   overflow: hidden;
+}
+
+/* 跨容器引导线 SVG：选中任务/子任务 → 便利贴面板 */
+.connector-svg {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}
+.connector-path {
+  fill: none;
+  stroke: oklch(0.68 0.13 65);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 4;
+  opacity: 0.85;
+  animation: connector-dash 1.2s linear infinite;
+  filter: drop-shadow(0 1px 1px oklch(0.5 0.04 80 / 0.15));
+}
+@keyframes connector-dash {
+  to { stroke-dashoffset: -20; }
+}
+.connector-dot-start {
+  fill: oklch(0.68 0.13 65);
+  opacity: 0.9;
+}
+.connector-dot-end {
+  fill: oklch(0.96 0.04 90);
+  stroke: oklch(0.55 0.13 35);
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 3px oklch(0.5 0.05 80 / 0.22));
+}
+.connector-dot-end-inner {
+  fill: oklch(0.55 0.13 35);
 }
 .task-group {
   margin-bottom: 18px;

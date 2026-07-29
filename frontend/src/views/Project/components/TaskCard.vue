@@ -3,7 +3,7 @@
        - 默认（未完成）：暖色贴纸 + 阴影 + 左侧 4px 强调条（hover 显示）
        - 完成（task.done）：浅米色 + 绿色强调条 + 删除线 -->
   <div :class="['task-card', { 'task-card-done': task.done, 'task-card-locked': task.done }]">
-    <div class="task-card-header" @click="expanded = !expanded">
+    <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
       <button
         v-if="!task.done"
         class="status-btn status-btn-complete"
@@ -28,7 +28,8 @@
           class="annot-badge"
           :title="`查看 ${annotCount} 条批注`"
           @click.stop="$emit('select-annotation', { taskId: task.id })"
-        >📌 {{ annotCount }}</span>
+        ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          {{ annotCount }}</span>
         <button
           v-if="!task.done && annotCount === 0"
           class="icon-btn"
@@ -60,7 +61,7 @@
       </div>
 
       <div v-if="task.subtasks && task.subtasks.length" class="subtask-list">
-        <div v-for="s in task.subtasks" :key="s.id" class="subtask-item">
+        <div v-for="s in task.subtasks" :key="s.id" class="subtask-item" :data-connector-id="`sub-${s.id}`">
           <button
             v-if="!s.done"
             class="status-btn status-btn-sm status-btn-complete"
@@ -90,7 +91,8 @@
               class="annot-badge annot-badge-sm"
               :title="`查看 ${(s.annotations || []).length} 条批注`"
               @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
-            >📌 {{ (s.annotations || []).length }}</span>
+            ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              {{ (s.annotations || []).length }}</span>
             <button
               v-if="!s.done && (s.annotations || []).length === 0"
               class="icon-btn icon-btn-sm"
@@ -366,7 +368,7 @@ async function openFile(f) {
   color: oklch(0.50 0.06 145);
 }
 
-/* 批注徽标 📌 - 暖色胶囊 */
+/* 批注徽标 - 暖色胶囊 */
 .annot-badge {
   display: inline-flex;
   align-items: center;
