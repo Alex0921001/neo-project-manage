@@ -14,9 +14,23 @@
 
     <!-- 状态徽标 + 距离天数（高亮卡片）-->
     <div class="meta-headline">
-      <div :class="['meta-status-chip', statusClass(displayStatus)]">
-        <span class="status-dot"></span>
-        <span>{{ displayStatus || '待开始' }}</span>
+      <div class="status-dropdown" ref="statusDropdownRef" @click.stop>
+        <button :class="['meta-status-chip', 'chip-button', statusClass(displayStatus)]" @click="statusOpen = !statusOpen" :disabled="!project">
+          <span class="status-dot"></span>
+          <span>{{ displayStatus || '待开始' }}</span>
+          <svg class="chip-caret" :class="{ open: statusOpen }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div v-if="statusOpen" class="status-menu">
+          <button
+            v-for="opt in statusOptions" :key="opt.value"
+            :class="['status-menu-item', statusClass(opt.value), { active: opt.value === displayStatus }]"
+            @click="pickStatus(opt.value)"
+          >
+            <span class="status-dot"></span>
+            <span class="status-menu-label">{{ opt.label }}</span>
+            <svg v-if="opt.value === displayStatus" class="status-menu-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+        </div>
       </div>
       <div v-if="countdownText" :class="['meta-countdown', countdownClass]">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -74,14 +88,36 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, ref, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
 
 const props = defineProps({
   project: Object,
   setLabel: { type: String, default: "" },
 });
-defineEmits(["edit", "back"]);
+const emit = defineEmits(["edit", "back", "change-status"]);
+
+const statusOpen = ref(false);
+const statusDropdownRef = ref(null);
+const statusOptions = [
+  { value: "待开始", label: "待开始" },
+  { value: "进行中", label: "进行中" },
+  { value: "已完成", label: "已完成" },
+];
+
+function pickStatus(v) {
+  statusOpen.value = false;
+  if (!props.project || v === props.project.status) return;
+  emit("change-status", v);
+}
+
+function onDocClick(e) {
+  if (statusOpen.value && statusDropdownRef.value && !statusDropdownRef.value.contains(e.target)) {
+    statusOpen.value = false;
+  }
+}
+onMounted(() => document.addEventListener("mousedown", onDocClick));
+onUnmounted(() => document.removeEventListener("mousedown", onDocClick));
 
 const fullTitle = computed(() => {
   if (!props.project) return "";
@@ -252,6 +288,32 @@ function avatarColor(name) {
   letter-spacing: 0.02em;
   border: 1px solid transparent;
 }
+.chip-button {
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  padding-right: 8px;
+  transition: filter 120ms ease-out, transform 120ms ease-out;
+}
+.chip-button:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+.chip-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.chip-button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.chip-caret {
+  display: inline-block;
+  margin-left: 2px;
+  opacity: 0.7;
+  transition: transform 160ms ease-out;
+}
+.chip-caret.open {
+  transform: rotate(180deg);
+}
 .status-dot {
   width: 8px;
   height: 8px;
@@ -263,6 +325,56 @@ function avatarColor(name) {
 .status-doing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
 .status-done { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
 .status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+
+/* 状态下拉 */
+.status-dropdown { position: relative; display: inline-flex; }
+.status-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 50;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05);
+  padding: 4px;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  animation: statusMenuIn 0.14s ease-out;
+}
+@keyframes statusMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.status-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  transition: background 120ms ease-out;
+}
+.status-menu-item:hover {
+  background: #f3f4f6;
+}
+.status-menu-item.active {
+  background: #f9fafb;
+}
+.status-menu-label {
+  flex: 1;
+}
+.status-menu-check {
+  color: #10b981;
+  flex-shrink: 0;
+}
 
 /* 距离天数 */
 .meta-countdown {

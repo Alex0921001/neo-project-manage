@@ -3,7 +3,7 @@
     <!-- 主区：左侧详情卡 + 右侧 sticky 日历 -->
     <div class="detail-main">
       <div class="detail-left">
-        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" />
+        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @change-status="changeStatus" />
       </div>
       <div class="detail-right">
         <CalendarWidget :projects="[p]" />
@@ -151,6 +151,13 @@ watch(() => props.projectId, () => { loadProject(); loadSets(); }, { immediate: 
 
 // ===== Edit Project =====
 const showEditModal = ref(false);
+
+async function changeStatus(status) {
+  if (!p.value) return;
+  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ status }) });
+  if (res.ok) { toast(`状态已切换为「${status}」`); loadProject(); }
+  else toast(res.error || "状态切换失败", "error");
+}
 
 function onTabAction() {
   if (tab.value === 'tasks') taskTabRef.value?.openAdd();

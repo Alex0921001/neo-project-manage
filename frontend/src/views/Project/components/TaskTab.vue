@@ -2,13 +2,21 @@
   <div :class="['area-section', { 'mode-form': inlineMode }]">
     <!-- 统一内联表单 -->
     <div v-if="inlineMode" class="task-full-form">
-      <h4>
-        <template v-if="subtaskParent">
-          子任务 · （父级任务：{{ subtaskParent.name }}）
-        </template>
-        <template v-else-if="editingId">编辑任务</template>
-        <template v-else>新建任务</template>
-      </h4>
+      <header class="form-head">
+        <span class="form-head-icon">
+          <svg v-if="subtaskParent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
+          <svg v-else-if="editingId" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+        </span>
+        <h4 class="form-title">
+          <template v-if="subtaskParent">
+            子任务 · （父级任务：{{ subtaskParent.name }}）
+          </template>
+          <template v-else-if="editingId">编辑任务</template>
+          <template v-else>新建任务</template>
+        </h4>
+        <button class="form-close" type="button" @click="closeInline" title="取消">✕</button>
+      </header>
       <textarea
         v-model="formName"
         rows="2"
@@ -430,16 +438,55 @@ defineExpose({ openAdd });
   display: flex; flex-direction: column;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
 }
-.task-full-form h4 {
-  margin: 0 0 12px;
+.task-full-form .form-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid oklch(0.92 0.03 80);
+}
+.form-head-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: oklch(0.95 0.04 80);
+  color: oklch(0.45 0.10 75);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.task-full-form .form-title {
+  margin: 0;
+  flex: 1;
   font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  padding-bottom: 10px;
-  border-bottom: 1px solid oklch(0.92 0.03 80);
+  letter-spacing: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.form-close {
+  width: 24px;
+  height: 24px;
+  border: 1px solid oklch(0.88 0.05 80);
+  background: oklch(0.98 0.02 90);
+  color: oklch(0.55 0.05 75);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms var(--ease-out);
+  flex-shrink: 0;
+}
+.form-close:hover {
+  background: oklch(0.95 0.05 30);
+  color: oklch(0.45 0.15 30);
+  border-color: oklch(0.65 0.12 30);
 }
 .task-inline-input {
   width: 100%; padding: 9px 12px;
