@@ -246,6 +246,9 @@ onMounted(() => {
   window.addEventListener("resize", updateConnector);
   const list = layoutRef.value?.querySelector(".task-tab-list");
   if (list) list.addEventListener("scroll", updateConnector);
+  // 外层滚动容器滚动时重算连接线（便利贴面板是 sticky）
+  const detailView = document.querySelector(".detail-view");
+  if (detailView) detailView.addEventListener("scroll", updateConnector, { passive: true });
   if (layoutRef.value && "ResizeObserver" in window) {
     resizeObserver = new ResizeObserver(updateConnector);
     resizeObserver.observe(layoutRef.value);
@@ -262,6 +265,8 @@ onUnmounted(() => {
   window.removeEventListener("resize", updateConnector);
   const list = layoutRef.value?.querySelector(".task-tab-list");
   if (list) list.removeEventListener("scroll", updateConnector);
+  const detailView = document.querySelector(".detail-view");
+  if (detailView) detailView.removeEventListener("scroll", updateConnector);
   if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
   if (mutationObserver) { mutationObserver.disconnect(); mutationObserver = null; }
 });
@@ -473,7 +478,7 @@ defineExpose({ openAdd });
 .task-tab-layout {
   position: relative;
   display: flex; gap: 16px;
-  align-items: stretch;
+  align-items: flex-start;
 }
 .task-tab-list {
   position: relative;
@@ -483,12 +488,12 @@ defineExpose({ openAdd });
   padding-right: 4px;
 }
 .task-tab-annot {
-  position: relative;
+  position: sticky;
+  top: 16px;
   z-index: 1;
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
-  align-self: stretch;
-  overflow: hidden;
+  align-self: flex-start;
 }
 
 /* 跨容器引导线 SVG：选中任务/子任务 → 便利贴面板 */

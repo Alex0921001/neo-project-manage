@@ -228,7 +228,7 @@ async function doConfirm() {
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  overflow: hidden;
+  clip-path: inset(0 round 14px);
 }
 .tab-bar {
   display: flex;
