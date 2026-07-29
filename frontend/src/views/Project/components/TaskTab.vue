@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
@@ -190,20 +190,28 @@ const connectorStart = ref({ x: 0, y: 0 });
 const connectorEnd = ref({ x: 0, y: 0 });
 const connectorViewBox = ref("0 0 0 0");
 
+let connectorPending = false;
 function updateConnector() {
   if (!activeTaskId.value || !layoutRef.value) {
     connectorPath.value = "";
     return;
   }
-  nextTick(() => {
+  // 防抖：合并连续触发，只在浏览器完成布局后再算坐标
+  if (connectorPending) return;
+  connectorPending = true;
+  requestAnimationFrame(() => {
+    connectorPending = false;
     const layout = layoutRef.value;
     if (!layout) { connectorPath.value = ""; return; }
 
-    // 起点：选中任务/子任务的连接标识
-    const id = activeSubtaskId.value
-      ? `sub-${activeSubtaskId.value}`
-      : `task-${activeTaskId.value}`;
-    const targetEl = layout.querySelector(`[data-connector-id="${id}"]`);
+    // 起点：选中子任务元素 → 若不存在（父任务折叠）则回退到父任务元素
+    let targetEl = null;
+    if (activeSubtaskId.value) {
+      targetEl = layout.querySelector(`[data-connector-id="sub-${activeSubtaskId.value}"]`);
+    }
+    if (!targetEl) {
+      targetEl = layout.querySelector(`[data-connector-id="task-${activeTaskId.value}"]`);
+    }
     const annotPanel = layout.querySelector(".task-tab-annot");
     if (!targetEl || !annotPanel) { connectorPath.value = ""; return; }
 
@@ -233,6 +241,7 @@ watch([activeTaskId, activeSubtaskId], updateConnector);
 
 // resize / scroll / DOM 变化时重算
 let resizeObserver = null;
+let mutationObserver = null;
 onMounted(() => {
   window.addEventListener("resize", updateConnector);
   const list = layoutRef.value?.querySelector(".task-tab-list");
@@ -240,8 +249,12 @@ onMounted(() => {
   if (layoutRef.value && "ResizeObserver" in window) {
     resizeObserver = new ResizeObserver(updateConnector);
     resizeObserver.observe(layoutRef.value);
-    const list = layoutRef.value.querySelector(".task-tab-list");
     if (list) resizeObserver.observe(list);
+  }
+  // 监听任务列 DOM 变化（如展开/折叠子任务）
+  if (list && "MutationObserver" in window) {
+    mutationObserver = new MutationObserver(updateConnector);
+    mutationObserver.observe(list, { childList: true, subtree: true, attributes: false });
   }
   updateConnector();
 });
@@ -250,6 +263,7 @@ onUnmounted(() => {
   const list = layoutRef.value?.querySelector(".task-tab-list");
   if (list) list.removeEventListener("scroll", updateConnector);
   if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
+  if (mutationObserver) { mutationObserver.disconnect(); mutationObserver = null; }
 });
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
