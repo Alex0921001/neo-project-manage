@@ -24,14 +24,21 @@ function getSetName(projectSetId) {
   return set ? set.name : "";
 }
 
-// ===== 糖果色调色板 =====
+// ===== 低饱和糖果色调色板（10 色），冷暖相间排布 =====
+// 按项目顺序填充颜色：index 取模 palette，保证冷暖交错
+// 冷色 hue: 青(190) / 蓝(220) / 蓝紫(260) / 紫(290) / 草绿(160)
+// 暖色 hue: 黄(95) / 橙(50) / 棕红(25) / 粉(350) / 玫红(320)
 const palette = [
-  "oklch(0.72 0.13 25)",    // 蜜桃粉
-  "oklch(0.75 0.11 135)",   // 薄荷绿
-  "oklch(0.72 0.13 275)",   // 薰衣草紫
-  "oklch(0.80 0.12 85)",    // 柠檬黄
-  "oklch(0.75 0.11 220)",   // 天空蓝
-  "oklch(0.78 0.10 350)",   // 樱花粉
+  "oklch(0.78 0.10 220)",  // 1. 蓝   (默认·冷)
+  "oklch(0.82 0.10 350)",  // 2. 粉   (暖)
+  "oklch(0.80 0.10 190)",  // 3. 青   (冷)
+  "oklch(0.82 0.12 50)",   // 4. 橙   (暖)
+  "oklch(0.78 0.10 290)",  // 5. 紫   (冷)
+  "oklch(0.85 0.13 95)",   // 6. 黄   (暖)
+  "oklch(0.78 0.10 260)",  // 7. 蓝紫 (冷)
+  "oklch(0.80 0.10 320)",  // 8. 玫红 (暖)
+  "oklch(0.80 0.08 160)",  // 9. 草绿 (冷)
+  "oklch(0.78 0.10 25)",   // 10. 棕红 (暖)
 ];
 
 // ===== 事件映射：每个项目一个事件，让 FC 默认处理多日渲染 =====
@@ -45,12 +52,13 @@ const fcEvents = computed(() =>
       const projectName = p.name || "未命名";
       // 没有项目集时不再拼接 "未归类-" 前缀
       const title = setName ? `${setName}-${projectName}` : projectName;
+      const color = palette[idx % palette.length];
       return {
         title,
         start: p.planStart,
         end: endDate.toISOString().slice(0, 10),
-        backgroundColor: palette[idx % palette.length],
-        borderColor: palette[idx % palette.length],
+        backgroundColor: color,
+        borderColor: color,
         textColor: "#fff",
         extendedProps: { projectId: p.id, projectName, setName },
       };
