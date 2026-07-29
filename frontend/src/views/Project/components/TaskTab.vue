@@ -472,7 +472,8 @@ defineExpose({ openAdd });
 }
 .task-tab-layout {
   position: relative;
-  display: flex; gap: 16px; align-items: stretch;
+  display: flex; gap: 16px;
+  align-items: stretch;
 }
 .task-tab-list {
   position: relative;
@@ -486,7 +487,6 @@ defineExpose({ openAdd });
   z-index: 1;
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
-  min-height: 480px;
   align-self: stretch;
   overflow: hidden;
 }

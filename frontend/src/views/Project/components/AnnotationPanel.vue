@@ -57,7 +57,7 @@
                     <svg v-if="!a.confirmed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
                     <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
                   </button>
-                  <button class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
+                  <button v-if="!a.confirmed" class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </template>
@@ -260,9 +260,9 @@ async function saveEdit() {
 <style scoped>
 .annot-panel {
   display: flex; flex-direction: column;
-  flex: 1;
-  height: 100%;
-  min-height: 480px;
+  flex-shrink: 0;
+  min-height: 200px;
+  max-height: 560px;
   background: linear-gradient(135deg, oklch(0.97 0.02 90), oklch(0.96 0.02 80));
   border: 1px solid oklch(0.86 0.05 85);
   border-radius: var(--radius-md);
