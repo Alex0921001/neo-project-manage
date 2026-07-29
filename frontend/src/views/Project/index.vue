@@ -200,8 +200,11 @@ async function doConfirm() {
   flex: 1;
   min-height: 0;
   background: #f9fafb;
-  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.detail-view::-webkit-scrollbar { display: none; }
 
 /* ===== 主区 ===== */
 .detail-main {
@@ -217,8 +220,7 @@ async function doConfirm() {
 
 /* ===== Tab 区 ===== */
 .tab-section {
-  flex: 1;
-  min-height: 0;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: #ffffff;
@@ -327,10 +329,7 @@ async function doConfirm() {
 .task-filter-select:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); }
 
 .tab-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
   padding: 20px;
-  background: #f9fafb;
+  background: #ffffff;
 }
 </style>

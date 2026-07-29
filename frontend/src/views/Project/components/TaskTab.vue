@@ -454,19 +454,17 @@ defineExpose({ openAdd });
 <style scoped>
 .area-section {
   display: flex; flex-direction: column;
-  flex: 1; min-height: 0;
   margin-bottom: 24px;
 }
 .task-tab-layout {
   position: relative;
   display: flex; gap: 16px; align-items: stretch;
-  flex: 1; min-height: 0;
 }
 .task-tab-list {
   position: relative;
   z-index: 1;
-  flex: 1; min-width: 0; min-height: 0;
-  overflow-y: auto;
+  flex: 1; min-width: 0;
+  min-height: 200px;
   padding-right: 4px;
 }
 .task-tab-annot {
@@ -475,7 +473,6 @@ defineExpose({ openAdd });
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
   min-height: 480px;
-  height: 100%;
   align-self: stretch;
   overflow: hidden;
 }

@@ -95,10 +95,12 @@ function goBack() {
   } else {
     view.value = "home";
     projectId.value = null;
-    nextTick(() => homeRef.value?.refresh?.());
   }
   saveState();
-  if (view.value === "home" || view.value === "calendar") loadAllProjects();
+  if (view.value === "home" || view.value === "calendar") {
+    loadAllProjects();
+    if (view.value === "home") nextTick(() => homeRef.value?.refresh?.());
+  }
 }
 
 // ===== Persistence =====
@@ -150,6 +152,7 @@ async function restoreState() {
   } else if (["home", "calendar", "zentao"].includes(state.view)) {
     view.value = state.view;
     projectId.value = null;
+    if (state.view === "home") nextTick(() => homeRef.value?.refresh?.());
   }
 }
 
