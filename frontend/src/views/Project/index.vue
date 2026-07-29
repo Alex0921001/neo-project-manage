@@ -30,6 +30,12 @@
         </button>
         <div class="tab-bar-spacer"></div>
         <div class="tab-bar-right">
+          <div v-if="tab === 'tasks'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
+            <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
+          </div>
+          <span v-if="tab === 'tasks' && taskSearch" class="task-search-count">{{ filteredTasks.length }} / {{ (p?.tasks || []).length }}</span>
           <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
             <option value="all">全部任务</option>
             <option value="incomplete">仅未完成</option>
@@ -129,11 +135,14 @@ watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 
 // ===== 任务筛选 =====
 const taskFilter = ref("all");
+const taskSearch = ref("");
 const filteredTasks = computed(() => {
-  const all = p.value?.tasks || [];
-  if (taskFilter.value === "incomplete") return all.filter(t => !t.done);
-  if (taskFilter.value === "done") return all.filter(t => t.done);
-  return all;
+  let arr = p.value?.tasks || [];
+  if (taskFilter.value === "incomplete") arr = arr.filter(t => !t.done);
+  else if (taskFilter.value === "done") arr = arr.filter(t => t.done);
+  const q = taskSearch.value.trim().toLowerCase();
+  if (q) arr = arr.filter(t => (t.name || "").toLowerCase().includes(q));
+  return arr;
 });
 
 // ===== Load =====
@@ -327,6 +336,60 @@ async function doConfirm() {
 }
 .task-filter-select:hover { border-color: #d1d5db; }
 .task-filter-select:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); }
+
+.task-search {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.task-search-icon {
+  position: absolute;
+  left: 9px;
+  color: #9ca3af;
+  pointer-events: none;
+}
+.task-search-input {
+  padding: 6px 26px 6px 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  outline: none;
+  font-family: inherit;
+  font-weight: 500;
+  width: 160px;
+  transition: all 0.15s ease-out;
+}
+.task-search-input::placeholder { color: #9ca3af; font-weight: 500; }
+.task-search-input:hover { border-color: #d1d5db; }
+.task-search-input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); width: 200px; }
+.task-search-clear {
+  position: absolute;
+  right: 6px;
+  width: 16px; height: 16px;
+  border: none;
+  background: #e5e7eb;
+  color: #6b7280;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  transition: all 0.15s ease-out;
+}
+.task-search-clear:hover { background: #d1d5db; color: #1f2937; }
+.task-search-count {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
 
 .tab-content {
   padding: 20px;

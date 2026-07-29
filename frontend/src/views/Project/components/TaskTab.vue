@@ -331,6 +331,12 @@ const formDesc = ref("");
 const formFileRefs = ref([]);
 const submitErr = ref(false);
 
+// 待滚动定位的标记：POST 后设值，watch 捕捉数据回流后清值并滚动
+const pendingScroll = ref(null);  // { kind: 'task'|'subtask', id: string }
+const totalSubtaskCount = computed(() =>
+  props.tasks.reduce((sum, t) => sum + (t.subtasks?.length || 0), 0)
+);
+
 // 文件下拉开关
 const fileDropdownOpen = ref(false);
 const fileDropdownRef = ref(null);
@@ -444,18 +450,64 @@ async function submitInline() {
     const res = await api(`api/projects/${props.projectId}/tasks/${subtaskParent.value.id}/subtasks`, {
       method: "POST", body: JSON.stringify(payload),
     });
-    if (res.ok) { toast("子任务已创建"); closeInline(); load(); }
-    else toast(res.error || "创建失败", "error");
+    if (res.ok) {
+      toast("子任务已创建");
+      closeInline();
+      const newId = res.data?.id;
+      if (newId) pendingScroll.value = { kind: "subtask", id: newId };
+      load();
+    } else toast(res.error || "创建失败", "error");
   } else {
     const res = await api(`api/projects/${props.projectId}/tasks`, {
       method: "POST", body: JSON.stringify(payload),
     });
-    if (res.ok) { toast("已创建"); closeInline(); load(); }
-    else toast(res.error || "创建失败", "error");
+    if (res.ok) {
+      toast("已创建");
+      closeInline();
+      const newId = res.data?.id;
+      if (newId) pendingScroll.value = { kind: "task", id: newId };
+      load();
+    } else toast(res.error || "创建失败", "error");
   }
 }
 
 function load() { emit("changed"); }
+
+// 新建后滚动定位 + 高亮闪烁
+function scrollToTask(taskId) {
+  const root = layoutRef.value;
+  if (!root) return;
+  const el = root.querySelector(`[data-task-id="${taskId}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("task-card-flash");
+  setTimeout(() => el.classList.remove("task-card-flash"), 1500);
+}
+function scrollToSubtask(subtaskId) {
+  const root = layoutRef.value;
+  if (!root) return;
+  const el = root.querySelector(`[data-connector-id="sub-${subtaskId}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("subtask-flash");
+  setTimeout(() => el.classList.remove("subtask-flash"), 1500);
+}
+
+// 监听数据回流 → 滚动定位
+watch(() => props.tasks.length, (newLen, oldLen) => {
+  if (pendingScroll.value?.kind === "task" && newLen > (oldLen ?? 0)) {
+    const id = pendingScroll.value.id;
+    pendingScroll.value = null;
+    nextTick(() => scrollToTask(id));
+  }
+});
+watch(totalSubtaskCount, (newCount, oldCount) => {
+  if (pendingScroll.value?.kind === "subtask" && newCount > (oldCount ?? 0)) {
+    const id = pendingScroll.value.id;
+    pendingScroll.value = null;
+    nextTick(() => scrollToSubtask(id));
+  }
+});
 
 // ===== 完成（带校验）=====
 async function completeTask(id) {

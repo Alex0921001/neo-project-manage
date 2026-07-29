@@ -2,7 +2,7 @@
   <!-- 任务卡：仅两种视觉状态
        - 默认（未完成）：暖色贴纸 + 阴影 + 左侧 4px 强调条（hover 显示）
        - 完成（task.done）：浅米色 + 绿色强调条 + 删除线 -->
-  <div :class="['task-card', { 'task-card-done': task.done, 'task-card-locked': task.done }]">
+  <div :class="['task-card', { 'task-card-done': task.done, 'task-card-locked': task.done }]" :data-task-id="task.id">
     <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
       <button
         v-if="!task.done"
@@ -200,6 +200,14 @@ async function openFile(f) {
   border-color: oklch(0.72 0.12 145);
   box-shadow: 0 1px 3px oklch(0.45 0.10 145 / 0.15), 0 6px 14px oklch(0.45 0.08 145 / 0.10);
 }
+
+/* 新建后高亮闪烁 */
+@keyframes task-card-flash {
+  0%   { box-shadow: 0 0 0 0 oklch(0.78 0.16 75 / 0.55), 0 1px 2px rgba(0,0,0,0.04); }
+  50%  { box-shadow: 0 0 0 6px oklch(0.78 0.16 75 / 0.25), 0 1px 2px rgba(0,0,0,0.04); }
+  100% { box-shadow: 0 0 0 0 oklch(0.78 0.16 75 / 0), 0 1px 2px rgba(0,0,0,0.04); }
+}
+.task-card-flash { animation: task-card-flash 1.5s ease-out; }
 
 /* header */
 .task-card-header {
@@ -464,6 +472,12 @@ async function openFile(f) {
   border-radius: 4px;
   transition: background var(--duration-fast) var(--ease-out);
 }
+@keyframes subtask-flash {
+  0%   { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0.55); }
+  50%  { box-shadow: 0 0 0 4px oklch(0.70 0.14 240 / 0.30); }
+  100% { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0); }
+}
+.subtask-flash { animation: subtask-flash 1.5s ease-out; }
 .subtask-item:hover { background: oklch(0.97 0.03 85); }
 .task-card-done .subtask-item:hover { background: oklch(0.92 0.05 145); }
 
