@@ -20,23 +20,47 @@
           <div
             v-for="a in sortedAnnotations"
             :key="a.id"
-            :class="['sticky', { 'sticky-done': a.confirmed }]"
+            :class="['sticky', { 'sticky-done': a.confirmed, 'sticky-editing': editingAnnId === a.id }]"
           >
-            <p class="sticky-content" v-html="formatDescription(a.content)"></p>
+            <template v-if="editingAnnId === a.id">
+              <textarea
+                v-model="editingContent"
+                rows="4"
+                class="sticky-edit-input"
+                @keydown.meta.enter="saveEdit"
+                @keydown.ctrl.enter="saveEdit"
+                @keydown.escape="cancelEdit"
+              ></textarea>
+            </template>
+            <template v-else>
+              <p class="sticky-content" v-html="formatDescription(a.content)"></p>
+            </template>
             <div class="sticky-foot">
               <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
               <div class="sticky-actions">
-                <button
-                  v-if="!targetDone"
-                  class="sticky-confirm"
-                  :class="{ 'sticky-confirm-on': a.confirmed }"
-                  :title="a.confirmed ? '取消确认' : '确认这条批注'"
-                  @click="toggleConfirm(a)"
-                >
-                  <svg v-if="!a.confirmed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
-                  <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-                </button>
-                <button class="sticky-del" @click="askRemove(a)" title="删除">✕</button>
+                <template v-if="editingAnnId === a.id">
+                  <button class="sticky-cancel" title="取消" @click="cancelEdit">取消</button>
+                  <button class="sticky-save" :disabled="!editingContent.trim() || editingSaving" @click="saveEdit">
+                    {{ editingSaving ? "保存中…" : "保存" }}
+                  </button>
+                </template>
+                <template v-else>
+                  <button v-if="!a.confirmed" class="sticky-icon-btn" title="编辑" @click="startEdit(a)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  <button
+                    v-if="!targetDone"
+                    class="sticky-icon-btn"
+                    :title="a.confirmed ? '取消确认' : '确认这条批注'"
+                    @click="toggleConfirm(a)"
+                  >
+                    <svg v-if="!a.confirmed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                  </button>
+                  <button class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </template>
               </div>
             </div>
           </div>
@@ -50,7 +74,7 @@
       <div v-if="!targetDone" class="annot-compose">
         <textarea
           v-model="input"
-          rows="2"
+          rows="4"
           placeholder="写一条批注（例：前端已完成，待后端对接）"
           class="annot-input"
           @keydown.meta.enter="add"
@@ -91,6 +115,11 @@ const emit = defineEmits(["changed", "close"]);
 
 const input = ref("");
 const saving = ref(false);
+
+// 编辑状态
+const editingAnnId = ref("");
+const editingContent = ref("");
+const editingSaving = ref(false);
 
 // 删除二次确认
 const confirmDel = ref({ show: false, ann: null });
@@ -197,6 +226,35 @@ async function toggleConfirm(ann) {
   if (res?.ok) emit("changed");
   else toast(res.error || "操作失败", "error");
 }
+
+function startEdit(ann) {
+  editingAnnId.value = ann.id;
+  editingContent.value = ann.content;
+}
+function cancelEdit() {
+  editingAnnId.value = "";
+  editingContent.value = "";
+}
+async function saveEdit() {
+  const content = editingContent.value.trim();
+  if (!content) return toast("批注内容不能为空", "error");
+  editingSaving.value = true;
+  try {
+    const res = await api(buildUrl(editingAnnId.value), {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    });
+    if (res?.ok) {
+      toast("已更新");
+      cancelEdit();
+      emit("changed");
+    } else {
+      toast(res.error || "更新失败", "error");
+    }
+  } finally {
+    editingSaving.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -299,31 +357,75 @@ async function toggleConfirm(ann) {
 }
 .sticky-done .sticky-foot { color: oklch(0.45 0.08 145); }
 .sticky-actions { display: flex; gap: 4px; align-items: center; }
-.sticky-confirm {
-  width: 24px; height: 24px;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid oklch(0.85 0.08 80);
-  background: oklch(0.97 0.06 90);
-  color: oklch(0.50 0.10 75);
+
+/* 统一图标按钮：无边框，仅 hover 变色 */
+.sticky-icon-btn {
+  width: 26px; height: 26px;
+  border: none;
+  background: transparent;
+  color: oklch(0.55 0.08 75);
   border-radius: 6px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 100ms var(--ease-out);
 }
-.sticky-confirm:hover { background: oklch(0.92 0.10 85); border-color: oklch(0.65 0.13 80); }
-.sticky-confirm-on {
-  background: oklch(0.72 0.13 145);
-  color: #fff;
-  border-color: oklch(0.65 0.13 145);
+.sticky-icon-btn:hover {
+  background: oklch(0.92 0.06 85);
+  color: oklch(0.35 0.10 75);
 }
-.sticky-confirm-on:hover { background: oklch(0.68 0.13 145); border-color: oklch(0.60 0.13 145); }
-.sticky-del {
-  border: none; background: transparent; cursor: pointer;
-  color: oklch(0.55 0.10 75);
-  width: 22px; height: 22px; border-radius: 4px;
-  transition: all 100ms var(--ease-out);
+
+/* 编辑态：便利贴高亮 + 输入框 */
+.sticky.sticky-editing {
+  background: oklch(0.96 0.08 85);
+  border: 1px dashed oklch(0.65 0.13 80);
+  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.10);
+}
+.sticky-edit-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid oklch(0.65 0.13 80);
+  border-radius: var(--radius-sm);
+  font-size: 13px; line-height: 1.55;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 8px;
+  min-height: 80px;
+}
+.sticky-edit-input:focus {
+  border-color: oklch(0.55 0.13 75);
+  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.15);
+}
+
+/* 保存 / 取消按钮 */
+.sticky-save,
+.sticky-cancel {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 5px;
   font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 100ms var(--ease-out);
+  border: 1px solid transparent;
 }
-.sticky-del:hover { background: oklch(0.88 0.10 30 / 0.4); color: oklch(0.45 0.18 30); }
+.sticky-cancel {
+  background: transparent;
+  border-color: oklch(0.85 0.06 80);
+  color: oklch(0.50 0.08 75);
+}
+.sticky-cancel:hover { background: oklch(0.96 0.04 85); border-color: oklch(0.75 0.08 80); color: oklch(0.35 0.10 75); }
+.sticky-save {
+  background: oklch(0.72 0.13 80);
+  color: #fff;
+  border-color: oklch(0.65 0.13 80);
+}
+.sticky-save:hover:not(:disabled) { background: oklch(0.68 0.13 80); border-color: oklch(0.60 0.13 80); }
+.sticky-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 输入区：仅未完成态显示 */
 .annot-compose {
@@ -334,14 +436,15 @@ async function toggleConfirm(ann) {
 }
 .annot-input {
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid oklch(0.86 0.05 85);
   border-radius: var(--radius-sm);
-  font-size: 12px; line-height: 1.5;
+  font-size: 13px; line-height: 1.55;
   background: oklch(0.99 0.02 90);
   color: var(--text);
-  outline: none; resize: none;
+  outline: none; resize: vertical;
   font-family: inherit;
+  min-height: 90px;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .annot-input:focus { border-color: oklch(0.65 0.13 80); }

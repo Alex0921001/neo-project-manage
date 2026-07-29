@@ -70,6 +70,9 @@ export function registerAnnotationsRoutes(app, { readProjects, writeProjects }) 
       ensureField(task, "annotations");
       const ann = task.annotations.find((a) => a.id === annId);
       if (!ann) throw new Error(`批注 ${annId} 不存在`);
+      if (body.content !== undefined) {
+        ann.content = requireString(body.content, "批注内容");
+      }
       if (body.confirmed !== undefined) {
         ann.confirmed = !!body.confirmed;
         ann.confirmedAt = ann.confirmed ? new Date().toISOString() : null;
@@ -131,6 +134,9 @@ export function registerAnnotationsRoutes(app, { readProjects, writeProjects }) 
       const { sub } = findSubtask(all, projId, taskId, subId);
       const ann = sub.annotations.find((a) => a.id === annId);
       if (!ann) throw new Error(`批注 ${annId} 不存在`);
+      if (body.content !== undefined) {
+        ann.content = requireString(body.content, "批注内容");
+      }
       if (body.confirmed !== undefined) {
         ann.confirmed = !!body.confirmed;
         ann.confirmedAt = ann.confirmed ? new Date().toISOString() : null;
