@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
@@ -183,7 +183,11 @@ function closeAnnotation() {
   activeSubtaskId.value = "";
 }
 
-// ===== 跨容器引导线：SVG 从选中任务/子任务画曲线到便利贴面板顶部 =====
+// ===== 面板定位 + 引导线 =====
+// 逻辑：选中任务后只初算一次，不跟滚动。
+// 面板 align 到任务卡中心，不越上下边界。
+// SVG 从任务卡右边缘连线到面板左边缘，两端用圆点标明链接点。
+// 任务卡被删除/折叠（链接点消失）→ 自动关闭面板。
 const layoutRef = ref(null);
 const connectorPath = ref("");
 const connectorStart = ref({ x: 0, y: 0 });
@@ -191,12 +195,13 @@ const connectorEnd = ref({ x: 0, y: 0 });
 const connectorViewBox = ref("0 0 0 0");
 
 let connectorPending = false;
-function updateConnector() {
+let taskWatcherObserver = null;
+
+function positionAndConnect() {
   if (!activeTaskId.value || !layoutRef.value) {
     connectorPath.value = "";
     return;
   }
-  // 防抖：合并连续触发，只在浏览器完成布局后再算坐标
   if (connectorPending) return;
   connectorPending = true;
   requestAnimationFrame(() => {
@@ -204,7 +209,7 @@ function updateConnector() {
     const layout = layoutRef.value;
     if (!layout) { connectorPath.value = ""; return; }
 
-    // 起点：选中子任务元素 → 若不存在（父任务折叠）则回退到父任务元素
+    // 找到目标链接点
     let targetEl = null;
     if (activeSubtaskId.value) {
       targetEl = layout.querySelector(`[data-connector-id="sub-${activeSubtaskId.value}"]`);
@@ -212,92 +217,93 @@ function updateConnector() {
     if (!targetEl) {
       targetEl = layout.querySelector(`[data-connector-id="task-${activeTaskId.value}"]`);
     }
-    const annotPanel = layout.querySelector(".task-tab-annot");
-    if (!targetEl || !annotPanel) { connectorPath.value = ""; return; }
+    // 链接点不存在 → 关闭面板
+    if (!targetEl) { closeAnnotation(); return; }
+
+    const panel = layout.querySelector(".task-tab-annot");
+    if (!panel) { connectorPath.value = ""; return; }
 
     const tRect = targetEl.getBoundingClientRect();
-    const aRect = annotPanel.getBoundingClientRect();
+    const pRect = panel.getBoundingClientRect();
     const lRect = layout.getBoundingClientRect();
 
-    // 起点：选中元素右侧中心
-    const x1 = Math.max(0, tRect.right - lRect.left);
-    const y1 = tRect.top + tRect.height / 2 - lRect.top;
-    // 终点：便利贴面板左侧偏上（顶部标签附近）
-    const x2 = Math.max(0, aRect.left - lRect.left);
-    const y2 = aRect.top + 18 - lRect.top;
+    // —— 面板定位 ——
+    // 面板中心对齐任务卡垂直中心，不超出上下边距
+    const panelHeight = pRect.height;
+    const layoutHeight = lRect.height;
+    const taskCenterY = tRect.top + tRect.height / 2 - lRect.top;
+    const idealTop = taskCenterY - panelHeight / 2;
+    const marginTop = Math.max(4, Math.min(Math.round(idealTop), layoutHeight - panelHeight - 4));
+    panel.style.marginTop = `${marginTop}px`;
 
-    const dx = x2 - x1;
-    const cpx1 = x1 + dx * 0.5;
-    const cpx2 = x2 - dx * 0.3;
+    // —— 引导线 ——
+    // 重新获取面板 post-margin 的位置
+    const pRect2 = panel.getBoundingClientRect();
+    const panelCenterY = pRect2.top + pRect2.height / 2 - lRect.top;
+
+    // 链接点 1：任务卡右边缘中心
+    const x1 = Math.round(tRect.right - lRect.left);
+    const y1 = Math.round(taskCenterY);
+    // 链接点 2：面板左边缘中心
+    const x2 = Math.round(pRect2.left - lRect.left);
+    const y2 = Math.round(panelCenterY);
 
     connectorStart.value = { x: x1, y: y1 };
     connectorEnd.value = { x: x2, y: y2 };
-    connectorPath.value = `M ${x1} ${y1} C ${cpx1} ${y1}, ${cpx2} ${y2}, ${x2} ${y2}`;
+
+    // 微曲线，更自然
+    const dx = x2 - x1;
+    connectorPath.value = `M ${x1} ${y1} C ${x1 + dx * 0.4} ${y1}, ${x2 - dx * 0.4} ${y2}, ${x2} ${y2}`;
     connectorViewBox.value = `0 0 ${lRect.width} ${lRect.height}`;
   });
 }
 
-watch([activeTaskId, activeSubtaskId], updateConnector);
-
-// 动态调整便利贴面板的 sticky top：跟随选中任务的视口位置
-function updatePanelStickyTop() {
-  const annotPanel = layoutRef.value?.querySelector(".task-tab-annot");
-  if (!annotPanel) return;
-  // 未选中任务：面板走默认 top（16px）
-  if (!activeTaskId.value) {
-    annotPanel.style.removeProperty("--annot-sticky-top");
-    return;
+// 选中任务变化 → 等面板挂载后初算
+watch([activeTaskId, activeSubtaskId], () => {
+  if (activeTaskId.value) {
+    nextTick(() => positionAndConnect());
+    startTaskWatcher();
+  } else {
+    stopTaskWatcher();
+    connectorPath.value = "";
   }
-  let targetEl = null;
-  if (activeSubtaskId.value) {
-    targetEl = layoutRef.value?.querySelector(`[data-connector-id="sub-${activeSubtaskId.value}"]`);
-  }
-  if (!targetEl) {
-    targetEl = layoutRef.value?.querySelector(`[data-connector-id="task-${activeTaskId.value}"]`);
-  }
-  if (!targetEl) return;
-  const taskRect = targetEl.getBoundingClientRect();
-  // 面板顶部贴近选中任务顶部，最少距离视口顶 16px
-  const desiredTop = Math.max(16, Math.round(taskRect.top));
-  annotPanel.style.setProperty("--annot-sticky-top", `${desiredTop}px`);
-}
+});
 
-watch([activeTaskId, activeSubtaskId], updatePanelStickyTop);
-
-// resize / scroll / DOM 变化时重算
-let resizeObserver = null;
-let mutationObserver = null;
-function onLayoutChange() {
-  updateConnector();
-  updatePanelStickyTop();
-}
-onMounted(() => {
-  window.addEventListener("resize", onLayoutChange);
+// 监听目标链接点是否存在（删除/折叠时清理）
+function startTaskWatcher() {
+  stopTaskWatcher();
   const list = layoutRef.value?.querySelector(".task-tab-list");
-  if (list) list.addEventListener("scroll", onLayoutChange);
-  // 外层滚动容器滚动时重算连接线和面板位置（sticky 面板需要跟随）
-  const detailView = document.querySelector(".detail-view");
-  if (detailView) detailView.addEventListener("scroll", onLayoutChange, { passive: true });
+  if (!list || !activeTaskId.value) return;
+  const sel = activeSubtaskId.value
+    ? `[data-connector-id="sub-${activeSubtaskId.value}"]`
+    : `[data-connector-id="task-${activeTaskId.value}"]`;
+  taskWatcherObserver = new MutationObserver(() => {
+    if (!list.querySelector(sel)) closeAnnotation();
+  });
+  taskWatcherObserver.observe(list, { childList: true, subtree: true });
+}
+function stopTaskWatcher() {
+  if (taskWatcherObserver) { taskWatcherObserver.disconnect(); taskWatcherObserver = null; }
+}
+
+// resize 时重算（不跟滚动，只窗口缩放时）
+let resizeObserver = null;
+onMounted(() => {
   if (layoutRef.value && "ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(onLayoutChange);
+    resizeObserver = new ResizeObserver(() => {
+      if (activeTaskId.value) positionAndConnect();
+    });
     resizeObserver.observe(layoutRef.value);
-    if (list) resizeObserver.observe(list);
   }
-  // 监听任务列 DOM 变化（如展开/折叠子任务）
-  if (list && "MutationObserver" in window) {
-    mutationObserver = new MutationObserver(onLayoutChange);
-    mutationObserver.observe(list, { childList: true, subtree: true, attributes: false });
+  // 初始已有选中时初算
+  if (activeTaskId.value) {
+    nextTick(() => positionAndConnect());
+    startTaskWatcher();
   }
-  onLayoutChange();
 });
 onUnmounted(() => {
-  window.removeEventListener("resize", onLayoutChange);
-  const list = layoutRef.value?.querySelector(".task-tab-list");
-  if (list) list.removeEventListener("scroll", onLayoutChange);
-  const detailView = document.querySelector(".detail-view");
-  if (detailView) detailView.removeEventListener("scroll", onLayoutChange);
   if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null; }
-  if (mutationObserver) { mutationObserver.disconnect(); mutationObserver = null; }
+  stopTaskWatcher();
 });
 
 // ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
@@ -517,12 +523,11 @@ defineExpose({ openAdd });
   padding-right: 4px;
 }
 .task-tab-annot {
-  position: sticky;
-  top: var(--annot-sticky-top, 16px);
-  z-index: 1;
   width: 320px; flex-shrink: 0;
   display: flex; flex-direction: column;
   align-self: flex-start;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 /* 跨容器引导线 SVG：选中任务/子任务 → 便利贴面板 */

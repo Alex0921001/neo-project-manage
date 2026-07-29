@@ -328,7 +328,10 @@ async function saveEdit() {
   flex: 1; min-height: 0; overflow-y: auto;
   display: flex; flex-direction: column; gap: 8px;
   padding-right: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.sticky-board::-webkit-scrollbar { display: none; }
 .sticky-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
   font-size: 12px; color: oklch(0.55 0.08 70); padding: 24px 0;
