@@ -1,0 +1,46 @@
+/**
+ * 项目 CRUD：/api/projects/*
+ */
+export function registerProjectsRoutes(app, data) {
+  app.get("/api/projects", (c) => {
+    const projectSetId = c.req.query("projectSetId");
+    const projects = data.listProjects(projectSetId !== undefined ? projectSetId : undefined);
+    return c.json({ ok: true, data: projects });
+  });
+
+  app.get("/api/projects/:id", (c) => {
+    const project = data.getProject(c.req.param("id"));
+    if (!project) return c.json({ ok: false, error: "项目不存在" }, 404);
+    return c.json({ ok: true, data: project });
+  });
+
+  app.post("/api/projects", async (c) => {
+    const body = await c.req.json();
+    try {
+      const project = data.createProject(body);
+      return c.json({ ok: true, data: project });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:id", async (c) => {
+    const body = await c.req.json();
+    try {
+      const project = data.updateProject(c.req.param("id"), body);
+      if (!project) return c.json({ ok: false, error: "项目不存在" }, 404);
+      return c.json({ ok: true, data: project });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.delete("/api/projects/:id", (c) => {
+    try {
+      data.deleteProject(c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+}
