@@ -81,7 +81,7 @@ export default function registerPluginUiRoutes(app, ctx) {
   // ===== Domain API（按职责分模块注册） =====
   registerProjectSetsRoutes(app, data);
   registerProjectsRoutes(app, data);
-  registerTasksRoutes(app, data, io);
+  registerTasksRoutes(app, data, io, ctx);
   registerAnnotationsRoutes(app, io);
   registerFilesRoutes(app, io);
   registerNotesRoutes(app, io);

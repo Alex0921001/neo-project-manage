@@ -4,6 +4,9 @@
        - 完成（task.done）：浅米色 + 绿色强调条 + 删除线 -->
   <div :class="['task-card', { 'task-card-done': task.done, 'task-card-locked': task.done }]" :data-task-id="task.id">
     <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
+      <span class="drag-handle" title="拖动重新排序" @click.stop>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
+      </span>
       <button
         v-if="!task.done"
         class="status-btn status-btn-complete"
@@ -60,8 +63,22 @@
         <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" title="双击打开" @dblclick="openFile(f)">{{ f.name }}</span>
       </div>
 
-      <div v-if="task.subtasks && task.subtasks.length" class="subtask-list">
-        <div v-for="s in task.subtasks" :key="s.id" class="subtask-item" :data-connector-id="`sub-${s.id}`">
+      <draggable
+        v-if="task.subtasks && task.subtasks.length"
+        :list="subtasksLocal"
+        item-key="id"
+        handle=".drag-handle-sm"
+        ghost-class="subtask-ghost"
+        animation="180"
+        :disabled="!!searchQuery"
+        class="subtask-list"
+        @end="onSubtaskDragEnd"
+      >
+        <template #item="{ element: s }">
+        <div class="subtask-item" :data-connector-id="`sub-${s.id}`">
+          <span class="drag-handle drag-handle-sm" title="拖动重新排序" @click.stop>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="0.8"/><circle cx="9" cy="12" r="0.8"/><circle cx="9" cy="18" r="0.8"/><circle cx="15" cy="6" r="0.8"/><circle cx="15" cy="12" r="0.8"/><circle cx="15" cy="18" r="0.8"/></svg>
+          </span>
           <button
             v-if="!s.done"
             class="status-btn status-btn-sm status-btn-complete"
@@ -109,21 +126,25 @@
             </button>
           </div>
         </div>
-      </div>
+        </template>
+      </draggable>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { formatDescription } from "../../../utils/text.js";
 import { highlight, highlightRichText } from "../../../utils/highlight.js";
+import draggable from "vuedraggable";
+import { toast } from "../../../toast.js";
 
 const props = defineProps({
   task: { type: Object, required: true },
   files: { type: Array, default: () => [] },
   searchQuery: { type: String, default: "" },
+  projectId: { type: String, default: "" },
 });
 const emit = defineEmits([
   "complete",
@@ -136,10 +157,43 @@ const emit = defineEmits([
   "delete-subtask",
   "edit-subtask",
   "select-annotation",
+  "changed",
 ]);
 
 const expanded = ref(!props.task.done);
 const annotCount = computed(() => (props.task.annotations || []).length);
+
+// ===== 子任务拖拽排序 =====
+// 本地镜像：拖拽中修改这里，防抖后持久化
+const subtasksLocal = ref([...(props.task.subtasks || [])]);
+watch(() => props.task.subtasks, (v) => {
+  subtasksLocal.value = [...(v || [])];
+}, { deep: false });
+
+let subSaveTimer = null;
+function scheduleSave(subtaskIds) {
+  if (!props.projectId) return;
+  if (subSaveTimer) clearTimeout(subSaveTimer);
+  subSaveTimer = setTimeout(async () => {
+    subSaveTimer = null;
+    const ids = subtasksLocal.value.map(s => s.id);
+    console.log("[neo-pm] saving subtask reorder, ids:", JSON.stringify(ids));
+    const res = await api(
+      `api/projects/${props.projectId}/tasks/${props.task.id}/reorder-subtasks`,
+      { method: "POST", body: JSON.stringify({ subtaskIds: ids }) }
+    );
+    console.log("[neo-pm] subtask reorder response:", res);
+    if (!res?.ok) {
+      console.error("[reorder-subtasks] failed:", res);
+      toast(`子任务排序保存失败：${res?.error || "未知错误"}`, "error");
+      emit("changed");
+    }
+  }, 500);
+}
+
+function onSubtaskDragEnd() {
+  scheduleSave();
+}
 
 // 文件引用
 const fileRefsList = computed(() => {
@@ -198,6 +252,48 @@ async function openFile(f) {
   border-style: dashed;
   border-color: oklch(0.78 0.10 145);
 }
+
+/* ===== 拖拽手柄 ===== */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 22px;
+  color: oklch(0.65 0.02 80);
+  cursor: grab;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s;
+  border-radius: 4px;
+}
+.drag-handle:hover { opacity: 1; color: oklch(0.45 0.05 80); background: oklch(0.92 0.03 85); }
+.drag-handle:active { cursor: grabbing; }
+.drag-handle-sm {
+  width: 12px;
+  height: 16px;
+  color: oklch(0.65 0.02 80);
+  opacity: 0.4;
+}
+.drag-handle-sm:hover { opacity: 0.9; }
+
+/* vuedraggable 状态类 */
+.task-ghost {
+  opacity: 0.4;
+  background: oklch(0.95 0.04 85) !important;
+  border-style: dashed !important;
+}
+.task-chosen {
+  cursor: grabbing;
+}
+.task-drag {
+  transform: rotate(-1.5deg);
+  box-shadow: 0 8px 20px oklch(0.3 0.05 80 / 0.18);
+}
+.subtask-ghost {
+  opacity: 0.4;
+  background: oklch(0.95 0.04 85);
+}
+
 .task-card-done:hover {
   border-color: oklch(0.72 0.12 145);
   box-shadow: 0 1px 3px oklch(0.45 0.10 145 / 0.15), 0 6px 14px oklch(0.45 0.08 145 / 0.10);
@@ -214,7 +310,7 @@ async function openFile(f) {
 /* header */
 .task-card-header {
   display: grid;
-  grid-template-columns: auto 24px 1fr auto;
+  grid-template-columns: 16px auto 24px 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 10px 12px 10px 14px;
@@ -340,7 +436,7 @@ async function openFile(f) {
 
 /* body */
 .task-card-body {
-  padding: 0 12px 10px calc(12px + 22px + 8px + 24px + 8px);
+  padding: 0 12px 10px calc(14px + 16px + 8px + 22px + 8px + 24px + 8px);
   animation: slideDown 0.2s ease-out;
 }
 @keyframes slideDown {
@@ -462,6 +558,9 @@ async function openFile(f) {
   border-top: 1px dashed oklch(0.85 0.05 85);
   padding-top: 8px;
   margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .task-card-done .subtask-list {
   border-top-color: oklch(0.82 0.08 145);

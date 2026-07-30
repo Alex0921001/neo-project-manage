@@ -97,44 +97,76 @@
               <span class="task-group-title">未完成</span>
               <span class="task-group-count">{{ displayedUndoneTasks.length }}</span>
             </div>
-            <TaskCard
-              v-for="t in displayedUndoneTasks" :key="t.id"
-              :task="t"
-              :files="files"
-              :search-query="searchQuery"
-              @complete="completeTask"
-              @activate="activateTask"
-              @complete-subtask="completeSubtask"
-              @activate-subtask="activateSubtask"
-              @edit="startEdit"
-              @subtask="startSubtask"
-              @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
-              @edit-subtask="startEditSubtask"
-              @delete-subtask="deleteSubtask"
-              @select-annotation="onSelectAnnotation"
-            />
+            <draggable
+              :list="undoneArr"
+              item-key="id"
+              handle=".drag-handle"
+              ghost-class="task-ghost"
+              chosen-class="task-chosen"
+              drag-class="task-drag"
+              animation="200"
+              :disabled="!!searchQuery"
+              class="task-drag-area"
+              @end="mergeAfterDrag"
+            >
+              <template #item="{ element: t }">
+                <TaskCard
+                  :task="t"
+                  :files="files"
+                  :search-query="searchQuery"
+                  :project-id="projectId"
+                  @complete="completeTask"
+                  @activate="activateTask"
+                  @complete-subtask="completeSubtask"
+                  @activate-subtask="activateSubtask"
+                  @edit="startEdit"
+                  @subtask="startSubtask"
+                  @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+                  @edit-subtask="startEditSubtask"
+                  @delete-subtask="deleteSubtask"
+                  @select-annotation="onSelectAnnotation"
+                  @changed="$emit('changed')"
+                />
+              </template>
+            </draggable>
           </div>
           <div v-if="displayedDoneTasks.length" class="task-group task-group-done">
             <div class="task-group-header">
               <span class="task-group-title">已完成</span>
               <span class="task-group-count">{{ displayedDoneTasks.length }}</span>
             </div>
-            <TaskCard
-              v-for="t in displayedDoneTasks" :key="t.id"
-              :task="t"
-              :files="files"
-              :search-query="searchQuery"
-              @complete="completeTask"
-              @activate="activateTask"
-              @complete-subtask="completeSubtask"
-              @activate-subtask="activateSubtask"
-              @edit="startEdit"
+            <draggable
+              :list="doneArr"
+              item-key="id"
+              handle=".drag-handle"
+              ghost-class="task-ghost"
+              chosen-class="task-chosen"
+              drag-class="task-drag"
+              animation="200"
+              :disabled="!!searchQuery"
+              class="task-drag-area"
+              @end="mergeAfterDrag"
+            >
+              <template #item="{ element: t }">
+                <TaskCard
+                  :task="t"
+                  :files="files"
+                  :search-query="searchQuery"
+                  :project-id="projectId"
+                  @complete="completeTask"
+                  @activate="activateTask"
+                  @complete-subtask="completeSubtask"
+                  @activate-subtask="activateSubtask"
+                  @edit="startEdit"
               @subtask="startSubtask"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @edit-subtask="startEditSubtask"
               @delete-subtask="deleteSubtask"
               @select-annotation="onSelectAnnotation"
+              @changed="$emit('changed')"
             />
+              </template>
+            </draggable>
           </div>
         </template>
       </div>
@@ -154,6 +186,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import draggable from "vuedraggable";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
@@ -309,20 +342,62 @@ onUnmounted(() => {
   stopTaskWatcher();
 });
 
-// ===== 任务分组：未完成 / 已完成，组内按 createdAt 倒序 =====
-function sortByCreatedDesc(arr) {
-  return arr
-    .map((t, i) => ({ t, i }))
-    .sort((a, b) => {
-      const ta = a.t.createdAt ? new Date(a.t.createdAt).getTime() : 0;
-      const tb = b.t.createdAt ? new Date(b.t.createdAt).getTime() : 0;
-      if (ta !== tb) return tb - ta;
-      return b.i - a.i; // 旧数据无 createdAt 时，按数组索引倒序（新 push 的在末尾）
-    })
-    .map(x => x.t);
+// ===== 任务分组：未完成 / 已完成，组内按数组顺序（拖拽后保持） =====
+
+// localTasks：与 props.tasks 镜像，拖拽时修改这里
+const localTasks = ref([...(props.tasks || [])]);
+watch(() => props.tasks, (v) => {
+  localTasks.value = [...(v || [])];
+}, { immediate: false });
+
+// 拆成两个内部数组供 vuedraggable 直接 :list 绑定
+const undoneArr = ref([]);
+const doneArr = ref([]);
+
+function syncSplit() {
+  const u = [];
+  const d = [];
+  for (const t of localTasks.value) {
+    if (t.done) d.push(t);
+    else u.push(t);
+  }
+  undoneArr.value = u;
+  doneArr.value = d;
 }
-const undoneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => !t.done)));
-const doneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => t.done)));
+
+watch(localTasks, () => syncSplit(), { immediate: true });
+
+// 拖拽后从拆分数组重建完整顺序，持久化
+function mergeAfterDrag() {
+  const full = [...undoneArr.value, ...doneArr.value];
+  localTasks.value = full;
+  scheduleSave(full.map(t => t.id));
+}
+
+// 顶层 display computed（传入搜索过滤）
+const undoneTasks = computed(() => undoneArr.value);
+const doneTasks = computed(() => doneArr.value);
+
+let saveTimer = null;
+function scheduleSave(taskIds) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    saveTimer = null;
+    console.log("[neo-pm] saving reorder, taskIds:", JSON.stringify(taskIds));
+    const res = await api(`api/projects/${props.projectId}/reorder-tasks`, {
+      method: "POST",
+      body: JSON.stringify({ taskIds }),
+    });
+    console.log("[neo-pm] reorder response:", res);
+    if (!res?.ok) {
+      console.error("[reorder-tasks] failed:", res);
+      toast(`排序保存失败：${res?.error || "未知错误"}`, "error");
+      emit("changed"); // 让父级重拉回滚
+    } else {
+      emit("changed"); // 保存成功，刷新数据保证同步
+    }
+  }, 500);
+}
 
 // 搜索时：父任务自身命中则保留全部子任务；只子任务命中则只保留命中项
 function filterTaskForSearch(t, qLower) {
@@ -652,6 +727,11 @@ defineExpose({ openAdd });
   gap: 10px;
 }
 .task-group > :deep(.task-card) { margin-bottom: 0; }
+.task-drag-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .task-group-header {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 10px; padding: 0 2px 6px;
