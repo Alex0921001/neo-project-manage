@@ -123,6 +123,7 @@
                   @edit="startEdit"
                   @subtask="startSubtask"
                   @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+                  @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @edit-subtask="startEditSubtask"
                   @delete-subtask="deleteSubtask"
                   @select-annotation="onSelectAnnotation"
@@ -157,11 +158,11 @@
                   :expand-all="expandAll"
                   @complete="completeTask"
                   @activate="activateTask"
-                  @complete-subtask="completeSubtask"
-                  @activate-subtask="activateSubtask"
+                  @mark-task-done="markTaskDone"
                   @edit="startEdit"
               @subtask="startSubtask"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
+              @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @edit-subtask="startEditSubtask"
               @delete-subtask="deleteSubtask"
               @select-annotation="onSelectAnnotation"
@@ -175,8 +176,7 @@
       <aside v-if="activeTaskId" class="task-tab-annot">
         <AnnotationPanel
           :project-id="projectId"
-          :task="activeTask"
-          :subtask="activeSubtask"
+          :task="activeTarget"
           :tasks="tasks"
           @changed="() => emit('changed')"
           @close="closeAnnotation"
@@ -206,10 +206,23 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 // ===== 当前选中的批注目标 =====
 const activeTaskId = ref("");
 const activeSubtaskId = ref("");
-const activeTask = computed(() => props.tasks.find(t => t.id === activeTaskId.value) || null);
-const activeSubtask = computed(() => {
-  if (!activeTask.value || !activeSubtaskId.value) return null;
-  return (activeTask.value.subtasks || []).find(s => s.id === activeSubtaskId.value) || null;
+
+// 递归查找任意层级的 task（按 id 匹配）
+function findTaskInTree(tasks, id) {
+  for (const t of tasks || []) {
+    if (t.id === id) return t;
+    const sub = findTaskInTree(t.subtasks, id);
+    if (sub) return sub;
+  }
+  return null;
+}
+
+// 顶层任务 id（用于引导线定位）
+const activeTask = computed(() => findTaskInTree(props.tasks, activeTaskId.value));
+// 任意层级的目标 task（用于批注面板）
+const activeTarget = computed(() => {
+  if (!activeSubtaskId.value) return activeTask.value;
+  return findTaskInTree(props.tasks, activeSubtaskId.value) || activeTask.value;
 });
 
 function onSelectAnnotation({ taskId, subtaskId }) {
@@ -248,14 +261,9 @@ function positionAndConnect() {
     const layout = layoutRef.value;
     if (!layout) { connectorPath.value = ""; return; }
 
-    // 找到目标链接点
-    let targetEl = null;
-    if (activeSubtaskId.value) {
-      targetEl = layout.querySelector(`[data-connector-id="sub-${activeSubtaskId.value}"]`);
-    }
-    if (!targetEl) {
-      targetEl = layout.querySelector(`[data-connector-id="task-${activeTaskId.value}"]`);
-    }
+    // 找到目标链接点（TaskCard 递归后所有 task 都用 task-${id}）
+    const targetId = activeSubtaskId.value || activeTaskId.value;
+    const targetEl = layout.querySelector(`[data-connector-id="task-${targetId}"]`);
     // 链接点不存在 → 关闭面板
     if (!targetEl) { closeAnnotation(); return; }
 
@@ -313,9 +321,8 @@ function startTaskWatcher() {
   stopTaskWatcher();
   const list = layoutRef.value?.querySelector(".task-tab-list");
   if (!list || !activeTaskId.value) return;
-  const sel = activeSubtaskId.value
-    ? `[data-connector-id="sub-${activeSubtaskId.value}"]`
-    : `[data-connector-id="task-${activeTaskId.value}"]`;
+  const targetId = activeSubtaskId.value || activeTaskId.value;
+  const sel = `[data-connector-id="task-${targetId}"]`;
   taskWatcherObserver = new MutationObserver(() => {
     if (!list.querySelector(sel)) closeAnnotation();
   });
@@ -553,8 +560,10 @@ async function submitInline() {
     if (res.ok) { toast("已更新"); closeInline(); load(); }
     else toast(res.error || "更新失败", "error");
   } else if (subtaskParent.value) {
-    const res = await api(`api/projects/${props.projectId}/tasks/${subtaskParent.value.id}/subtasks`, {
-      method: "POST", body: JSON.stringify(payload),
+    // 子任务 / 孙任务创建（统一路径：POST tasks + parentTaskId）
+    const payloadWithParent = { ...payload, parentTaskId: subtaskParent.value.id };
+    const res = await api(`api/projects/${props.projectId}/tasks`, {
+      method: "POST", body: JSON.stringify(payloadWithParent),
     });
     if (res.ok) {
       toast("子任务已创建");
@@ -639,6 +648,7 @@ async function activateTask(id) {
 }
 
 async function completeSubtask(taskId, subId) {
+  // 兼容旧事件路径：当前主路径已改用 markTaskDone
   const task = props.tasks.find(t => t.id === taskId);
   const sub = task?.subtasks?.find(s => s.id === subId);
   if (!sub) return;
@@ -647,17 +657,39 @@ async function completeSubtask(taskId, subId) {
     toast(`无法完成子任务：${pendingAnns.length} 条批注未确认`, "error");
     return;
   }
-  await api(`api/projects/${props.projectId}/tasks/${taskId}/subtasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: true }) });
+  await api(`api/projects/${props.projectId}/tasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: true }) });
   load();
 }
 
 async function activateSubtask(taskId, subId) {
-  await api(`api/projects/${props.projectId}/tasks/${taskId}/subtasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: false }) });
+  await api(`api/projects/${props.projectId}/tasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: false }) });
+  load();
+}
+
+/**
+ * 统一标记任务完成 / 激活（适用任意层级）
+ * @param {{task: Object, done: boolean}} payload
+ */
+async function markTaskDone({ task, done }) {
+  if (!task) return;
+  // 校验：只检查任务自身的批注（不做后代检查，子/孙任务独立）
+  if (done) {
+    const pendingAnns = (task.annotations || []).filter(a => !a.confirmed);
+    if (pendingAnns.length) {
+      toast(`无法完成任务：${pendingAnns.length} 条批注未确认`, "error");
+      return;
+    }
+  }
+  await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ done }),
+  });
   load();
 }
 
 async function deleteSubtask(taskId, subId) {
-  emit("confirm-ask", { message: "确认删除此子任务？", action: "delete-subtask", payload: { taskId, subId } });
+  // 兼容旧 API：只用于兼容，未来删除应走 delete-task-deep
+  emit("confirm-ask", { message: "确认删除此子任务？", action: "delete-task", payload: subId });
 }
 
 defineExpose({ openAdd });

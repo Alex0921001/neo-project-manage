@@ -107,9 +107,8 @@ import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   projectId: String,
-  task: Object,
-  subtask: Object,
-  tasks: Array,
+  task: Object,           // 任意层级的任务对象（顶层/子/孙都走这一条）
+  tasks: Array,            // 项目下所有任务（用于取最新数据）
 });
 const emit = defineEmits(["changed", "close"]);
 
@@ -124,26 +123,30 @@ const editingSaving = ref(false);
 // 删除二次确认
 const confirmDel = ref({ show: false, ann: null });
 
-const target = computed(() => props.subtask || props.task || null);
-const targetDone = computed(() => !!target.value?.done);
-const targetLabel = computed(() => {
-  // 只显示当前对象的名字（不拼接父任务名），避免路径过长
-  if (props.subtask) return props.subtask.name || "";
-  if (props.task) return props.task.name || "";
-  return "";
+// 层级提示（仅为显示，不影响逻辑）
+const targetDepth = computed(() => {
+  if (!props.task) return 0;
+  return props.task.parent_task_id ? 2 : 1;  // 1=顶层，2=子/孙
 });
 
+const targetLabel = computed(() => props.task?.name || "");
+const targetDone = computed(() => !!props.task?.done);
+
 const annotations = computed(() => {
-  if (props.subtask) {
-    const liveTask = props.tasks?.find(t => t.id === props.task?.id);
-    const liveSub = liveTask?.subtasks?.find(s => s.id === props.subtask.id);
-    return liveSub?.annotations || props.subtask.annotations || [];
+  if (!props.task) return [];
+  // 树形结构里：递归找到任意层级的 task（含子孙）拿它的 annotations
+  function findAnns(tasks, id) {
+    for (const t of tasks) {
+      if (t.id === id) return t.annotations || [];
+      if (t.subtasks?.length) {
+        const sub = findAnns(t.subtasks, id);
+        if (sub) return sub;
+      }
+    }
+    return null;
   }
-  if (props.task) {
-    const live = props.tasks?.find(t => t.id === props.task.id);
-    return live?.annotations || props.task.annotations || [];
-  }
-  return [];
+  const live = props.tasks ? findAnns(props.tasks, props.task.id) : null;
+  return live || props.task.annotations || [];
 });
 
 // 排序：未确认在前（按 createdAt 倒序），已确认在后（按 createdAt 倒序）
@@ -157,7 +160,7 @@ const sortedAnnotations = computed(() => {
   return [...pending, ...done];
 });
 
-watch(target, () => { input.value = ""; });
+watch(() => props.task?.id, () => { input.value = ""; });
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -170,9 +173,6 @@ function formatDate(iso) {
 }
 
 function buildUrl(annId) {
-  if (props.subtask) {
-    return `api/projects/${props.projectId}/tasks/${props.task.id}/subtasks/${props.subtask.id}/annotations/${annId}`;
-  }
   return `api/projects/${props.projectId}/tasks/${props.task.id}/annotations/${annId}`;
 }
 
@@ -181,12 +181,7 @@ async function add() {
   if (!content || !props.task) return;
   saving.value = true;
   try {
-    let url;
-    if (props.subtask) {
-      url = `api/projects/${props.projectId}/tasks/${props.task.id}/subtasks/${props.subtask.id}/annotations`;
-    } else {
-      url = `api/projects/${props.projectId}/tasks/${props.task.id}/annotations`;
-    }
+    const url = `api/projects/${props.projectId}/tasks/${props.task.id}/annotations`;
     const res = await api(url, { method: "POST", body: JSON.stringify({ content }) });
     if (res?.ok) {
       input.value = "";

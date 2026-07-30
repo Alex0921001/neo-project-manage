@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { exec, execSync } from "node:child_process";
 import { createDataAccess } from "../lib/data.js";
-import { makeProjectsIO } from "./_helpers.js";
 import { registerProjectSetsRoutes } from "./modules/project-sets.js";
 import { registerProjectsRoutes } from "./modules/projects.js";
 import { registerTasksRoutes } from "./modules/tasks.js";
@@ -60,7 +59,6 @@ ${hanaLink}
 
 export default function registerPluginUiRoutes(app, ctx) {
   const data = createDataAccess(ctx.dataDir);
-  const io = makeProjectsIO(ctx.dataDir);
 
   // 调试模式：记录所有 API 请求（DEBUG 开关整体控制）
   if (DEBUG) {
@@ -93,10 +91,10 @@ export default function registerPluginUiRoutes(app, ctx) {
   // ===== Domain API（按职责分模块注册） =====
   registerProjectSetsRoutes(app, data);
   registerProjectsRoutes(app, data);
-  registerTasksRoutes(app, data, io, ctx);
-  registerAnnotationsRoutes(app, io);
-  registerFilesRoutes(app, io);
-  registerNotesRoutes(app, io);
+  registerTasksRoutes(app, data);
+  registerAnnotationsRoutes(app, data);
+  registerFilesRoutes(app, data);
+  registerNotesRoutes(app, data);
   // 2026-07-30 暂隐藏禅道 tab：registerZentaoRoutes(app, ctx);
 
   // ===== Debug =====

@@ -1,17 +1,25 @@
 <template>
-  <!-- 任务卡：仅两种视觉状态
-       - 默认（未完成）：暖色贴纸 + 阴影 + 左侧 4px 强调条（hover 显示）
-       - 完成（task.done）：浅米色 + 绿色强调条 + 删除线 -->
-  <div :class="['task-card', { 'task-card-done': task.done, 'task-card-locked': task.done }]" :data-task-id="task.id">
+  <!-- 任务卡：支持任意层级（顶层 / 子任务 / 孙任务）
+       - depth=0：顶层任务（在 TaskTab 的 vuedraggable 里）
+       - depth=1：子任务（在父 TaskCard 的 vuedraggable 里，支持拖拽排序）
+       - depth=2+：孙任务（不拖拽，仅展示 + 增删改）-->
+  <div
+    :class="[
+      'task-card',
+      `task-card-depth-${depth}`,
+      { 'task-card-done': task.done, 'task-card-locked': task.done, 'task-card-flash': flashing }
+    ]"
+    :data-task-id="task.id"
+  >
     <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
-      <span class="drag-handle" title="拖动重新排序" @click.stop>
+      <span class="drag-handle" :class="{ 'drag-handle-disabled': !draggable }" :title="draggable ? '拖动重新排序' : ''" @click.stop>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
       </span>
       <button
         v-if="!task.done"
         class="status-btn status-btn-complete"
         title="点击设为完成"
-        @click.stop="$emit('complete', task.id)"
+        @click.stop="onComplete"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
       </button>
@@ -19,11 +27,11 @@
         v-else
         class="status-btn status-btn-activate"
         title="点击重新激活（设为未完成）"
-        @click.stop="$emit('activate', task.id)"
+        @click.stop="onActivate"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
       </button>
-      <span class="task-idx">#{{ task.index }}</span>
+      <span class="task-idx">{{ task.index || '' }}</span>
       <div class="task-card-title">
         <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
@@ -46,6 +54,7 @@
         <button v-if="!task.done" class="icon-btn" title="编辑" @click.stop="$emit('edit', task)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         </button>
+        <!-- + 子任务按钮：所有层级都有 -->
         <button v-if="!task.done" class="icon-btn" title="添加子任务" @click.stop="$emit('subtask', task)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         </button>
@@ -63,71 +72,57 @@
         <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" title="双击打开" @dblclick="openFile(f)">{{ f.name }}</span>
       </div>
 
+      <!-- 子任务列表（递归渲染） -->
       <draggable
-        v-if="task.subtasks && task.subtasks.length"
+        v-if="(task.subtasks || []).length && draggable"
         :list="subtasksLocal"
         item-key="id"
         handle=".drag-handle-sm"
         ghost-class="subtask-ghost"
-        animation="180"
-        :disabled="!!searchQuery"
+        :animation="180"
+        :disabled="searchQuery ? true : false"
         class="subtask-list"
         @end="onSubtaskDragEnd"
       >
         <template #item="{ element: s }">
-        <div class="subtask-item" :data-connector-id="`sub-${s.id}`">
-          <span class="drag-handle drag-handle-sm" title="拖动重新排序" @click.stop>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="0.8"/><circle cx="9" cy="12" r="0.8"/><circle cx="9" cy="18" r="0.8"/><circle cx="15" cy="6" r="0.8"/><circle cx="15" cy="12" r="0.8"/><circle cx="15" cy="18" r="0.8"/></svg>
-          </span>
-          <button
-            v-if="!s.done"
-            class="status-btn status-btn-sm status-btn-complete"
-            title="点击设为完成"
-            @click.stop="$emit('complete-subtask', task.id, s.id)"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-          </button>
-          <button
-            v-else
-            class="status-btn status-btn-sm status-btn-activate"
-            title="点击重新激活"
-            @click.stop="$emit('activate-subtask', task.id, s.id)"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
-          </button>
-          <div class="subtask-content">
-            <span :class="['subtask-name', { 'subtask-done': s.done }]" v-html="highlight(s.name, searchQuery)"></span>
-            <span v-if="s.description" class="subtask-desc" v-html="highlightRichText(formatDescription(s.description), searchQuery)"></span>
-            <div v-if="subFileRefs(s).length" class="subtask-file-refs">
-              <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" title="双击打开" @dblclick.stop="openFile(f)">{{ f.name }}</span>
-            </div>
-          </div>
-          <div class="subtask-actions">
-            <span
-              v-if="(s.annotations || []).length > 0"
-              class="annot-badge annot-badge-sm"
-              :title="`查看 ${(s.annotations || []).length} 条批注`"
-              @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
-            ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-              {{ (s.annotations || []).length }}</span>
-            <button
-              v-if="!s.done && (s.annotations || []).length === 0"
-              class="icon-btn icon-btn-sm"
-              title="添加批注"
-              @click.stop="$emit('select-annotation', { taskId: task.id, subtaskId: s.id })"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-            </button>
-            <button v-if="!s.done" class="icon-btn icon-btn-sm" title="编辑子任务" @click.stop="$emit('edit-subtask', task, s)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-            </button>
-            <button class="icon-btn icon-btn-sm icon-btn-danger" @click.stop="$emit('delete-subtask', task.id, s.id)" title="删除子任务">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          </div>
-        </div>
+          <TaskCard
+            :task="s"
+            :files="files"
+            :search-query="searchQuery"
+            :project-id="projectId"
+            :expand-all="expandAll"
+            :depth="depth + 1"
+            @complete="markComplete(s)"
+            @activate="markActivate(s)"
+            @mark-task-done="$emit('mark-task-done', $event)"
+            @edit="$emit('edit-subtask', task, s)"
+            @subtask="$emit('subtask', $event)"
+            @delete="$emit('delete-task-deep', s.id)"
+            @select-annotation="$emit('select-annotation', $event)"
+            @changed="$emit('changed')"
+          />
         </template>
       </draggable>
+      <div v-else-if="(task.subtasks || []).length" class="subtask-list">
+        <TaskCard
+          v-for="s in (task.subtasks || [])"
+          :key="s.id"
+          :task="s"
+          :files="files"
+          :search-query="searchQuery"
+          :project-id="projectId"
+          :expand-all="expandAll"
+          :depth="depth + 1"
+          @complete="markComplete(s)"
+          @activate="markActivate(s)"
+          @mark-task-done="$emit('mark-task-done', $event)"
+          @edit="$emit('edit-subtask', task, s)"
+          @subtask="$emit('subtask', $event)"
+          @delete="$emit('delete-task-deep', s.id)"
+          @select-annotation="$emit('select-annotation', $event)"
+          @changed="$emit('changed')"
+        />
+      </div>
     </div>
   </div>
 </template>
@@ -140,60 +135,64 @@ import { highlight, highlightRichText } from "../../../utils/highlight.js";
 import draggable from "vuedraggable";
 import { toast } from "../../../toast.js";
 
+// 递归组件需要 name（Vue 3 setup 语法下用 defineOptions 或文件名）
+defineOptions({ name: "TaskCard" });
+
 const props = defineProps({
   task: { type: Object, required: true },
   files: { type: Array, default: () => [] },
   searchQuery: { type: String, default: "" },
   projectId: { type: String, default: "" },
   expandAll: { type: Boolean, default: null },
+  depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
 });
 const emit = defineEmits([
   "complete",
   "activate",
   "complete-subtask",
   "activate-subtask",
+  "mark-task-done",
   "edit",
+  "edit-subtask",
   "subtask",
   "delete",
   "delete-subtask",
-  "edit-subtask",
+  "delete-task-deep",
   "select-annotation",
   "changed",
 ]);
 
 const expanded = ref(!props.task.done);
+const flashing = ref(false);
 
 // 监听全局展开/收起
 watch(() => props.expandAll, (val) => {
-  if (val !== null && val !== undefined) {
-    expanded.value = val;
-  }
+  if (val !== null && val !== undefined) expanded.value = val;
 });
+
+// 仅顶层 + 子任务层支持拖拽（depth 2+ 嵌套 draggable 不稳）
+const draggable_drag = computed(() => props.depth < 2);
 
 const annotCount = computed(() => (props.task.annotations || []).length);
 
-// ===== 子任务拖拽排序 =====
-// 本地镜像：拖拽中修改这里，防抖后持久化
+// 子任务本地镜像（用于拖拽乐观更新）
 const subtasksLocal = ref([...(props.task.subtasks || [])]);
 watch(() => props.task.subtasks, (v) => {
   subtasksLocal.value = [...(v || [])];
 }, { deep: false });
 
 let subSaveTimer = null;
-function scheduleSave(subtaskIds) {
+function scheduleSave() {
   if (!props.projectId) return;
   if (subSaveTimer) clearTimeout(subSaveTimer);
   subSaveTimer = setTimeout(async () => {
     subSaveTimer = null;
     const ids = subtasksLocal.value.map(s => s.id);
-    console.log("[neo-pm] saving subtask reorder, ids:", JSON.stringify(ids));
     const res = await api(
       `api/projects/${props.projectId}/tasks/${props.task.id}/reorder-subtasks`,
       { method: "POST", body: JSON.stringify({ subtaskIds: ids }) }
     );
-    console.log("[neo-pm] subtask reorder response:", res);
     if (!res?.ok) {
-      console.error("[reorder-subtasks] failed:", res);
       toast(`子任务排序保存失败：${res?.error || "未知错误"}`, "error");
       emit("changed");
     }
@@ -210,19 +209,31 @@ const fileRefsList = computed(() => {
   return ids.map((id) => props.files.find((f) => f.id === id)).filter(Boolean);
 });
 
-function subFileRefs(sub) {
-  const ids = sub.fileRefs || [];
-  return ids.map((id) => props.files.find((f) => f.id === id)).filter(Boolean);
-}
-
 async function openFile(f) {
   if (!f?.path) return;
   await api(`api/open-file?path=${encodeURIComponent(f.path)}`);
 }
+
+function onComplete() {
+  // 统一传整个 task 对象，TaskTab 根据 parent_task_id 字段判断 API 路径
+  emit("mark-task-done", { task: props.task, done: true });
+}
+function onActivate() {
+  emit("mark-task-done", { task: props.task, done: false });
+}
+
+// 递归子节点标记完成 / 激活（不跳路径，直接传子任务对象）
+function markComplete(s) { emit("mark-task-done", { task: s, done: true }); }
+function markActivate(s) { emit("mark-task-done", { task: s, done: false }); }
+
+// 暴露闪烁 API（外部可调用，让新建的任务闪烁）
+defineExpose({
+  flash() { flashing.value = true; setTimeout(() => flashing.value = false, 1500); }
+});
 </script>
 
 <style scoped>
-/* ===== 任务卡：贴纸质感、暖色调 ===== */
+/* ===== 基础：贴纸质感、暖色调 ===== */
 .task-card {
   position: relative;
   background: oklch(0.995 0.01 85);
@@ -248,7 +259,6 @@ async function openFile(f) {
 }
 .task-card:hover::before { opacity: 1; }
 
-/* 完成态：浅绿底 + 虚线 + 绿色强调条 */
 .task-card-done {
   background: oklch(0.95 0.06 145);
   border-color: oklch(0.82 0.08 145);
@@ -262,7 +272,12 @@ async function openFile(f) {
   border-color: oklch(0.78 0.10 145);
 }
 
-/* ===== 拖拽手柄 ===== */
+/* 层级缩进 */
+.task-card-depth-1 { margin-left: 20px; }
+.task-card-depth-2 { margin-left: 20px; }
+.task-card-depth-3 { margin-left: 20px; }
+
+/* 拖拽手柄 */
 .drag-handle {
   display: inline-flex;
   align-items: center;
@@ -277,41 +292,8 @@ async function openFile(f) {
 }
 .drag-handle:hover { opacity: 1; color: oklch(0.45 0.05 80); background: oklch(0.92 0.03 85); }
 .drag-handle:active { cursor: grabbing; }
-.drag-handle-sm {
-  width: 12px;
-  height: 16px;
-  color: oklch(0.65 0.02 80);
-  opacity: 0.4;
-}
-.drag-handle-sm:hover { opacity: 0.9; }
+.drag-handle-disabled { cursor: default; opacity: 0.2; }
 
-/* vuedraggable 状态类 */
-.task-ghost {
-  opacity: 0.5;
-  background: oklch(0.82 0.10 240) !important;
-  border-style: dashed !important;
-  border-color: oklch(0.60 0.15 240) !important;
-}
-.task-chosen {
-  cursor: grabbing;
-}
-.task-drag {
-  transform: rotate(-1.5deg);
-  box-shadow: 0 8px 20px oklch(0.3 0.05 80 / 0.18);
-}
-.subtask-ghost {
-  opacity: 0.5;
-  background: oklch(0.82 0.10 240);
-  border: 1px dashed oklch(0.60 0.15 240);
-  border-radius: 4px;
-}
-
-.task-card-done:hover {
-  border-color: oklch(0.72 0.12 145);
-  box-shadow: 0 1px 3px oklch(0.45 0.10 145 / 0.15), 0 6px 14px oklch(0.45 0.08 145 / 0.10);
-}
-
-/* 新建后高亮闪烁 */
 @keyframes task-card-flash {
   0%   { box-shadow: 0 0 0 0 oklch(0.78 0.16 75 / 0.55), 0 1px 2px rgba(0,0,0,0.04); }
   50%  { box-shadow: 0 0 0 6px oklch(0.78 0.16 75 / 0.25), 0 1px 2px rgba(0,0,0,0.04); }
@@ -330,7 +312,6 @@ async function openFile(f) {
   user-select: none;
 }
 
-/* 状态按钮：✓ 完成 / ↻ 激活 */
 .status-btn {
   width: 22px;
   height: 22px;
@@ -346,14 +327,12 @@ async function openFile(f) {
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
   padding: 0;
-}
-.status-btn svg { display: block; }
-.status-btn-sm { width: 18px; height: 18px; font-size: 10px; }
-.status-btn-complete {
   background: oklch(0.99 0.01 85);
   color: oklch(0.55 0.04 80);
   border-color: oklch(0.78 0.04 85);
 }
+.status-btn-sm { width: 18px; height: 18px; font-size: 10px; }
+.status-btn svg { display: block; }
 .status-btn-complete:hover {
   background: oklch(0.94 0.08 145);
   color: oklch(0.45 0.13 145);
@@ -373,7 +352,6 @@ async function openFile(f) {
   transform: scale(1.08);
 }
 
-/* ===== 统一图标按钮样式（SVG icons）===== */
 .icon-btn {
   width: 22px;
   height: 22px;
@@ -392,8 +370,6 @@ async function openFile(f) {
   padding: 0;
 }
 .icon-btn svg { display: block; }
-.icon-btn-sm { width: 20px; height: 20px; border-radius: 4px; }
-.icon-btn-sm svg { width: 12px; height: 12px; }
 .icon-btn:hover {
   background: oklch(0.94 0.06 85);
   color: oklch(0.35 0.10 80);
@@ -405,7 +381,6 @@ async function openFile(f) {
   border-color: oklch(0.72 0.10 30);
 }
 
-/* 序号 */
 .task-idx {
   color: oklch(0.55 0.04 75);
   font-size: 12px;
@@ -415,7 +390,6 @@ async function openFile(f) {
   letter-spacing: 0.02em;
 }
 
-/* 任务名 */
 .task-card-title {
   display: flex;
   align-items: center;
@@ -439,14 +413,12 @@ async function openFile(f) {
   color: oklch(0.55 0.04 80);
 }
 
-/* actions 区：默认显示 */
 .task-card-actions {
   display: flex;
   gap: 2px;
   opacity: 1;
 }
 
-/* body */
 .task-card-body {
   padding: 0 12px 10px calc(14px + 16px + 8px + 22px + 8px + 24px + 8px);
   animation: slideDown 0.2s ease-out;
@@ -456,7 +428,6 @@ async function openFile(f) {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 描述 */
 .task-desc {
   margin: 0 0 8px;
   font-size: 13px;
@@ -474,19 +445,12 @@ async function openFile(f) {
   border-left-color: oklch(0.90 0.02 85);
 }
 
-/* 完成态：卡片内子元素统一绿调 */
 .task-card-done .task-desc {
   background: oklch(0.92 0.05 145);
   color: oklch(0.35 0.08 145);
   border-left-color: oklch(0.75 0.12 145);
 }
-.task-card-done .task-desc-empty {
-  background: transparent;
-  border-left-color: oklch(0.85 0.08 145);
-  color: oklch(0.50 0.06 145);
-}
 
-/* 批注徽标 - 暖色胶囊 */
 .annot-badge {
   display: inline-flex;
   align-items: center;
@@ -507,23 +471,8 @@ async function openFile(f) {
   background: oklch(0.90 0.12 85);
   border-color: oklch(0.65 0.13 80);
   transform: translateY(-1px);
-  box-shadow: 0 2px 4px oklch(0.5 0.06 80 / 0.15);
-}
-.annot-badge-sm {
-  font-size: 10px;
-  padding: 1px 6px;
-}
-.task-card-done .annot-badge {
-  background: oklch(0.92 0.08 145);
-  color: oklch(0.30 0.12 145);
-  border-color: oklch(0.82 0.10 145);
-}
-.task-card-done .annot-badge:hover {
-  background: oklch(0.88 0.10 145);
-  border-color: oklch(0.68 0.14 145);
 }
 
-/* 关联文件 */
 .file-refs-row {
   display: flex;
   flex-wrap: wrap;
@@ -553,17 +502,6 @@ async function openFile(f) {
   color: oklch(0.35 0.10 75);
   border-color: oklch(0.78 0.06 75);
 }
-.file-ref-sm { font-size: 11px; padding: 1px 6px; }
-.task-card-done .file-ref-link {
-  background: oklch(0.93 0.04 145);
-  color: oklch(0.35 0.10 145);
-  border-color: oklch(0.85 0.06 145);
-}
-.task-card-done .file-ref-link:hover {
-  background: oklch(0.90 0.06 145);
-  color: oklch(0.30 0.12 145);
-  border-color: oklch(0.75 0.10 145);
-}
 
 /* 子任务列表 */
 .subtask-list {
@@ -574,53 +512,25 @@ async function openFile(f) {
   flex-direction: column;
   gap: 2px;
 }
-.task-card-done .subtask-list {
-  border-top-color: oklch(0.82 0.08 145);
-}
-.subtask-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 5px 6px;
+.subtask-ghost {
+  opacity: 0.5;
+  background: oklch(0.82 0.10 240);
+  border: 1px dashed oklch(0.60 0.15 240);
   border-radius: 4px;
-  transition: background var(--duration-fast) var(--ease-out);
 }
-@keyframes subtask-flash {
-  0%   { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0.55); }
-  50%  { box-shadow: 0 0 0 4px oklch(0.70 0.14 240 / 0.30); }
-  100% { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0); }
-}
-.subtask-flash { animation: subtask-flash 1.5s ease-out; }
-.subtask-item:hover { background: oklch(0.97 0.03 85); }
-.task-card-done .subtask-item:hover { background: oklch(0.92 0.05 145); }
 
-.subtask-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
+/* 子任务拖拽手柄（孙任务层用） */
+.drag-handle-sm {
+  width: 12px;
+  height: 16px;
+  color: oklch(0.65 0.02 80);
+  opacity: 0.4;
+  cursor: grab;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.subtask-name {
-  font-size: 13px;
-  color: oklch(0.35 0.04 80);
-  display: block;
-  word-break: break-word;
-}
-.task-card-done .subtask-name { color: oklch(0.30 0.06 145); }
-.subtask-desc {
-  font-size: 12px;
-  color: oklch(0.50 0.04 75);
-  margin-top: 1px;
-  display: block;
-}
-.task-card-done .subtask-desc { color: oklch(0.40 0.06 145); }
-.subtask-done {
-  text-decoration: line-through;
-  color: oklch(0.55 0.04 80);
-  text-decoration-thickness: 1.5px;
-}
-.task-card-done .subtask-done { color: oklch(0.45 0.08 145); }
+.drag-handle-sm:hover { opacity: 0.9; }
 
 /* 搜索关键字高亮 */
 .task-card :deep(.hl),
@@ -633,16 +543,11 @@ async function openFile(f) {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
-.subtask-file-refs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 3px;
-}
 
-.subtask-actions {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
+@keyframes subtask-flash {
+  0%   { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0.55); }
+  50%  { box-shadow: 0 0 0 4px oklch(0.70 0.14 240 / 0.30); }
+  100% { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0); }
 }
+.subtask-flash { animation: subtask-flash 1.5s ease-out; }
 </style>
