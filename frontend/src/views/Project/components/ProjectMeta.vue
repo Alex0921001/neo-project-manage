@@ -139,35 +139,30 @@ function statusClass(s) {
 const displayStatus = computed(() => computeDisplayStatus(props.project));
 
 // 距离天数
-const today = new Date();
-today.setHours(0, 0, 0, 0);
+import dayjs from "dayjs";
 
-function daysBetween(d1, d2) {
-  return Math.round((d2.getTime() - d1.getTime()) / 86400000);
-}
+const today = dayjs().startOf("day");
 
 const countdown = computed(() => {
   if (!props.project) return null;
-  const start = props.project.planStart ? new Date(props.project.planStart) : null;
-  const end = props.project.planEnd ? new Date(props.project.planEnd) : null;
-  if (!start && !end) return null;
+  const startStr = props.project.planStart;
+  const endStr = props.project.planEnd;
+  if (!startStr && !endStr) return null;
 
   const status = props.project.status;
   if (status === "已完成") {
     return { kind: "done", days: 0, text: "已完成" };
   }
-  if (end) {
-    const endDay = new Date(end);
-    endDay.setHours(0, 0, 0, 0);
-    const diff = daysBetween(today, endDay);
+  if (endStr) {
+    const endDay = dayjs(endStr).startOf("day");
+    const diff = endDay.diff(today, "day");
     if (diff > 0) return { kind: "future", days: diff, text: `距离结束还有 ${diff} 天` };
     if (diff === 0) return { kind: "today", days: 0, text: `今天结束` };
     if (diff < 0) return { kind: "overdue", days: -diff, text: `已延期 ${-diff} 天` };
   }
-  if (start) {
-    const startDay = new Date(start);
-    startDay.setHours(0, 0, 0, 0);
-    const diff = daysBetween(today, startDay);
+  if (startStr) {
+    const startDay = dayjs(startStr).startOf("day");
+    const diff = startDay.diff(today, "day");
     if (diff > 0) return { kind: "future", days: diff, text: `距离开始还有 ${diff} 天` };
     if (diff === 0) return { kind: "today", days: 0, text: `今天开始` };
     if (diff < 0) return { kind: "started", days: -diff, text: `已开始 ${-diff} 天` };

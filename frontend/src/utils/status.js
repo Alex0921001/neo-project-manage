@@ -1,14 +1,39 @@
+import dayjs from "dayjs";
+
 /**
- * 展示用状态计算：把 raw status + 日期推导出 "已延期" 等展示值。
- * 与后端 lib/data.js 的 computeStatus 保持一致。
+ * 展示用状态计算：前端展示，不修改后端数据。
+ *
+ * 判断顺序：
+ *   1) 已完成 → 不可能逾期
+ *   2) 待开始 + planStart 已过 → 已延期
+ *   3) 进行中 + planEnd 已过 → 已延期
+ *   4) 其余 → 返回 raw status
+ *
+ * 日期边界（用 dayjs）：
+ *   planStart "YYYY-MM-DD" → 本地当天 00:00
+ *   planEnd   "YYYY-MM-DD" → 本地当天 23:59:59.999（含当天）
  */
 export function computeDisplayStatus(project) {
   if (!project) return "待开始";
   if (project.status === "已完成") return "已完成";
-  const now = Date.now();
-  const start = project.planStart ? new Date(project.planStart).getTime() : null;
-  const end = project.planEnd ? new Date(project.planEnd).getTime() : null;
-  if (project.status === "待开始" && start && now > start) return "已延期";
-  if (project.status === "进行中" && end && now > end) return "已延期";
+
+  const now = dayjs();
+
+  if (
+    project.status === "待开始" &&
+    project.planStart &&
+    now.isAfter(dayjs(project.planStart).startOf("day"))
+  ) {
+    return "已延期";
+  }
+
+  if (
+    project.status === "进行中" &&
+    project.planEnd &&
+    now.isAfter(dayjs(project.planEnd).endOf("day"))
+  ) {
+    return "已延期";
+  }
+
   return project.status || "待开始";
 }
