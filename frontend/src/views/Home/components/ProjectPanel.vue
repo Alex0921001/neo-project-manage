@@ -162,12 +162,18 @@ async function saveProject(d) {
 
 function delProj(p) {
   const taskCount = p.taskCount ?? (p.tasks || []).length;
+  const incompleteCount = p.incompleteTaskCount ?? taskCount;
+  const doneCount = taskCount - incompleteCount;
+  if (doneCount > 0) {
+    toast(`项目「${p.name}」下还有 ${doneCount} 个已完成任务，无法删除`, "error");
+    return;
+  }
   const fileCount = p.fileCount ?? (p.files || []).length;
   const msgParts = [];
-  if (taskCount > 0) msgParts.push(`${taskCount} 个任务`);
+  if (incompleteCount > 0) msgParts.push(`${incompleteCount} 个未完成任务`);
   if (fileCount > 0) msgParts.push(`${fileCount} 个文件`);
-  if (msgParts.length > 0) { toast(`项目「${p.name}」下还有 ${msgParts.join('、')}，无法删除`, "error"); return; }
-  emit("confirm-ask", { message: `确认删除项目「${p.name}」？`, action: "delete-project", payload: p.id });
+  const summary = msgParts.length > 0 ? `（含 ${msgParts.join('、')}）` : '';
+  emit("confirm-ask", { message: `确认删除项目「${p.name}」？${summary}`, action: "delete-project", payload: p.id });
 }
 
 defineExpose({ load, setFilter, filSetId });
