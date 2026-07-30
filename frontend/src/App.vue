@@ -3,7 +3,7 @@
     <div class="tab-bar">
       <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">📋 项目</button>
       <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">📅 日历</button>
-      <button :class="['tab-btn', { active: view === 'zentao' }]" @click="goZentao">🐞 禅道</button>
+      <!-- 2026-07-30 暂隐藏禅道 tab：<button :class="['tab-btn', { active: view === 'zentao' }]" @click="goZentao">🐞 禅道</button> -->
     </div>
 
     <HomeView
@@ -23,7 +23,7 @@
       <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" />
     </div>
 
-    <ZentaoView v-show="view === 'zentao'" />
+    <!-- 2026-07-30 暂隐藏禅道视图：<ZentaoView v-show="view === 'zentao'" /> -->
 
     <div id="toast-container"></div>
   </div>
@@ -34,7 +34,7 @@ import { ref, watch, onMounted, nextTick } from "vue";
 import { api, reportHeight } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
-import ZentaoView from "./views/Zentao/index.vue";
+// 2026-07-30 暂隐藏禅道 tab：import ZentaoView from "./views/Zentao/index.vue";
 import CalendarWidget from "./views/Project/components/CalendarWidget.vue";
 
 const view = ref("home");
@@ -62,12 +62,13 @@ function goHome() {
   nextTick(() => homeRef.value?.refresh?.());
 }
 
-function goZentao() {
-  view.value = "zentao";
-  projectId.value = null;
-  historyStack.value = [];
-  saveState();
-}
+// 2026-07-30 暂隐藏禅道 tab：
+// function goZentao() {
+//   view.value = "zentao";
+//   projectId.value = null;
+//   historyStack.value = [];
+//   saveState();
+// }
 
 function goCalendar() {
   view.value = "calendar";
@@ -149,7 +150,7 @@ async function restoreState() {
         historyStack.value = [];
       }
     } catch { /* keep default */ }
-  } else if (["home", "calendar", "zentao"].includes(state.view)) {
+  } else if (["home", "calendar"].includes(state.view)) {
     view.value = state.view;
     projectId.value = null;
     if (state.view === "home") nextTick(() => homeRef.value?.refresh?.());

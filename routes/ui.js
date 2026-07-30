@@ -10,7 +10,7 @@ import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
 import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
-import { registerZentaoRoutes } from "./modules/zentao.js";
+// 2026-07-30 暂隐藏禅道 tab：import { registerZentaoRoutes } from "./modules/zentao.js";
 
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
@@ -62,6 +62,18 @@ export default function registerPluginUiRoutes(app, ctx) {
   const data = createDataAccess(ctx.dataDir);
   const io = makeProjectsIO(ctx.dataDir);
 
+  // 调试模式：记录所有 API 请求（DEBUG 开关整体控制）
+  if (DEBUG) {
+    app.use("*", async (c, next) => {
+      const start = Date.now();
+      await next();
+      const url = new URL(c.req.url);
+      // 过滤页面与静态资源，避免日志被刷屏
+      if (url.pathname === "/page" || url.pathname.startsWith("/icons/")) return;
+      ctx.log.info(`[api] ${c.req.method} ${url.pathname}${url.search} -> ${c.res.status} ${Date.now() - start}ms`);
+    });
+  }
+
   // ===== Page Shell =====
   app.get("/page", (c) => {
     const hanaCss = c.req.query("hana-css") || "";
@@ -85,7 +97,7 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerAnnotationsRoutes(app, io);
   registerFilesRoutes(app, io);
   registerNotesRoutes(app, io);
-  registerZentaoRoutes(app, ctx);
+  // 2026-07-30 暂隐藏禅道 tab：registerZentaoRoutes(app, ctx);
 
   // ===== Debug =====
   app.get("/api/debug-project/:id", (c) => {

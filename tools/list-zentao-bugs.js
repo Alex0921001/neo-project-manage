@@ -1,3 +1,5 @@
+// 2026-07-30 暂时隐藏禅道 tab，对应工具文件整体注释。需要时取消注释即可恢复。
+/*
 import fs from "node:fs";
 import path from "node:path";
 
@@ -27,3 +29,4 @@ export async function execute(input, toolCtx) {
     }],
   };
 }
+*/
