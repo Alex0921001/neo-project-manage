@@ -10,6 +10,7 @@ import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
 import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
+import { registerZentaoRoutes } from "./modules/zentao.js";
 
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
@@ -84,6 +85,7 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerAnnotationsRoutes(app, io);
   registerFilesRoutes(app, io);
   registerNotesRoutes(app, io);
+  registerZentaoRoutes(app, ctx);
 
   // ===== Debug =====
   app.get("/api/debug-project/:id", (c) => {
