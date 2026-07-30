@@ -287,9 +287,10 @@ async function openFile(f) {
 
 /* vuedraggable 状态类 */
 .task-ghost {
-  opacity: 0.4;
-  background: oklch(0.95 0.04 85) !important;
+  opacity: 0.5;
+  background: oklch(0.82 0.10 240) !important;
   border-style: dashed !important;
+  border-color: oklch(0.60 0.15 240) !important;
 }
 .task-chosen {
   cursor: grabbing;
@@ -299,8 +300,10 @@ async function openFile(f) {
   box-shadow: 0 8px 20px oklch(0.3 0.05 80 / 0.18);
 }
 .subtask-ghost {
-  opacity: 0.4;
-  background: oklch(0.95 0.04 85);
+  opacity: 0.5;
+  background: oklch(0.82 0.10 240);
+  border: 1px dashed oklch(0.60 0.15 240);
+  border-radius: 4px;
 }
 
 .task-card-done:hover {
