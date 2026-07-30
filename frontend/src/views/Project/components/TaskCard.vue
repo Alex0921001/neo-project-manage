@@ -57,7 +57,7 @@
 
       <div v-if="fileRefsList.length" class="file-refs-row">
         <span class="file-refs-row-label">关联文件</span>
-        <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" @click="openFile(f)">{{ f.name }}</span>
+        <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" title="双击打开" @dblclick="openFile(f)">{{ f.name }}</span>
       </div>
 
       <div v-if="task.subtasks && task.subtasks.length" class="subtask-list">
@@ -82,7 +82,7 @@
             <span :class="['subtask-name', { 'subtask-done': s.done }]" v-html="highlight(s.name, searchQuery)"></span>
             <span v-if="s.description" class="subtask-desc" v-html="highlightRichText(formatDescription(s.description), searchQuery)"></span>
             <div v-if="subFileRefs(s).length" class="subtask-file-refs">
-              <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" @click.stop="openFile(f)">{{ f.name }}</span>
+              <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" title="双击打开" @dblclick.stop="openFile(f)">{{ f.name }}</span>
             </div>
           </div>
           <div class="subtask-actions">

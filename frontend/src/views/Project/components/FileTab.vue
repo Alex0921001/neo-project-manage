@@ -1,7 +1,7 @@
 <template>
   <div class="area-section">
     <div class="file-grid">
-      <div v-for="f in files" :key="f.id" class="file-chip" @dblclick="openFile(f)">
+      <div v-for="f in files" :key="f.id" class="file-chip" title="双击打开" @dblclick="openFile(f)">
         <span class="chip-icon" :class="'chip-'+iconClass(f.name)" v-text="iconShort(f.name)"></span>
         <span class="chip-name">{{ f.name }}</span>
         <button class="chip-del" @click.stop="emit('confirm-ask', { message: '确认删除此文件？', action: 'delete-file', payload: f.id })">✕</button>
