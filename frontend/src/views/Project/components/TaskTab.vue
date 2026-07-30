@@ -92,15 +92,16 @@
       <div class="task-tab-list">
         <div v-if="!tasks.length" class="empty-state">暂无任务</div>
         <template v-else>
-          <div v-if="undoneTasks.length" class="task-group">
+          <div v-if="displayedUndoneTasks.length" class="task-group">
             <div class="task-group-header">
               <span class="task-group-title">未完成</span>
-              <span class="task-group-count">{{ undoneTasks.length }}</span>
+              <span class="task-group-count">{{ displayedUndoneTasks.length }}</span>
             </div>
             <TaskCard
-              v-for="t in undoneTasks" :key="t.id"
+              v-for="t in displayedUndoneTasks" :key="t.id"
               :task="t"
               :files="files"
+              :search-query="searchQuery"
               @complete="completeTask"
               @activate="activateTask"
               @complete-subtask="completeSubtask"
@@ -113,15 +114,16 @@
               @select-annotation="onSelectAnnotation"
             />
           </div>
-          <div v-if="doneTasks.length" class="task-group task-group-done">
+          <div v-if="displayedDoneTasks.length" class="task-group task-group-done">
             <div class="task-group-header">
               <span class="task-group-title">已完成</span>
-              <span class="task-group-count">{{ doneTasks.length }}</span>
+              <span class="task-group-count">{{ displayedDoneTasks.length }}</span>
             </div>
             <TaskCard
-              v-for="t in doneTasks" :key="t.id"
+              v-for="t in displayedDoneTasks" :key="t.id"
               :task="t"
               :files="files"
+              :search-query="searchQuery"
               @complete="completeTask"
               @activate="activateTask"
               @complete-subtask="completeSubtask"
@@ -161,6 +163,7 @@ const props = defineProps({
   projectId: String,
   tasks: { type: Array, default: () => [] },
   files: { type: Array, default: () => [] },
+  searchQuery: { type: String, default: "" },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
@@ -320,6 +323,31 @@ function sortByCreatedDesc(arr) {
 }
 const undoneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => !t.done)));
 const doneTasks = computed(() => sortByCreatedDesc(props.tasks.filter(t => t.done)));
+
+// 搜索时：父任务自身命中则保留全部子任务；只子任务命中则只保留命中项
+function filterTaskForSearch(t, qLower) {
+  if (!qLower) return t;
+  const selfHit = (t.name || "").toLowerCase().includes(qLower)
+               || (t.description || "").toLowerCase().includes(qLower);
+  if (selfHit) return t;
+  const subs = (t.subtasks || []).filter(s =>
+    (s.name || "").toLowerCase().includes(qLower)
+    || (s.description || "").toLowerCase().includes(qLower)
+  );
+  if (subs.length === 0) return t; // 顶层负责保留，这里只裁 sub
+  return { ...t, subtasks: subs };
+}
+const searchLower = computed(() => props.searchQuery.trim().toLowerCase());
+const displayedUndoneTasks = computed(() =>
+  searchLower.value
+    ? undoneTasks.value.map(t => filterTaskForSearch(t, searchLower.value))
+    : undoneTasks.value
+);
+const displayedDoneTasks = computed(() =>
+  searchLower.value
+    ? doneTasks.value.map(t => filterTaskForSearch(t, searchLower.value))
+    : doneTasks.value
+);
 
 // 内联表单状态
 const inlineMode = ref(false);

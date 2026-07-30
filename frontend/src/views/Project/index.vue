@@ -35,7 +35,7 @@
             <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
-          <span v-if="tab === 'tasks' && taskSearch" class="task-search-count">{{ filteredTasks.length }} / {{ (p?.tasks || []).length }}</span>
+          <span v-if="tab === 'tasks' && taskSearch" class="task-search-count">{{ filteredTasks.length }} / {{ (p?.tasks || []).length }} 顶层</span>
           <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
             <option value="all">全部任务</option>
             <option value="incomplete">仅未完成</option>
@@ -54,6 +54,7 @@
           :project-id="p.id"
           :tasks="filteredTasks"
           :files="p.files || []"
+          :search-query="taskSearch"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -136,13 +137,23 @@ watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 // ===== 任务筛选 =====
 const taskFilter = ref("all");
 const taskSearch = ref("");
+
+function taskMatches(t, qLower) {
+  return (t.name || "").toLowerCase().includes(qLower)
+      || (t.description || "").toLowerCase().includes(qLower);
+}
+
 const filteredTasks = computed(() => {
   let arr = p.value?.tasks || [];
   if (taskFilter.value === "incomplete") arr = arr.filter(t => !t.done);
   else if (taskFilter.value === "done") arr = arr.filter(t => t.done);
   const q = taskSearch.value.trim().toLowerCase();
-  if (q) arr = arr.filter(t => (t.name || "").toLowerCase().includes(q));
-  return arr;
+  if (!q) return arr;
+  // 保留：自身标题/描述命中，或任意子任务标题/描述命中
+  return arr.filter(t => {
+    if (taskMatches(t, q)) return true;
+    return (t.subtasks || []).some(s => taskMatches(s, q));
+  });
 });
 
 // ===== Load =====

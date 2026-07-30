@@ -22,7 +22,7 @@
       </button>
       <span class="task-idx">#{{ task.index }}</span>
       <div class="task-card-title">
-        <span :class="['task-name', { 'task-done': task.done }]">{{ task.name }}</span>
+        <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
           v-if="annotCount > 0"
           class="annot-badge"
@@ -52,7 +52,7 @@
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
-      <p v-if="task.description" class="task-desc" v-html="formatDescription(task.description)"></p>
+      <p v-if="task.description" class="task-desc" v-html="highlightRichText(formatDescription(task.description), searchQuery)"></p>
       <p v-else class="task-desc task-desc-empty">暂无描述</p>
 
       <div v-if="fileRefsList.length" class="file-refs-row">
@@ -79,8 +79,8 @@
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
           </button>
           <div class="subtask-content">
-            <span :class="['subtask-name', { 'subtask-done': s.done }]">{{ s.name }}</span>
-            <span v-if="s.description" class="subtask-desc" v-html="formatDescription(s.description)"></span>
+            <span :class="['subtask-name', { 'subtask-done': s.done }]" v-html="highlight(s.name, searchQuery)"></span>
+            <span v-if="s.description" class="subtask-desc" v-html="highlightRichText(formatDescription(s.description), searchQuery)"></span>
             <div v-if="subFileRefs(s).length" class="subtask-file-refs">
               <span v-for="f in subFileRefs(s)" :key="f.id" class="file-ref-link file-ref-sm" @click.stop="openFile(f)">{{ f.name }}</span>
             </div>
@@ -118,10 +118,12 @@
 import { ref, computed } from "vue";
 import { api } from "../../../api.js";
 import { formatDescription } from "../../../utils/text.js";
+import { highlight, highlightRichText } from "../../../utils/highlight.js";
 
 const props = defineProps({
   task: { type: Object, required: true },
   files: { type: Array, default: () => [] },
+  searchQuery: { type: String, default: "" },
 });
 const emit = defineEmits([
   "complete",
@@ -508,6 +510,18 @@ async function openFile(f) {
   text-decoration-thickness: 1.5px;
 }
 .task-card-done .subtask-done { color: oklch(0.45 0.08 145); }
+
+/* 搜索关键字高亮 */
+.task-card :deep(.hl),
+.task-card .hl {
+  background: #fef08a;
+  color: #78350f;
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
 .subtask-file-refs {
   display: flex;
   flex-wrap: wrap;
