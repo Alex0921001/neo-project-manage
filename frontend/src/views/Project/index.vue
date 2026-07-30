@@ -41,6 +41,13 @@
             <option value="incomplete">仅未完成</option>
             <option value="done">仅已完成</option>
           </select>
+          <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline v-if="expandAll" points="6 15 12 9 18 15"></polyline>
+              <polyline v-else points="6 9 12 15 18 9"></polyline>
+            </svg>
+            {{ expandAll ? '收起' : '展开' }}
+          </button>
           <button class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
@@ -55,6 +62,7 @@
           :tasks="filteredTasks"
           :files="p.files || []"
           :search-query="taskSearch"
+          :expand-all="expandAll"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -133,6 +141,12 @@ const fullBreadcrumb = computed(() => {
 const tabKey = `neo-pm-tab-${props.projectId}`;
 const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
+
+// ===== 一键展开/收起 =====
+const expandAll = ref(false);
+function toggleExpandAll() {
+  expandAll.value = !expandAll.value;
+}
 
 // ===== 任务筛选 =====
 const taskFilter = ref("all");
@@ -310,14 +324,22 @@ async function doConfirm() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
-  border-radius: 8px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  background: #ffffff;
+  color: #374151;
   transition: all 0.15s ease-out;
   font-family: inherit;
   letter-spacing: 0.01em;
+}
+.header-btn:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+  color: #1f2937;
 }
 .header-btn-primary {
   background: #111827;
@@ -326,8 +348,9 @@ async function doConfirm() {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .header-btn-primary:hover {
-  background: #1f2937;
-  border-color: #1f2937;
+  background: #1f2937 !important;
+  border-color: #1f2937 !important;
+  color: #ffffff !important;
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(17, 24, 39, 0.20);
 }
@@ -342,7 +365,7 @@ async function doConfirm() {
   outline: none;
   cursor: pointer;
   font-family: inherit;
-  font-weight: 500;
+  font-weight: 600;
   transition: all 0.15s ease-out;
 }
 .task-filter-select:hover { border-color: #d1d5db; }
@@ -368,7 +391,7 @@ async function doConfirm() {
   color: #1f2937;
   outline: none;
   font-family: inherit;
-  font-weight: 500;
+  font-weight: 600;
   width: 160px;
   transition: all 0.15s ease-out;
 }

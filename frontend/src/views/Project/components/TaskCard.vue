@@ -145,6 +145,7 @@ const props = defineProps({
   files: { type: Array, default: () => [] },
   searchQuery: { type: String, default: "" },
   projectId: { type: String, default: "" },
+  expandAll: { type: Boolean, default: null },
 });
 const emit = defineEmits([
   "complete",
@@ -161,6 +162,14 @@ const emit = defineEmits([
 ]);
 
 const expanded = ref(!props.task.done);
+
+// 监听全局展开/收起
+watch(() => props.expandAll, (val) => {
+  if (val !== null && val !== undefined) {
+    expanded.value = val;
+  }
+});
+
 const annotCount = computed(() => (props.task.annotations || []).length);
 
 // ===== 子任务拖拽排序 =====

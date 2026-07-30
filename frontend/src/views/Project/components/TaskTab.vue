@@ -92,7 +92,7 @@
       <div class="task-tab-list">
         <div v-if="!tasks.length" class="empty-state">暂无任务</div>
         <template v-else>
-          <div v-if="displayedUndoneTasks.length" class="task-group">
+<div v-if="displayedUndoneTasks.length" class="task-group">
             <div class="task-group-header">
               <span class="task-group-title">未完成</span>
               <span class="task-group-count">{{ displayedUndoneTasks.length }}</span>
@@ -115,6 +115,7 @@
                   :files="files"
                   :search-query="searchQuery"
                   :project-id="projectId"
+                  :expand-all="expandAll"
                   @complete="completeTask"
                   @activate="activateTask"
                   @complete-subtask="completeSubtask"
@@ -153,6 +154,7 @@
                   :files="files"
                   :search-query="searchQuery"
                   :project-id="projectId"
+                  :expand-all="expandAll"
                   @complete="completeTask"
                   @activate="activateTask"
                   @complete-subtask="completeSubtask"
@@ -197,6 +199,7 @@ const props = defineProps({
   tasks: { type: Array, default: () => [] },
   files: { type: Array, default: () => [] },
   searchQuery: { type: String, default: "" },
+  expandAll: { type: Boolean, default: null },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
