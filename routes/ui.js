@@ -59,8 +59,8 @@ ${hanaLink}
 
 export default function registerPluginUiRoutes(app, ctx) {
   const data = createDataAccess(ctx.dataDir);
+  ctx.log.warn("[ui] data ready, registerTasksRoutes type:", typeof registerTasksRoutes);
 
-  // 调试模式：记录所有 API 请求（DEBUG 开关整体控制）
   if (DEBUG) {
     app.use("*", async (c, next) => {
       const start = Date.now();
@@ -92,9 +92,12 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerProjectSetsRoutes(app, data);
   registerProjectsRoutes(app, data);
   registerTasksRoutes(app, data);
+  app.get("/api/__diag_after_tasks__", (c) => c.json({ ok: true }));
   registerAnnotationsRoutes(app, data);
+  app.get("/api/__diag_after_anns__", (c) => c.json({ ok: true }));
   registerFilesRoutes(app, data);
   registerNotesRoutes(app, data);
+  app.get("/api/__diag_all_routes__", (c) => c.json({ ok: true }));
   // 2026-07-30 暂隐藏禅道 tab：registerZentaoRoutes(app, ctx);
 
   // ===== Debug =====
