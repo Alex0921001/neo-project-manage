@@ -143,7 +143,8 @@ const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 
 // ===== 一键展开/收起 =====
-const expandAll = ref(false);
+// null = 未操作（子任务按默认：未完成展开、已完成折叠）；true/false = 显式展开/收起
+const expandAll = ref(null);
 function toggleExpandAll() {
   expandAll.value = !expandAll.value;
 }

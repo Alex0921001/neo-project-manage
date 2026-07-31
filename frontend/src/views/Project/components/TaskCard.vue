@@ -167,12 +167,25 @@ const emit = defineEmits([
   "changed",
 ]);
 
-const expanded = ref(!props.task.done);
+// 展开状态：未点过一键展开/收起时按默认（未完成展开、已完成折叠）；
+// 显式展开/收起（expandAll 为 true/false）时，初始化也直接跟随（后创建的嵌套卡片同样生效）
+const expanded = ref(
+  props.expandAll !== null && props.expandAll !== undefined
+    ? props.expandAll
+    : !props.task.done
+);
 const flashing = ref(false);
 
 // 监听全局展开/收起
 watch(() => props.expandAll, (val) => {
   if (val !== null && val !== undefined) expanded.value = val;
+});
+
+// 搜索状态下强制展开（已完成任务默认折叠，搜索时看不到命中位置）
+// 清空搜索后恢复默认：未完成展开、已完成折叠
+watch(() => props.searchQuery, (q) => {
+  if (q && q.trim()) expanded.value = true;
+  else expanded.value = !props.task.done;
 });
 
 // 仅顶层卡片（depth 0）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表（嵌套 draggable 不稳）
@@ -277,10 +290,16 @@ defineExpose({
   border-color: oklch(0.78 0.10 145);
 }
 
-/* 层级缩进 */
-.task-card-depth-1 { margin-left: 20px; }
-.task-card-depth-2 { margin-left: 20px; }
-.task-card-depth-3 { margin-left: 20px; }
+/* 层级缩进：子任务卡片相对父任务卡片缩进 95px
+ * 子任务渲染在父卡片 body 内（有 --body-indent 内缩），抵消后留出 95px 缩进 */
+.task-card {
+  --body-indent: calc(14px + 16px + 8px + 22px + 8px + 24px + 8px);
+}
+.task-card-depth-1,
+.task-card-depth-2,
+.task-card-depth-3 {
+  margin-left: calc(95px - var(--body-indent));
+}
 
 /* 拖拽手柄 */
 .drag-handle {
@@ -425,7 +444,7 @@ defineExpose({
 }
 
 .task-card-body {
-  padding: 0 12px 10px calc(14px + 16px + 8px + 22px + 8px + 24px + 8px);
+  padding: 0 12px 10px var(--body-indent);
   animation: slideDown 0.2s ease-out;
 }
 @keyframes slideDown {

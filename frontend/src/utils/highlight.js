@@ -30,14 +30,20 @@ export function highlight(text, query) {
 /**
  * 富文本高亮（用于任务描述，可能含 contenteditable 产生的 HTML）
  * 不破坏已有标签，只在标签外的文本节点中插入 <mark>
+ * 兼容纯文本描述（formatDescription 转 <br> 后文本在标签外）
  */
 export function highlightRichText(html, query) {
   if (!html) return "";
   const q = (query || "").trim();
   if (!q) return html;
   const re = new RegExp(escapeRegExp(q), "gi");
-  // 拆分：标签和文本交替
-  return html.replace(/>([^<]+)</g, (match, text) => {
-    return ">" + text.replace(re, (m) => `<mark class="hl">${m}</mark>`) + "<";
-  });
+  // 按 HTML 标签拆分：标签原样保留，标签外的文本（含纯文本描述）做高亮
+  return String(html)
+    .split(/(<[^>]+>)/g)
+    .map((part) => {
+      if (!part) return "";
+      if (/^<[^>]+>$/.test(part)) return part;
+      return part.replace(re, (m) => `<mark class="hl">${m}</mark>`);
+    })
+    .join("");
 }
