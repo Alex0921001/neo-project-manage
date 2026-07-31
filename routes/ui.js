@@ -11,6 +11,21 @@ import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
 // 2026-07-30 暂隐藏禅道 tab：import { registerZentaoRoutes } from "./modules/zentao.js";
 
+const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = path.join(__dirname_ui, "..");
+
+// 启动时读取 manifest，缓存版本号（plugin 加载后版本不再变）
+let CACHED_MANIFEST = null;
+try {
+  const raw = fs.readFileSync(path.join(PLUGIN_ROOT, "manifest.json"), "utf-8");
+  CACHED_MANIFEST = JSON.parse(raw);
+} catch (e) {
+  CACHED_MANIFEST = { version: "unknown", name: "项目管理" };
+}
+
+// routes 模块首次被调用时的加载时间（reload 会更新）
+let ROUTES_LOADED_AT = null;
+
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
 
@@ -59,6 +74,7 @@ ${hanaLink}
 
 export default function registerPluginUiRoutes(app, ctx) {
   const data = createDataAccess(ctx.dataDir);
+  ROUTES_LOADED_AT = new Date().toISOString();
   ctx.log.warn("[ui] data ready, registerTasksRoutes type:", typeof registerTasksRoutes);
 
   if (DEBUG) {
@@ -98,6 +114,20 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerFilesRoutes(app, data);
   registerNotesRoutes(app, data);
   app.get("/api/__diag_all_routes__", (c) => c.json({ ok: true }));
+
+  // ===== Version（前端角标使用）=====
+  app.get("/api/version", (c) => {
+    return c.json({
+      ok: true,
+      data: {
+        version: CACHED_MANIFEST.version,
+        name: CACHED_MANIFEST.name,
+        source: ctx.pluginKey?.startsWith("dev:") ? "dev" : "community",
+        loadedAt: ROUTES_LOADED_AT,
+        pluginId: ctx.pluginId,
+      },
+    });
+  });
   // 2026-07-30 暂隐藏禅道 tab：registerZentaoRoutes(app, ctx);
 
   // ===== Debug =====

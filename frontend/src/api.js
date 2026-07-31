@@ -1,4 +1,9 @@
-/* global hana */
+/* global hana, __BUILD_AT__, __PLUGIN_VERSION__, __PLUGIN_SOURCE__ */
+
+const BUILD_AT = typeof __BUILD_AT__ !== "undefined" ? __BUILD_AT__ : "dev";
+// 编译时静态注入：未重启 Hana 之前的后端 fallback（前端打包时已知后端 version）
+const STATIC_VERSION = typeof __PLUGIN_VERSION__ !== "undefined" ? __PLUGIN_VERSION__ : "?";
+const STATIC_SOURCE = typeof __PLUGIN_SOURCE__ !== "undefined" ? __PLUGIN_SOURCE__ : "?";
 
 function pluginId() {
   const m = /^\/api\/plugins\/([^/]+)/.exec(window.location.pathname);
@@ -33,4 +38,18 @@ export function reportHeight() {
       "*"
     );
   }
+}
+
+export async function getVersion() {
+  // 优先调后端 /api/version（拿 loadedAt 等实时信息）
+  const res = await api("api/version");
+  if (res?.ok) return { ...res.data, frontendBuiltAt: BUILD_AT };
+  // Fallback：后端未重启（路由还未重新加载），用静态注入值
+  return {
+    version: STATIC_VERSION,
+    source: STATIC_SOURCE,
+    loadedAt: null,
+    frontendBuiltAt: BUILD_AT,
+    fallback: true,
+  };
 }

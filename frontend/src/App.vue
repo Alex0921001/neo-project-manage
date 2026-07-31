@@ -26,12 +26,25 @@
     <!-- 2026-07-30 暂隐藏禅道视图：<ZentaoView v-show="view === 'zentao'" /> -->
 
     <div id="toast-container"></div>
+
+    <div
+      v-if="versionInfo"
+      class="version-badge"
+      :title="`FE built: ${versionInfo.frontendBuiltAt}\nBE loaded: ${versionInfo.loadedAt || 'unknown (BE not reloaded yet)'}`"
+    >
+      <span class="ver">v{{ versionInfo.version }}</span>
+      <span class="src">({{ versionInfo.source }}{{ versionInfo.fallback ? '·fb' : '' }})</span>
+      <span class="sep">·</span>
+      <span class="t">FE {{ formatTime(versionInfo.frontendBuiltAt) }}</span>
+      <span class="sep">·</span>
+      <span class="t">BE {{ versionInfo.loadedAt ? formatTime(versionInfo.loadedAt) : '—' }}</span>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from "vue";
-import { api, reportHeight } from "./api.js";
+import { api, reportHeight, getVersion } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
 // 2026-07-30 暂隐藏禅道 tab：import ZentaoView from "./views/Zentao/index.vue";
@@ -43,6 +56,17 @@ const homeRef = ref(null);
 const allProjects = ref([]);
 const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
+const versionInfo = ref(null);
+
+function formatTime(iso) {
+  if (!iso) return "-";
+  // 渲染为本地时区的 HH:MM
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
 
 async function loadAllProjects() {
   const [pr, sr] = await Promise.all([
@@ -164,6 +188,8 @@ onMounted(async () => {
   reportHeight();
   const ro = new ResizeObserver(() => reportHeight());
   ro.observe(document.body);
+  // 异步拉版本号，不阻塞主流程；失败时静态注入值兜底
+  getVersion().then((v) => { if (v) versionInfo.value = v; }).catch(() => {});
 });
 </script>
 
@@ -172,32 +198,32 @@ onMounted(async () => {
 :root {
   --font-sans: "DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "DM Mono", monospace;
-  
+
   --accent: oklch(0.52 0.18 270);
   --accent-hover: oklch(0.48 0.2 270);
   --accent-subtle: oklch(0.92 0.04 270);
-  
+
   --bg: oklch(0.965 0.006 270);
   --bg-card: oklch(0.995 0.003 270);
   --bg-hover: oklch(0.945 0.008 270);
   --bg-active: oklch(0.92 0.04 270);
-  
+
   --text: oklch(0.2 0.015 270);
   --text-secondary: oklch(0.55 0.02 270);
   --text-tertiary: oklch(0.7 0.015 270);
-  
+
   --border: oklch(0.9 0.008 270);
   --border-light: oklch(0.94 0.006 270);
-  
+
   --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
   --shadow-lg: 0 8px 30px oklch(0 0 0 / 0.1);
-  
+
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 12px;
-  
+
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --duration-fast: 150ms;
@@ -323,6 +349,28 @@ input, textarea, select { font-family: inherit; }
 
 /* === Selection === */
 ::selection { background: oklch(0.85 0.08 270 / 0.3); }
+
+/* === Version Badge === */
+.version-badge {
+  position: fixed;
+  bottom: 6px;
+  right: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  background: oklch(0.99 0.003 270 / 0.7);
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: auto;
+  z-index: 999;
+  letter-spacing: 0.02em;
+  user-select: text;
+}
+.version-badge .ver { color: var(--accent); font-weight: 600; }
+.version-badge .src { color: var(--text-secondary); }
+.version-badge .sep { color: var(--border); margin: 0 4px; }
+.version-badge .t { color: var(--text-tertiary); }
 
 /* === Shared Modal === */
 .modal-overlay {
