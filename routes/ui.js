@@ -128,15 +128,6 @@ export default function registerPluginUiRoutes(app, ctx) {
     });
   });
 
-  // ===== 数据导出 / 备份（全量 JSON）=====
-  app.get("/api/export-all", (c) => {
-    try {
-      return c.json({ ok: true, data: data.exportAll() });
-    } catch (e) {
-      return c.json({ ok: false, error: e.message }, 400);
-    }
-  });
-
   // ===== Debug =====
   app.get("/api/debug-project/:id", (c) => {
     const pid = c.req.param("id");
