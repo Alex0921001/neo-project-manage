@@ -12,7 +12,7 @@
     :data-task-id="task.id"
   >
     <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
-      <span class="drag-handle" :class="{ 'drag-handle-disabled': !draggable }" :title="draggable ? '拖动重新排序' : ''" @click.stop>
+      <span class="drag-handle" :class="{ 'drag-handle-disabled': !draggable_drag }" :title="draggable_drag ? '拖动重新排序' : ''" @click.stop>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
       </span>
       <button
@@ -73,11 +73,12 @@
       </div>
 
       <!-- 子任务列表（递归渲染） -->
+      <!-- depth 0（顶层卡片）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表，避免嵌套 draggable -->
       <draggable
-        v-if="(task.subtasks || []).length && draggable"
+        v-if="(task.subtasks || []).length && draggable_drag"
         :list="subtasksLocal"
         item-key="id"
-        handle=".drag-handle-sm"
+        handle=".drag-handle"
         ghost-class="subtask-ghost"
         :animation="180"
         :disabled="searchQuery ? true : false"
@@ -96,8 +97,10 @@
             @activate="markActivate(s)"
             @mark-task-done="$emit('mark-task-done', $event)"
             @edit="$emit('edit-subtask', task, s)"
+            @edit-subtask="$emit('edit-subtask', $event)"
             @subtask="$emit('subtask', $event)"
             @delete="$emit('delete-task-deep', s.id)"
+            @delete-task-deep="$emit('delete-task-deep', $event)"
             @select-annotation="$emit('select-annotation', $event)"
             @changed="$emit('changed')"
           />
@@ -117,8 +120,10 @@
           @activate="markActivate(s)"
           @mark-task-done="$emit('mark-task-done', $event)"
           @edit="$emit('edit-subtask', task, s)"
+          @edit-subtask="$emit('edit-subtask', $event)"
           @subtask="$emit('subtask', $event)"
           @delete="$emit('delete-task-deep', s.id)"
+          @delete-task-deep="$emit('delete-task-deep', $event)"
           @select-annotation="$emit('select-annotation', $event)"
           @changed="$emit('changed')"
         />
@@ -170,8 +175,8 @@ watch(() => props.expandAll, (val) => {
   if (val !== null && val !== undefined) expanded.value = val;
 });
 
-// 仅顶层 + 子任务层支持拖拽（depth 2+ 嵌套 draggable 不稳）
-const draggable_drag = computed(() => props.depth < 2);
+// 仅顶层卡片（depth 0）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表（嵌套 draggable 不稳）
+const draggable_drag = computed(() => props.depth < 1);
 
 const annotCount = computed(() => (props.task.annotations || []).length);
 
@@ -518,19 +523,6 @@ defineExpose({
   border: 1px dashed oklch(0.60 0.15 240);
   border-radius: 4px;
 }
-
-/* 子任务拖拽手柄（孙任务层用） */
-.drag-handle-sm {
-  width: 12px;
-  height: 16px;
-  color: oklch(0.65 0.02 80);
-  opacity: 0.4;
-  cursor: grab;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.drag-handle-sm:hover { opacity: 0.9; }
 
 /* 搜索关键字高亮 */
 .task-card :deep(.hl),

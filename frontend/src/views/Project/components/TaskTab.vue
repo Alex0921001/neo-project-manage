@@ -118,6 +118,7 @@
                   :expand-all="expandAll"
                   @complete="completeTask"
                   @activate="activateTask"
+                  @mark-task-done="markTaskDone"
                   @complete-subtask="completeSubtask"
                   @activate-subtask="activateSubtask"
                   @edit="startEdit"
@@ -548,7 +549,8 @@ async function submitInline() {
   const payload = buildPayload();
 
   if (editingSubId.value) {
-    const res = await api(`api/projects/${props.projectId}/tasks/${subtaskParent.value.id}/subtasks/${editingSubId.value}`, {
+    // 子/孙任务 id 全局唯一，直接按任务 id 更新（后端已无 /tasks/:id/subtasks/:sid 子路由）
+    const res = await api(`api/projects/${props.projectId}/tasks/${editingSubId.value}`, {
       method: "PUT", body: JSON.stringify(payload),
     });
     if (res.ok) { toast("已更新"); closeInline(); load(); }
@@ -667,16 +669,35 @@ async function activateSubtask(taskId, subId) {
 }
 
 /**
+ * 递归统计未完成的后代任务数量（子 / 孙 / 任意层级）
+ */
+function countIncompleteDescendants(task) {
+  let count = 0;
+  const stack = [...(task.subtasks || [])];
+  while (stack.length) {
+    const s = stack.pop();
+    if (!s.done) count++;
+    for (const g of (s.subtasks || [])) stack.push(g);
+  }
+  return count;
+}
+
+/**
  * 统一标记任务完成 / 激活（适用任意层级）
+ * 完成时校验：任务自身批注未确认、后代任务未完成 → 阻止
  * @param {{task: Object, done: boolean}} payload
  */
 async function markTaskDone({ task, done }) {
   if (!task) return;
-  // 校验：只检查任务自身的批注（不做后代检查，子/孙任务独立）
   if (done) {
     const pendingAnns = (task.annotations || []).filter(a => !a.confirmed);
     if (pendingAnns.length) {
       toast(`无法完成任务：${pendingAnns.length} 条批注未确认`, "error");
+      return;
+    }
+    const pendingDesc = countIncompleteDescendants(task);
+    if (pendingDesc) {
+      toast(`无法完成任务：${pendingDesc} 个子任务未完成`, "error");
       return;
     }
   }
@@ -766,6 +787,22 @@ defineExpose({ openAdd });
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* vuedraggable 状态类：蓝色拖拽占位 + 拖拽中反馈 */
+.task-ghost {
+  opacity: 0.5;
+  background: oklch(0.82 0.10 240) !important;
+  border: 1px dashed oklch(0.60 0.15 240) !important;
+  border-radius: var(--radius-md);
+}
+.task-chosen {
+  cursor: grabbing;
+}
+.task-drag {
+  opacity: 0.92;
+  box-shadow: 0 8px 20px oklch(0.3 0.05 80 / 0.18);
+  transform: rotate(1deg);
 }
 .task-group-header {
   display: flex; align-items: center; gap: 8px;

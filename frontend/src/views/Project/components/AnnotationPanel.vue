@@ -129,6 +129,9 @@ const targetDepth = computed(() => {
   return props.task.parent_task_id ? 2 : 1;  // 1=顶层，2=子/孙
 });
 
+// 模板 v-if="target" / v-if="!target" 依赖此变量（fe94971 重构时曾误删，导致面板永远显示空状态）
+const target = computed(() => props.task || null);
+
 const targetLabel = computed(() => props.task?.name || "");
 const targetDone = computed(() => !!props.task?.done);
 
