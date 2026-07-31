@@ -9,7 +9,6 @@ import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
 import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
-// 2026-07-30 暂隐藏禅道 tab：import { registerZentaoRoutes } from "./modules/zentao.js";
 
 const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname_ui, "..");
@@ -128,7 +127,15 @@ export default function registerPluginUiRoutes(app, ctx) {
       },
     });
   });
-  // 2026-07-30 暂隐藏禅道 tab：registerZentaoRoutes(app, ctx);
+
+  // ===== 数据导出 / 备份（全量 JSON）=====
+  app.get("/api/export-all", (c) => {
+    try {
+      return c.json({ ok: true, data: data.exportAll() });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
 
   // ===== Debug =====
   app.get("/api/debug-project/:id", (c) => {

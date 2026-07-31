@@ -105,9 +105,10 @@
               chosen-class="task-chosen"
               drag-class="task-drag"
               animation="200"
+              group="tasks"
               :disabled="!!searchQuery"
               class="task-drag-area"
-              @end="mergeAfterDrag"
+              @end="onTopDragEnd"
             >
               <template #item="{ element: t }">
                 <TaskCard
@@ -116,17 +117,12 @@
                   :search-query="searchQuery"
                   :project-id="projectId"
                   :expand-all="expandAll"
-                  @complete="completeTask"
-                  @activate="activateTask"
                   @mark-task-done="markTaskDone"
-                  @complete-subtask="completeSubtask"
-                  @activate-subtask="activateSubtask"
                   @edit="startEdit"
                   @subtask="startSubtask"
                   @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @edit-subtask="startEditSubtask"
-                  @delete-subtask="deleteSubtask"
                   @select-annotation="onSelectAnnotation"
                   @changed="$emit('changed')"
                 />
@@ -148,7 +144,7 @@
               animation="200"
               :disabled="!!searchQuery"
               class="task-drag-area"
-              @end="mergeAfterDrag"
+              @end="onTopDragEnd"
             >
               <template #item="{ element: t }">
                 <TaskCard
@@ -157,15 +153,12 @@
                   :search-query="searchQuery"
                   :project-id="projectId"
                   :expand-all="expandAll"
-                  @complete="completeTask"
-                  @activate="activateTask"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
               @subtask="startSubtask"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @edit-subtask="startEditSubtask"
-              @delete-subtask="deleteSubtask"
               @select-annotation="onSelectAnnotation"
               @changed="$emit('changed')"
             />
@@ -385,6 +378,36 @@ function mergeAfterDrag() {
   scheduleSave(full.map(t => t.id));
 }
 
+/**
+ * 顶层拖拽结束：同级排序走 mergeAfterDrag；跨容器（变更父级）走 move API
+ */
+async function onTopDragEnd(event) {
+  if (event.from !== event.to) {
+    await handleCrossMove(event);
+    return;
+  }
+  mergeAfterDrag();
+}
+
+/**
+ * 跨容器落点：根据目标容器计算新父级（.task-drag-area=顶层，.subtask-list=所属任务），
+ * 调 move API 持久化；失败时前端数据已变，刷新即回滚
+ */
+async function handleCrossMove(event) {
+  const toEl = event.to;
+  const taskId = event.item ? event.item.getAttribute("data-task-id") : null;
+  if (!toEl || !taskId) return;
+  const parentCard = toEl.closest(".task-card");
+  const parentTaskId = parentCard ? parentCard.getAttribute("data-task-id") : null;
+  const index = event.newIndex ?? 0;
+  const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
+    method: "POST",
+    body: JSON.stringify({ parentTaskId, index }),
+  });
+  if (!res?.ok) toast(res?.error || "移动失败", "error");
+  emit("changed");
+}
+
 // 顶层 display computed（传入搜索过滤）
 const undoneTasks = computed(() => undoneArr.value);
 const doneTasks = computed(() => doneArr.value);
@@ -411,27 +434,27 @@ function scheduleSave(taskIds) {
 }
 
 // 搜索时：父任务自身命中则保留全部子任务；只子任务命中则只保留命中项
+// 搜索过滤（递归）：自身标题/描述命中保留全部后代；否则后代命中则保留命中路径；都不命中返回 null
 function filterTaskForSearch(t, qLower) {
   if (!qLower) return t;
   const selfHit = (t.name || "").toLowerCase().includes(qLower)
                || (t.description || "").toLowerCase().includes(qLower);
   if (selfHit) return t;
-  const subs = (t.subtasks || []).filter(s =>
-    (s.name || "").toLowerCase().includes(qLower)
-    || (s.description || "").toLowerCase().includes(qLower)
-  );
-  if (subs.length === 0) return t; // 顶层负责保留，这里只裁 sub
-  return { ...t, subtasks: subs };
+  const filteredSubs = (t.subtasks || [])
+    .map(s => filterTaskForSearch(s, qLower))
+    .filter(Boolean);
+  if (!filteredSubs.length) return null;
+  return { ...t, subtasks: filteredSubs };
 }
 const searchLower = computed(() => props.searchQuery.trim().toLowerCase());
 const displayedUndoneTasks = computed(() =>
   searchLower.value
-    ? undoneTasks.value.map(t => filterTaskForSearch(t, searchLower.value))
+    ? undoneTasks.value.map(t => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
     : undoneTasks.value
 );
 const displayedDoneTasks = computed(() =>
   searchLower.value
-    ? doneTasks.value.map(t => filterTaskForSearch(t, searchLower.value))
+    ? doneTasks.value.map(t => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
     : doneTasks.value
 );
 
@@ -626,48 +649,6 @@ watch(totalSubtaskCount, (newCount, oldCount) => {
   }
 });
 
-// ===== 完成（带校验）=====
-async function completeTask(id) {
-  const task = props.tasks.find(t => t.id === id);
-  if (!task) return;
-  const issues = [];
-  const pendingSubs = (task.subtasks || []).filter(s => !s.done);
-  if (pendingSubs.length) issues.push(`${pendingSubs.length} 个子任务未完成`);
-  const pendingAnns = (task.annotations || []).filter(a => !a.confirmed);
-  if (pendingAnns.length) issues.push(`${pendingAnns.length} 条批注未确认`);
-  if (issues.length) {
-    toast(`无法完成任务：${issues.join("、")}`, "error");
-    return;
-  }
-  await api(`api/projects/${props.projectId}/tasks/${id}`, { method: "PUT", body: JSON.stringify({ done: true }) });
-  load();
-}
-
-// ===== 激活（不校验，直接设为未完成）=====
-async function activateTask(id) {
-  await api(`api/projects/${props.projectId}/tasks/${id}`, { method: "PUT", body: JSON.stringify({ done: false }) });
-  load();
-}
-
-async function completeSubtask(taskId, subId) {
-  // 兼容旧事件路径：当前主路径已改用 markTaskDone
-  const task = props.tasks.find(t => t.id === taskId);
-  const sub = task?.subtasks?.find(s => s.id === subId);
-  if (!sub) return;
-  const pendingAnns = (sub.annotations || []).filter(a => !a.confirmed);
-  if (pendingAnns.length) {
-    toast(`无法完成子任务：${pendingAnns.length} 条批注未确认`, "error");
-    return;
-  }
-  await api(`api/projects/${props.projectId}/tasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: true }) });
-  load();
-}
-
-async function activateSubtask(taskId, subId) {
-  await api(`api/projects/${props.projectId}/tasks/${subId}`, { method: "PUT", body: JSON.stringify({ done: false }) });
-  load();
-}
-
 /**
  * 递归统计未完成的后代任务数量（子 / 孙 / 任意层级）
  */
@@ -706,11 +687,6 @@ async function markTaskDone({ task, done }) {
     body: JSON.stringify({ done }),
   });
   load();
-}
-
-async function deleteSubtask(taskId, subId) {
-  // 兼容旧 API：只用于兼容，未来删除应走 delete-task-deep
-  emit("confirm-ask", { message: "确认删除此子任务？", action: "delete-task", payload: subId });
 }
 
 defineExpose({ openAdd });

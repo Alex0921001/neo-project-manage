@@ -62,4 +62,20 @@ export function registerTasksRoutes(app, data) {
       return c.json({ ok: false, error: e.message }, 400);
     }
   });
+
+  // Move task to another parent / position (拖拽变更父级)
+  app.post("/api/projects/:projectId/tasks/:taskId/move", async (c) => {
+    try {
+      const body = await c.req.json();
+      const tasks = data.moveTask(
+        c.req.param("projectId"),
+        c.req.param("taskId"),
+        body.parentTaskId ?? null,
+        body.index ?? 0
+      );
+      return c.json({ ok: true, data: tasks });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
 }

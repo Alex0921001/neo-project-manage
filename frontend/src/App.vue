@@ -3,7 +3,8 @@
     <div class="tab-bar">
       <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">📋 项目</button>
       <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">📅 日历</button>
-      <!-- 2026-07-30 暂隐藏禅道 tab：<button :class="['tab-btn', { active: view === 'zentao' }]" @click="goZentao">🐞 禅道</button> -->
+      <div class="tab-bar-spacer"></div>
+      <button class="tab-btn backup-btn" title="导出全部数据为 JSON 备份文件" @click="exportData">⬇️ 备份</button>
     </div>
 
     <HomeView
@@ -22,8 +23,6 @@
     <div v-show="view === 'calendar'" class="calendar-page">
       <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" />
     </div>
-
-    <!-- 2026-07-30 暂隐藏禅道视图：<ZentaoView v-show="view === 'zentao'" /> -->
 
     <div id="toast-container"></div>
 
@@ -45,9 +44,9 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from "vue";
 import { api, reportHeight, getVersion } from "./api.js";
+import { toast } from "./toast.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
-// 2026-07-30 暂隐藏禅道 tab：import ZentaoView from "./views/Zentao/index.vue";
 import CalendarWidget from "./views/Project/components/CalendarWidget.vue";
 
 const view = ref("home");
@@ -77,6 +76,19 @@ async function loadAllProjects() {
   if (sr?.ok) allSets.value = sr.data || [];
 }
 
+async function exportData() {
+  const res = await api("api/export-all");
+  if (!res?.ok) return toast(res?.error || "导出失败", "error");
+  const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `项目管理备份-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("备份已导出");
+}
+
 function goHome() {
   view.value = "home";
   projectId.value = null;
@@ -85,14 +97,6 @@ function goHome() {
   loadAllProjects();
   nextTick(() => homeRef.value?.refresh?.());
 }
-
-// 2026-07-30 暂隐藏禅道 tab：
-// function goZentao() {
-//   view.value = "zentao";
-//   projectId.value = null;
-//   historyStack.value = [];
-//   saveState();
-// }
 
 function goCalendar() {
   view.value = "calendar";
@@ -255,6 +259,7 @@ input, textarea, select { font-family: inherit; }
   flex-shrink: 0;
   gap: 2px;
 }
+.tab-bar-spacer { flex: 1; }
 .tab-btn {
   padding: 10px 20px;
   border: none;

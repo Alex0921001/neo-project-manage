@@ -35,7 +35,6 @@
             <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
-          <span v-if="tab === 'tasks' && taskSearch" class="task-search-count">{{ filteredTasks.length }} / {{ (p?.tasks || []).length }} 顶层</span>
           <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
             <option value="all">全部任务</option>
             <option value="incomplete">仅未完成</option>
@@ -150,25 +149,15 @@ function toggleExpandAll() {
 }
 
 // ===== 任务筛选 =====
+// 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskFilter = ref("all");
 const taskSearch = ref("");
-
-function taskMatches(t, qLower) {
-  return (t.name || "").toLowerCase().includes(qLower)
-      || (t.description || "").toLowerCase().includes(qLower);
-}
 
 const filteredTasks = computed(() => {
   let arr = p.value?.tasks || [];
   if (taskFilter.value === "incomplete") arr = arr.filter(t => !t.done);
   else if (taskFilter.value === "done") arr = arr.filter(t => t.done);
-  const q = taskSearch.value.trim().toLowerCase();
-  if (!q) return arr;
-  // 保留：自身标题/描述命中，或任意子任务标题/描述命中
-  return arr.filter(t => {
-    if (taskMatches(t, q)) return true;
-    return (t.subtasks || []).some(s => taskMatches(s, q));
-  });
+  return arr;
 });
 
 // ===== Load =====
@@ -416,13 +405,6 @@ async function doConfirm() {
   transition: all 0.15s ease-out;
 }
 .task-search-clear:hover { background: #d1d5db; color: #1f2937; }
-.task-search-count {
-  font-size: 11px;
-  color: #6b7280;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-}
 
 .tab-content {
   padding: 20px;

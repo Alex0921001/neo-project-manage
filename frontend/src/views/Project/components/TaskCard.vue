@@ -81,6 +81,7 @@
         handle=".drag-handle"
         ghost-class="subtask-ghost"
         :animation="180"
+        group="tasks"
         :disabled="searchQuery ? true : false"
         class="subtask-list"
         @end="onSubtaskDragEnd"
@@ -93,8 +94,6 @@
             :project-id="projectId"
             :expand-all="expandAll"
             :depth="depth + 1"
-            @complete="markComplete(s)"
-            @activate="markActivate(s)"
             @mark-task-done="$emit('mark-task-done', $event)"
             @edit="$emit('edit-subtask', task, s)"
             @edit-subtask="$emit('edit-subtask', $event)"
@@ -116,8 +115,6 @@
           :project-id="projectId"
           :expand-all="expandAll"
           :depth="depth + 1"
-          @complete="markComplete(s)"
-          @activate="markActivate(s)"
           @mark-task-done="$emit('mark-task-done', $event)"
           @edit="$emit('edit-subtask', task, s)"
           @edit-subtask="$emit('edit-subtask', $event)"
@@ -152,16 +149,11 @@ const props = defineProps({
   depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
 });
 const emit = defineEmits([
-  "complete",
-  "activate",
-  "complete-subtask",
-  "activate-subtask",
   "mark-task-done",
   "edit",
   "edit-subtask",
   "subtask",
   "delete",
-  "delete-subtask",
   "delete-task-deep",
   "select-annotation",
   "changed",
@@ -217,8 +209,31 @@ function scheduleSave() {
   }, 500);
 }
 
-function onSubtaskDragEnd() {
+function onSubtaskDragEnd(event) {
+  // 跨容器（拖到顶层 / 其他任务下）：变更父级
+  if (event.from !== event.to) {
+    handleCrossMove(event);
+    return;
+  }
   scheduleSave();
+}
+
+/**
+ * 跨容器落点：目标容器在某个 .task-card 内则为该任务的子级，否则为顶层
+ */
+async function handleCrossMove(event) {
+  const toEl = event.to;
+  const taskId = event.item ? event.item.getAttribute("data-task-id") : null;
+  if (!toEl || !taskId) return;
+  const parentCard = toEl.closest(".task-card");
+  const parentTaskId = parentCard ? parentCard.getAttribute("data-task-id") : null;
+  const index = event.newIndex ?? 0;
+  const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
+    method: "POST",
+    body: JSON.stringify({ parentTaskId, index }),
+  });
+  if (!res?.ok) toast(res?.error || "移动失败", "error");
+  emit("changed");
 }
 
 // 文件引用
@@ -240,9 +255,7 @@ function onActivate() {
   emit("mark-task-done", { task: props.task, done: false });
 }
 
-// 递归子节点标记完成 / 激活（不跳路径，直接传子任务对象）
-function markComplete(s) { emit("mark-task-done", { task: s, done: true }); }
-function markActivate(s) { emit("mark-task-done", { task: s, done: false }); }
+// 递归子节点标记完成 / 激活（直接 emit mark-task-done，由 TaskTab 统一处理）
 
 // 暴露闪烁 API（外部可调用，让新建的任务闪烁）
 defineExpose({
