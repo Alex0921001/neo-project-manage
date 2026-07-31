@@ -184,7 +184,7 @@ defineExpose({ load, setFilter, filSetId });
   flex: 1;
   overflow-y: auto;
   padding: 24px 28px;
-  background: #f9fafb;
+  background: #ffffff;
   min-width: 0;
 }
 

@@ -146,7 +146,7 @@ function startDelete(s) {
   flex-shrink: 0;
   width: 260px;
   overflow-y: auto;
-  background: #ffffff;
+  background: #f9fafb;
   padding: 20px 16px 20px 14px;
   border-right: 1px solid #e5e7eb;
 }
