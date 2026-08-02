@@ -4,7 +4,8 @@
 export function registerProjectsRoutes(app, data) {
   app.get("/api/projects", (c) => {
     const projectSetId = c.req.query("projectSetId");
-    const projects = data.listProjects(projectSetId !== undefined ? projectSetId : undefined);
+    const keyword = c.req.query("keyword") || "";
+    const projects = data.listProjects(projectSetId !== undefined ? projectSetId : undefined, keyword);
     return c.json({ ok: true, data: projects });
   });
 

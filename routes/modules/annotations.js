@@ -13,7 +13,11 @@ export function registerAnnotationsRoutes(app, data) {
   app.post("/api/projects/:projectId/tasks/:taskId/annotations", async (c) => {
     try {
       const body = await c.req.json();
-      const ann = data.createAnnotation(c.req.param("taskId"), body);
+      const ann = data.createAnnotation(
+        c.req.param("projectId"),
+        c.req.param("taskId"),
+        body
+      );
       return c.json({ ok: true, data: ann });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -32,7 +36,7 @@ export function registerAnnotationsRoutes(app, data) {
 
   app.delete("/api/projects/:projectId/tasks/:taskId/annotations/:annId", (c) => {
     try {
-      data.deleteAnnotation(c.req.param("taskId"), c.req.param("annId"));
+      data.deleteAnnotation(c.req.param("projectId"), c.req.param("taskId"), c.req.param("annId"));
       return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -48,12 +52,48 @@ export function registerAnnotationsRoutes(app, data) {
     }
   });
 
+  // ===== 批量操作 =====
+
+  // 批量创建批注（body: { items: [{ content }] }，最多 50 个）
+  app.post("/api/projects/:projectId/tasks/:taskId/annotations/batch", async (c) => {
+    try {
+      const body = await c.req.json();
+      const anns = data.createAnnotations(
+        c.req.param("projectId"),
+        c.req.param("taskId"),
+        body.items
+      );
+      return c.json({ ok: true, data: anns });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  // 批量删除批注（body: { ids: string[] }，最多 50 个）
+  app.delete("/api/projects/:projectId/tasks/:taskId/annotations/batch", async (c) => {
+    try {
+      const body = await c.req.json();
+      const result = data.deleteAnnotations(
+        c.req.param("projectId"),
+        c.req.param("taskId"),
+        body.ids
+      );
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // ===== 兼容旧子任务路径（subtaskId 直接当 taskId 用）=====
 
   app.post("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId/annotations", async (c) => {
     try {
       const body = await c.req.json();
-      const ann = data.createAnnotation(c.req.param("subtaskId"), body);
+      const ann = data.createAnnotation(
+        c.req.param("projectId"),
+        c.req.param("subtaskId"),
+        body
+      );
       return c.json({ ok: true, data: ann });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -72,7 +112,7 @@ export function registerAnnotationsRoutes(app, data) {
 
   app.delete("/api/projects/:projectId/tasks/:taskId/subtasks/:subtaskId/annotations/:annId", (c) => {
     try {
-      data.deleteAnnotation(c.req.param("subtaskId"), c.req.param("annId"));
+      data.deleteAnnotation(c.req.param("projectId"), c.req.param("subtaskId"), c.req.param("annId"));
       return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
