@@ -37,6 +37,7 @@
         <span
           v-if="annotTotal > 0"
           class="annot-badge"
+          :class="{ 'annot-all-done': pendingCount === 0 }"
           :title="`${confirmedCount} 条已确认 · ${pendingCount} 条待确认`"
           @click.stop="$emit('select-annotation', { taskId: task.id })"
         >
@@ -530,6 +531,18 @@ defineExpose({
   background: oklch(0.90 0.12 85);
   border-color: oklch(0.65 0.13 80);
   transform: translateY(-1px);
+}
+/* 全部已确认：胶囊整体变绿背景（有未确认时保持黄色系） */
+.annot-badge.annot-all-done {
+  background: oklch(0.90 0.10 145);
+  border-color: oklch(0.78 0.10 145);
+}
+.annot-badge.annot-all-done .annot-seg-ok {
+  color: oklch(0.40 0.12 150);
+}
+.annot-badge.annot-all-done:hover {
+  background: oklch(0.87 0.11 145);
+  border-color: oklch(0.68 0.12 145);
 }
 
 .file-refs-row {
