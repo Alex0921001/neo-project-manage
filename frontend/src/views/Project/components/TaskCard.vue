@@ -35,14 +35,22 @@
       <div class="task-card-title">
         <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
-          v-if="annotCount > 0"
+          v-if="annotTotal > 0"
           class="annot-badge"
-          :title="`查看 ${annotCount} 条批注`"
+          :title="`${confirmedCount} 条已确认 · ${pendingCount} 条待确认`"
           @click.stop="$emit('select-annotation', { taskId: task.id })"
-        ><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-          {{ annotCount }}</span>
+        >
+          <span v-if="confirmedCount > 0" class="annot-seg annot-seg-ok">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+            {{ confirmedCount }}
+          </span>
+          <span v-if="pendingCount > 0" class="annot-seg annot-seg-pending">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            {{ pendingCount }}
+          </span>
+        </span>
         <button
-          v-if="!task.done && annotCount === 0"
+          v-if="!task.done && annotTotal === 0"
           class="icon-btn"
           title="添加批注"
           @click.stop="$emit('select-annotation', { taskId: task.id })"
@@ -183,7 +191,10 @@ watch(() => props.searchQuery, (q) => {
 // 仅顶层卡片（depth 0）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表（嵌套 draggable 不稳）
 const draggable_drag = computed(() => props.depth < 1);
 
-const annotCount = computed(() => (props.task.annotations || []).length);
+const annotList = computed(() => props.task.annotations || []);
+const annotTotal = computed(() => annotList.value.length);
+const confirmedCount = computed(() => annotList.value.filter((a) => a.confirmed).length);
+const pendingCount = computed(() => annotTotal.value - confirmedCount.value);
 
 // 子任务本地镜像（用于拖拽乐观更新）
 const subtasksLocal = ref([...(props.task.subtasks || [])]);
@@ -491,7 +502,7 @@ defineExpose({
 .annot-badge {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   padding: 1px 8px;
   border-radius: 10px;
   background: oklch(0.93 0.10 85);
@@ -503,6 +514,17 @@ defineExpose({
   transition: all var(--duration-fast) var(--ease-out);
   white-space: nowrap;
   box-shadow: 0 1px 2px oklch(0.5 0.06 80 / 0.10);
+}
+.annot-badge .annot-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.annot-badge .annot-seg-ok {
+  color: oklch(0.50 0.14 150);
+}
+.annot-badge .annot-seg-pending {
+  color: oklch(0.62 0.15 80);
 }
 .annot-badge:hover {
   background: oklch(0.90 0.12 85);
