@@ -15,5 +15,5 @@ export const parameters = {
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const task = data.createTask(input.projectId, { name: input.name, description: input.description });
-  return { content: [{ type: "text", text: `已创建任务 #${task.index_num}「${task.name}」[ID: ${task.id}]` }] };
+  return { content: [{ type: "text", text: `已创建任务 #${task.index_num + 1}「${task.name}」[ID: ${task.id}]` }] };
 }

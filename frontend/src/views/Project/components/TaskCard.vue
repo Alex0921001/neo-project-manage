@@ -31,7 +31,7 @@
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
       </button>
-      <span class="task-idx">{{ task.index_num ?? '' }}</span>
+      <span class="task-idx">{{ task.index_num != null ? task.index_num + 1 : '' }}</span>
       <div class="task-card-title">
         <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
