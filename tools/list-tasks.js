@@ -23,8 +23,22 @@ export async function execute(input, toolCtx) {
   if (tasks.length === 0) {
     return { content: [{ type: "text", text: "暂无任务" }] };
   }
-  const lines = tasks.map((t) =>
-    `${t.done ? "✅" : "⬜"} ${t.name} [状态: ${t.done ? "已完成" : "未完成"}] [ID: ${t.id}]`
+  // 建 任务ID → 任务名 映射，用于子任务标注父任务名
+  // （父任务可能被当前筛选过滤掉，故用全量列表构建，保证映射完整）
+  const idToName = new Map(
+    data.listTasks(input.projectId).map((t) => [t.id, t.name])
   );
+  const lines = tasks.map((t) => {
+    const statusText = t.done ? "已完成" : "未完成";
+    const parentText =
+      t.parent_task_id && idToName.has(t.parent_task_id)
+        ? ` [父: ${idToName.get(t.parent_task_id)}]`
+        : "";
+    // 描述可能含换行，归一化为单行，保证一行一个任务（字段不被打散）
+    const descText = t.description ? t.description.replace(/\s*\n+\s*/g, " ").trim() : "";
+    const descPart = descText ? ` — ${descText}` : "";
+    // 风格对齐 get-project.js：序号. 名称 — 描述 [状态] [父] [创建] [ID]
+    return `${t.done ? "✅" : "⬜"} ${t.index_num + 1}. ${t.name}${descPart} [状态: ${statusText}]${parentText} [创建: ${t.created_at}] [ID: ${t.id}]`;
+  });
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }

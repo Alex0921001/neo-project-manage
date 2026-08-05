@@ -21,5 +21,5 @@ export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const project = data.updateProject(input.id, input);
   if (!project) throw new Error(`项目 ${input.id} 不存在`);
-  return { content: [{ type: "text", text: `已更新项目「${project.name}」状态: ${project.status}` }] };
+  return { content: [{ type: "text", text: `已更新项目「${project.name}」[ID: ${project.id}] 状态: ${project.status}` }] };
 }

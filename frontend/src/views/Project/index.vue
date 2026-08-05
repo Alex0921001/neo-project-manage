@@ -57,7 +57,7 @@
         <TaskTab
           v-show="tab === 'tasks'"
           ref="taskTabRef"
-          :project-id="p.id"
+          :project-id="p?.id || ''"
           :tasks="filteredTasks"
           :files="p.files || []"
           :search-query="taskSearch"
@@ -68,7 +68,7 @@
         <FileTab
           v-show="tab === 'files'"
           ref="fileTabRef"
-          :project-id="p.id"
+          :project-id="p?.id || ''"
           :files="p.files || []"
           @changed="loadProject"
           @confirm-ask="onConfirm"
@@ -76,7 +76,7 @@
         <NoteTab
           v-show="tab === 'notes'"
           ref="noteTabRef"
-          :project-id="p.id"
+          :project-id="p?.id || ''"
           :notes="p.notes || []"
           @changed="loadProject"
           @confirm-ask="onConfirm"

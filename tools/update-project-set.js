@@ -15,5 +15,5 @@ export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const set = data.updateProjectSet(input.id, { name: input.name });
   if (!set) throw new Error(`项目集 ${input.id} 不存在`);
-  return { content: [{ type: "text", text: `已更新项目集「${set.name}」` }] };
+  return { content: [{ type: "text", text: `已更新项目集「${set.name}」[ID: ${set.id}]` }] };
 }

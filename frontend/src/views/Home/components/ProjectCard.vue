@@ -20,6 +20,9 @@
             </span>
           </div>
         </div>
+        <button class="card-copy" title="复制 id: 名称" @click.stop="copyProject">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
         <div class="card-menu" @click.stop>
           <button class="card-more" title="更多" @click="open = !open">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
@@ -74,8 +77,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
+import { toast } from "../../../toast.js";
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -84,6 +88,39 @@ const props = defineProps({
 defineEmits(["open", "edit", "delete"]);
 
 const open = ref(false);
+
+// 点击外部关闭下拉
+function onDocClick(e) {
+  if (open.value && e.target.closest && !e.target.closest(".card-menu")) {
+    open.value = false;
+  }
+}
+onMounted(() => document.addEventListener("click", onDocClick));
+onUnmounted(() => document.removeEventListener("click", onDocClick));
+
+// 复制到剪贴板（webview 内 Clipboard API 被 Permissions Policy 阻止，直接用 execCommand）
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+
+function copyProject() {
+  if (!props.project) return;
+  copyText(`使用项目管理插件工具搜索：【项目 id:${props.project.id}】 ${props.project.name || ""} 的具体内容。`);
+}
 
 function statusClass(s) {
   return { "待开始": "status-todo", "进行中": "status-doing", "已完成": "status-done", "已延期": "status-delay" }[s] || "status-todo";
@@ -225,7 +262,18 @@ const iconBg = computed(() => {
 .status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
 /* menu */
-.card-menu { position: relative; flex-shrink: 0; }
+.card-copy, .card-menu { flex-shrink: 0; }
+.card-menu { position: relative; }
+.card-copy {
+  width: 26px; height: 26px;
+  border: 1px solid transparent; border-radius: 6px;
+  background: transparent; cursor: pointer;
+  color: #9ca3af;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s ease-out;
+  margin-left: auto;
+}
+.card-copy:hover { background: #f3f4f6; color: #111827; border-color: #e5e7eb; }
 .card-more {
   width: 26px; height: 26px;
   border: 1px solid transparent; border-radius: 6px;

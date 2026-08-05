@@ -7,6 +7,9 @@
       </button>
       <span class="meta-title" v-if="project?.name">{{ fullTitle }}</span>
       <span v-else class="meta-title meta-title-empty">未命名项目</span>
+      <button class="icon-btn" v-if="project" title="复制 id: 名称" @click="copyProject">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
       <button class="icon-btn" v-if="project" @click="$emit('edit')" title="编辑项目">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
       </button>
@@ -91,6 +94,7 @@
 import { computed, ref, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
 import { formatDescription } from "../../../utils/text.js";
+import { toast } from "../../../toast.js";
 
 const props = defineProps({
   project: Object,
@@ -126,6 +130,30 @@ const fullTitle = computed(() => {
   if (props.setLabel) return `${props.setLabel} - ${name}`;
   return name;
 });
+
+// 复制到剪贴板（webview 内 Clipboard API 被 Permissions Policy 阻止，直接用 execCommand）
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+
+function copyProject() {
+  if (!props.project) return;
+  copyText(`使用项目管理插件工具搜索：【项目 id:${props.project.id}】 ${props.project.name || ""} 的具体内容。`);
+}
 
 function statusClass(s) {
   return {

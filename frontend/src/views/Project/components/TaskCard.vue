@@ -70,6 +70,9 @@
         <button class="icon-btn icon-btn-danger" @click.stop="$emit('delete', task.id)" title="删除">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>
+        <button class="icon-btn" title="复制 id: 名称" @click.stop="copyTask">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
@@ -265,6 +268,30 @@ function onComplete() {
 }
 function onActivate() {
   emit("mark-task-done", { task: props.task, done: false });
+}
+
+// 复制到剪贴板（webview 内 Clipboard API 被 Permissions Policy 阻止，直接用 execCommand）
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+
+function copyTask() {
+  if (!props.task) return;
+  copyText(`使用项目管理插件工具搜索：【任务 id:${props.task.id}】 ${props.task.name || ""} 的具体内容。`);
 }
 
 // 递归子节点标记完成 / 激活（直接 emit mark-task-done，由 TaskTab 统一处理）

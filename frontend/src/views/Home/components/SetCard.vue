@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 
 const props = defineProps({
   set: { type: Object, required: true },
@@ -37,6 +37,15 @@ const props = defineProps({
 defineEmits(["select", "edit", "delete"]);
 
 const open = ref(false);
+
+// 点击外部关闭下拉
+function onDocClick(e) {
+  if (open.value && e.target.closest && !e.target.closest(".set-actions")) {
+    open.value = false;
+  }
+}
+onMounted(() => document.addEventListener("click", onDocClick));
+onUnmounted(() => document.removeEventListener("click", onDocClick));
 </script>
 
 <style scoped>

@@ -24,7 +24,7 @@ export async function execute(input, toolCtx) {
   return {
     content: [{
       type: "text",
-      text: `已更新任务 #${task.index_num + 1}「${task.name}」${task.done ? "☑ 已完成" : "☐ 未完成"}`,
+      text: `已更新任务 #${task.index_num + 1}「${task.name}」${task.done ? "☑ 已完成" : "☐ 未完成"} [ID: ${task.id}]`,
     }],
   };
 }

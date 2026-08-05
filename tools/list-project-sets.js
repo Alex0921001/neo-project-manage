@@ -13,6 +13,6 @@ export async function execute(_input, toolCtx) {
   if (sets.length === 0) {
     return { content: [{ type: "text", text: "暂无项目集" }] };
   }
-  const lines = sets.map((s) => `- ${s.name}（${s.projectCount} 个项目）[ID: ${s.id}]`);
+  const lines = sets.map((s) => `- ${s.name}（${s.projectCount} 个项目）[创建: ${s.createdAt}] [ID: ${s.id}]`);
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }

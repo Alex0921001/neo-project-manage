@@ -1,11 +1,31 @@
 <template>
   <div :class="['cal-widget', { 'cal-compact': compact }]">
-    <FullCalendar :options="fcOptions" />
+    <!-- 自定义 header：筛选（独立页）+ 时间控制器，同一行 -->
+    <div class="cal-header">
+      <div v-if="!compact" class="cal-filter">
+        <button
+          v-for="opt in filterOptions"
+          :key="opt.value"
+          :class="['cal-filter-btn', { active: calFilter === opt.value }]"
+          @click="calFilter = opt.value"
+        >{{ opt.label }}</button>
+      </div>
+      <div class="cal-nav">
+        <button class="cal-nav-btn" title="上个月" @click="goPrev">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <span class="cal-title">{{ currentTitle }}</span>
+        <button class="cal-nav-btn" title="下个月" @click="goNext">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+    </div>
+    <FullCalendar ref="calendarRef" :options="fcOptions" />
   </div>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { ref, computed } from "vue";
 import FullCalendar from "@fullcalendar/vue3";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -18,28 +38,40 @@ const props = defineProps({
 });
 const emit = defineEmits(["select"]);
 
+const calendarRef = ref(null);
+const currentTitle = ref("");
+const calFilter = ref("undone");
+const filterOptions = [
+  { value: "all", label: "全部" },
+  { value: "undone", label: "未完成" },
+  { value: "done", label: "已完成" },
+];
+
+// ===== 项目状态筛选（仅独立页非 compact 生效）=====
+const visibleProjects = computed(() => {
+  if (props.compact || calFilter.value === "all") return props.projects;
+  const done = calFilter.value === "done";
+  return props.projects.filter((p) =>
+    done ? p.status === "已完成" : p.status !== "已完成"
+  );
+});
+
 function getSetName(projectSetId) {
   if (!projectSetId) return "";
-  const set = props.sets.find(s => s.id === projectSetId);
+  const set = props.sets.find((s) => s.id === projectSetId);
   return set ? set.name : "";
 }
 
-// ===== 低饱和糖果色调色板（10 色），冷暖相间排布 =====
-// 按项目顺序填充颜色：index 取模 palette，保证冷暖交错
-// 冷色 hue: 青(190) / 蓝(220) / 蓝紫(260) / 紫(290) / 草绿(160)
-// 暖色 hue: 黄(95) / 橙(50) / 棕红(25) / 粉(350) / 玫红(320)
+// ===== 事件映射（低饱和糖果色调色板）=====
 import { candyPalette as palette } from "../../../utils/palette.js";
-
-// ===== 事件映射：每个项目一个事件，让 FC 默认处理多日渲染 =====
 const fcEvents = computed(() =>
-  props.projects
+  visibleProjects.value
     .map((p, idx) => {
       if (!p.planStart || !p.planEnd) return null;
       const endDate = new Date(p.planEnd);
       endDate.setDate(endDate.getDate() + 1); // FC 左闭右开
       const setName = getSetName(p.projectSetId);
       const projectName = p.name || "未命名";
-      // 没有项目集时不再拼接 "未归类-" 前缀
       const title = setName ? `${setName}-${projectName}` : projectName;
       const color = palette[idx % palette.length];
       return {
@@ -55,22 +87,29 @@ const fcEvents = computed(() =>
     .filter(Boolean)
 );
 
-// ===== FullCalendar 选项 =====
+// ===== FullCalendar 选项（内置 header 关闭，用自定义 header）=====
 const fcOptions = computed(() => ({
   plugins: [dayGridPlugin, interactionPlugin],
   initialView: "dayGridMonth",
   locale: zhCn,
   height: props.compact ? 380 : undefined,
   dayMaxEvents: props.compact ? 2 : 3,
-  headerToolbar: { left: "prev,next", center: "title", right: "" },
+  headerToolbar: false,
   editable: false,
   selectable: false,
   events: fcEvents.value,
+  datesSet: (info) => {
+    const d = info.view.currentStart;
+    currentTitle.value = `${d.getFullYear()}年${d.getMonth() + 1}月`;
+  },
   eventClick(info) {
     const pid = info.event.extendedProps?.projectId;
     if (pid) emit("select", pid);
   },
 }));
+
+function goPrev() { calendarRef.value?.getApi()?.prev(); }
+function goNext() { calendarRef.value?.getApi()?.next(); }
 </script>
 
 <style scoped>
@@ -92,6 +131,74 @@ const fcOptions = computed(() => ({
   flex: 1;
   min-height: 0;
 }
+
+/* 自定义 header：筛选（左）+ 时间控制（居中），同一行不折行 */
+.cal-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: nowrap;
+}
+.cal-filter {
+  display: inline-flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.cal-filter-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease-out;
+  white-space: nowrap;
+}
+.cal-filter-btn:hover { background: var(--bg-hover); }
+.cal-filter-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* 时间控制器：< 年-月 > 绝对居中 */
+.cal-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.cal-nav-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+}
+.cal-nav-btn:hover { background: var(--bg-hover); }
+.cal-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  min-width: 96px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 .cal-widget :deep(.fc) {
   flex: 1;
   display: flex;
@@ -105,188 +212,10 @@ const fcOptions = computed(() => ({
 
 <style>
 /* ===== FullCalendar 全局样式覆盖 ===== */
-
-/* ---------- 全页模式 ---------- */
 .cal-widget:not(.cal-compact) .fc {
   --fc-border-color: #e5e7eb;
   --fc-page-bg-color: transparent;
   --fc-neutral-bg-color: transparent;
   font-size: 14px;
-}
-.cal-widget:not(.cal-compact) .fc .fc-toolbar-title {
-  font-size: 1.25em;
-  font-weight: 600;
-}
-.cal-widget:not(.cal-compact) .fc .fc-button {
-  font-size: 13px;
-  padding: 4px 10px;
-  background: var(--bg-card);
-  border-color: var(--border);
-  color: var(--text);
-}
-.cal-widget:not(.cal-compact) .fc .fc-button:hover {
-  background: var(--bg-hover);
-}
-.cal-widget:not(.cal-compact) .fc .fc-button:focus {
-  box-shadow: none;
-}
-.cal-widget:not(.cal-compact) .fc .fc-daygrid-day-frame {
-  padding: 2px;
-  min-height: 100px;
-}
-.cal-widget:not(.cal-compact) .fc .fc-daygrid-day-number {
-  font-size: 13px;
-  color: var(--text);
-  padding: 4px 6px;
-}
-/* 今日：淡蓝底 + 蓝色线框 + 加粗、无圆圈 */
-.cal-widget:not(.cal-compact) .fc .fc-day-today {
-  background: oklch(0.94 0.04 240) !important;
-  position: relative;
-  z-index: 3;
-}
-.cal-widget:not(.cal-compact) .fc .fc-day-today .fc-daygrid-day-top {
-  position: relative;
-  z-index: 4;
-}
-.cal-widget:not(.cal-compact) .fc .fc-day-today::before {
-  content: '';
-  position: absolute;
-  inset: 1px;
-  border: 1.5px solid oklch(0.55 0.15 240);
-  border-radius: 4px;
-  pointer-events: none;
-  z-index: 5;
-}
-.cal-widget:not(.cal-compact) .fc .fc-day-today .fc-daygrid-day-number {
-  background: transparent !important;
-  color: oklch(0.35 0.15 240) !important;
-  font-weight: 700;
-  border-radius: 0;
-  width: auto;
-  height: auto;
-  display: inline;
-  padding: 4px 6px;
-}
-.cal-widget:not(.cal-compact) .fc .fc-daygrid-event {
-  border-radius: 4px;
-  font-size: 12px;
-  padding: 1px 4px;
-  margin: 1px 0;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
-}
-.cal-widget:not(.cal-compact) .fc .fc-daygrid-event:hover {
-  filter: brightness(0.95);
-}
-
-/* ---------- 侧边栏 compact ---------- */
-.cal-compact .fc {
-  --fc-border-color: var(--border-light);
-  --fc-page-bg-color: transparent;
-  --fc-neutral-bg-color: transparent;
-  font-size: 10px;
-}
-.cal-compact .fc .fc-daygrid-day-top {
-  flex-direction: row;
-  justify-content: center;
-  padding: 0;
-}
-.cal-compact .fc .fc-daygrid-day-number {
-  font-size: 9px;
-  color: var(--text);
-  padding: 1px 2px;
-}
-/* 今日：淡蓝底 + 蓝色线框 + 加粗、无圆圈 */
-.cal-compact .fc .fc-day-today {
-  background: oklch(0.94 0.04 240) !important;
-  position: relative;
-  z-index: 3;
-}
-.cal-compact .fc .fc-day-today .fc-daygrid-day-top {
-  position: relative;
-  z-index: 4;
-}
-.cal-compact .fc .fc-day-today::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 1.5px solid oklch(0.55 0.15 240);
-  border-radius: 3px;
-  pointer-events: none;
-  z-index: 5;
-}
-.cal-compact .fc .fc-day-today .fc-daygrid-day-number {
-  background: transparent !important;
-  color: oklch(0.35 0.15 240) !important;
-  font-weight: 700;
-  border-radius: 0;
-  width: auto;
-  height: auto;
-  display: inline;
-  padding: 1px 2px;
-}
-.cal-compact .fc .fc-daygrid-event {
-  border-radius: 2px;
-  font-size: 7px;
-  padding: 0 2px;
-  margin: 0 0 1px;
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-}
-.cal-compact .fc .fc-daygrid-more-link {
-  font-size: 7px;
-  padding: 0 2px;
-}
-.cal-compact .fc .fc-scrollgrid {
-  border-left: none;
-  border-right: none;
-}
-.cal-compact .fc .fc-col-header-cell-cushion {
-  font-size: 9px;
-  padding: 2px 0;
-  color: var(--text-tertiary);
-  font-weight: 600;
-}
-.cal-compact .fc .fc-day-other .fc-daygrid-day-number {
-  color: var(--text-tertiary);
-}
-.cal-compact .fc .fc-header-toolbar {
-  padding: 6px 8px;
-  gap: 4px;
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.cal-compact .fc .fc-toolbar-title {
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-  flex: 1;
-  margin: 0;
-}
-.cal-compact .fc .fc-toolbar-chunk {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  flex: 0 0 auto;
-}
-.cal-compact .fc .fc-button {
-  font-size: 10px;
-  padding: 2px 6px;
-  background: var(--bg-card);
-  border-color: var(--border-light);
-  color: var(--text);
-}
-.cal-compact .fc .fc-button:hover {
-  background: var(--bg-hover);
-}
-.cal-compact .fc .fc-button:focus {
-  box-shadow: none;
 }
 </style>

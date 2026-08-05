@@ -16,8 +16,11 @@ export async function execute(input, toolCtx) {
   if (list.length === 0) {
     return { content: [{ type: "text", text: "该任务暂无便利贴" }] };
   }
-  const lines = list.map((a) =>
-    `${a.confirmed ? "✅" : "📝"} ${a.content} [ID: ${a.id}] [创建: ${a.createdAt}${a.confirmed ? " | 已确认" : ""}]`
-  );
+  const lines = list.map((a) => {
+    // 内容可能含换行，归一化为单行（对齐 list_tasks）
+    const content = a.content.replace(/\s*\n+\s*/g, " ").trim();
+    const confirmText = a.confirmed ? ` | 确认: ${a.confirmedAt || "-"}` : "";
+    return `${a.confirmed ? "✅" : "📝"} ${content} [ID: ${a.id}] [创建: ${a.createdAt}${confirmText}]`;
+  });
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
