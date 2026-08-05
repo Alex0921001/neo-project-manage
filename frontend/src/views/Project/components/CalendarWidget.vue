@@ -92,8 +92,8 @@ const fcOptions = computed(() => ({
   plugins: [dayGridPlugin, interactionPlugin],
   initialView: "dayGridMonth",
   locale: zhCn,
-  height: props.compact ? 380 : undefined,
-  dayMaxEvents: props.compact ? 2 : 3,
+  height: props.compact ? "auto" : undefined,
+  dayMaxEvents: props.compact ? 1 : 3,
   headerToolbar: false,
   editable: false,
   selectable: false,
@@ -114,7 +114,8 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
 
 <style scoped>
 .cal-widget {
-  background: var(--bg-card);
+  background: #fff;
+  /* 完整外框 + 圆角：表头左右边框和四角圆角都由这里提供 */
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -132,7 +133,53 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
   min-height: 0;
 }
 
+/* compact 模式 header 更舒展，箭头两端撑开 */
+.cal-compact .cal-header {
+  padding: 10px 16px;
+}
+.cal-compact .cal-nav {
+  position: static;
+  transform: none;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cal-compact .cal-nav-btn {
+  width: 28px;
+  height: 28px;
+}
+.cal-compact .cal-title {
+  font-size: 14px;
+  flex: 1;
+  min-width: 0;
+}
+/* compact 日期格子留白 */
+.cal-compact :deep(.fc .fc-daygrid-day-frame) {
+  padding: 2px;
+}
+.cal-compact :deep(.fc .fc-daygrid-day-number) {
+  font-size: 12px;
+  padding: 3px 4px;
+  white-space: nowrap;
+}
+/* compact 事件条压缩固定高度，行高均匀 */
+.cal-compact :deep(.fc .fc-daygrid-event) {
+  font-size: 11px;
+  min-height: 18px;
+  line-height: 18px;
+  padding: 0 4px;
+  margin: 1px 2px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cal-compact :deep(.fc .fc-daygrid-day-events) {
+  min-height: 0;
+}
+
 /* 自定义 header：筛选（左）+ 时间控制（居中），同一行不折行 */
+/* border-bottom：header 与日历区之间的分隔线（fc 顶线已去掉，无双线） */
 .cal-header {
   position: relative;
   display: flex;
@@ -173,7 +220,7 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   flex-shrink: 0;
 }
 .cal-nav-btn {
@@ -204,18 +251,49 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 .cal-widget :deep(.fc .fc-view-harness) {
   flex: 1;
+  overflow: hidden;
+}
+/* 消灭内部滚动条（高度已给足，内容不外溢） */
+.cal-widget :deep(.fc .fc-scroller) {
+  overflow: hidden !important;
 }
 </style>
 
 <style>
 /* ===== FullCalendar 全局样式覆盖 ===== */
-.cal-widget:not(.cal-compact) .fc {
+.cal-widget .fc {
   --fc-border-color: #e5e7eb;
-  --fc-page-bg-color: transparent;
-  --fc-neutral-bg-color: transparent;
+  --fc-page-bg-color: #fff;
+  --fc-neutral-bg-color: #fff;
+  --fc-today-bg-color: rgba(255, 193, 7, 0.12);
+}
+/* fc 外框与 section 全去边框，外沿统一由 .cal-widget 的 1px 边框 + 圆角提供 */
+.cal-widget .fc .fc-scrollgrid,
+.cal-widget .fc .fc-scrollgrid-section > td,
+.cal-widget .fc .fc-scrollgrid-section > th {
+  border: none;
+}
+/* 网格线：每格只保留右下 1px，避免与外框叠加成粗线 */
+.cal-widget .fc .fc-col-header-cell,
+.cal-widget .fc .fc-daygrid-day {
+  border: none;
+  border-right: 1px solid var(--fc-border-color);
+  border-bottom: 1px solid var(--fc-border-color);
+}
+/* 外沿补齐：最后一列无右边框（widget 右边框接管） */
+.cal-widget .fc .fc-col-header-cell:last-child,
+.cal-widget .fc .fc-daygrid-day:last-child {
+  border-right: none;
+}
+/* 外沿补齐：最后一行无底边框（widget 底边框接管） */
+.cal-widget .fc .fc-daygrid-body .fc-daygrid-row:last-child .fc-daygrid-day {
+  border-bottom: none;
+}
+.cal-widget:not(.cal-compact) .fc {
   font-size: 14px;
 }
 </style>
