@@ -44,7 +44,7 @@ import { ref, watch, onMounted, nextTick } from "vue";
 import { api, reportHeight, getVersion } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
-import CalendarWidget from "./views/Project/components/CalendarWidget.vue";
+import CalendarWidget from "./components/CalendarWidget.vue";
 
 const view = ref("home");
 const projectId = ref(null);

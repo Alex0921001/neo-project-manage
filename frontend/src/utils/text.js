@@ -22,6 +22,22 @@ export function formatDescription(text) {
 }
 
 /**
+ * 富文本 HTML 转纯文本摘录（去标签、解实体、压缩空白）
+ * 用于列表/卡片等纯文本摘要场景（如项目列表卡片的两行截断），避免 <p> 等标签以文本形式暴露
+ * @param {string} html
+ * @returns {string}
+ */
+export function richTextToPlain(html) {
+  if (!html) return "";
+  const withBreaks = String(html).replace(/<br\s*\/?>/gi, "\n");
+  const doc = new DOMParser().parseFromString(withBreaks, "text/html");
+  return (doc.body.textContent || "")
+    .replace(/\u00a0/g, " ") // &nbsp; 经 textContent 解码为不换行空格
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
  * 富文本 HTML 归一化：去标签后无实质内容且无资源节点（图片/链接）→ 返回空串
  * @param {string} html
  * @returns {string} 空内容返回 ""，否则原样返回（trim 后）

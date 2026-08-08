@@ -40,9 +40,9 @@
         </div>
       </div>
 
-      <!-- 描述 -->
+      <!-- 描述（列表摘要：富文本转纯文本，避免 <p> 等标签文本暴露；两行截断由 .card-desc 处理）-->
       <div class="card-desc">
-        <span v-if="project.description">{{ project.description }}</span>
+        <span v-if="project.description">{{ richTextToPlain(project.description) }}</span>
         <span v-else class="desc-empty">点击查看项目详情</span>
       </div>
 
@@ -79,6 +79,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
+import { richTextToPlain } from "../../../utils/text.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({

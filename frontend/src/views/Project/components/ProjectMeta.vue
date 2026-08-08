@@ -87,7 +87,7 @@
           描述
         </div>
         <div class="meta-card-value meta-desc">
-          <div v-if="project?.description" class="meta-desc-body" v-html="formatDescription(project.description)" @click="onRichClick"></div>
+          <div v-if="project?.description" class="meta-desc-body rich-view" v-html="formatDescription(project.description)" @click="onRichClick"></div>
           <span v-else class="meta-empty">暂无描述</span>
         </div>
       </div>
@@ -432,11 +432,6 @@ function avatarColor(name) {
   word-break: break-word;
   line-height: 1.6;
 }
-.meta-desc-body :deep(p) { margin: 0 0 4px; }
-.meta-desc-body :deep(p:last-child) { margin-bottom: 0; }
-.meta-desc-body :deep(ul),
-.meta-desc-body :deep(ol) { margin: 4px 0; padding-left: 18px; }
-.meta-desc-body :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 .meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
 
 /* 成员 pill：头像 + 姓名，姓名能完整显示 */

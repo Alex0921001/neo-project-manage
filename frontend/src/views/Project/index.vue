@@ -130,7 +130,7 @@ import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
-import CalendarWidget from "./components/CalendarWidget.vue";
+import CalendarWidget from "../../components/CalendarWidget.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);

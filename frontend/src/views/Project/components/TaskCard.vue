@@ -76,7 +76,7 @@
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
-      <div v-if="task.description" class="task-desc" v-html="highlightRichText(formatDescription(task.description), searchQuery)" @click="onRichClick"></div>
+      <div v-if="task.description" class="task-desc rich-view" v-html="highlightRichText(formatDescription(task.description), searchQuery)" @click="onRichClick"></div>
       <div v-else class="task-desc task-desc-empty">暂无描述</div>
       <teleport to="body">
         <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
@@ -527,27 +527,6 @@ defineExpose({
   border-radius: 0 4px 4px 0;
   word-break: break-word;
 }
-/* 富文本内容：块级元素 margin 收敛，避免撑破容器 */
-.task-desc :deep(p) { margin: 0 0 6px; }
-.task-desc :deep(p:last-child) { margin-bottom: 0; }
-.task-desc :deep(ul),
-.task-desc :deep(ol) { margin: 4px 0; padding-left: 20px; }
-.task-desc :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
-.task-desc :deep(a) { color: oklch(0.55 0.15 250); }
-.task-desc :deep(pre) { overflow-x: auto; background: oklch(0.94 0.01 80); padding: 8px; border-radius: 4px; font-size: 12px; }
-.task-desc :deep(code) { background: oklch(0.94 0.01 80); padding: 1px 4px; border-radius: 3px; font-size: 12px; }
-.task-desc :deep(pre code) { background: transparent; padding: 0; }
-.task-desc :deep(blockquote) { border-left: 3px solid oklch(0.80 0.05 80); margin: 4px 0; padding: 2px 10px; color: oklch(0.55 0.05 80); }
-.task-desc :deep(h1),
-.task-desc :deep(h2),
-.task-desc :deep(h3),
-.task-desc :deep(h4),
-.task-desc :deep(h5),
-.task-desc :deep(h6) { margin: 6px 0 4px; font-weight: 600; }
-.task-desc :deep(hr) { border: none; border-top: 1px solid oklch(0.88 0.03 80); margin: 6px 0; }
-.task-desc :deep(ul[data-type="taskList"]) { list-style: none; padding-left: 4px; }
-.task-desc :deep(li[data-type="taskItem"]) { display: flex; gap: 6px; align-items: flex-start; }
-.task-desc :deep(li[data-type="taskItem"] > label) { margin-top: 3px; }
 .task-desc-empty {
   color: var(--text-tertiary);
   font-style: italic;

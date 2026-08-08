@@ -5,6 +5,7 @@ import "element-plus/dist/index.css";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
 import "./styles/ep-theme.css";
+import "./styles/rich-view.css";
 import App from "./App.vue";
 
 // Element Plus 全量中文化（日期选择器等组件语言，P3）

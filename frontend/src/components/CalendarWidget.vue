@@ -31,8 +31,8 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCn from "@fullcalendar/core/locales/zh-cn";
 import dayjs from "dayjs";
-import { api } from "../../../api.js";
-import { candyPalette as palette } from "../../../utils/palette.js";
+import { api } from "../api.js";
+import { candyPalette as palette } from "../utils/palette.js";
 
 const props = defineProps({
   projects: { type: Array, default: () => [] },

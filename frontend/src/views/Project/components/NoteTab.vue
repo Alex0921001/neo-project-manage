@@ -42,7 +42,7 @@
       >
         <span class="note-card-accent" aria-hidden="true"></span>
         <span class="note-card-quote" aria-hidden="true">❝</span>
-        <p class="note-content" v-html="formatDescription(n.content)" @click="onRichClick"></p>
+        <p class="note-content rich-view" v-html="formatDescription(n.content)" @click="onRichClick"></p>
         <teleport to="body">
           <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
         </teleport>
@@ -298,10 +298,8 @@ defineExpose({ openAdd: startAdd });
   font-size: 13.5px;
   line-height: 1.7;
   color: oklch(0.25 0.04 80);
-  word-break: break-word;
   letter-spacing: 0.005em;
 }
-.note-content :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 
 .note-bottom {
   display: flex;
