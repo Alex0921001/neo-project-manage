@@ -13,12 +13,12 @@
 - **任务树**：任意层级父子任务（通过 `parent_task_id` 自引用），支持增删改、批量创建、拖拽排序、跨层级移动（含环检测）、级联删除
 - **任务成员 + 起止时间**（V1.2 新增）：任务可分配多个成员（`assignees` 数组，候选池聚合所有项目成员）与开始 / 结束日期；`endDate >= startDate` 硬校验，越出项目计划范围软提示
 - **任务日历**（V1.2 新增）：项目详情页独立的「日历」tab（位于任务/文件/备注之间），展示有日期的任务，支持全部 / 未完成 / 已完成筛选，点击跳转到对应任务并滚动定位
-- **富文本**（V1.2 新增）：任务描述 / 项目描述 / 备注支持 Tiptap 富文本，可插入图片（≤2MB，png/jpg/jpeg/gif/webp），点击图片全屏预览
+- **富文本**（V1.2 新增）：任务描述 / 项目描述 / 备注支持 Tiptap 富文本，可插入图片（本地压缩后 base64 内联存储，最长边 1280px / JPEG 0.82 / PNG 保留透明），点击图片全屏预览
 - **Element Plus 弹窗**（V1.2 新增）：全部弹窗统一为 el-dialog + el-form + rules 校验，主题对齐 OKLCH 设计令牌
 - **批注（便利贴）**：挂在任务上的便签，支持编辑内容与确认状态
 - **文件**：项目文件引用登记与删除，Windows 下支持文件选择对话框
 - **备注**：项目级富文本备注，支持增删改
-- **SQLite 存储**：better-sqlite3，WAL 模式，外键级联，卸载插件数据不丢；schema v1→v2 自动迁移（幂等），老数据兼容
+- **SQLite 存储**：better-sqlite3，WAL 模式，外键级联，卸载插件数据不丢；schema v1→v3 自动迁移（幂等），老数据兼容
 
 ## 安装
 
@@ -140,7 +140,9 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 | PUT | `/api/projects/:projectId/notes/:noteId` | 编辑备注 |
 | DELETE | `/api/projects/:projectId/notes/:noteId` | 删除备注 |
 
-### 图片上传 `upload.js`（V1.2）
+### 图片上传 `upload.js`（V1.2，历史路由）
+
+> 前端富文本图片已改 **base64 内联**（本地压缩后直接入库，绕开网关鉴权），此上传路由保留兼容：
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -162,7 +164,7 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 - 表：`projects`、`project_sets`、`tasks`（自引用父任务）、`files`、`task_file_refs`、`notes`、`annotations`、`schema_meta`
 - schema 版本：V1.2 = 3；启动时自动迁移 v1/v2→v3（v2 库先 DROP `idx_tasks_assignee` 再 DROP `assignee` 列然后 ADD `assignees` TEXT 存 JSON 数组，v1 库直接走 ADD 列路径，幂等，老数据兼容；v2 库的 `assignee` 存量数据会被丢弃）
 - 索引：`idx_tasks_assignees`（`json_each` 元素索引）/ `idx_tasks_start_date` / `idx_tasks_end_date`
-- 图片：`ctx.dataDir/uploads/`（shortId + ext）
+- 图片：**前端 base64 内联存储**（内容自包含，无 403 风险）；历史上传路径 `ctx.dataDir/uploads/`（shortId + ext）保留兼容
 - 迁移：`npm run migrate`（scripts/migrate-to-sqlite.js，从旧 JSON 存储迁移）
 
 ## 开发指南
@@ -178,9 +180,9 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 
 - **任务成员 + 起止时间**：tasks 表新增 `assignees`（JSON 数组）/ `start_date` / `end_date`（schema v1/v2→v3 自动迁移，幂等）；`create_task` / `update_task` / `create_tasks` / `list_tasks` 工具与 REST 接口支持新参数；list_tasks 按成员筛选使用 `json_each(t.assignees)` 元素精确匹配 + `json_valid` 兜底防脏数据崩溃
 - **任务日历**：项目详情页独立的「日历」tab（位于任务/文件/备注之间），事件源切换为有日期的任务，支持全部 / 未完成 / 已完成筛选，点击跳转项目详情并滚动定位任务
-- **富文本**：引入 Tiptap v2（异步加载），任务描述 / 项目描述 / 备注支持富文本与图片上传（≤2MB），图片点击全屏预览；移除项目描述 200 字符限制
+- **富文本**：引入 Tiptap v2（异步加载），任务描述 / 项目描述 / 备注支持富文本；图片**本地压缩后 base64 内联**（最长边 1280px / JPEG 0.82 / PNG 保留透明，绕开网关鉴权），点击图片全屏预览；移除项目描述 200 字符限制
 - **Element Plus 弹窗**：全部弹窗统一重构为 el-dialog + el-form + rules（任务 / 子任务 / 文件 / 备注 / 项目 / 项目集 / 确认框），主题覆盖对齐 OKLCH 设计令牌
-- **上传接口**：`POST /api/projects/:id/upload` + `GET /files/:name` 静态服务（防路径穿越）
+- **上传接口**：`POST /api/projects/:id/upload` + `GET /files/:name` 静态服务（防路径穿越，前端已改 base64 内联，保留兼容）
 - **日历接口**：`GET /api/calendar-tasks` / `GET /api/projects/:id/calendar-tasks`
 
 ### V1.0.1（2026-08-02）
