@@ -76,8 +76,15 @@
       </div>
     </div>
     <div v-if="expanded" class="task-card-body">
-      <p v-if="task.description" class="task-desc" v-html="highlightRichText(formatDescription(task.description), searchQuery)"></p>
+      <p v-if="task.description" class="task-desc" v-html="highlightRichText(formatDescription(task.description), searchQuery)" @click="onRichClick"></p>
       <p v-else class="task-desc task-desc-empty">暂无描述</p>
+      <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+
+      <!-- 成员 + 起止日期 -->
+      <div v-if="task.assignees?.length || task.startDate || task.endDate" class="task-meta-row">
+        <span v-if="task.assignees?.length" class="task-meta-chip task-meta-chip-person">成员：{{ task.assignees.join('、') }}</span>
+        <span v-if="task.startDate || task.endDate" class="task-meta-chip">日期：{{ task.startDate || '…' }} ~ {{ task.endDate || '…' }}</span>
+      </div>
 
       <div v-if="fileRefsList.length" class="file-refs-row">
         <span class="file-refs-row-label">关联文件</span>
@@ -145,12 +152,15 @@
 import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { formatDescription } from "../../../utils/text.js";
+import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { highlight, highlightRichText } from "../../../utils/highlight.js";
 import draggable from "vuedraggable";
 import { toast } from "../../../toast.js";
 
 // 递归组件需要 name（Vue 3 setup 语法下用 defineOptions 或文件名）
 defineOptions({ name: "TaskCard" });
+
+const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
 
 const props = defineProps({
   task: { type: Object, required: true },
@@ -519,6 +529,40 @@ defineExpose({
   font-style: italic;
   background: transparent;
   border-left-color: oklch(0.90 0.02 85);
+}
+
+/* 成员 + 起止日期 */
+.task-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0 2px;
+}
+.task-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: oklch(0.94 0.04 75);
+  color: oklch(0.40 0.06 75);
+  font-size: 12px;
+  border-radius: 10px;
+  border: 1px solid oklch(0.88 0.04 75);
+}
+.task-meta-chip-person {
+  background: oklch(0.93 0.06 240 / 0.35);
+  color: oklch(0.35 0.10 240);
+  border-color: oklch(0.85 0.06 240);
+}
+.task-card-done .task-meta-chip {
+  background: oklch(0.92 0.05 145);
+  color: oklch(0.35 0.08 145);
+  border-color: oklch(0.78 0.10 145);
+}
+.task-card-done .task-meta-chip-person {
+  background: oklch(0.90 0.06 145);
+  color: oklch(0.30 0.10 145);
+  border-color: oklch(0.75 0.10 145);
 }
 
 .task-card-done .task-desc {

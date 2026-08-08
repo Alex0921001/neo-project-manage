@@ -30,6 +30,21 @@ export async function api(path, opts = {}) {
   }
 }
 
+/**
+ * multipart/form-data 上传（不设 Content-Type，fetch 自动带 boundary）
+ */
+export async function apiUpload(path, formData) {
+  try {
+    const headers = {};
+    if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+    const res = await fetch(apiUrl(path), { method: "POST", body: formData, headers });
+    return await res.json();
+  } catch (err) {
+    console.error("上传失败:", path, err);
+    return { ok: false, error: err.message };
+  }
+}
+
 export function reportHeight() {
   const h = document.documentElement.scrollHeight;
   if (h > 100) {

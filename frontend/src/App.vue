@@ -19,7 +19,7 @@
     />
 
     <div v-show="view === 'calendar'" class="calendar-page">
-      <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" />
+      <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" @select-task="openTaskFromCalendar" />
     </div>
 
     <div id="toast-container"></div>
@@ -98,6 +98,14 @@ function openProject(id) {
   projectId.value = id;
   view.value = "project";
   saveState();
+}
+
+function openTaskFromCalendar({ projectId: pid, taskId }) {
+  // 先记录待滚动任务，项目详情加载完成后由 ProjectDetail 消费
+  if (taskId) {
+    try { sessionStorage.setItem("neo-pm-scroll-task", taskId); } catch { /* ignore */ }
+  }
+  openProject(pid);
 }
 
 function goBack() {
@@ -359,74 +367,6 @@ input, textarea, select { font-family: inherit; }
 .version-badge .src { color: var(--text-secondary); }
 .version-badge .sep { color: var(--border); margin: 0 4px; }
 .version-badge .t { color: var(--text-tertiary); }
-
-/* === Shared Modal === */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: oklch(0 0 0 / 0.35);
-  backdrop-filter: blur(2px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: overlayIn 150ms var(--ease-out);
-}
-@keyframes overlayIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.modal {
-  background: var(--bg-card);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-  min-width: 400px;
-  max-width: 480px;
-  box-shadow: var(--shadow-lg);
-  animation: modalIn 250ms var(--ease-out);
-}
-@keyframes modalIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
-.modal label {
-  display: block; font-size: 12px; font-weight: 600;
-  margin-bottom: 4px; color: var(--text-secondary);
-  letter-spacing: 0.02em; text-transform: uppercase;
-}
-.modal input, .modal textarea, .modal select {
-  width: 100%; padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 13px; margin-bottom: 14px;
-  background: var(--bg-card); color: var(--text);
-  outline: none;
-  transition: border-color 150ms, box-shadow 150ms;
-}
-.modal input:focus, .modal textarea:focus, .modal select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-subtle);
-}
-.modal textarea { min-height: 60px; resize: vertical; }
-.modal .form-row { display: flex; gap: 12px; }
-.modal .form-row > * { flex: 1; }
-.modal-actions {
-  display: flex; justify-content: flex-end;
-  gap: 8px; margin-top: 16px;
-}
-.modal-actions button {
-  padding: 8px 18px; border-radius: var(--radius-sm);
-  border: 1px solid var(--border); cursor: pointer;
-  font-size: 13px; font-weight: 500;
-  transition: all 150ms var(--ease-out);
-}
-.modal-actions button:not(.btn-primary):hover { background: var(--bg-hover); }
-.modal-actions .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-.modal-actions .btn-primary:hover { background: var(--accent-hover); }
-.modal-actions .btn-danger { background: oklch(0.5 0.18 30); color: #fff; border-color: oklch(0.5 0.18 30); }
-.modal-actions .btn-danger:hover { background: oklch(0.45 0.2 30); }
-.modal-wide { max-width: 600px; width: 90%; }
 
 /* === Calendar Page === */
 .calendar-page {

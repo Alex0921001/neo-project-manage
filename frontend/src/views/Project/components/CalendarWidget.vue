@@ -25,18 +25,29 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch, onMounted, onErrorCaptured, nextTick } from "vue";
 import FullCalendar from "@fullcalendar/vue3";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCn from "@fullcalendar/core/locales/zh-cn";
+import dayjs from "dayjs";
+import { api } from "../../../api.js";
+import { candyPalette as palette } from "../../../utils/palette.js";
 
 const props = defineProps({
   projects: { type: Array, default: () => [] },
   sets: { type: Array, default: () => [] },
   compact: { type: Boolean, default: true },
+  taskMode: { type: Boolean, default: false }, // true = 事件源为任务（日历 tab）
+  projectId: { type: String, default: "" },   // taskMode 且非空 = 限定单项目
 });
-const emit = defineEmits(["select"]);
+const emit = defineEmits(["select", "select-task"]);
+
+// 捕获子组件（FullCalendar）渲染错误：记录堆栈不阻断页面（P0-1 调试）
+onErrorCaptured((err, instance, info) => {
+  console.error("[CalendarWidget] 子组件错误:", err, info);
+  return false; // 继续向上传播，让全局处理兜底
+});
 
 const calendarRef = ref(null);
 const currentTitle = ref("");
@@ -47,7 +58,52 @@ const filterOptions = [
   { value: "done", label: "已完成" },
 ];
 
-// ===== 项目状态筛选（仅独立页非 compact 生效）=====
+// ===== 任务数据源（taskMode）=====
+const taskEvents = ref([]);
+
+async function loadTaskEvents() {
+  if (!props.taskMode) return;
+  try {
+    // 按当前筛选拉取（后端按 status 过滤），避免拉回全量再本地过滤
+    const status = calFilter.value;
+    const url = props.projectId
+      ? `api/projects/${props.projectId}/calendar-tasks?status=${encodeURIComponent(status)}`
+      : `api/calendar-tasks?status=${encodeURIComponent(status)}`;
+    const res = await api(url);
+    if (res?.ok && Array.isArray(res.data)) {
+      taskEvents.value = res.data;
+    } else {
+      taskEvents.value = [];
+      console.error("[CalendarWidget] 拉取任务日历失败:", res?.error || res?.data);
+    }
+  } catch (e) {
+    taskEvents.value = [];
+    console.error("[CalendarWidget] 拉取任务日历异常:", e);
+  }
+}
+
+onMounted(() => {
+  if (props.taskMode) {
+    loadTaskEvents().then(() => {
+      // 问题3：v-if 挂载后强制 FC 重新计算尺寸（非 flex 容器下 flex:1 无效）
+      nextTick(() => {
+        try { calendarRef.value?.getApi()?.updateSize(); } catch (e) { console.error("[CalendarWidget] updateSize 失败:", e); }
+      });
+    });
+  }
+});
+// 监听 ref 本身（此前误写成 props.calFilter，源恒 undefined 永不触发）
+watch(calFilter, () => {
+  if (!props.taskMode) return;
+  loadTaskEvents().then(() => {
+    nextTick(() => {
+      try { calendarRef.value?.getApi()?.updateSize(); } catch (e) { console.error("[CalendarWidget] updateSize 失败:", e); }
+    });
+  });
+});
+watch(() => props.projectId, () => { if (props.taskMode) loadTaskEvents(); });
+
+// ===== 项目状态筛选（非 taskMode，仅独立页非 compact 生效）=====
 const visibleProjects = computed(() => {
   if (props.compact || calFilter.value === "all") return props.projects;
   const done = calFilter.value === "done";
@@ -62,37 +118,70 @@ function getSetName(projectSetId) {
   return set ? set.name : "";
 }
 
-// ===== 事件映射（低饱和糖果色调色板）=====
-import { candyPalette as palette } from "../../../utils/palette.js";
-const fcEvents = computed(() =>
-  visibleProjects.value
-    .map((p, idx) => {
-      if (!p.planStart || !p.planEnd) return null;
-      const endDate = new Date(p.planEnd);
-      endDate.setDate(endDate.getDate() + 1); // FC 左闭右开
-      const setName = getSetName(p.projectSetId);
-      const projectName = p.name || "未命名";
-      const title = setName ? `${setName}-${projectName}` : projectName;
-      const color = palette[idx % palette.length];
-      return {
-        title,
-        start: p.planStart,
-        end: endDate.toISOString().slice(0, 10),
-        backgroundColor: color,
-        borderColor: color,
-        textColor: "#fff",
-        extendedProps: { projectId: p.id, projectName, setName },
-      };
-    })
-    .filter(Boolean)
-);
+// ===== 事件映射 =====
+// 任务模式：taskEvents（按 calFilter 本地再过滤一次，后端已按 status 过滤，这里兜底）
+const visibleTaskEvents = computed(() => {
+  const list = Array.isArray(taskEvents.value) ? taskEvents.value : [];
+  if (calFilter.value === "all") return list;
+  const done = calFilter.value === "done";
+  return list.filter((t) => done ? t.done : !t.done);
+});
+
+const fcEvents = computed(() => {
+  try {
+    if (props.taskMode) {
+      return visibleTaskEvents.value.map((t, idx) => {
+        const start = t.startDate || t.endDate;
+        const endRaw = t.endDate || t.startDate;
+        // FC 左闭右开：用 dayjs 纯日期运算 +1 天，避免 UTC/本地时区偏差（P3-3）
+        const end = dayjs(endRaw).add(1, "day").format("YYYY-MM-DD");
+        const color = palette[idx % palette.length];
+        return {
+          title: t.name || "未命名任务",
+          start,
+          end,
+          backgroundColor: color,
+          borderColor: color,
+          textColor: "#fff",
+          extendedProps: { projectId: t.projectId, taskId: t.id, projectName: t.projectName },
+        };
+      });
+    }
+    // 项目模式（问题2：用 visibleProjects 让「全部/未完成/已完成」筛选生效）
+    return (Array.isArray(visibleProjects.value) ? visibleProjects.value : [])
+      .map((p, idx) => {
+        if (!p.planStart || !p.planEnd) return null;
+        // FC 左闭右开：用 dayjs 纯日期运算 +1 天，避免 UTC/本地时区偏差（P3-3）
+        const endDate = dayjs(p.planEnd).add(1, "day").format("YYYY-MM-DD");
+        const setName = getSetName(p.projectSetId);
+        const projectName = p.name || "未命名";
+        const title = setName ? `${setName}-${projectName}` : projectName;
+        const color = palette[idx % palette.length];
+        return {
+          title,
+          start: p.planStart,
+          end: endDate,
+          backgroundColor: color,
+          borderColor: color,
+          textColor: "#fff",
+          extendedProps: { projectId: p.id, projectName, setName },
+        };
+      })
+      .filter(Boolean);
+  } catch (e) {
+    // 防御：事件计算失败不拖垮整页（P0-1）
+    console.error("[CalendarWidget] 事件计算失败:", e);
+    return [];
+  }
+});
 
 // ===== FullCalendar 选项（内置 header 关闭，用自定义 header）=====
 const fcOptions = computed(() => ({
   plugins: [dayGridPlugin, interactionPlugin],
   initialView: "dayGridMonth",
   locale: zhCn,
-  height: props.compact ? "auto" : undefined,
+  // 问题1：non-compact（日历 tab / 大日历页）给固定高度，避免父容器无高度时 FC 渲染 0 高度
+  height: props.compact ? "auto" : 600,
   dayMaxEvents: props.compact ? 1 : 3,
   headerToolbar: false,
   editable: false,
@@ -103,8 +192,12 @@ const fcOptions = computed(() => ({
     currentTitle.value = `${d.getFullYear()}年${d.getMonth() + 1}月`;
   },
   eventClick(info) {
-    const pid = info.event.extendedProps?.projectId;
-    if (pid) emit("select", pid);
+    const ep = info.event.extendedProps || {};
+    if (props.taskMode) {
+      if (ep.projectId && ep.taskId) emit("select-task", { projectId: ep.projectId, taskId: ep.taskId });
+      return;
+    }
+    if (ep.projectId) emit("select", ep.projectId);
   },
 }));
 

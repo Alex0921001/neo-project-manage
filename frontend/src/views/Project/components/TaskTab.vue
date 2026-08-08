@@ -1,80 +1,66 @@
 <template>
-  <div :class="['area-section', { 'mode-form': inlineMode }]">
-    <!-- 统一内联表单 -->
-    <div v-if="inlineMode" class="task-full-form">
-      <header class="form-head">
-        <span class="form-head-icon">
-          <svg v-if="subtaskParent" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>
-          <svg v-else-if="editingId" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-        </span>
-        <h4 class="form-title">
-          <template v-if="subtaskParent">
-            子任务 · （父级任务：{{ subtaskParent.name }}）
-          </template>
-          <template v-else-if="editingId">编辑任务</template>
-          <template v-else>新建任务</template>
-        </h4>
-        <button class="form-close" type="button" @click="closeInline" title="取消">✕</button>
-      </header>
-      <textarea
-        v-model="formName"
-        rows="2"
-        placeholder="任务名称"
-        class="task-inline-input task-name-area"
-        :class="{ err: submitErr && !formName.trim() }"
-      ></textarea>
-      <p v-if="submitErr && !formName.trim()" class="field-err">请填写任务名称</p>
-      <textarea
-        v-model="formDesc"
-        rows="3"
-        placeholder="任务描述（可选）"
-        class="task-inline-textarea"
-      ></textarea>
-
-      <!-- 关联文件 -->
-      <div v-if="files && files.length" class="file-refs-area">
-        <label class="file-refs-label">关联文件</label>
-        <div v-if="formFileRefs.length" class="file-refs-tags">
-          <span v-for="fid in formFileRefs" :key="fid" class="file-tag">
-            <svg class="file-tag-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span class="file-tag-name">{{ fileMap[fid]?.name || fid }}</span>
-            <span class="file-tag-del" @click="removeFileRef(fid)">✕</span>
-          </span>
-        </div>
-        <div v-else class="file-refs-empty">暂未关联文件</div>
-        <div class="file-add-dropdown" ref="fileDropdownRef">
-          <button type="button" class="file-add-trigger" @click="fileDropdownOpen = !fileDropdownOpen">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>添加关联文件</span>
-            <svg class="file-add-caret" :class="{ open: fileDropdownOpen }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div v-if="fileDropdownOpen" class="file-add-menu">
-            <div v-if="!availableFiles.length" class="file-add-empty">暂无可添加的文件</div>
-            <button
-              v-for="f in availableFiles"
-              :key="f.id"
-              type="button"
-              class="file-add-item"
-              @mousedown.prevent="addFileRef(f.id)"
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              <span class="file-add-item-name">{{ f.name }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div class="inline-actions">
-        <button @click="closeInline">取消</button>
-        <button class="btn-primary" @click="submitInline">
-          {{ editingId ? '保存' : '创建' }}
-        </button>
-      </div>
-    </div>
+  <div class="area-section">
+    <!-- 任务新建/编辑弹窗（el-dialog + el-form） -->
+    <el-dialog
+      v-model="dialogShow"
+      :title="dialogTitle"
+      width="800px"
+      class="task-dialog-el"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
+        </el-form-item>
+        <el-form-item label="简述">
+          <RichEditor v-model="form.description" :project-id="projectId" />
+        </el-form-item>
+        <el-form-item label="成员">
+          <el-select
+            v-model="form.assignees"
+            multiple
+            placeholder="未分配"
+            clearable
+            collapse-tags
+            collapse-tags-tooltip
+            style="width: 100%"
+          >
+            <el-option v-for="m in members" :key="m" :label="m" :value="m" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="起止日期">
+          <el-date-picker
+            v-model="dateRangeVal"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item v-if="files && files.length" label="关联文件">
+          <el-select
+            v-model="form.fileRefs"
+            multiple
+            placeholder="请选择关联文件"
+            collapse-tags
+            collapse-tags-tooltip
+            style="width: 100%"
+          >
+            <el-option v-for="f in files" :key="f.id" :label="f.name" :value="f.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogShow = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="submitInline">{{ isEditMode ? '保存' : '创建' }}</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 列表模式：左侧任务列表 + 右侧便利贴 -->
-    <div v-else class="task-tab-layout" ref="layoutRef">
+    <div class="task-tab-layout" ref="layoutRef">
       <!-- 跨容器引导线 SVG：从选中任务/子任务指向便利贴面板 -->
       <svg
         class="connector-svg"
@@ -181,17 +167,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import draggable from "vuedraggable";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
 import AnnotationPanel from "./AnnotationPanel.vue";
+import { normalizeRichText } from "../../../utils/text.js";
+import { createRichEditor } from "../../../utils/asyncEditor.js";
+// 富文本编辑器异步加载（Tiptap 体积大，拆独立 chunk，含 loading/error/重试）
+const RichEditor = createRichEditor();
 
 const props = defineProps({
   projectId: String,
   tasks: { type: Array, default: () => [] },
   files: { type: Array, default: () => [] },
+  members: { type: Array, default: () => [] },
+  planStart: { type: String, default: "" },
+  planEnd: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   expandAll: { type: Boolean, default: null },
 });
@@ -458,15 +451,41 @@ const displayedDoneTasks = computed(() =>
     : doneTasks.value
 );
 
-// 内联表单状态
-const inlineMode = ref(false);
+// 弹窗表单状态
+const dialogShow = ref(false);
+const saving = ref(false);
 const editingId = ref(null);
 const subtaskParent = ref(null);
 const editingSubId = ref(null);
-const formName = ref("");
-const formDesc = ref("");
-const formFileRefs = ref([]);
+const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", fileRefs: [] });
 const submitErr = ref(false);
+const formRef = ref(null);
+
+// ===== 起止日期 range（P1）：单个 daterange 绑定，同步到 form.startDate/endDate =====
+const dateRangeVal = ref([]);
+watch(dateRangeVal, (v) => {
+  form.startDate = v?.[0] || "";
+  form.endDate = v?.[1] || "";
+});
+function syncDateRangeFromForm() {
+  dateRangeVal.value = form.startDate || form.endDate
+    ? [form.startDate || null, form.endDate || null]
+    : [];
+}
+
+const isEditMode = computed(() => !!editingId.value || !!editingSubId.value);
+const dialogTitle = computed(() => {
+  if (subtaskParent.value) return `子任务 · （父级任务：${subtaskParent.value.name}）`;
+  if (isEditMode.value) return "编辑任务";
+  return "新建任务";
+});
+
+const rules = {
+  name: [
+    { required: true, message: "请填写任务名称", trigger: "blur" },
+    { min: 1, max: 50, message: "名称限 1-50 个字符", trigger: "blur" },
+  ],
+};
 
 // 待滚动定位的标记：POST 后设值，watch 捕捉数据回流后清值并滚动
 const pendingScroll = ref(null);  // { kind: 'task'|'subtask', id: string }
@@ -474,140 +493,153 @@ const totalSubtaskCount = computed(() =>
   props.tasks.reduce((sum, t) => sum + (t.subtasks?.length || 0), 0)
 );
 
-// 文件下拉开关
-const fileDropdownOpen = ref(false);
-const fileDropdownRef = ref(null);
-function onDocMouseDown(e) {
-  if (fileDropdownOpen.value && fileDropdownRef.value && !fileDropdownRef.value.contains(e.target)) {
-    fileDropdownOpen.value = false;
-  }
-}
-onMounted(() => document.addEventListener("mousedown", onDocMouseDown));
-onUnmounted(() => document.removeEventListener("mousedown", onDocMouseDown));
-
-// 文件查找 & 可添加列表
-const fileMap = computed(() => {
-  const m = {};
-  for (const f of props.files) m[f.id] = f;
-  return m;
-});
-const availableFiles = computed(() =>
-  props.files.filter(f => !formFileRefs.value.includes(f.id))
-);
-
 // ===== 打开方式 =====
 function resetForm() {
-  formName.value = "";
-  formDesc.value = "";
-  formFileRefs.value = [];
+  form.name = "";
+  form.description = "";
+  form.fileRefs = [];
+  form.assignees = [];
+  form.startDate = "";
+  form.endDate = "";
   submitErr.value = false;
-  fileDropdownOpen.value = false;
 }
 
 function openAdd() {
-  inlineMode.value = true;
   editingId.value = null;
   subtaskParent.value = null;
   editingSubId.value = null;
   resetForm();
+  syncDateRangeFromForm();
+  dialogShow.value = true;
 }
 
 function startEdit(t) {
-  inlineMode.value = true;
   editingId.value = t.id;
   subtaskParent.value = null;
   editingSubId.value = null;
-  formName.value = t.name;
-  formDesc.value = t.description || "";
-  formFileRefs.value = [...(t.fileRefs || [])];
+  form.name = t.name;
+  form.description = t.description || "";
+  form.fileRefs = [...(t.fileRefs || [])];
+  form.assignees = Array.isArray(t.assignees) ? [...t.assignees] : [];
+  form.startDate = t.startDate || "";
+  form.endDate = t.endDate || "";
   submitErr.value = false;
+  syncDateRangeFromForm();
+  dialogShow.value = true;
 }
 
 function startSubtask(t) {
-  inlineMode.value = true;
   editingId.value = null;
   subtaskParent.value = t;
   editingSubId.value = null;
   resetForm();
+  syncDateRangeFromForm();
+  dialogShow.value = true;
 }
 
 function startEditSubtask(task, sub) {
-  inlineMode.value = true;
   editingId.value = null;
   subtaskParent.value = task;
   editingSubId.value = sub.id;
-  formName.value = sub.name;
-  formDesc.value = sub.description || "";
-  formFileRefs.value = [...(sub.fileRefs || [])];
+  form.name = sub.name;
+  form.description = sub.description || "";
+  form.fileRefs = [...(sub.fileRefs || [])];
+  form.assignees = Array.isArray(sub.assignees) ? [...sub.assignees] : [];
+  form.startDate = sub.startDate || "";
+  form.endDate = sub.endDate || "";
   submitErr.value = false;
+  syncDateRangeFromForm();
+  dialogShow.value = true;
 }
 
 function closeInline() {
-  inlineMode.value = false;
-  fileDropdownOpen.value = false;
-}
-
-function addFileRef(fid) {
-  if (fid && !formFileRefs.value.includes(fid)) {
-    formFileRefs.value.push(fid);
-    fileDropdownOpen.value = false; // 选中后自动关闭下拉
-  }
-}
-function removeFileRef(fid) {
-  const idx = formFileRefs.value.indexOf(fid);
-  if (idx !== -1) formFileRefs.value.splice(idx, 1);
+  dialogShow.value = false;
 }
 
 // ===== 提交 =====
 function buildPayload() {
   return {
-    name: formName.value.trim(),
-    description: formDesc.value.trim(),
-    fileRefs: formFileRefs.value,
+    name: form.name.trim(),
+    description: normalizeRichText(form.description),
+    fileRefs: form.fileRefs,
+    assignees: form.assignees,
+    startDate: form.startDate,
+    endDate: form.endDate,
   };
 }
 
 async function submitInline() {
-  if (!formName.value.trim()) { submitErr.value = true; return; }
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  // 硬校验：结束日期不能早于开始日期
+  if (form.startDate && form.endDate && form.endDate < form.startDate) {
+    toast("结束日期不能早于开始日期", "error");
+    return;
+  }
+  // 软提示：任务日期越出项目计划范围（四象限，与后端 validateTaskDates 对齐；不阻断提交）
+  const warnList = [];
+  if (props.planStart && form.startDate && form.startDate < props.planStart) {
+    warnList.push(`任务开始日期 ${form.startDate} 早于项目计划开始日期 ${props.planStart}`);
+  }
+  if (props.planEnd && form.startDate && form.startDate > props.planEnd) {
+    warnList.push(`任务开始日期 ${form.startDate} 晚于项目计划结束日期 ${props.planEnd}`);
+  }
+  if (props.planStart && form.endDate && form.endDate < props.planStart) {
+    warnList.push(`任务结束日期 ${form.endDate} 早于项目计划开始日期 ${props.planStart}`);
+  }
+  if (props.planEnd && form.endDate && form.endDate > props.planEnd) {
+    warnList.push(`任务结束日期 ${form.endDate} 晚于项目计划结束日期 ${props.planEnd}`);
+  }
+  if (warnList.length) toast(`提示：${warnList.join("；")}`, "warn");
   const payload = buildPayload();
-
-  if (editingSubId.value) {
-    // 子/孙任务 id 全局唯一，直接按任务 id 更新（后端已无 /tasks/:id/subtasks/:sid 子路由）
-    const res = await api(`api/projects/${props.projectId}/tasks/${editingSubId.value}`, {
-      method: "PUT", body: JSON.stringify(payload),
-    });
-    if (res.ok) { toast("已更新"); closeInline(); load(); }
-    else toast(res.error || "更新失败", "error");
-  } else if (editingId.value) {
-    const res = await api(`api/projects/${props.projectId}/tasks/${editingId.value}`, {
-      method: "PUT", body: JSON.stringify(payload),
-    });
-    if (res.ok) { toast("已更新"); closeInline(); load(); }
-    else toast(res.error || "更新失败", "error");
-  } else if (subtaskParent.value) {
-    // 子任务 / 孙任务创建（统一路径：POST tasks + parentTaskId）
-    const payloadWithParent = { ...payload, parentTaskId: subtaskParent.value.id };
-    const res = await api(`api/projects/${props.projectId}/tasks`, {
-      method: "POST", body: JSON.stringify(payloadWithParent),
-    });
-    if (res.ok) {
-      toast("子任务已创建");
-      closeInline();
-      const newId = res.data?.id;
-      if (newId) pendingScroll.value = { kind: "subtask", id: newId };
-      load();
-    } else toast(res.error || "创建失败", "error");
-  } else {
-    const res = await api(`api/projects/${props.projectId}/tasks`, {
-      method: "POST", body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      toast("已创建");
-      closeInline();
-      const newId = res.data?.id;
-      if (newId) pendingScroll.value = { kind: "task", id: newId };
-      load();
-    } else toast(res.error || "创建失败", "error");
+  saving.value = true;
+  // 透传后端 warnings（P3-3：后端四象限提示全量展示）
+  const showWarnings = (res) => {
+    if (res?.data?.warnings?.length) toast(`提示：${res.data.warnings.join("；")}`, "warn");
+  };
+  try {
+    if (editingSubId.value) {
+      // 子/孙任务 id 全局唯一，直接按任务 id 更新（后端已无 /tasks/:id/subtasks/:sid 子路由）
+      const res = await api(`api/projects/${props.projectId}/tasks/${editingSubId.value}`, {
+        method: "PUT", body: JSON.stringify(payload),
+      });
+      if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
+      else toast(res.error || "更新失败", "error");
+    } else if (editingId.value) {
+      const res = await api(`api/projects/${props.projectId}/tasks/${editingId.value}`, {
+        method: "PUT", body: JSON.stringify(payload),
+      });
+      if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
+      else toast(res.error || "更新失败", "error");
+    } else if (subtaskParent.value) {
+      // 子任务 / 孙任务创建（统一路径：POST tasks + parentTaskId）
+      const payloadWithParent = { ...payload, parentTaskId: subtaskParent.value.id };
+      const res = await api(`api/projects/${props.projectId}/tasks`, {
+        method: "POST", body: JSON.stringify(payloadWithParent),
+      });
+      if (res.ok) {
+        showWarnings(res);
+        toast("子任务已创建");
+        closeInline();
+        const newId = res.data?.id;
+        if (newId) pendingScroll.value = { kind: "subtask", id: newId };
+        load();
+      } else toast(res.error || "创建失败", "error");
+    } else {
+      const res = await api(`api/projects/${props.projectId}/tasks`, {
+        method: "POST", body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        showWarnings(res);
+        toast("已创建");
+        closeInline();
+        const newId = res.data?.id;
+        if (newId) pendingScroll.value = { kind: "task", id: newId };
+        load();
+      } else toast(res.error || "创建失败", "error");
+    }
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -619,6 +651,23 @@ function scrollToTask(taskId) {
   if (!root) return;
   const el = root.querySelector(`[data-task-id="${taskId}"]`);
   if (!el) return;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  el.classList.add("task-card-flash");
+  setTimeout(() => el.classList.remove("task-card-flash"), 1500);
+}
+
+/**
+ * 按任务 id 定位任意层级任务（顶层 / 子任务 / 孙任务），日历跳转使用
+ * TaskCard 所有层级都有 data-task-id 与 data-connector-id="task-{id}"
+ */
+function scrollToTaskById(taskId) {
+  const root = layoutRef.value;
+  if (!root) return;
+  const el =
+    root.querySelector(`[data-task-id="${taskId}"]`) ||
+    root.querySelector(`[data-connector-id="task-${taskId}"]`);
+  if (!el) return;
+  // 目标可能是子任务卡片：展开其所在层级（父卡片已展开才在 DOM 中）
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   el.classList.add("task-card-flash");
   setTimeout(() => el.classList.remove("task-card-flash"), 1500);
@@ -689,7 +738,7 @@ async function markTaskDone({ task, done }) {
   load();
 }
 
-defineExpose({ openAdd });
+defineExpose({ openAdd, scrollToTaskById });
 </script>
 
 <style scoped>
@@ -697,6 +746,12 @@ defineExpose({ openAdd });
   display: flex; flex-direction: column;
   margin-bottom: 24px;
 }
+
+/* 任务弹窗：body 内边距加大（H） */
+.task-dialog-el :deep(.el-dialog__body) {
+  padding: 24px;
+}
+
 .task-tab-layout {
   position: relative;
   display: flex; gap: 16px;
@@ -811,251 +866,5 @@ defineExpose({ openAdd });
   color: oklch(0.28 0.14 145);
 }
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
-.task-full-form {
-  padding: 16px;
-  border: 1px solid oklch(0.90 0.04 80);
-  border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff, oklch(0.99 0.01 90));
-  flex: 1;
-  display: flex; flex-direction: column;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-}
-.task-full-form .form-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 10px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid oklch(0.92 0.03 80);
-}
-.form-head-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: oklch(0.95 0.04 80);
-  color: oklch(0.45 0.10 75);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.task-full-form .form-title {
-  margin: 0;
-  flex: 1;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-  letter-spacing: 0;
-  border-bottom: none;
-  padding-bottom: 0;
-}
-.form-close {
-  width: 24px;
-  height: 24px;
-  border: 1px solid oklch(0.88 0.05 80);
-  background: oklch(0.98 0.02 90);
-  color: oklch(0.55 0.05 75);
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 120ms var(--ease-out);
-  flex-shrink: 0;
-}
-.form-close:hover {
-  background: oklch(0.95 0.05 30);
-  color: oklch(0.45 0.15 30);
-  border-color: oklch(0.65 0.12 30);
-}
-.task-inline-input {
-  width: 100%; padding: 9px 12px;
-  border: 1px solid oklch(0.88 0.04 80); border-radius: 8px;
-  font-size: 13.5px; background: #fff; color: oklch(0.25 0.04 80); outline: none;
-  font-family: inherit; line-height: 1.65;
-  field-sizing: content;
-  max-height: 80px;
-  resize: none;
-  overflow: hidden;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-.task-inline-input:focus {
-  border-color: oklch(0.65 0.13 80);
-  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.12);
-}
-.task-inline-textarea {
-  width: 100%; padding: 9px 12px;
-  border: 1px solid oklch(0.88 0.04 80); border-radius: 8px;
-  font-size: 13.5px; font-family: inherit; line-height: 1.65; resize: none;
-  background: #fff; color: oklch(0.25 0.04 80); outline: none;
-  margin-top: 10px; word-break: break-word;
-  flex: 1 1 auto;
-  min-height: 80px;
-  overflow-y: auto;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-}
-.task-inline-textarea:focus {
-  border-color: oklch(0.65 0.13 80);
-  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.12);
-}
-.task-inline-textarea::-webkit-scrollbar { width: 4px; }
-.task-inline-textarea::-webkit-scrollbar-thumb {
-  background: oklch(0.85 0.05 80);
-  border-radius: 2px;
-}
-.inline-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; align-items: center; }
-.inline-actions button {
-  padding: 6px 16px; border-radius: 6px;
-  font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 120ms var(--ease-out);
-}
-.inline-actions button:not(.btn-primary) {
-  background: #fff;
-  border-color: oklch(0.88 0.04 80);
-  color: oklch(0.45 0.05 80);
-}
-.inline-actions button:not(.btn-primary):hover {
-  background: oklch(0.97 0.02 80);
-  border-color: oklch(0.78 0.05 80);
-}
-.inline-actions .btn-primary {
-  background: linear-gradient(180deg, oklch(0.72 0.13 78), oklch(0.66 0.13 75));
-  color: #fff;
-  border-color: oklch(0.60 0.13 73);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.inline-actions .btn-primary:hover {
-  background: linear-gradient(180deg, oklch(0.66 0.13 75), oklch(0.60 0.13 72));
-  border-color: oklch(0.54 0.13 70);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-  transform: translateY(-0.5px);
-}
-.inline-actions .btn-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-}
-.err { border-color: #ef4444; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08); }
-.task-name-area { resize: none; margin-bottom: 10px; word-break: break-word; }
-.field-err { margin: -8px 0 0; font-size: 12px; color: #dc2626; }
-.file-refs-area { margin-top: 10px; }
-.file-refs-label { display: block; font-size: 12px; font-weight: 500; color: oklch(0.45 0.05 80); margin-bottom: 6px; }
-.file-refs-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.file-refs-empty {
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-  font-style: italic;
-}
-.file-tag {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 4px 3px 8px; border-radius: 12px; border: 1px solid var(--border);
-  font-size: 12px; color: var(--text); background: oklch(from var(--accent) l c h / 0.08);
-  max-width: 100%; min-width: 0;
-}
-.file-tag-icon { color: var(--text-tertiary); flex-shrink: 0; }
-.file-tag-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
-.file-tag-del {
-  cursor: pointer; font-size: 11px; color: var(--text-tertiary); line-height: 1;
-  width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%; flex-shrink: 0; transition: all 0.15s;
-}
-.file-tag-del:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
 
-/* 自定义文件下拉 */
-.file-add-dropdown { position: relative; }
-.file-add-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.15s;
-  text-align: left;
-}
-.file-add-trigger:hover {
-  border-color: #9ca3af;
-  background: #f9fafb;
-  color: #374151;
-}
-.file-add-trigger:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-.file-add-trigger > span { flex: 1; font-weight: 500; }
-.file-add-caret {
-  color: #9ca3af;
-  transition: transform 0.18s ease-out;
-  flex-shrink: 0;
-}
-.file-add-caret.open { transform: rotate(180deg); }
-
-.file-add-menu {
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-  padding: 4px;
-  max-height: 240px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  animation: file-menu-slide-up 0.16s ease-out;
-  transform-origin: bottom center;
-}
-@keyframes file-menu-slide-up {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.file-add-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border: none;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 5px;
-  font-size: 13px;
-  color: #1f2937;
-  font-family: inherit;
-  transition: background 0.12s;
-}
-.file-add-item:hover, .file-add-item:focus {
-  background: #eff6ff;
-  color: #1e40af;
-  outline: none;
-}
-.file-add-item svg { color: #9ca3af; flex-shrink: 0; }
-.file-add-item:hover svg { color: var(--accent); }
-.file-add-item-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-.file-add-empty {
-  padding: 10px 12px;
-  text-align: center;
-  font-size: 12px;
-  color: #9ca3af;
-  font-style: italic;
-}
 </style>

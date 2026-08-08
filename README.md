@@ -1,18 +1,24 @@
 # neo-project-manage（项目管理）
 
-面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用与项目备注的完整 CRUD，通过 REST API 与 Agent 工具两种方式使用。
+面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、任务成员与起止时间、批注（便利贴）、文件引用、项目备注与任务日历的完整 CRUD，通过 REST API 与 Agent 工具两种方式使用。
+
+> 当前版本：**V1.2.0**（Element Plus 弹窗 · Tiptap 富文本 · 任务成员/起止时间 · 任务日历）
 
 ## 功能特性
 
 - **项目集**：对项目分组管理，支持创建 / 重命名 / 删除，删除时校验集下无项目
-- **项目**：名称、描述、成员、计划起止时间、状态（待开始 / 进行中 / 已完成 / 已延期）、归属项目集
+- **项目**：名称、富文本描述、成员、计划起止时间、状态（待开始 / 进行中 / 已完成 / 已延期）、归属项目集
   - 项目状态自动计算：逾期未开始 / 未完成会自动标记为「已延期」
-  - 描述最多 200 字符，名称最多 20 字符
+  - 名称最多 20 字符（V1.2 起描述支持富文本，不再限制长度）
 - **任务树**：任意层级父子任务（通过 `parent_task_id` 自引用），支持增删改、批量创建、拖拽排序、跨层级移动（含环检测）、级联删除
+- **任务成员 + 起止时间**（V1.2 新增）：任务可分配多个成员（`assignees` 数组，候选池聚合所有项目成员）与开始 / 结束日期；`endDate >= startDate` 硬校验，越出项目计划范围软提示
+- **任务日历**（V1.2 新增）：项目详情页独立的「日历」tab（位于任务/文件/备注之间），展示有日期的任务，支持全部 / 未完成 / 已完成筛选，点击跳转到对应任务并滚动定位
+- **富文本**（V1.2 新增）：任务描述 / 项目描述 / 备注支持 Tiptap 富文本，可插入图片（≤2MB，png/jpg/jpeg/gif/webp），点击图片全屏预览
+- **Element Plus 弹窗**（V1.2 新增）：全部弹窗统一为 el-dialog + el-form + rules 校验，主题对齐 OKLCH 设计令牌
 - **批注（便利贴）**：挂在任务上的便签，支持编辑内容与确认状态
 - **文件**：项目文件引用登记与删除，Windows 下支持文件选择对话框
-- **备注**：项目级自由文本备注，支持增删改
-- **SQLite 存储**：better-sqlite3，WAL 模式，外键级联，卸载插件数据不丢
+- **备注**：项目级富文本备注，支持增删改
+- **SQLite 存储**：better-sqlite3，WAL 模式，外键级联，卸载插件数据不丢；schema v1→v2 自动迁移（幂等），老数据兼容
 
 ## 安装
 
@@ -22,7 +28,7 @@
 
 ## 工具清单
 
-Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / description / parameters / execute`。共 21 个：
+Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / description / parameters / execute`。共 22 个：
 
 ### create（6）
 
@@ -30,8 +36,8 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 | --- | --- |
 | `create_project_set` | 创建项目集 |
 | `create_project` | 创建项目 |
-| `create_task` | 创建任务（支持父任务 / 文件引用） |
-| `create_tasks` | 批量创建任务（可指定父任务，最多 50 个） |
+| `create_task` | 创建任务（支持父任务 / 文件引用 / 成员 / 起止日期） |
+| `create_tasks` | 批量创建任务（可指定父任务 / 成员 / 起止日期，最多 50 个） |
 | `create_annotation` | 给任务添加便利贴（批注） |
 | `create_annotations` | 批量创建批注（一次多个，最多 50 个） |
 
@@ -41,7 +47,7 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 | --- | --- |
 | `update_project_set` | 编辑项目集名称 |
 | `update_project` | 编辑项目信息（名称、描述、成员、时间、状态、归属） |
-| `update_task` | 编辑任务（改名、改描述、标记完成、移动父级、替换文件引用） |
+| `update_task` | 编辑任务（改名、改描述、改成员、改起止日期、标记完成） |
 | `update_annotation` | 编辑便利贴内容或确认状态 |
 
 ### delete（6）
@@ -62,13 +68,14 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 | `list_project_sets` | 列出项目集（含各集下项目数量） |
 | `list_projects` | 列出项目（可选 keyword：按项目名模糊匹配，跨项目集或限定集内） |
 | `list_annotations` | 列出任务下的便利贴 |
-| `list_tasks` | 列出项目下的任务（可按状态 done/undone/all 与负责人筛选，可选 keyword：按任务名/描述/批注内容模糊搜索） |
+| `list_tasks` | 列出项目下的任务（可按状态 done/undone/all、负责人与日期范围筛选，可选 keyword：按任务名/描述/批注内容模糊搜索） |
 
-### get（1）
+### get（2）
 
 | 工具 | 说明 |
 | --- | --- |
 | `get_project` | 获取项目详情（含树形任务、文件、备注） |
+| `get_task` | 按任务 ID 全局查询任务详情（含所属项目名、父任务名、批注、子任务） |
 
 ## API 路由
 
@@ -97,7 +104,7 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/projects/:projectId/tasks` | 列出任务（`?status=done/undone/all`、`?assignee=成员名`、`?keyword=` 按任务名 / 描述 / 批注内容模糊搜索） |
+| GET | `/api/projects/:projectId/tasks` | 列出任务（`?status=done/undone/all`、`?assignee=成员名` 精确匹配 `assignees` JSON 数组、`?keyword=` 按任务名 / 描述 / 批注内容模糊搜索） |
 | POST | `/api/projects/:projectId/tasks` | 创建任务（支持 `parentTaskId`） |
 | PUT | `/api/projects/:projectId/tasks/:taskId` | 更新任务 |
 | DELETE | `/api/projects/:projectId/tasks/:taskId` | 删除任务（级联） |
@@ -133,12 +140,29 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 | PUT | `/api/projects/:projectId/notes/:noteId` | 编辑备注 |
 | DELETE | `/api/projects/:projectId/notes/:noteId` | 删除备注 |
 
+### 图片上传 `upload.js`（V1.2）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/api/projects/:projectId/upload` | 富文本图片上传（multipart field=file，≤2MB，png/jpg/jpeg/gif/webp） |
+| GET | `/files/:name` | uploads 静态文件服务（mime + 短缓存实时可见，防路径穿越） |
+
+### 任务日历 `calendar.js`（V1.2）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/calendar-tasks?status=all\|undone\|done` | 全局有日期任务（日历事件源） |
+| GET | `/api/projects/:projectId/calendar-tasks?status=...` | 项目级有日期任务 |
+
 ## 数据存储
 
 - 数据库：SQLite（better-sqlite3，原生绑定已 vendor 到 `lib/vendor/better-sqlite3/`）
 - 位置：`ctx.dataDir/projects.sqlite`（Hana 插件数据目录，卸载插件不删除）
 - 模式：WAL 日志、外键约束开启、删除走级联
 - 表：`projects`、`project_sets`、`tasks`（自引用父任务）、`files`、`task_file_refs`、`notes`、`annotations`、`schema_meta`
+- schema 版本：V1.2 = 3；启动时自动迁移 v1/v2→v3（v2 库先 DROP `idx_tasks_assignee` 再 DROP `assignee` 列然后 ADD `assignees` TEXT 存 JSON 数组，v1 库直接走 ADD 列路径，幂等，老数据兼容；v2 库的 `assignee` 存量数据会被丢弃）
+- 索引：`idx_tasks_assignees`（`json_each` 元素索引）/ `idx_tasks_start_date` / `idx_tasks_end_date`
+- 图片：`ctx.dataDir/uploads/`（shortId + ext）
 - 迁移：`npm run migrate`（scripts/migrate-to-sqlite.js，从旧 JSON 存储迁移）
 
 ## 开发指南
@@ -150,11 +174,20 @@ Agent 工具位于 `tools/` 目录，每个文件一个工具，导出 `name / d
 
 ## 版本历史
 
+### V1.2.0（2026-08-07）
+
+- **任务成员 + 起止时间**：tasks 表新增 `assignees`（JSON 数组）/ `start_date` / `end_date`（schema v1/v2→v3 自动迁移，幂等）；`create_task` / `update_task` / `create_tasks` / `list_tasks` 工具与 REST 接口支持新参数；list_tasks 按成员筛选使用 `json_each(t.assignees)` 元素精确匹配 + `json_valid` 兜底防脏数据崩溃
+- **任务日历**：项目详情页独立的「日历」tab（位于任务/文件/备注之间），事件源切换为有日期的任务，支持全部 / 未完成 / 已完成筛选，点击跳转项目详情并滚动定位任务
+- **富文本**：引入 Tiptap v2（异步加载），任务描述 / 项目描述 / 备注支持富文本与图片上传（≤2MB），图片点击全屏预览；移除项目描述 200 字符限制
+- **Element Plus 弹窗**：全部弹窗统一重构为 el-dialog + el-form + rules（任务 / 子任务 / 文件 / 备注 / 项目 / 项目集 / 确认框），主题覆盖对齐 OKLCH 设计令牌
+- **上传接口**：`POST /api/projects/:id/upload` + `GET /files/:name` 静态服务（防路径穿越）
+- **日历接口**：`GET /api/calendar-tasks` / `GET /api/projects/:id/calendar-tasks`
+
 ### V1.0.1（2026-08-02）
 
 - 项目描述字符限制从 50 放宽到 200
 - 新增 `delete_annotation` 工具（删除便利贴）
-- 新增 `list_tasks` 工具与 `GET /api/projects/:projectId/tasks` 路由，支持 `status`（done/undone/all）与 `assignee`（成员名）筛选
+- 新增 `list_tasks` 工具与 `GET /api/projects/:projectId/tasks` 路由，支持 `status`（done/undone/all）与 `assignee`（成员名，按 `assignees` JSON 数组精确筛选）筛选
 - `list_projects` 新增 `keyword` 参数（按项目名模糊匹配）
 - `list_tasks` 新增 `keyword` 参数（按任务名 / 描述 / 批注内容模糊搜索）
 - 新增 `create_annotations` 工具与 `POST /api/.../annotations/batch` 路由（批量建批注，最多 50 个，事务包裹）

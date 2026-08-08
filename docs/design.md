@@ -46,8 +46,28 @@
 | id | string | 唯一 ID |
 | index | number | 序号 |
 | name | string | 任务名称 |
-| description | string | 简述 |
+| description | string | 简述（V1.2 起支持富文本 HTML） |
 | done | boolean | 完成标记 |
+| assignee | string | 任务成员（V1.2 新增，必须属于项目 members，可空） |
+| startDate | string | 开始日期 YYYY-MM-DD（V1.2 新增，可空） |
+| endDate | string | 结束日期 YYYY-MM-DD（V1.2 新增，>= startDate，可空） |
+| parentTaskId | string | 父任务 ID（树形结构） |
+| fileRefs | string[] | 关联文件 ID 列表 |
+| annotations | Annotation[] | 批注列表 |
+| subtasks | Task[] | 子任务树 |
+
+### 任务字段校验（V1.2，lib/data.js 集中实现）
+- `endDate >= startDate`：违反则抛错（硬校验）
+- 任务日期越出项目 [planStart, planEnd]：软提示（warnings 挂返回值，不阻断）
+- `assignee` 非空且不在项目 members：抛错（硬校验）
+- 日期格式必须 YYYY-MM-DD
+
+### 备注 (Note)
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | string | 唯一 ID |
+| content | string | 内容（V1.2 起支持富文本 HTML） |
+| createdAt | string | 创建时间 |
 
 ### 文件 (FileItem)
 | 字段 | 类型 | 说明 |
@@ -62,9 +82,26 @@
 
 ## 4. 数据存储
 
-使用 JSON 文件存储于 `ctx.dataDir`：
-- `project-sets.json`: 项目集列表
-- `projects.json`: 项目列表（含任务、文件）
+SQLite（better-sqlite3，WAL 模式）存于 `ctx.dataDir/projects.sqlite`：
+- `schema_meta`：schema 版本（V1.2 = 2），启动时自动迁移（v1 → v2 幂等：tasks 表补 assignee / start_date / end_date 列 + 索引）
+- `project_sets` / `projects` / `tasks` / `files` / `task_file_refs` / `notes` / `annotations`
+- 图片上传：`plugin-data/uploads/`（shortId + ext），URL 由 upload 路由返回
+
+## 4.1 V1.2 新增接口
+
+| 接口 | 说明 |
+|------|------|
+| `GET /api/calendar-tasks?status=all\|undone\|done` | 全局有日期任务（日历事件源） |
+| `GET /api/projects/:id/calendar-tasks?status=...` | 项目级有日期任务 |
+| `POST /api/projects/:id/upload` | 富文本图片上传（multipart field=file，≤2MB，png/jpg/jpeg/gif/webp） |
+| `GET /files/:name` | uploads 静态文件服务 |
+
+## 4.2 V1.2 前端组件
+
+- Element Plus 2.x 全局引入（主题变量覆盖对齐 OKLCH 令牌）
+- 全部弹窗统一为 el-dialog + el-form + rules
+- RichEditor（Tiptap v2 异步加载）：任务/项目/备注的富文本编辑，图片上传插入
+- 富文本图片点击 preview（el-image-viewer）
 
 ## 5. Agent 工具
 

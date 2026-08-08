@@ -9,7 +9,7 @@
         <button class="search-toggle" :class="{ active: showSearch }" @click="showSearch = !showSearch" title="搜索">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
         </button>
-        <button class="add-btn" @click="showAddForm = true" title="新建项目集">
+        <button class="add-btn" @click="openAdd" title="新建项目集">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
       </div>
@@ -49,36 +49,29 @@
       @delete="startDelete"
     />
 
-    <!-- Add Modal -->
-    <div v-if="showAddForm" class="modal-overlay" @click.self="showAddForm = false">
-      <div class="modal">
-        <h3>新建项目集</h3>
-        <label>名称</label>
-        <input v-model="addName" type="text" maxlength="10" placeholder="最多10字" @keyup.enter="doAdd">
-        <div class="modal-actions">
-          <button class="btn-secondary" @click="showAddForm = false">取消</button>
-          <button class="btn-primary" @click="doAdd">创建</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div v-if="editTarget" class="modal-overlay" @click.self="editTarget = null">
-      <div class="modal">
-        <h3>编辑项目集</h3>
-        <label>名称</label>
-        <input v-model="editTarget.name" type="text" maxlength="10" @keyup.enter="doEdit">
-        <div class="modal-actions">
-          <button class="btn-secondary" @click="editTarget = null">取消</button>
-          <button class="btn-primary" @click="doEdit">保存</button>
-        </div>
-      </div>
-    </div>
+    <!-- Set 弹窗（新建/编辑，el-dialog + el-form） -->
+    <el-dialog
+      v-model="dialogShow"
+      :title="dialogMode === 'add' ? '新建项目集' : '编辑项目集'"
+      width="400px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <el-form ref="formRef" :model="setForm" :rules="rules" label-position="top" @submit.prevent>
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="setForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogShow = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="doSave">{{ dialogMode === 'add' ? '创建' : '保存' }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, reactive, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { pickPaletteColor } from "../../../utils/palette.js";
@@ -92,9 +85,19 @@ const emit = defineEmits(["select-set", "changed", "confirm-ask"]);
 
 const search = ref("");
 const showSearch = ref(false);
-const showAddForm = ref(false);
-const addName = ref("");
-const editTarget = ref(null);
+const dialogShow = ref(false);
+const dialogMode = ref("add"); // "add" | "edit"
+const editTargetId = ref(null);
+const saving = ref(false);
+const formRef = ref(null);
+const setForm = reactive({ name: "" });
+
+const rules = {
+  name: [
+    { required: true, message: "请填写项目集名称", trigger: "blur" },
+    { min: 1, max: 10, message: "名称限 1-10 个字符", trigger: "blur" },
+  ],
+};
 
 const filteredSets = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -106,30 +109,50 @@ const totalProjectCount = computed(() => {
   return props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
 });
 
-async function doAdd() {
-  const name = addName.value.trim();
-  if (!name) return toast("请输入名称", "error");
-  // 前端唯一性校验（后端会双重校验，但避免无意义请求）
-  if (props.sets.some((s) => s.name.trim() === name)) {
-    return toast(`项目集名称「${name}」已存在`, "error");
-  }
-  const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }) });
-  if (res.ok) { toast("已创建"); showAddForm.value = false; addName.value = ""; emit("changed"); }
-  else toast(res.error || "创建失败", "error");
+function openAdd() {
+  dialogMode.value = "add";
+  editTargetId.value = null;
+  setForm.name = "";
+  dialogShow.value = true;
+  formRef.value?.clearValidate();
 }
 
-function startEdit(s) { editTarget.value = { id: s.id, name: s.name }; }
-async function doEdit() {
-  const d = editTarget.value;
-  if (!d || !d.name.trim()) return toast("请输入名称", "error");
-  const name = d.name.trim();
-  // 前端唯一性校验：不能与其他项目集同名（排除自己）
-  if (props.sets.some((s) => s.id !== d.id && s.name.trim() === name)) {
-    return toast(`项目集名称「${name}」已被其他项目集使用`, "error");
+function startEdit(s) {
+  dialogMode.value = "edit";
+  editTargetId.value = s.id;
+  setForm.name = s.name;
+  dialogShow.value = true;
+  formRef.value?.clearValidate();
+}
+
+async function doSave() {
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  const name = setForm.name.trim();
+  // 前端唯一性校验（后端会双重校验，但避免无意义请求）
+  if (dialogMode.value === "add") {
+    if (props.sets.some((s) => s.name.trim() === name)) {
+      return toast(`项目集名称「${name}」已存在`, "error");
+    }
+  } else {
+    if (props.sets.some((s) => s.id !== editTargetId.value && s.name.trim() === name)) {
+      return toast(`项目集名称「${name}」已被其他项目集使用`, "error");
+    }
   }
-  const res = await api(`api/project-sets/${d.id}`, { method: "PUT", body: JSON.stringify({ name }) });
-  if (res.ok) { toast("已更新"); editTarget.value = null; emit("changed"); }
-  else toast(res.error || "更新失败", "error");
+  saving.value = true;
+  try {
+    if (dialogMode.value === "add") {
+      const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }) });
+      if (res.ok) { toast("已创建"); dialogShow.value = false; emit("changed"); }
+      else toast(res.error || "创建失败", "error");
+    } else {
+      const res = await api(`api/project-sets/${editTargetId.value}`, { method: "PUT", body: JSON.stringify({ name }) });
+      if (res.ok) { toast("已更新"); dialogShow.value = false; emit("changed"); }
+      else toast(res.error || "更新失败", "error");
+    }
+  } finally {
+    saving.value = false;
+  }
 }
 
 function startDelete(s) {
@@ -302,78 +325,6 @@ function startDelete(s) {
   font-size: 12px;
   text-align: center;
   font-style: italic;
-}
-
-/* modal */
-.modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(17, 24, 39, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.15s ease-out;
-}
-.modal {
-  background: #ffffff;
-  padding: 24px;
-  border-radius: 14px;
-  width: 360px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.20), 0 4px 12px rgba(0, 0, 0, 0.10);
-  animation: rise 0.2s ease-out;
-}
-.modal h3 {
-  margin: 0 0 16px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #111827;
-  letter-spacing: -0.01em;
-}
-.modal label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6b7280;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-.modal input {
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 13px;
-  background: #ffffff;
-  color: #1f2937;
-  outline: none;
-  transition: all 0.15s ease-out;
-  box-sizing: border-box;
-}
-.modal input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06); }
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 18px;
-}
-.btn-secondary {
-  padding: 7px 14px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #6b7280;
-  border-radius: 7px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease-out;
-}
-.btn-secondary:hover { background: #f3f4f6; color: #1f2937; }
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes rise {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .dropdown-danger { color: #dc2626 !important; }

@@ -25,5 +25,12 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // 取消异步 chunk 拆分：全部内联到单个 index-*.js
+        // （插件 UI 由 Hono app 内联注入 HTML，静态路由在 Hana 平台挂载策略下不可靠，见 P0-2 真问题）
+        inlineDynamicImports: true,
+      },
+    },
   },
 });

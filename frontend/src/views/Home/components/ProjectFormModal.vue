@@ -1,100 +1,83 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal modal-wide">
-      <header class="modal-head">
-        <h3>{{ isEdit ? '编辑项目' : '新建项目' }}</h3>
-        <button class="close-btn" type="button" aria-label="关闭" @click="$emit('close')">×</button>
-      </header>
+  <el-dialog
+    :model-value="show"
+    :title="isEdit ? '编辑项目' : '新建项目'"
+    width="640px"
+    :close-on-click-modal="false"
+    append-to-body
+    @close="$emit('close')"
+  >
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+      <!-- 基本信息 -->
+      <div class="form-section-title">基本信息</div>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="form.name" placeholder="项目名称" maxlength="20" show-word-limit />
+      </el-form-item>
+      <el-form-item label="描述">
+        <RichEditor
+          v-model="form.description"
+          :project-id="projectId"
+          placeholder="一句话描述项目目标（可选）"
+        />
+      </el-form-item>
 
-      <form class="form" @submit.prevent="submit">
-        <!-- 基本信息 -->
-        <section class="form-section">
-          <div class="form-section-title">基本信息</div>
+      <!-- 时间安排 -->
+      <div class="form-section-title">时间安排</div>
+      <el-form-item label="计划周期">
+        <div class="date-row">
+          <el-date-picker v-model="form.planStart" type="date" value-format="YYYY-MM-DD" placeholder="计划开始" style="flex: 1" />
+          <span class="date-sep">→</span>
+          <el-date-picker v-model="form.planEnd" type="date" value-format="YYYY-MM-DD" placeholder="计划结束" style="flex: 1" />
+        </div>
+        <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
+      </el-form-item>
 
-          <label class="lbl">
-            <span>名称</span>
-            <span class="char-count" :class="{ warn: form.name.length >= 18 }">{{ form.name.length }}/20</span>
-          </label>
-          <input v-model="form.name" type="text" placeholder="项目名称" maxlength="20"
-                 :class="{ err: submitErr && !form.name.trim() }">
-          <p v-if="submitErr && !form.name.trim()" class="field-err">请填写项目名称</p>
+      <!-- 归属 -->
+      <div class="form-section-title">归属</div>
+      <el-form-item label="状态">
+        <el-select v-model="form.status" style="width: 100%">
+          <el-option label="待开始" value="待开始" />
+          <el-option label="进行中" value="进行中" />
+          <el-option label="已完成" value="已完成" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="项目集">
+        <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
+          <el-option label="未归类" value="" />
+          <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
+        </el-select>
+      </el-form-item>
 
-          <label class="lbl">
-            <span>描述</span>
-            <span class="char-count" :class="{ warn: form.description.length >= 45 }">{{ form.description.length }}/50</span>
-          </label>
-          <textarea v-model="form.description" placeholder="一句话描述项目目标（可选）" maxlength="50" rows="2"></textarea>
-        </section>
+      <!-- 成员 -->
+      <el-form-item label="成员">
+        <el-select
+          v-model="form.members"
+          multiple
+          filterable
+          allow-create
+          default-first-option
+          placeholder="请选择成员（可输入新增）"
+          style="width: 100%"
+        >
+          <el-option v-for="m in memberOptions" :key="m" :label="m" :value="m" />
+        </el-select>
+      </el-form-item>
+    </el-form>
 
-        <!-- 时间安排 -->
-        <section class="form-section">
-          <div class="form-section-title">时间安排</div>
-          <div class="date-row">
-            <div class="date-field">
-              <label class="lbl"><span>计划开始</span></label>
-              <input v-model="form.planStart" type="date">
-            </div>
-            <div class="date-sep">→</div>
-            <div class="date-field">
-              <label class="lbl"><span>计划结束</span></label>
-              <input v-model="form.planEnd" type="date">
-            </div>
-          </div>
-          <p v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</p>
-        </section>
-
-        <!-- 归属 -->
-        <section class="form-section">
-          <div class="form-section-title">归属</div>
-
-          <div class="form-row">
-            <div>
-              <label class="lbl"><span>状态</span></label>
-              <select v-model="form.status" class="select-status" :class="`select-${form.status}`">
-                <option value="待开始">待开始</option>
-                <option value="进行中">进行中</option>
-                <option value="已完成">已完成</option>
-              </select>
-            </div>
-            <div>
-              <label class="lbl required"><span>项目集</span></label>
-              <select v-model="form.projectSetId" :class="{ err: submitErr && !form.projectSetId }">
-                <option value="">请选择项目集</option>
-                <option v-for="s in sets" :key="s.id" :value="s.id">{{ s.name }}</option>
-              </select>
-              <p v-if="submitErr && !form.projectSetId" class="field-err">请选择项目集</p>
-            </div>
-          </div>
-
-          <label class="lbl" style="margin-top:14px"><span>成员</span><span class="char-hint">输入姓名后回车或点击添加</span></label>
-          <div class="member-input">
-            <input v-model="memberDraft" type="text" placeholder="例如:张三"
-                   @keydown.enter.prevent="commitMember"
-                   @keydown="onMemberKeydown"
-                   @blur="commitMember">
-            <button type="button" class="member-add-btn" @click="commitMember">添加</button>
-          </div>
-          <div v-if="membersList.length" class="member-chips">
-            <span v-for="(m, i) in membersList" :key="m + '_' + i" class="member-chip">
-              <span class="chip-avatar">{{ m.slice(0, 1) }}</span>
-              <span>{{ m }}</span>
-              <button type="button" class="chip-x" aria-label="移除" @click="removeMember(i)">×</button>
-            </span>
-          </div>
-          <p v-else class="member-empty">暂未添加成员</p>
-        </section>
-      </form>
-
-      <footer class="modal-actions">
-        <button type="button" class="btn-secondary" @click="$emit('close')">取消</button>
-        <button type="button" class="btn-primary" @click="submit">{{ isEdit ? '保存' : '创建' }}</button>
-      </footer>
-    </div>
-  </div>
+    <template #footer>
+      <el-button @click="$emit('close')">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="submit">{{ isEdit ? '保存' : '创建' }}</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
+import { api } from "../../../api.js";
+import { normalizeRichText } from "../../../utils/text.js";
+import { createRichEditor } from "../../../utils/asyncEditor.js";
+// 富文本编辑器异步加载（含 loading/error/重试）
+const RichEditor = createRichEditor();
 
 const props = defineProps({
   show: Boolean,
@@ -106,18 +89,39 @@ const props = defineProps({
 const emit = defineEmits(["close", "save"]);
 
 const isEdit = computed(() => props.mode === "edit");
+const projectId = computed(() => (props.data?.id) || "");
 
+// 成员候选池：聚合所有项目的 members（P2-2/3：新建项目时下拉也有候选）
+const allMembers = ref([]);
+async function loadAllMembers() {
+  const res = await api("api/projects");
+  if (res?.ok && Array.isArray(res.data)) {
+    const set = new Set();
+    for (const p of res.data) {
+      for (const m of (p.members || [])) set.add(String(m).trim());
+    }
+    allMembers.value = [...set];
+  }
+}
+// 候选 = 全局聚合 + 当前已输入（去重），allow-create 新输入自动并入 form.members
+const memberOptions = computed(() => {
+  const set = new Set([...allMembers.value, ...form.members]);
+  return [...set];
+});
+
+const formRef = ref(null);
+const saving = ref(false);
 const form = reactive({
   id: "", name: "", description: "", planStart: "", planEnd: "",
-  status: "待开始", projectSetId: "", membersText: "",
+  status: "待开始", projectSetId: "", members: [],
 });
-const memberDraft = ref("");
-const submitErr = ref(false);
 
-// 解析当前成员列表（同时支持中英文逗号）
-const membersList = computed(() =>
-  form.membersText.split(/[,，]/).map((s) => s.trim()).filter(Boolean)
-);
+const rules = {
+  name: [
+    { required: true, message: "请填写项目名称", trigger: "blur" },
+    { min: 1, max: 20, message: "名称限 1-20 个字符", trigger: "blur" },
+  ],
+};
 
 // 日期范围校验
 const dateRangeErr = computed(() => {
@@ -125,40 +129,8 @@ const dateRangeErr = computed(() => {
   return form.planEnd < form.planStart;
 });
 
-function commitMember() {
-  const text = memberDraft.value;
-  const trimmed = text.trim();
-  if (!trimmed) {
-    memberDraft.value = "";
-    return;
-  }
-  const names = trimmed.split(/[,，]/).map((s) => s.trim()).filter(Boolean);
-  const existing = membersList.value.slice();
-  let changed = false;
-  for (const n of names) {
-    if (!existing.includes(n)) {
-      existing.push(n);
-      changed = true;
-    }
-  }
-  if (changed) form.membersText = existing.join(", ");
-  memberDraft.value = "";
-}
-
-function onMemberKeydown(e) {
-  if (e.key === "," || e.key === "，" || e.key === "Enter") {
-    e.preventDefault();
-    commitMember();
-  }
-}
-
-function removeMember(idx) {
-  const list = membersList.value.slice();
-  list.splice(idx, 1);
-  form.membersText = list.join(", ");
-}
-
 watch(() => props.show, (v) => {
+  if (v) loadAllMembers();
   if (v) {
     if (isEdit.value && props.data) {
       const d = props.data;
@@ -170,7 +142,7 @@ watch(() => props.show, (v) => {
       // 防御：状态不在三个合法选项内时 fallback 到 "待开始"，避免 select 显示空白
       form.status = ["待开始", "进行中", "已完成"].includes(d.status) ? d.status : "待开始";
       form.projectSetId = d.projectSetId || "";
-      form.membersText = (d.members || []).join(", ");
+      form.members = Array.isArray(d.members) ? [...d.members] : [];
     } else {
       form.id = "";
       form.name = "";
@@ -179,304 +151,60 @@ watch(() => props.show, (v) => {
       form.planEnd = "";
       form.status = "待开始";
       form.projectSetId = props.defaultSetId;
-      form.membersText = "";
+      form.members = [];
     }
-    memberDraft.value = "";
-    submitErr.value = false;
+    formRef.value?.clearValidate();
   }
 });
 
-function submit() {
-  if (!form.name.trim() || !form.projectSetId || dateRangeErr.value) {
-    submitErr.value = true;
-    return;
+async function submit() {
+  if (dateRangeErr.value) return;
+  const valid = await formRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  saving.value = true;
+  try {
+    emit("save", {
+      id: form.id,
+      name: form.name.trim(),
+      description: normalizeRichText(form.description),
+      planStart: form.planStart,
+      planEnd: form.planEnd,
+      status: form.status,
+      projectSetId: form.projectSetId,
+      // P2-2/3：trim + 去重后提交
+      members: [...new Set(form.members.map((m) => String(m).trim()).filter(Boolean))],
+    });
+  } finally {
+    saving.value = false;
   }
-  // 提交前再 commit 一次（处理用户输入但未按添加的情况）
-  commitMember();
-  emit("save", {
-    id: form.id,
-    name: form.name.trim(),
-    description: form.description.trim(),
-    planStart: form.planStart,
-    planEnd: form.planEnd,
-    status: form.status,
-    projectSetId: form.projectSetId,
-    members: membersList.value,
-  });
 }
 </script>
 
 <style scoped>
-/* ===== Modal 容器 ===== */
-.modal-wide {
-  max-width: 640px;
-  width: 92%;
-  padding: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 86vh;
-}
-
-.modal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px 14px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
-}
-.modal-head h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-}
-.close-btn {
-  width: 28px; height: 28px;
-  border-radius: 6px;
-  border: none; background: transparent;
-  color: #6b7280; font-size: 22px; line-height: 1;
-  cursor: pointer;
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s;
-}
-.close-btn:hover { background: #f3f4f6; color: #111827; }
-
-/* ===== Form 滚动区 ===== */
-.form {
-  padding: 18px 24px 22px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-.form-section {
-  margin-bottom: 22px;
-}
-.form-section:last-child { margin-bottom: 0; }
-
 .form-section-title {
   font-size: 11px;
   font-weight: 600;
   color: #6b7280;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin: 4px 0 10px;
   padding-bottom: 6px;
   border-bottom: 1px dashed #e5e7eb;
 }
 
-/* ===== Label / 输入框 ===== */
-.lbl {
+.date-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 6px;
-}
-.required > span:first-child::after {
-  content: ' *';
-  color: #ef4444;
-}
-
-.char-count {
-  font-size: 11px;
-  color: #9ca3af;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-}
-.char-count.warn {
-  color: #f59e0b;
-}
-.char-hint {
-  font-size: 11px;
-  color: #9ca3af;
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-input[type="text"],
-input[type="date"],
-textarea,
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 14px;
-  font-family: inherit;
-  background: #fff;
-  color: #1f2937;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  box-sizing: border-box;
-  margin-bottom: 12px;
-}
-textarea {
-  resize: vertical;
-  min-height: 56px;
-  font-family: inherit;
-}
-input:focus, textarea:focus, select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-input.err, select.err {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.form-row > div { display: flex; flex-direction: column; }
-.form-row input, .form-row select { margin-bottom: 0; }
-
-/* ===== 日期行（带 → 分隔） ===== */
-.date-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
   gap: 10px;
-  align-items: end;
+  width: 100%;
 }
-.date-field { display: flex; flex-direction: column; }
-.date-field input { margin-bottom: 0; }
 .date-sep {
-  padding-bottom: 10px;
   color: #9ca3af;
   font-size: 16px;
-  text-align: center;
-  user-select: none;
-}
-
-/* ===== 状态下拉：选中项带状态色 ===== */
-.select-status {
-  font-weight: 500;
-}
-.select-status.select-待开始 { color: #92400e; }
-.select-status.select-进行中 { color: #1e40af; }
-.select-status.select-已完成 { color: #065f46; }
-
-/* ===== 成员 chips ===== */
-.member-input {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.member-input input { margin-bottom: 0; }
-.member-add-btn {
-  flex-shrink: 0;
-  padding: 0 18px;
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
-}
-.member-add-btn:hover {
-  background: #e5e7eb;
-  border-color: #9ca3af;
-}
-
-.member-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.member-empty {
-  margin: 0;
-  font-size: 12px;
-  color: #9ca3af;
-}
-.member-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 4px 4px 4px;
-  background: #eff6ff;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #1e40af;
-  border: 1px solid #bfdbfe;
-  max-width: 180px;
-}
-.chip-avatar {
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #fff;
-  font-size: 11px;
-  display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.member-chip > span:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chip-x {
-  width: 18px; height: 18px;
-  border: none; background: transparent;
-  color: #6b7280; font-size: 14px; line-height: 1;
-  cursor: pointer; border-radius: 50%;
-  display: inline-flex; align-items: center; justify-content: center;
-  margin-right: 2px;
-  transition: background 0.15s, color 0.15s;
-}
-.chip-x:hover { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
-
-/* ===== Footer ===== */
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 24px 16px;
-  border-top: 1px solid #e5e7eb;
-  background: #fafbfc;
-}
-.btn-secondary, .btn-primary {
-  padding: 8px 20px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.btn-secondary {
-  background: #fff;
-  border: 1px solid #d1d5db;
-  color: #374151;
-}
-.btn-secondary:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-}
-.btn-primary {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border: 1px solid #2563eb;
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
-}
-.btn-primary:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  border-color: #1d4ed8;
-  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
-}
-.btn-primary:active { transform: translateY(0.5px); }
-
-/* ===== Errors ===== */
 .field-err {
-  margin: -8px 0 12px;
+  margin-top: 6px;
   font-size: 12px;
   color: #dc2626;
 }

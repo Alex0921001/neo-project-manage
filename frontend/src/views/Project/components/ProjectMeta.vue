@@ -17,23 +17,28 @@
 
     <!-- 状态徽标 + 距离天数（高亮卡片）-->
     <div class="meta-headline">
-      <div class="status-dropdown" ref="statusDropdownRef" @click.stop>
-        <button :class="['meta-status-chip', 'chip-button', statusClass(displayStatus)]" @click="statusOpen = !statusOpen" :disabled="!project">
-          <span class="status-dot"></span>
-          <span>{{ displayStatus || '待开始' }}</span>
-          <svg class="chip-caret" :class="{ open: statusOpen }" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div v-if="statusOpen" class="status-menu">
-          <button
-            v-for="opt in statusOptions" :key="opt.value"
-            :class="['status-menu-item', statusClass(opt.value), { active: opt.value === displayStatus }]"
-            @click="pickStatus(opt.value)"
-          >
+      <div class="status-dropdown" @click.stop>
+        <el-dropdown trigger="click" :disabled="!project" @command="pickStatus">
+          <button :class="['meta-status-chip', 'chip-button', statusClass(displayStatus)]" :disabled="!project">
             <span class="status-dot"></span>
-            <span class="status-menu-label">{{ opt.label }}</span>
-            <svg v-if="opt.value === displayStatus" class="status-menu-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>{{ displayStatus || '待开始' }}</span>
+            <svg class="chip-caret" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
-        </div>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item
+                v-for="opt in statusOptions"
+                :key="opt.value"
+                :command="opt.value"
+                :class="['status-dd-item', statusClass(opt.value)]"
+              >
+                <span class="status-dot"></span>
+                <span class="status-menu-label">{{ opt.label }}</span>
+                <svg v-if="opt.value === displayStatus" class="status-menu-check" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
       <div v-if="countdownText" :class="['meta-countdown', countdownClass]">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -82,18 +87,20 @@
           描述
         </div>
         <div class="meta-card-value meta-desc">
-          <div v-if="project?.description" class="meta-desc-body" v-html="formatDescription(project.description)"></div>
+          <div v-if="project?.description" class="meta-desc-body" v-html="formatDescription(project.description)" @click="onRichClick"></div>
           <span v-else class="meta-empty">暂无描述</span>
         </div>
       </div>
     </div>
+    <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from "vue";
+import { computed, ref } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
 import { formatDescription } from "../../../utils/text.js";
+import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({
@@ -102,8 +109,8 @@ const props = defineProps({
 });
 const emit = defineEmits(["edit", "back", "change-status"]);
 
-const statusOpen = ref(false);
-const statusDropdownRef = ref(null);
+const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
+
 const statusOptions = [
   { value: "待开始", label: "待开始" },
   { value: "进行中", label: "进行中" },
@@ -111,18 +118,9 @@ const statusOptions = [
 ];
 
 function pickStatus(v) {
-  statusOpen.value = false;
   if (!props.project || v === props.project.status) return;
   emit("change-status", v);
 }
-
-function onDocClick(e) {
-  if (statusOpen.value && statusDropdownRef.value && !statusDropdownRef.value.contains(e.target)) {
-    statusOpen.value = false;
-  }
-}
-onMounted(() => document.addEventListener("mousedown", onDocClick));
-onUnmounted(() => document.removeEventListener("mousedown", onDocClick));
 
 const fullTitle = computed(() => {
   if (!props.project) return "";
@@ -335,9 +333,6 @@ function avatarColor(name) {
   opacity: 0.7;
   transition: transform 160ms ease-out;
 }
-.chip-caret.open {
-  transform: rotate(180deg);
-}
 .status-dot {
   width: 8px;
   height: 8px;
@@ -350,55 +345,8 @@ function avatarColor(name) {
 .status-done { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
 .status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 
-/* 状态下拉 */
+/* 状态下拉容器 */
 .status-dropdown { position: relative; display: inline-flex; }
-.status-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 50;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05);
-  padding: 4px;
-  min-width: 140px;
-  display: flex;
-  flex-direction: column;
-  animation: statusMenuIn 0.14s ease-out;
-}
-@keyframes statusMenuIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.status-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  text-align: left;
-  transition: background 120ms ease-out;
-}
-.status-menu-item:hover {
-  background: #f3f4f6;
-}
-.status-menu-item.active {
-  background: #f9fafb;
-}
-.status-menu-label {
-  flex: 1;
-}
-.status-menu-check {
-  color: #10b981;
-  flex-shrink: 0;
-}
 
 /* 距离天数 */
 .meta-countdown {
@@ -488,6 +436,7 @@ function avatarColor(name) {
 .meta-desc-body :deep(p:last-child) { margin-bottom: 0; }
 .meta-desc-body :deep(ul),
 .meta-desc-body :deep(ol) { margin: 4px 0; padding-left: 18px; }
+.meta-desc-body :deep(img) { max-width: 100%; border-radius: 6px; cursor: zoom-in; }
 .meta-desc::-webkit-scrollbar { width: 4px; }
 .meta-desc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
 .meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
@@ -534,4 +483,24 @@ function avatarColor(name) {
   white-space: nowrap;
   max-width: 90px;
 }
+</style>
+
+<style>
+/* el-dropdown 内容 teleport 到 body，需全局样式（E） */
+.status-dd-item {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  min-width: 116px;
+}
+.status-dd-item .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px currentColor;
+  flex-shrink: 0;
+}
+.status-dd-item .status-menu-label { line-height: 1.6; }
+.status-dd-item .status-menu-check { margin-left: auto; }
 </style>

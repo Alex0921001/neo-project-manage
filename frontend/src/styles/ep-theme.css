@@ -1,0 +1,52 @@
+/**
+ * Element Plus 主题覆盖：对齐本插件 OKLCH 设计令牌
+ * 主色 = --accent（oklch(0.52 0.18 270)）
+ * 覆盖 EP 的 CSS 变量即可，无需 SCSS 编译链
+ */
+:root {
+  /* 主色系（对齐 --accent 蓝紫色） */
+  --el-color-primary: oklch(0.52 0.18 270);
+  --el-color-primary-light-3: oklch(0.70 0.12 270);
+  --el-color-primary-light-5: oklch(0.82 0.08 270);
+  --el-color-primary-light-7: oklch(0.90 0.05 270);
+  --el-color-primary-light-8: oklch(0.93 0.04 270);
+  --el-color-primary-light-9: oklch(0.95 0.03 270);
+  --el-color-primary-dark-2: oklch(0.46 0.19 270);
+
+  /* 文字 / 边框 / 背景（对齐令牌） */
+  --el-text-color-primary: oklch(0.2 0.015 270);
+  --el-text-color-regular: oklch(0.35 0.02 270);
+  --el-text-color-secondary: oklch(0.55 0.02 270);
+  --el-text-color-placeholder: oklch(0.7 0.015 270);
+  --el-border-color: oklch(0.9 0.008 270);
+  --el-border-color-light: oklch(0.93 0.006 270);
+  --el-border-color-lighter: oklch(0.94 0.006 270);
+  --el-border-color-extra-light: oklch(0.95 0.005 270);
+  --el-fill-color: oklch(0.945 0.008 270);
+  --el-fill-color-light: oklch(0.96 0.006 270);
+  --el-fill-color-lighter: oklch(0.965 0.005 270);
+  --el-fill-color-extra-light: oklch(0.97 0.004 270);
+  --el-bg-color: oklch(0.995 0.003 270);
+  --el-bg-color-overlay: oklch(0.995 0.003 270);
+
+  /* 字体 / 圆角 / 阴影 */
+  --el-font-family: "DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --el-font-size-base: 13px;
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-box-shadow-light: 0 8px 30px oklch(0 0 0 / 0.1);
+  --el-box-shadow: 0 4px 12px oklch(0 0 0 / 0.08);
+}
+
+/* 弹窗宽度统一控制 */
+.el-dialog {
+  --el-dialog-border-radius: 12px;
+}
+
+/* 表单 label 对齐现有密度 */
+.el-form-item {
+  margin-bottom: 16px;
+}
+.el-form-item__label {
+  font-weight: 500;
+}

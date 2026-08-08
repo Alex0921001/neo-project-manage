@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { exec, execSync } from "node:child_process";
+import { exec, execFile, execSync } from "node:child_process";
 import { createDataAccess } from "../lib/data.js";
 import { registerProjectSetsRoutes } from "./modules/project-sets.js";
 import { registerProjectsRoutes } from "./modules/projects.js";
@@ -9,6 +9,8 @@ import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
 import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
+import { registerUploadRoutes } from "./modules/upload.js";
+import { registerCalendarRoutes } from "./modules/calendar.js";
 
 const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname_ui, "..");
@@ -28,16 +30,19 @@ let ROUTES_LOADED_AT = null;
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
 
-const DEBUG = true; // 调试模式：关闭前端缓存，改前端刷新即生效
+const DEBUG = process.env.NODE_ENV === "development" || String(process.env.NEO_PM_DEBUG || "").toLowerCase() === "true"; // 默认生产关闭（静态资源走 hash 不可变缓存）
 
 let cachedJs = null;
 let cachedCss = null;
 
+/**
+ * 读取 Vite 构建产物并缓存（内联到 HTML，不依赖静态路由 — P0-2 真问题修复）
+ * 显式匹配 ^index-.*\.(js|css)$：即使产物目录混入其他文件也不取错
+ */
 function loadAssets() {
   const assets = fs.readdirSync(ASSETS_DIR);
-  const jsFile = assets.find((f) => f.endsWith(".js"));
-  const cssFile = assets.find((f) => f.endsWith(".css"));
-
+  const jsFile = assets.find((f) => /^index-.*\.js$/.test(f));
+  const cssFile = assets.find((f) => /^index-.*\.css$/.test(f));
   if (DEBUG || !cachedJs) {
     if (jsFile) cachedJs = fs.readFileSync(path.join(ASSETS_DIR, jsFile), "utf-8");
     if (cssFile) cachedCss = fs.readFileSync(path.join(ASSETS_DIR, cssFile), "utf-8");
@@ -66,7 +71,7 @@ ${hanaLink}
 <body${themeAttr}>
 <div id="app"></div>
 <script>(function(){window.parent.postMessage({source:"hana-plugin",type:"ready"},"*")})();</script>
-<script>${cachedJs || ""}</script>
+<script type="module">${cachedJs || ""}</script>
 </body>
 </html>`;
 }
@@ -103,16 +108,17 @@ export default function registerPluginUiRoutes(app, ctx) {
     return c.body(fs.readFileSync(filePath), 200, { "Content-Type": mime, "Cache-Control": "max-age=31536000" });
   });
 
+  // ===== Static Frontend Assets（v1.1.1 兼容：JS/CSS 内联进 HTML，不注册静态路由 — P0-2 真问题）=====
+
   // ===== Domain API（按职责分模块注册） =====
   registerProjectSetsRoutes(app, data);
   registerProjectsRoutes(app, data);
   registerTasksRoutes(app, data);
-  app.get("/api/__diag_after_tasks__", (c) => c.json({ ok: true }));
   registerAnnotationsRoutes(app, data);
-  app.get("/api/__diag_after_anns__", (c) => c.json({ ok: true }));
   registerFilesRoutes(app, data);
   registerNotesRoutes(app, data);
-  app.get("/api/__diag_all_routes__", (c) => c.json({ ok: true }));
+  registerUploadRoutes(app, data, ctx);
+  registerCalendarRoutes(app, data);
 
   // ===== Version（前端角标使用）=====
   app.get("/api/version", (c) => {
@@ -128,17 +134,7 @@ export default function registerPluginUiRoutes(app, ctx) {
     });
   });
 
-  // ===== Debug =====
-  app.get("/api/debug-project/:id", (c) => {
-    const pid = c.req.param("id");
-    const proj = data.getProject(pid);
-    if (!proj) return c.json({ ok: false, error: "not found" });
-    const files = (proj.files || []).map((f) => ({
-      ...f,
-      hasPath: typeof f.path === "string" && f.path.length > 0,
-    }));
-    return c.json({ ok: true, data: { id: proj.id, name: proj.name, files } });
-  });
+  // ===== Debug（仅保留 pick-file / open-file 桌面能力）=====
 
   // ===== Windows 文件选取 / 打开 =====
   app.get("/api/pick-file", (c) => {
@@ -167,7 +163,12 @@ export default function registerPluginUiRoutes(app, ctx) {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
-      exec(`powershell.exe -NoProfile -Command "Start-Process '${filePath.replace(/'/g, "''")}'"`);
+      // P1-2：execFile + 参数数组（不经 cmd shell），-LiteralPath 字面路径 + 单引号转义
+      // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量
+      const psCmd = `Start-Process -LiteralPath '${String(filePath).replace(/'/g, "''")}'`;
+      execFile("powershell.exe", ["-NoProfile", "-Command", psCmd], (err) => {
+        if (err) ctx.log.warn(`[open-file] 打开失败: ${err.message}`);
+      });
       return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);

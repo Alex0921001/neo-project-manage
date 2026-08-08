@@ -6,7 +6,7 @@
         <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @change-status="changeStatus" />
       </div>
       <div class="detail-right">
-        <CalendarWidget :projects="[p]" />
+        <CalendarWidget :projects="p ? [p] : []" />
       </div>
     </div>
 
@@ -17,6 +17,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
           任务
           <span class="tab-pill">{{ incompleteCount }}</span>
+        </button>
+        <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          日历
         </button>
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -47,19 +51,33 @@
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
-          <button class="header-btn header-btn-primary" @click="onTabAction">
+          <button v-if="tab !== 'calendar'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
         </div>
       </div>
       <div class="tab-content">
+        <!-- 问题2：v-if 替代 v-show，避免 FC 在 display:none 容器中渲染 0 尺寸 -->
+        <div v-if="tab === 'calendar'" class="task-calendar-tab">
+          <CalendarWidget
+            :projects="p ? [p] : []"
+            :sets="allSets"
+            :compact="false"
+            task-mode
+            :project-id="p?.id || ''"
+            @select-task="onTabCalendarSelectTask"
+          />
+        </div>
         <TaskTab
           v-show="tab === 'tasks'"
           ref="taskTabRef"
           :project-id="p?.id || ''"
           :tasks="filteredTasks"
-          :files="p.files || []"
+          :files="p?.files || []"
+          :members="p?.members || []"
+          :plan-start="p?.planStart || ''"
+          :plan-end="p?.planEnd || ''"
           :search-query="taskSearch"
           :expand-all="expandAll"
           @changed="loadProject"
@@ -69,7 +87,7 @@
           v-show="tab === 'files'"
           ref="fileTabRef"
           :project-id="p?.id || ''"
-          :files="p.files || []"
+          :files="p?.files || []"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -77,7 +95,7 @@
           v-show="tab === 'notes'"
           ref="noteTabRef"
           :project-id="p?.id || ''"
-          :notes="p.notes || []"
+          :notes="p?.notes || []"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -103,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
@@ -166,6 +184,13 @@ async function loadProject() {
   const res = await api(`api/projects/${props.projectId}`);
   if (!res?.ok) { toast("项目不存在", "error"); emit("back"); return; }
   p.value = res.data;
+  // 消费日历跳转标记：切到任务 tab 并滚动定位到目标任务
+  let scrollId = null;
+  try { scrollId = sessionStorage.getItem("neo-pm-scroll-task"); sessionStorage.removeItem("neo-pm-scroll-task"); } catch { /* ignore */ }
+  if (scrollId) {
+    if (tab.value !== "tasks") tab.value = "tasks";
+    nextTick(() => taskTabRef.value?.scrollToTaskById?.(scrollId));
+  }
 }
 async function loadSets() {
   const res = await api("api/project-sets");
@@ -187,6 +212,13 @@ function onTabAction() {
   if (tab.value === 'tasks') taskTabRef.value?.openAdd();
   else if (tab.value === 'files') fileTabRef.value?.pickFile();
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
+}
+
+// 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
+function onTabCalendarSelectTask({ taskId }) {
+  if (!taskId) return;
+  tab.value = "tasks";
+  nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
 }
 async function doEditProject(d) {
   if (!d.name.trim()) return toast("请输入名称", "error");
@@ -238,7 +270,7 @@ async function doConfirm() {
   overflow: visible;
 }
 .detail-left { min-width: 0; display: flex; flex-direction: column; }
-.detail-right { min-width: 0; min-height: 380px; display: flex; flex-direction: column; }
+.detail-right { min-width: 0; min-height: 580px; display: flex; flex-direction: column; }
 
 /* ===== Tab 区 ===== */
 .tab-section {
@@ -409,5 +441,8 @@ async function doConfirm() {
 .tab-content {
   padding: 20px;
   background: #ffffff;
+}
+.task-calendar-tab {
+  min-height: 600px;
 }
 </style>

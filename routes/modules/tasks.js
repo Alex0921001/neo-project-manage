@@ -2,16 +2,14 @@
  * Task CRUD (tree structure)
  */
 export function registerTasksRoutes(app, data) {
-  // NOTE: test routes to verify function execution
-  app.get("/api/__tasks_test__", (c) => c.json({ ok: true, msg: "tasks.js GET ok" }));
-  app.post("/api/__tasks_test__", (c) => c.json({ ok: true, msg: "tasks.js POST ok" }));
-  // List tasks (flat, with status / assignee / keyword filters)
+  // List tasks (flat, with status / assignee / keyword / dateRange filters)
   app.get("/api/projects/:projectId/tasks", (c) => {
     try {
       const status = c.req.query("status") || "all";
       const assignee = c.req.query("assignee") || "";
       const keyword = c.req.query("keyword") || "";
-      const tasks = data.listTasks(c.req.param("projectId"), { status, assignee, keyword });
+      const dateRange = c.req.query("dateRange") || "";
+      const tasks = data.listTasks(c.req.param("projectId"), { status, assignee, keyword, dateRange });
       return c.json({ ok: true, data: tasks });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);

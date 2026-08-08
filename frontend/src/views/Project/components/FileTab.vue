@@ -1,5 +1,41 @@
 <template>
   <div class="area-section">
+    <!-- 添加文件弹窗：桌面集成（选择本地文件路径） -->
+    <el-dialog
+      v-model="dialogShow"
+      title="添加文件"
+      width="480px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <el-form label-position="top">
+        <el-form-item label="选择本地文件">
+          <el-button type="primary" plain :loading="picking" @click="pickFile">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            选择本地文件（可多选）
+          </el-button>
+          <div class="pick-hint">支持任意文件类型，添加后可双击打开</div>
+        </el-form-item>
+        <el-form-item v-if="pending.length" label="已选择">
+          <div class="pending-list">
+            <div v-for="(p, i) in pending" :key="p + '_' + i" class="pending-item">
+              <span class="pending-name" :title="p">{{ fileName(p) }}</span>
+              <button class="pending-del" @click="pending.splice(i, 1)">✕</button>
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item v-else label="已选择">
+          <span class="pending-empty">尚未选择文件</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogShow = false">取消</el-button>
+        <el-button type="primary" :loading="adding" :disabled="!pending.length" @click="confirmAdd">
+          添加 {{ pending.length ? `(${pending.length})` : '' }}
+        </el-button>
+      </template>
+    </el-dialog>
+
     <div class="file-grid">
       <div v-for="f in files" :key="f.id" class="file-chip" title="双击打开" @dblclick="openFile(f)">
         <span class="chip-icon" :class="'chip-'+iconClass(f.name)" v-text="iconShort(f.name)"></span>
@@ -23,29 +59,46 @@ const props = defineProps({
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
-const uploading = ref(false);
+const dialogShow = ref(false);
+const picking = ref(false);
+const adding = ref(false);
+const pending = ref([]);
 
-function pickFile() {
-  if (uploading.value) return;
-  uploading.value = true;
-  api("api/pick-file").then(res => {
-    if (res?.ok && res.paths?.length > 0) {
-      Promise.all(res.paths.map(p => addFileByPath(p))).then(results => {
-        toast(`已添加 ${results.filter(r => r).length} 个文件`);
-        emit("changed");
-        uploading.value = false;
-      });
-    } else {
-      toast(res?.error || "未选择文件", "error");
-      uploading.value = false;
-    }
-  }).catch(() => { uploading.value = false; });
+function fileName(p) {
+  return p.split(/[\\/]/).pop() || p;
 }
 
-async function addFileByPath(filePath) {
-  if (!filePath.trim()) return false;
-  const res = await api(`api/projects/${props.projectId}/files`, { method: "POST", body: JSON.stringify({ path: filePath }) });
-  return !!res.ok;
+function openAdd() {
+  pending.value = [];
+  dialogShow.value = true;
+}
+
+async function pickFile() {
+  if (picking.value) return;
+  picking.value = true;
+  const res = await api("api/pick-file");
+  picking.value = false;
+  if (res?.ok && res.paths?.length > 0) {
+    for (const p of res.paths) {
+      if (p.trim() && !pending.value.includes(p)) pending.value.push(p);
+    }
+  } else {
+    toast(res?.error || "未选择文件", "error");
+  }
+}
+
+async function confirmAdd() {
+  if (!pending.value.length) return;
+  adding.value = true;
+  const results = [];
+  for (const p of pending.value) {
+    const res = await api(`api/projects/${props.projectId}/files`, { method: "POST", body: JSON.stringify({ path: p }) });
+    results.push(!!res.ok);
+  }
+  adding.value = false;
+  const okCount = results.filter(Boolean).length;
+  toast(okCount ? `已添加 ${okCount} 个文件` : "添加失败", okCount ? "success" : "error");
+  if (okCount) { dialogShow.value = false; pending.value = []; emit("changed"); }
 }
 
 function openFile(f) {
@@ -64,12 +117,11 @@ function iconShort(name) {
   return map[ext] || ext?.toUpperCase() || "";
 }
 
-defineExpose({ pickFile });
+defineExpose({ openAdd, pickFile: openAdd });
 </script>
 
 <style scoped>
 .area-section { margin-bottom: 24px; }
-.area-header { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 10px; }
 .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(160px, calc((100% - 40px) / 5)), 1fr)); gap: 10px; }
 .file-chip {
   display: grid; grid-template-columns: 28px 1fr auto; grid-template-rows: auto auto; gap: 4px 8px;
@@ -104,4 +156,50 @@ defineExpose({ pickFile });
 }
 .file-chip:hover .chip-del { opacity: 0.6; }
 .chip-del:hover { opacity: 1 !important; background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
+
+.pick-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.pending-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-card);
+}
+.pending-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text);
+}
+.pending-del {
+  width: 18px; height: 18px;
+  border: none; background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px; line-height: 1;
+  cursor: pointer; border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.pending-del:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
+.pending-empty {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
 </style>
