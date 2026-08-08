@@ -11,3 +11,59 @@ import App from "./App.vue";
 dayjs.locale("zh-cn");
 
 createApp(App).use(ElementPlus, { locale: zhCn }).mount("#app");
+
+// 插件静态文件图片（/api/plugins/.../files/*）在 Hana 网关下需要 session 鉴权，
+// <img> 标签无法带自定义 header，query 参数网关不认。方案：fetch 带 session header 取回图片，
+// 转 dataURL（CSP img-src 允许 data:）后替换 src。内存缓存避免重复请求。
+const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
+const imgCache = new Map(); // src → dataURL
+
+async function loadImgWithCredential(img) {
+  const src = img.getAttribute("src");
+  if (!src || !src.startsWith("/api/plugins/") || !src.includes("/files/")) return;
+  if (img.dataset.pmLoaded === "1") return; // 已处理
+  if (imgCache.has(src)) {
+    img.src = imgCache.get(src);
+    img.dataset.pmLoaded = "1";
+    return;
+  }
+  img.dataset.pmLoaded = "1"; // 防并发重复，失败时复位允许重试
+  try {
+    const headers = {};
+    if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+    const res = await fetch(src, { headers });
+    if (!res.ok) {
+      console.warn("[neo-pm] 图片加载失败", src, res.status);
+      img.dataset.pmLoaded = "0";
+      return;
+    }
+    const blob = await res.blob();
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      imgCache.set(src, dataUrl);
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(blob);
+  } catch (e) {
+    console.warn("[neo-pm] 图片加载异常", src, e);
+    img.dataset.pmLoaded = "0";
+  }
+}
+
+function patchPluginImages(root) {
+  root.querySelectorAll?.("img[src^=\"/api/plugins/\"]").forEach((img) => loadImgWithCredential(img));
+}
+
+const observer = new MutationObserver((mutations) => {
+  for (const m of mutations) {
+    if (m.type === "childList" && m.addedNodes?.length) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType === 1) patchPluginImages(node);
+      }
+    } else if (m.type === "attributes" && m.target?.nodeType === 1 && m.attributeName === "src") {
+      loadImgWithCredential(m.target);
+    }
+  }
+});
+observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });

@@ -18,8 +18,36 @@ function apiUrl(path) {
 
 const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
 
+// Hana 平台注入的 iframe API（自动处理凭据）。优先使用，回退手动 session header
+const hanaApi = (typeof window !== "undefined" && window.hana?.api) || null;
+// 调试：确认运行环境（可删）
+console.log("[neo-pm] hana.api 可用:", !!hanaApi, "; surfaceSession:", surfaceSession ? surfaceSession.slice(0, 8) + "..." : "null");
+
+/**
+ * 解析插件资源 URL（图片等 <img> 无法带 header）：
+ * 优先 hana.api.url（平台自动附加凭据），回退手动附加 pluginSurfaceSession query
+ * @param {string} src 原始 URL（相对路径 /api/plugins/... 或完整 URL）
+ * @returns {string}
+ */
+export function resolveAssetUrl(src) {
+  if (!src) return src;
+  const s = String(src);
+  // 非插件资源（http 外部 / data: / blob:）不处理
+  if (!s.startsWith("/api/plugins/")) return s;
+  try {
+    if (hanaApi?.url) return hanaApi.url(s.replace(/^\/api\/plugins\/[^/]+\//, ""));
+  } catch (e) {
+    console.error("[neo-pm] hana.api.url 失败，回退手动:", e);
+  }
+  if (!surfaceSession) return s;
+  const sep = s.includes("?") ? "&" : "?";
+  return `${s}${sep}pluginSurfaceSession=${encodeURIComponent(surfaceSession)}`;
+}
+
 export async function api(path, opts = {}) {
   try {
+    // 优先 Hana 平台 API（自动处理凭据与路由前缀）
+    if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), opts);
     const headers = { "Content-Type": "application/json", ...opts.headers };
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
     const res = await fetch(apiUrl(path), { ...opts, headers });
@@ -35,6 +63,8 @@ export async function api(path, opts = {}) {
  */
 export async function apiUpload(path, formData) {
   try {
+    // 优先 Hana 平台 API
+    if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), { method: "POST", body: formData });
     const headers = {};
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
     const res = await fetch(apiUrl(path), { method: "POST", body: formData, headers });

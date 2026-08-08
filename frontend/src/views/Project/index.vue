@@ -268,10 +268,10 @@ async function doConfirm() {
   gap: 16px;
   padding: 20px 24px;
   overflow: visible;
-  align-items: start; /* 左右列独立高度，右侧日历不被左侧内容拉伸 */
+  /* 默认 stretch：左右两列等高对齐；右侧日历贴合月历内容高度，左侧拉伸到等高（meta-grid 1fr 吸收留白） */
 }
 .detail-left { min-width: 0; display: flex; flex-direction: column; }
-.detail-right { min-width: 0; height: 580px; display: flex; flex-direction: column; } /* 固定高度，不被左侧拉高 */
+.detail-right { min-width: 0; } /* 非 flex 容器：日历高度贴合月历内容，不被拉伸；align-items:start 保证不被左侧撑高 */
 
 /* ===== Tab 区 ===== */
 .tab-section {

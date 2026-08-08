@@ -431,6 +431,11 @@ async function onFilePicked(e) {
   height: 0;
   pointer-events: none;
 }
+.rich-content :deep(.ProseMirror a) {
+  color: oklch(0.55 0.15 250);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .rich-content :deep(.ProseMirror blockquote) {
   border-left: 3px solid var(--el-border-color, oklch(0.9 0.008 270));
   margin: 8px 0;
