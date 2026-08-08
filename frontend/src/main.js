@@ -13,14 +13,15 @@ dayjs.locale("zh-cn");
 createApp(App).use(ElementPlus, { locale: zhCn }).mount("#app");
 
 // 插件静态文件图片（/api/plugins/.../files/*）在 Hana 网关下需要 session 鉴权，
-// <img> 标签无法带自定义 header，query 参数网关不认。方案：fetch 带 session header 取回图片，
-// 转 dataURL（CSP img-src 允许 data:）后替换 src。内存缓存避免重复请求。
+// <img> 标签无法带自定义 header。方案：fetch 带 session header 取回图片，转 dataURL（CSP img-src 允许 data:）。
+// 新上传图片已由 RichEditor 直接转 base64 入库（data: 开头），此处理仅兜底历史数据中的服务器路径图片。
 const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
 const imgCache = new Map(); // src → dataURL
 
 async function loadImgWithCredential(img) {
   const src = img.getAttribute("src");
-  if (!src || !src.startsWith("/api/plugins/") || !src.includes("/files/")) return;
+  if (!src || src.startsWith("data:")) return; // base64 已自包含，无需处理
+  if (!src.startsWith("/api/plugins/") || !src.includes("/files/")) return;
   if (img.dataset.pmLoaded === "1") return; // 已处理
   if (imgCache.has(src)) {
     img.src = imgCache.get(src);

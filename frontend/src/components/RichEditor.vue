@@ -73,31 +73,7 @@
       </button></el-tooltip>
       <span class="rich-sep"></span>
 
-      <!-- 颜色 / 高亮 -->
-      <el-tooltip content="文字颜色" :show-after="300">
-        <span class="rich-color-wrap">
-          <button type="button" class="rich-btn rich-color-btn" @mousedown.prevent="cycleColor()"><span class="rich-btn-label rich-a">A</span></button>
-          <span class="rich-color-dots">
-            <button v-for="c in colorPresets" :key="c" class="rich-color-dot" :style="{ background: c }" :title="c" @mousedown.prevent="setColor(c)"></button>
-          </span>
-        </span>
-      </el-tooltip>
-      <el-tooltip content="背景高亮" :show-after="300">
-        <span class="rich-color-wrap">
-          <button type="button" class="rich-btn rich-color-btn" :class="{ active: hasHighlight }" @mousedown.prevent="toggleHighlight()"><span class="rich-btn-label rich-hl">H</span></button>
-          <span class="rich-color-dots">
-            <button class="rich-color-dot" style="background: #fef08a" title="黄色高亮" @mousedown.prevent="setHighlight('#fef08a')"></button>
-            <button class="rich-color-dot" style="background: #fbcfe8" title="粉色高亮" @mousedown.prevent="setHighlight('#fbcfe8')"></button>
-            <button class="rich-color-dot" style="background: #bfdbfe" title="蓝色高亮" @mousedown.prevent="setHighlight('#bfdbfe')"></button>
-          </span>
-        </span>
-      </el-tooltip>
-      <span class="rich-sep"></span>
-
-      <!-- 链接 / 图片 -->
-      <el-tooltip content="插入链接" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive('link') }" @mousedown.prevent="setLink">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-      </button></el-tooltip>
+      <!-- 图片（保留） -->
       <el-tooltip :content="projectId ? '插入图片（≤2MB）' : '创建后可补图'" :show-after="300"><button type="button" class="rich-btn" :class="{ disabled: !projectId }" :disabled="!projectId" @mousedown.prevent="fileInputRef?.click()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       </button></el-tooltip>
@@ -118,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onBeforeUnmount } from "vue";
+import { ref, watch, onBeforeUnmount } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -130,8 +106,6 @@ import Color from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { ElMessageBox } from "element-plus";
-import { apiUpload } from "../api.js";
 import { toast } from "../toast.js";
 
 const props = defineProps({
@@ -154,7 +128,7 @@ const editor = useEditor({
     Highlight.configure({ multicolor: true }),
     TaskList,
     TaskItem.configure({ nested: true }),
-    Image.configure({ inline: false }),
+    Image.configure({ inline: false, allowBase64: true }),
     Link.configure({ openOnClick: false, autolink: true }),
     Placeholder.configure({ placeholder: props.placeholder }),
   ],
@@ -202,57 +176,56 @@ onBeforeUnmount(() => {
   editor.value?.destroy();
 });
 
-// ===== 颜色 / 高亮 =====
-const colorPresets = ["#dc2626", "#ea580c", "#16a34a", "#2563eb", "#7c3aed", "#9333ea"];
-const colorIdx = ref(0);
-
-function setColor(c) {
-  if (!editor.value) return;
-  editor.value.chain().focus().setColor(c).run();
-}
-function cycleColor() {
-  if (!editor.value) return;
-  const c = colorPresets[colorIdx.value % colorPresets.length];
-  colorIdx.value += 1;
-  editor.value.chain().focus().setColor(c).run();
-}
-const hasHighlight = computed(() => editor.value?.isActive("highlight") || false);
-function toggleHighlight() {
-  if (!editor.value) return;
-  editor.value.chain().focus().toggleHighlight().run();
-}
-function setHighlight(color) {
-  if (!editor.value) return;
-  editor.value.chain().focus().toggleHighlight({ color }).run();
-}
-
-// ===== 链接 =====
-async function setLink() {
-  if (!editor.value) return;
-  const prev = editor.value.getAttributes("link").href || "";
-  try {
-    const { value } = await ElMessageBox.prompt("输入链接地址", "插入链接", {
-      inputValue: prev,
-      inputPattern: /^https?:\/\/.+/i,
-      inputErrorMessage: "链接需以 http:// 或 https:// 开头",
-      confirmButtonText: "确定",
-      cancelButtonText: "取消",
-    });
-    if (editor.value.isActive("link")) {
-      editor.value.chain().focus().extendMarkRange("link").updateAttributes("link", { href: value }).run();
-    } else {
-      editor.value.chain().focus().setLink({ href: value }).run();
-    }
-  } catch { /* 取消 */ }
-}
-
 // ===== 清除格式 =====
 function clearFormat() {
   if (!editor.value) return;
   editor.value.chain().focus().unsetAllMarks().clearNodes().run();
 }
 
-// ===== 图片上传（选择文件与粘贴共用）=====
+// ===== 图片压缩（上传前本地压缩，减小 base64 体积，编辑器内缩略显示）=====
+const MAX_IMG_DIM = 1280; // 最长边上限
+const JPEG_QUALITY = 0.82;
+
+/**
+ * 用 canvas 压缩图片为 base64 data URL
+ * - 超出 MAX_IMG_DIM 的按比例缩小
+ * - png 保留透明（仍转 png）；其余统一转 jpeg 压缩体积
+ * @param {File} file
+ * @returns {Promise<string>} data URL
+ */
+function compressImageToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // 注意：不能用 new Image() —— 本文件已 import Tiptap 的 Image 扩展（同名遮蔽），
+      // 必须用 window.Image 或 createElement 显式取浏览器全局
+      const imgEl = document.createElement("img");
+      imgEl.onload = () => {
+        try {
+          const scale = Math.min(1, MAX_IMG_DIM / Math.max(imgEl.width, imgEl.height));
+          const w = Math.max(1, Math.round(imgEl.width * scale));
+          const h = Math.max(1, Math.round(imgEl.height * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(imgEl, 0, 0, w, h);
+          const isPng = file.type === "image/png";
+          const mime = isPng ? "image/png" : "image/jpeg";
+          resolve(canvas.toDataURL(mime, isPng ? undefined : JPEG_QUALITY));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      imgEl.onerror = reject;
+      imgEl.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== 图片插入（本地压缩 → base64 内联，完全绕开网关鉴权，内容自包含）=====
 async function uploadAndInsert(file) {
   if (!file || !editor.value) return;
   if (file.size > 2 * 1024 * 1024) {
@@ -263,17 +236,12 @@ async function uploadAndInsert(file) {
     toast("仅支持 png / jpg / jpeg / gif / webp 图片", "error");
     return;
   }
-  if (!props.projectId) {
-    toast("缺少项目上下文，无法上传图片", "error");
-    return;
-  }
-  const fd = new FormData();
-  fd.append("file", file);
-  const res = await apiUpload(`api/projects/${props.projectId}/upload`, fd);
-  if (res?.ok && res.data?.url) {
-    editor.value.chain().focus().setImage({ src: res.data.url }).run();
-  } else {
-    toast(res?.error || "图片上传失败", "error");
+  try {
+    const dataUrl = await compressImageToDataUrl(file);
+    editor.value.chain().focus().setImage({ src: dataUrl }).run();
+  } catch (e) {
+    console.error("[neo-pm] 图片压缩失败:", e);
+    toast("图片处理失败", "error");
   }
 }
 
@@ -361,48 +329,12 @@ async function onFilePicked(e) {
   font-family: var(--font-mono, monospace);
   font-size: 11px;
 }
-.rich-a {
-  color: #dc2626;
-  font-size: 13px;
-}
-.rich-hl {
-  background: #fef08a;
-  border-radius: 2px;
-  padding: 0 1px;
-}
 .rich-sep {
   width: 1px;
   height: 16px;
   background: var(--el-border-color-lighter, oklch(0.90 0.02 80));
   margin: 0 4px;
   flex-shrink: 0;
-}
-/* 颜色下拉小组 */
-.rich-color-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.rich-color-btn {
-  position: relative;
-  z-index: 1;
-}
-.rich-color-dots {
-  display: inline-flex;
-  gap: 1px;
-  margin-left: 1px;
-}
-.rich-color-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  padding: 0;
-  cursor: pointer;
-  transition: transform 120ms var(--ease-out);
-}
-.rich-color-dot:hover {
-  transform: scale(1.35);
 }
 .rich-content {
   padding: 8px 12px;
@@ -421,8 +353,13 @@ async function onFilePicked(e) {
 }
 .rich-content :deep(.ProseMirror img) {
   max-width: 100%;
+  max-height: 220px; /* 缩略显示，编辑时不被大图撑爆；保存后展示层按原尺寸渲染 */
+  height: auto;
+  width: auto;
   border-radius: 6px;
   margin: 4px 0;
+  object-fit: contain;
+  cursor: default;
 }
 .rich-content :deep(.ProseMirror p.is-editor-empty:first-child::before) {
   content: attr(data-placeholder);
