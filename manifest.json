@@ -45,5 +45,18 @@
       "./tools/update-task.js",
       "./tools/update-annotation.js"
     ]
+  },
+  "dev": {
+    "scenarios": [
+      {
+        "id": "smoke-readonly",
+        "title": "只读冒烟：list 工具调用无异常",
+        "description": "验证插件工具注册与数据访问链路（dev 槽位、无数据变更，可反复跑）",
+        "steps": [
+          { "invokeTool": { "name": "list_project_sets", "input": {} } },
+          { "invokeTool": { "name": "list_projects", "input": {} } }
+        ]
+      }
+    ]
   }
 }

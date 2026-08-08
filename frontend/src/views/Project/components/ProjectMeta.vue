@@ -169,9 +169,9 @@ const displayStatus = computed(() => computeDisplayStatus(props.project));
 // 距离天数
 import dayjs from "dayjs";
 
-const today = dayjs().startOf("day");
-
 const countdown = computed(() => {
+  // P3：today 不能是模块级常量（跨天不更新），每次计算时取当天
+  const today = dayjs().startOf("day");
   if (!props.project) return null;
   const startStr = props.project.planStart;
   const endStr = props.project.planEnd;

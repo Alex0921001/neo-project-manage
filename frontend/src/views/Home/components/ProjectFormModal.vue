@@ -29,21 +29,23 @@
         <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
       </el-form-item>
 
-      <!-- 归属 -->
+      <!-- 归属：状态 + 项目集 同一行 -->
       <div class="form-section-title">归属</div>
-      <el-form-item label="状态">
-        <el-select v-model="form.status" style="width: 100%">
-          <el-option label="待开始" value="待开始" />
-          <el-option label="进行中" value="进行中" />
-          <el-option label="已完成" value="已完成" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="项目集">
-        <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
-          <el-option label="未归类" value="" />
-          <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
-        </el-select>
-      </el-form-item>
+      <div class="form-row">
+        <el-form-item label="状态">
+          <el-select v-model="form.status" style="width: 100%">
+            <el-option label="待开始" value="待开始" />
+            <el-option label="进行中" value="进行中" />
+            <el-option label="已完成" value="已完成" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="项目集">
+          <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
+            <el-option label="未归类" value="" />
+            <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+        </el-form-item>
+      </div>
 
       <!-- 成员 -->
       <el-form-item label="成员">
@@ -209,6 +211,14 @@ async function submit() {
   border-bottom: 1px dashed #e5e7eb;
 }
 
+.form-row {
+  display: flex;
+  gap: 14px;
+}
+.form-row .el-form-item {
+  flex: 1;
+  min-width: 0;
+}
 .field-err {
   margin-top: 6px;
   font-size: 12px;

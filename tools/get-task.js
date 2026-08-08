@@ -19,6 +19,10 @@ export async function execute(input, toolCtx) {
     `${task.done ? "✅" : "⬜"} ${task.name} [ID: ${task.id}]`,
     task.description ? `描述: ${task.description}` : "描述: -",
     `状态: ${task.done ? "已完成" : "未完成"}`,
+    task.assignees?.length ? `成员: ${task.assignees.join("、")}` : null,
+    task.startDate || task.endDate
+      ? `起止日期: ${task.startDate || "…"} ~ ${task.endDate || "…"}`
+      : null,
     `所属项目: ${task.project ? `${task.project.name} [ID: ${task.project.id}]` : "-"}`,
     task.parentTask ? `父任务: ${task.parentTask.name} [ID: ${task.parentTask.id}]` : null,
     `创建时间: ${task.created_at}`,

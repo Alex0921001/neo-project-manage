@@ -47,7 +47,8 @@
       <span class="rich-sep"></span>
 
       <!-- 对齐 -->
-      <el-tooltip content="左对齐" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive({ textAlign: 'left' }) }" @mousedown.prevent="editor?.chain().focus().setTextAlign('left').run()">
+      <!-- 左对齐：默认无 textAlign 属性也视为左对齐（否则 isActive({textAlign:'left'}) 永不匹配）-->
+      <el-tooltip content="左对齐" :show-after="300"><button type="button" class="rich-btn" :class="{ active: !(editor?.isActive({ textAlign: 'center' }) || editor?.isActive({ textAlign: 'right' }) || editor?.isActive({ textAlign: 'justify' })) }" @mousedown.prevent="editor?.chain().focus().setTextAlign('left').run()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="19" y2="18"/></svg>
       </button></el-tooltip>
       <el-tooltip content="居中" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive({ textAlign: 'center' }) }" @mousedown.prevent="editor?.chain().focus().setTextAlign('center').run()">

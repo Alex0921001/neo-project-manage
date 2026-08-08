@@ -162,19 +162,28 @@ export default function registerPluginUiRoutes(app, ctx) {
     }
   });
 
-  app.get("/api/open-file", (c) => {
+  app.get("/api/open-file", async (c) => {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
       // 文件不存在直接报错（避免 Start-Process 静默失败，前端无感知）
       if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
-      // P1-2：execFile + 参数数组（不经 cmd shell），-LiteralPath 字面路径 + 单引号转义
-      // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量
-      const psCmd = `Start-Process -LiteralPath '${String(filePath).replace(/'/g, "''")}'`;
-      execFile("powershell.exe", ["-NoProfile", "-Command", psCmd], (err) => {
-        if (err) ctx.log.warn(`[open-file] 打开失败: ${err.message}`);
+      // P1-2：execFile + 参数数组（不经 cmd shell），-FilePath 字面路径 + 单引号转义
+      // 注意：Windows PowerShell 5.1 的 Start-Process 没有 -LiteralPath（PS7.3+ 才有），必须用 -FilePath；
+      // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量；-ErrorAction Stop 让失败可捕获
+      const psCmd = `Start-Process -FilePath '${String(filePath).replace(/'/g, "''")}' -ErrorAction Stop`;
+      const result = await new Promise((resolve) => {
+        execFile("powershell.exe", ["-NoProfile", "-Command", psCmd], (err, _stdout, stderr) => {
+          if (err) {
+            const detail = String(stderr || err.message || "").trim().split(/\r?\n/)[0];
+            ctx.log.warn(`[open-file] 打开失败: ${err.message}`);
+            resolve({ ok: false, error: `打开失败：${detail || err.message}` });
+          } else {
+            resolve({ ok: true });
+          }
+        });
       });
-      return c.json({ ok: true });
+      return c.json(result);
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }
