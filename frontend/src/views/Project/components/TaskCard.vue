@@ -78,7 +78,9 @@
     <div v-if="expanded" class="task-card-body">
       <div v-if="task.description" class="task-desc" v-html="highlightRichText(formatDescription(task.description), searchQuery)" @click="onRichClick"></div>
       <div v-else class="task-desc task-desc-empty">暂无描述</div>
-      <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+      <teleport to="body">
+        <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+      </teleport>
 
       <!-- 成员 + 起止日期 -->
       <div v-if="task.assignees?.length || task.startDate || task.endDate" class="task-meta-row">
@@ -523,8 +525,6 @@ defineExpose({
   background: oklch(0.97 0.02 85);
   border-left: 3px solid oklch(0.85 0.06 85);
   border-radius: 0 4px 4px 0;
-  max-height: 160px;
-  overflow-y: auto;
   word-break: break-word;
 }
 /* 富文本内容：块级元素 margin 收敛，避免撑破容器 */
@@ -532,7 +532,7 @@ defineExpose({
 .task-desc :deep(p:last-child) { margin-bottom: 0; }
 .task-desc :deep(ul),
 .task-desc :deep(ol) { margin: 4px 0; padding-left: 20px; }
-.task-desc :deep(img) { max-width: 100%; height: auto; border-radius: 6px; cursor: zoom-in; }
+.task-desc :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 .task-desc :deep(a) { color: oklch(0.55 0.15 250); }
 .task-desc :deep(pre) { overflow-x: auto; background: oklch(0.94 0.01 80); padding: 8px; border-radius: 4px; font-size: 12px; }
 .task-desc :deep(code) { background: oklch(0.94 0.01 80); padding: 1px 4px; border-radius: 3px; font-size: 12px; }

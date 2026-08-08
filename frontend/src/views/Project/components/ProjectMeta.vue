@@ -92,7 +92,9 @@
         </div>
       </div>
     </div>
-    <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+    <teleport to="body">
+      <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+    </teleport>
   </div>
 </template>
 
@@ -386,8 +388,6 @@ function avatarColor(name) {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 0; /* grid/flex 子项收缩，配合内部 max-height 限高 */
-  overflow: hidden;
   transition: all var(--duration-fast) var(--ease-out);
 }
 .meta-card:hover {
@@ -425,9 +425,6 @@ function avatarColor(name) {
   color: #4b5563;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 96px;
-  min-height: 0; /* flex 子项默认 min-height:auto 会覆盖 max-height，显式置 0 让限高生效 */
-  overflow-y: auto;
 }
 .meta-desc-body {
   font-weight: 400;
@@ -439,9 +436,7 @@ function avatarColor(name) {
 .meta-desc-body :deep(p:last-child) { margin-bottom: 0; }
 .meta-desc-body :deep(ul),
 .meta-desc-body :deep(ol) { margin: 4px 0; padding-left: 18px; }
-.meta-desc-body :deep(img) { max-width: 100%; border-radius: 6px; cursor: zoom-in; }
-.meta-desc::-webkit-scrollbar { width: 4px; }
-.meta-desc::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+.meta-desc-body :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 .meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
 
 /* 成员 pill：头像 + 姓名，姓名能完整显示 */

@@ -43,7 +43,9 @@
         <span class="note-card-accent" aria-hidden="true"></span>
         <span class="note-card-quote" aria-hidden="true">❝</span>
         <p class="note-content" v-html="formatDescription(n.content)" @click="onRichClick"></p>
-        <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+        <teleport to="body">
+          <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
+        </teleport>
         <div class="note-bottom">
           <span class="note-date">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -299,6 +301,7 @@ defineExpose({ openAdd: startAdd });
   word-break: break-word;
   letter-spacing: 0.005em;
 }
+.note-content :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 
 .note-bottom {
   display: flex;

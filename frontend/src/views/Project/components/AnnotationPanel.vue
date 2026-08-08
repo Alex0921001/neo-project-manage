@@ -351,6 +351,7 @@ async function saveEdit() {
   margin: 0 0 8px; font-size: 13px; line-height: 1.55;
   color: oklch(0.30 0.05 80);
 }
+.sticky-content :deep(img) { max-width: 250px; max-height: 150px; height: auto; width: auto; border-radius: 6px; cursor: zoom-in; object-fit: contain; }
 .sticky-done .sticky-content { color: oklch(0.30 0.06 145); }
 .sticky-foot {
   display: flex; justify-content: space-between; align-items: center;
