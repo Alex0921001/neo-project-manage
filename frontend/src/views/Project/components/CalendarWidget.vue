@@ -43,10 +43,11 @@ const props = defineProps({
 });
 const emit = defineEmits(["select", "select-task"]);
 
-// 捕获子组件（FullCalendar）渲染错误：记录堆栈不阻断页面（P0-1 调试）
+// 捕获子组件（FullCalendar）渲染错误：记录日志并阻止向上传播，避免整页白屏
+// 注意：Vue 3 中 return false 才是“阻止继续向上传播”（原注释写反了）
 onErrorCaptured((err, instance, info) => {
   console.error("[CalendarWidget] 子组件错误:", err, info);
-  return false; // 继续向上传播，让全局处理兜底
+  return false; // 阻止继续传播，保持页面其余部分可用
 });
 
 const calendarRef = ref(null);
@@ -180,8 +181,8 @@ const fcOptions = computed(() => ({
   plugins: [dayGridPlugin, interactionPlugin],
   initialView: "dayGridMonth",
   locale: zhCn,
-  // 问题1：non-compact（日历 tab / 大日历页）给固定高度，避免父容器无高度时 FC 渲染 0 高度
-  height: props.compact ? "auto" : 600,
+  // 高度：compact（侧边小日历）用 100% 铺满父容器；非 compact（日历 tab / 大日历页）固定 600
+  height: props.compact ? "100%" : 600,
   dayMaxEvents: props.compact ? 1 : 3,
   headerToolbar: false,
   editable: false,
@@ -349,10 +350,6 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
 .cal-widget :deep(.fc .fc-view-harness) {
   flex: 1;
   overflow: hidden;
-}
-/* 消灭内部滚动条（高度已给足，内容不外溢） */
-.cal-widget :deep(.fc .fc-scroller) {
-  overflow: hidden !important;
 }
 </style>
 

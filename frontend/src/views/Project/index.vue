@@ -268,9 +268,10 @@ async function doConfirm() {
   gap: 16px;
   padding: 20px 24px;
   overflow: visible;
+  align-items: start; /* 左右列独立高度，右侧日历不被左侧内容拉伸 */
 }
 .detail-left { min-width: 0; display: flex; flex-direction: column; }
-.detail-right { min-width: 0; min-height: 580px; display: flex; flex-direction: column; }
+.detail-right { min-width: 0; height: 580px; display: flex; flex-direction: column; } /* 固定高度，不被左侧拉高 */
 
 /* ===== Tab 区 ===== */
 .tab-section {
@@ -443,6 +444,8 @@ async function doConfirm() {
   background: #ffffff;
 }
 .task-calendar-tab {
-  min-height: 600px;
+  height: 620px; /* 固定高度：日历 tab 的 CalendarWidget 是 flex 布局（.cal-widget flex:1），需要父容器有确定高度才能铺满 */
+  display: flex;
+  flex-direction: column;
 }
 </style>

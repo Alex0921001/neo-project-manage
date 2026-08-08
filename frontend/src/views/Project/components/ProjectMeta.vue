@@ -386,6 +386,8 @@ function avatarColor(name) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-height: 0; /* grid/flex 子项收缩，配合内部 max-height 限高 */
+  overflow: hidden;
   transition: all var(--duration-fast) var(--ease-out);
 }
 .meta-card:hover {
@@ -424,6 +426,7 @@ function avatarColor(name) {
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 96px;
+  min-height: 0; /* flex 子项默认 min-height:auto 会覆盖 max-height，显式置 0 让限高生效 */
   overflow-y: auto;
 }
 .meta-desc-body {

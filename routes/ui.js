@@ -30,7 +30,10 @@ let ROUTES_LOADED_AT = null;
 const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
 
-const DEBUG = process.env.NODE_ENV === "development" || String(process.env.NEO_PM_DEBUG || "").toLowerCase() === "true"; // 默认生产关闭（静态资源走 hash 不可变缓存）
+// dev 槽位（plugins-dev 目录）强制 DEBUG：前端产物每次请求重新读，改代码刷新即生效，无需重启
+// 正式版（plugins 目录）保持生产模式：cachedJs 首次读后常驻内存，走 hash 不可变缓存
+const IS_DEV_SLOT = path.dirname(fileURLToPath(import.meta.url)).includes("plugins-dev");
+const DEBUG = IS_DEV_SLOT || process.env.NODE_ENV === "development" || String(process.env.NEO_PM_DEBUG || "").toLowerCase() === "true";
 
 let cachedJs = null;
 let cachedCss = null;

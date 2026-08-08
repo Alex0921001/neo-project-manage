@@ -1,16 +1,15 @@
 /**
  * 格式化描述文本用于显示：
- * - 如果是 HTML（来自富文本编辑器），先经白名单清洗（P0-1）再原样渲染
- * - 如果是纯文本（来自 textarea），将换行转 <br>，空行转连续 <br>
- * - escape 掉可能的危险 HTML 字符后再插入 <br>，避免 XSS
+ * - 富文本 HTML（含标签）：直接返回原文（服务端已 sanitize 白名单清洗，P0-1），前端不再重复转换
+ * - 纯文本（旧数据 / 无标签）：escape 后换行转 <br>
  */
 import { sanitizeHtml } from "./sanitize.js";
 
 export function formatDescription(text) {
   if (!text) return "";
-  // 简单启发式：如果包含明显的 HTML 块级标签或图片，走清洗后原样输出
+  // 富文本（含块级标签或图片）：直接返回原文，v-html 渲染（服务端入库时已白名单清洗）
   if (/(<\/?(?:p|div|br|ul|ol|li|h[1-6]|strong|em|u|b|i|img|a)\b)/i.test(text)) {
-    return sanitizeHtml(text);
+    return text;
   }
   // 否则当作纯文本：先 escape，然后 \n → <br>，连续 \n 之间补一个 <br>
   const esc = String(text)
