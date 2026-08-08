@@ -1,15 +1,6 @@
 <template>
   <div class="rich-editor" :class="{ focused: focused }">
     <div class="rich-toolbar">
-      <!-- 撤销 / 重做 -->
-      <el-tooltip content="撤销" :show-after="300"><button type="button" class="rich-btn" @mousedown.prevent="editor?.chain().focus().undo().run()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-      </button></el-tooltip>
-      <el-tooltip content="重做" :show-after="300"><button type="button" class="rich-btn" @mousedown.prevent="editor?.chain().focus().redo().run()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-      </button></el-tooltip>
-      <span class="rich-sep"></span>
-
       <!-- 文本：加粗 / 斜体 / 下划线 / 删除线 -->
       <el-tooltip content="加粗" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive('bold') }" @mousedown.prevent="editor?.chain().focus().toggleBold().run()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h6a4 4 0 0 1 0 8H7V5zm0 8h7a4 4 0 0 1 0 8H7v-8z"/></svg>
@@ -37,9 +28,6 @@
       </button></el-tooltip>
       <el-tooltip content="有序列表" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive('orderedList') }" @mousedown.prevent="editor?.chain().focus().toggleOrderedList().run()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="3" y="8" font-size="7" fill="currentColor" stroke="none">1</text><text x="2.6" y="14" font-size="7" fill="currentColor" stroke="none">2</text><text x="2.6" y="20" font-size="7" fill="currentColor" stroke="none">3</text></svg>
-      </button></el-tooltip>
-      <el-tooltip content="任务列表" :show-after="300"><button type="button" class="rich-btn" :class="{ active: editor?.isActive('taskList') }" @mousedown.prevent="editor?.chain().focus().toggleTaskList().run()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="4" height="4" rx="1"/><rect x="4" y="15" width="4" height="4" rx="1"/><line x1="12" y1="7" x2="20" y2="7"/><line x1="12" y1="17" x2="20" y2="17"/><line x1="16" y1="10" x2="20" y2="14"/><line x1="20" y1="10" x2="16" y2="14"/></svg>
       </button></el-tooltip>
       <span class="rich-sep"></span>
 
@@ -255,7 +243,8 @@ async function onFilePicked(e) {
 <style scoped>
 /* 视觉对齐 Element Plus 弹窗（P2）：白底 + EP 边框/背景变量，去暖黄色调 */
 .rich-editor {
-  width: 100%;
+  width: 750px;
+  max-width: 100%; /* 窄容器下防溢出 */
   border: 1px solid var(--el-border-color, oklch(0.9 0.008 270));
   border-radius: 8px;
   overflow: hidden;

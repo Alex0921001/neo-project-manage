@@ -4,7 +4,7 @@
     <el-dialog
       v-model="dialogShow"
       :title="editingId ? '编辑备注' : '新建备注'"
-      width="560px"
+      width="800px"
       :close-on-click-modal="false"
       append-to-body
     >

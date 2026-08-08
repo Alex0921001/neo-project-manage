@@ -166,6 +166,8 @@ export default function registerPluginUiRoutes(app, ctx) {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
+      // 文件不存在直接报错（避免 Start-Process 静默失败，前端无感知）
+      if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // P1-2：execFile + 参数数组（不经 cmd shell），-LiteralPath 字面路径 + 单引号转义
       // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量
       const psCmd = `Start-Process -LiteralPath '${String(filePath).replace(/'/g, "''")}'`;

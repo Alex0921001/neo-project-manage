@@ -2,7 +2,7 @@
   <el-dialog
     :model-value="show"
     :title="isEdit ? '编辑项目' : '新建项目'"
-    width="640px"
+    width="800px"
     :close-on-click-modal="false"
     append-to-body
     @close="$emit('close')"
@@ -13,22 +13,19 @@
       <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" placeholder="项目名称" maxlength="20" show-word-limit />
       </el-form-item>
-      <el-form-item label="描述">
-        <RichEditor
-          v-model="form.description"
-          :project-id="projectId"
-          placeholder="一句话描述项目目标（可选）"
-        />
-      </el-form-item>
 
       <!-- 时间安排 -->
       <div class="form-section-title">时间安排</div>
       <el-form-item label="计划周期">
-        <div class="date-row">
-          <el-date-picker v-model="form.planStart" type="date" value-format="YYYY-MM-DD" placeholder="计划开始" style="flex: 1" />
-          <span class="date-sep">→</span>
-          <el-date-picker v-model="form.planEnd" type="date" value-format="YYYY-MM-DD" placeholder="计划结束" style="flex: 1" />
-        </div>
+        <el-date-picker
+          v-model="planRangeVal"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          range-separator="至"
+          start-placeholder="计划开始"
+          end-placeholder="计划结束"
+          style="width: 100%"
+        />
         <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
       </el-form-item>
 
@@ -61,6 +58,15 @@
         >
           <el-option v-for="m in memberOptions" :key="m" :label="m" :value="m" />
         </el-select>
+      </el-form-item>
+
+      <!-- 描述（富文本，置于表单最后一行）-->
+      <el-form-item label="描述">
+        <RichEditor
+          v-model="form.description"
+          :project-id="projectId"
+          placeholder="一句话描述项目目标（可选）"
+        />
       </el-form-item>
     </el-form>
 
@@ -123,6 +129,13 @@ const rules = {
   ],
 };
 
+// 计划周期 range 绑定：同步到 form.planStart / form.planEnd
+const planRangeVal = ref([]);
+watch(planRangeVal, (v) => {
+  form.planStart = v?.[0] || "";
+  form.planEnd = v?.[1] || "";
+});
+
 // 日期范围校验
 const dateRangeErr = computed(() => {
   if (!form.planStart || !form.planEnd) return false;
@@ -139,6 +152,9 @@ watch(() => props.show, (v) => {
       form.description = d.description || "";
       form.planStart = d.planStart || "";
       form.planEnd = d.planEnd || "";
+      planRangeVal.value = form.planStart || form.planEnd
+        ? [form.planStart || null, form.planEnd || null]
+        : [];
       // 防御：状态不在三个合法选项内时 fallback 到 "待开始"，避免 select 显示空白
       form.status = ["待开始", "进行中", "已完成"].includes(d.status) ? d.status : "待开始";
       form.projectSetId = d.projectSetId || "";
@@ -149,6 +165,7 @@ watch(() => props.show, (v) => {
       form.description = "";
       form.planStart = "";
       form.planEnd = "";
+      planRangeVal.value = [];
       form.status = "待开始";
       form.projectSetId = props.defaultSetId;
       form.members = [];
@@ -192,17 +209,6 @@ async function submit() {
   border-bottom: 1px dashed #e5e7eb;
 }
 
-.date-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-.date-sep {
-  color: #9ca3af;
-  font-size: 16px;
-  flex-shrink: 0;
-}
 .field-err {
   margin-top: 6px;
   font-size: 12px;

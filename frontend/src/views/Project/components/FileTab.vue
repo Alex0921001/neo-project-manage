@@ -101,9 +101,10 @@ async function confirmAdd() {
   if (okCount) { dialogShow.value = false; pending.value = []; emit("changed"); }
 }
 
-function openFile(f) {
+async function openFile(f) {
   if (!f.path) { toast("无文件路径", "error"); return; }
-  api(`api/open-file?path=${encodeURIComponent(f.path)}`);
+  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`);
+  if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 
 function iconClass(name) {

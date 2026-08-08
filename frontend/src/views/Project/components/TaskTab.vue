@@ -13,9 +13,6 @@
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
         </el-form-item>
-        <el-form-item label="简述">
-          <RichEditor v-model="form.description" :project-id="projectId" />
-        </el-form-item>
         <el-form-item label="成员">
           <el-select
             v-model="form.assignees"
@@ -37,6 +34,7 @@
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
+            :disabled-date="disabledTaskDate"
             style="width: 100%"
           />
         </el-form-item>
@@ -51,6 +49,10 @@
           >
             <el-option v-for="f in files" :key="f.id" :label="f.name" :value="f.id" />
           </el-select>
+        </el-form-item>
+        <!-- 简述（富文本，置于表单最后一行）-->
+        <el-form-item label="简述">
+          <RichEditor v-model="form.description" :project-id="projectId" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -471,6 +473,18 @@ function syncDateRangeFromForm() {
   dateRangeVal.value = form.startDate || form.endDate
     ? [form.startDate || null, form.endDate || null]
     : [];
+}
+
+// ===== 起止日期范围限制：限定在项目计划周期内（disabled-date，按本地时区整日比较）=====
+function toLocalMidnight(str) {
+  const [y, m, d] = String(str).split("-").map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+function disabledTaskDate(date) {
+  const t = date.getTime();
+  const start = props.planStart ? toLocalMidnight(props.planStart) : -Infinity;
+  const end = props.planEnd ? toLocalMidnight(props.planEnd) : Infinity;
+  return t < start || t > end;
 }
 
 const isEditMode = computed(() => !!editingId.value || !!editingSubId.value);
