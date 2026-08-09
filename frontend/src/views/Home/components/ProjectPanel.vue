@@ -44,8 +44,8 @@
           <div class="group-title-row">
             <span :class="['group-dot', `dot-${group.key}`]"></span>
             <span class="proj-group-title">{{ group.label }}</span>
+            <span class="proj-group-count">{{ group.items.length }}</span>
           </div>
-          <span class="proj-group-count">{{ group.items.length }}</span>
         </div>
         <div class="project-grid">
           <ProjectCard
@@ -310,7 +310,6 @@ defineExpose({ load, setFilter, filSetId });
 .proj-group-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 12px;
 }
 .group-title-row { display: inline-flex; align-items: center; gap: 8px; }
@@ -334,13 +333,11 @@ defineExpose({ load, setFilter, filSetId });
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  padding: 1px 8px;
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  min-width: 20px;
+  padding: 0 6px;
   font-size: 11px;
-  font-weight: 700;
-  border-radius: 999px;
+  font-weight: 600;
+  color: var(--text-tertiary);
   line-height: 1.6;
   font-variant-numeric: tabular-nums;
 }
