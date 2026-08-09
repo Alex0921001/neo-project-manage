@@ -32,7 +32,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import zhCn from "@fullcalendar/core/locales/zh-cn";
 import dayjs from "dayjs";
 import { api } from "../api.js";
-import { candyPalette as palette } from "../utils/palette.js";
+import { candyPalette as palette, pickPaletteColor } from "../utils/palette.js";
 
 const props = defineProps({
   projects: { type: Array, default: () => [] },
@@ -131,12 +131,27 @@ const visibleTaskEvents = computed(() => {
 const fcEvents = computed(() => {
   try {
     if (props.taskMode) {
-      return visibleTaskEvents.value.map((t, idx) => {
+      // 项目色条（不参与筛选，恒显示）：当前项目起止范围
+      const proj = Array.isArray(props.projects) ? props.projects[0] : null;
+      const projEvents = [];
+      if (proj && proj.planStart && proj.planEnd) {
+        projEvents.push({
+          title: proj.name || "项目",
+          start: proj.planStart,
+          end: dayjs(proj.planEnd).add(1, "day").format("YYYY-MM-DD"),
+          backgroundColor: "var(--status-doing-text)",
+          borderColor: "var(--status-doing-text)",
+          textColor: "#fff",
+          extendedProps: { projectId: proj.id, kind: "project" },
+        });
+      }
+      // 任务色条（按筛选过滤；颜色按任务 id 哈希固定，筛选不跳色）
+      const taskList = visibleTaskEvents.value.map((t) => {
         const start = t.startDate || t.endDate;
         const endRaw = t.endDate || t.startDate;
         // FC 左闭右开：用 dayjs 纯日期运算 +1 天，避免 UTC/本地时区偏差（P3-3）
         const end = dayjs(endRaw).add(1, "day").format("YYYY-MM-DD");
-        const color = palette[idx % palette.length];
+        const color = pickPaletteColor(t.id);
         return {
           title: t.name || "未命名任务",
           start,
@@ -147,17 +162,18 @@ const fcEvents = computed(() => {
           extendedProps: { projectId: t.projectId, taskId: t.id, projectName: t.projectName },
         };
       });
+      return [...projEvents, ...taskList];
     }
     // 项目模式（问题2：用 visibleProjects 让「全部/未完成/已完成」筛选生效）
     return (Array.isArray(visibleProjects.value) ? visibleProjects.value : [])
-      .map((p, idx) => {
+      .map((p) => {
         if (!p.planStart || !p.planEnd) return null;
         // FC 左闭右开：用 dayjs 纯日期运算 +1 天，避免 UTC/本地时区偏差（P3-3）
         const endDate = dayjs(p.planEnd).add(1, "day").format("YYYY-MM-DD");
         const setName = getSetName(p.projectSetId);
         const projectName = p.name || "未命名";
         const title = setName ? `${setName}-${projectName}` : projectName;
-        const color = palette[idx % palette.length];
+        const color = pickPaletteColor(p.id);
         return {
           title,
           start: p.planStart,
@@ -196,6 +212,8 @@ const fcOptions = computed(() => ({
   eventClick(info) {
     const ep = info.event.extendedProps || {};
     if (props.taskMode) {
+      // 项目色条不可点击，任务条才跳转
+      if (ep.kind === "project") return;
       if (ep.projectId && ep.taskId) emit("select-task", { projectId: ep.projectId, taskId: ep.taskId });
       return;
     }

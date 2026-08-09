@@ -27,6 +27,10 @@
           任务
           <span class="tab-pill">{{ incompleteCount }}</span>
         </button>
+        <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          日历
+        </button>
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           文件
@@ -53,13 +57,24 @@
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
-          <button class="header-btn header-btn-primary" @click="onTabAction">
+          <button v-if="tab !== 'calendar'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
         </div>
       </div>
       <div class="tab-content">
+        <!-- 日历 tab：项目任务日历 -->
+        <div v-if="tab === 'calendar'" class="task-calendar-tab">
+          <CalendarWidget
+            :projects="p ? [p] : []"
+            :sets="allSets"
+            :compact="false"
+            task-mode
+            :project-id="p?.id || ''"
+            @select-task="onTabCalendarSelectTask"
+          />
+        </div>
         <TaskTab
           v-show="tab === 'tasks'"
           ref="taskTabRef"
@@ -121,6 +136,7 @@ import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
+import CalendarWidget from "../../components/CalendarWidget.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -146,9 +162,7 @@ const fullBreadcrumb = computed(() => {
 
 // ===== Tab =====
 const tabKey = `neo-pm-tab-${props.projectId}`;
-const savedTab = localStorage.getItem(tabKey);
-// 日历 tab 已移除，历史残留值回退到任务
-const tab = ref(savedTab && savedTab !== "calendar" ? savedTab : "tasks");
+const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 
 // ===== 一键展开/收起 =====
@@ -200,6 +214,13 @@ function onTabAction() {
   if (tab.value === 'tasks') taskTabRef.value?.openAdd();
   else if (tab.value === 'files') fileTabRef.value?.pickFile();
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
+}
+
+// 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
+function onTabCalendarSelectTask({ taskId }) {
+  if (!taskId) return;
+  tab.value = "tasks";
+  nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
 }
 
 // ===== Delete Project =====
@@ -483,5 +504,10 @@ async function doConfirm() {
 .tab-content {
   padding: 20px;
   background: var(--bg-card);
+}
+.task-calendar-tab {
+  height: 620px; /* 固定高度：日历 tab 的 CalendarWidget 是 flex 布局（.cal-widget flex:1），需要父容器有确定高度才能铺满 */
+  display: flex;
+  flex-direction: column;
 }
 </style>
