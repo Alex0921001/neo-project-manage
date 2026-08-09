@@ -275,6 +275,13 @@ export async function mockApi(method, path, query, body) {
   if (p === "api/version") {
     return respond({ version: "1.2.0", source: realDb ? "real-sqlite(ro)" : "mock", loadedAt: now + "T00:00:00", frontendBuiltAt: "dev" });
   }
+  // 桌面专属能力：浏览器预览环境不可用，明确提示
+  if (p === "api/pick-file") {
+    return err("文件选择仅支持 Hana 桌面客户端，浏览器预览不可用");
+  }
+  if (p === "api/open-file") {
+    return err("打开文件仅支持 Hana 桌面客户端，浏览器预览不可用");
+  }
   if (p === "api/pick-file") return respond({ ok: true, path: "C:/mock/示例文件.docx", name: "示例文件.docx" });
   if (p.startsWith("api/open-file")) return respond({ ok: true });
 
