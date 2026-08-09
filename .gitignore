@@ -16,3 +16,6 @@ frontend/.vite/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# 开发环境日志
+devserver*.log
