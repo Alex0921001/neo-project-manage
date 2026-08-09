@@ -797,29 +797,22 @@ defineExpose({ openAdd, scrollToTaskById });
 }
 .connector-path {
   fill: none;
-  stroke: oklch(0.68 0.13 65);
+  stroke: var(--accent-warm);
   stroke-width: 2;
   stroke-linecap: round;
-  stroke-dasharray: 6 4;
   opacity: 0.85;
-  animation: connector-dash 1.2s linear infinite;
-  filter: drop-shadow(0 1px 1px oklch(0.5 0.04 80 / 0.15));
-}
-@keyframes connector-dash {
-  to { stroke-dashoffset: -20; }
 }
 .connector-dot-start {
-  fill: oklch(0.68 0.13 65);
+  fill: var(--accent-warm);
   opacity: 0.9;
 }
 .connector-dot-end {
-  fill: oklch(0.96 0.04 90);
-  stroke: oklch(0.55 0.13 35);
+  fill: var(--accent-warm-subtle);
+  stroke: var(--accent-warm-hover);
   stroke-width: 2;
-  filter: drop-shadow(0 2px 3px oklch(0.5 0.05 80 / 0.22));
 }
 .connector-dot-end-inner {
-  fill: oklch(0.55 0.13 35);
+  fill: var(--accent-warm-hover);
 }
 .task-group {
   margin-bottom: 18px;
@@ -834,11 +827,11 @@ defineExpose({ openAdd, scrollToTaskById });
   gap: 10px;
 }
 
-/* vuedraggable 状态类：蓝色拖拽占位 + 拖拽中反馈 */
+/* vuedraggable 状态类：拖拽占位（蓝=放置目标） + 拖拽中反馈 */
 .task-ghost {
-  opacity: 0.5;
-  background: oklch(0.82 0.10 240) !important;
-  border: 1px dashed oklch(0.60 0.15 240) !important;
+  opacity: 0.55;
+  background: transparent;
+  border: 1px dashed var(--status-doing-text);
   border-radius: var(--radius-md);
 }
 .task-chosen {
@@ -846,38 +839,35 @@ defineExpose({ openAdd, scrollToTaskById });
 }
 .task-drag {
   opacity: 0.92;
-  box-shadow: 0 8px 20px oklch(0.3 0.05 80 / 0.18);
+  box-shadow: var(--shadow-lg);
   transform: rotate(1deg);
 }
 .task-group-header {
   display: flex; align-items: center; gap: 8px;
   margin-bottom: 10px; padding: 0 2px 6px;
-  border-bottom: 1px dashed oklch(0.86 0.05 85);
+  border-bottom: 1px solid var(--border-light);
 }
 .task-group-title {
-  font-size: 11px; font-weight: 700; color: oklch(0.45 0.08 75);
+  font-size: 11px; font-weight: 700; color: var(--status-todo-text);
   letter-spacing: 0.06em; text-transform: uppercase;
 }
 .task-group-count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px;
-  background: oklch(0.93 0.08 85);
-  color: oklch(0.40 0.12 75);
+  background: var(--bg-hover);
+  color: var(--status-todo-text);
   font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 8px;
   line-height: 1.3;
 }
 
-/* 已完成分组：绿调 */
-.task-group.task-group-done .task-group-header {
-  border-bottom-color: oklch(0.82 0.10 145);
-}
+/* 已完成分组：绿调状态色 */
 .task-group.task-group-done .task-group-title {
-  color: oklch(0.40 0.14 145);
+  color: var(--status-done-text);
 }
 .task-group.task-group-done .task-group-count {
-  background: oklch(0.90 0.12 145);
-  color: oklch(0.28 0.14 145);
+  background: var(--bg-hover);
+  color: var(--status-done-text);
 }
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
 

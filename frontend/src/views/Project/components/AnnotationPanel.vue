@@ -9,7 +9,9 @@
     </div>
 
     <div v-if="!target" class="annot-empty">
-      <span class="annot-empty-icon">📝</span>
+      <span class="annot-empty-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </span>
       <p>点击任务或子任务的<br /><b>批注</b>按钮查看备注</p>
     </div>
 
@@ -66,7 +68,7 @@
           </div>
         </template>
         <div v-else class="sticky-empty">
-          {{ targetDone ? '该任务没有批注' : '暂无批注，写一条吧 👇' }}
+          {{ targetDone ? '该任务没有批注' : '暂无批注，写一条吧' }}
         </div>
       </div>
 
@@ -261,8 +263,8 @@ async function saveEdit() {
   flex-shrink: 0;
   min-height: 200px;
   max-height: 560px;
-  background: linear-gradient(135deg, oklch(0.97 0.02 90), oklch(0.96 0.02 80));
-  border: 1px solid oklch(0.86 0.05 85);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
   padding: 14px;
   overflow: hidden;
@@ -272,7 +274,7 @@ async function saveEdit() {
 .annot-head {
   display: flex; justify-content: space-between; align-items: center;
   padding-bottom: 10px; margin-bottom: 10px;
-  border-bottom: 1px dashed oklch(0.86 0.05 85);
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
   gap: 8px;
 }
@@ -281,33 +283,33 @@ async function saveEdit() {
   min-width: 0; flex: 1;
 }
 .annot-title {
-  font-size: 13px; font-weight: 700; color: oklch(0.45 0.10 80);
+  font-size: 13px; font-weight: 700; color: var(--text-secondary);
   letter-spacing: 0.04em;
   flex-shrink: 0;
 }
 .annot-target {
-  font-size: 11px; color: oklch(0.55 0.08 70);
-  background: oklch(0.95 0.05 85);
+  font-size: 11px; color: var(--text-tertiary);
+  background: var(--bg-hover);
   padding: 2px 8px; border-radius: 10px;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
 }
 .annot-close {
   width: 24px; height: 24px;
-  border: 1px solid oklch(0.86 0.05 85);
-  background: oklch(0.99 0.02 90);
-  color: oklch(0.55 0.08 70);
-  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 12px; line-height: 1;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  transition: all 100ms var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .annot-close:hover {
-  background: oklch(0.93 0.05 30 / 0.4);
-  color: oklch(0.45 0.18 30);
-  border-color: oklch(0.65 0.13 30);
+  background: var(--bg-hover);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .annot-empty {
@@ -316,8 +318,8 @@ async function saveEdit() {
   color: var(--text-tertiary); font-size: 12px; text-align: center;
   gap: 6px;
 }
-.annot-empty-icon { font-size: 24px; opacity: 0.45; }
-.annot-empty b { color: oklch(0.55 0.10 80); }
+.annot-empty-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--bg-hover); display: inline-flex; align-items: center; justify-content: center; color: var(--text-tertiary); }
+.annot-empty b { color: var(--text-secondary); }
 
 .annot-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 
@@ -332,31 +334,31 @@ async function saveEdit() {
 .sticky-board::-webkit-scrollbar { display: none; }
 .sticky-empty {
   flex: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: oklch(0.55 0.08 70); padding: 24px 0;
+  font-size: 12px; color: var(--text-tertiary); padding: 24px 0;
 }
 
-/* 便利贴：黄色方块 + 阴影，已确认用绿色 */
+/* 便利贴：黄底（待确认）/ 绿底（已确认），带轻阴影 */
 .sticky {
   padding: 10px 12px;
-  background: oklch(0.95 0.10 90);
-  box-shadow: 0 1px 3px oklch(0.5 0.05 80 / 0.18), 0 4px 10px oklch(0.5 0.05 80 / 0.08);
-  border-radius: 4px;
+  background: var(--sticky-bg);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-sm);
   word-break: break-word;
-  transition: background 120ms var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out);
 }
 .sticky-done {
-  background: oklch(0.93 0.10 145);
+  background: var(--sticky-bg-confirmed);
 }
 .sticky-content {
   margin: 0 0 8px; font-size: 13px; line-height: 1.55;
-  color: oklch(0.30 0.05 80);
+  color: var(--text);
 }
-.sticky-done .sticky-content { color: oklch(0.30 0.06 145); }
+.sticky-done .sticky-content { color: var(--text); }
 .sticky-foot {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: oklch(0.50 0.06 75);
+  font-size: 11px; color: var(--text-secondary);
 }
-.sticky-done .sticky-foot { color: oklch(0.45 0.08 145); }
+.sticky-done .sticky-foot { color: var(--text-secondary); }
 .sticky-actions { display: flex; gap: 4px; align-items: center; }
 
 /* 统一图标按钮：无边框，仅 hover 变色 */
@@ -364,32 +366,32 @@ async function saveEdit() {
   width: 26px; height: 26px;
   border: none;
   background: transparent;
-  color: oklch(0.55 0.08 75);
-  border-radius: 6px;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 100ms var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .sticky-icon-btn:hover {
-  background: oklch(0.92 0.06 85);
-  color: oklch(0.35 0.10 75);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 
 /* 编辑态：便利贴高亮 + 输入框 */
 .sticky.sticky-editing {
-  background: oklch(0.96 0.08 85);
-  border: 1px dashed oklch(0.65 0.13 80);
-  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.10);
+  background: var(--sticky-bg);
+  border: 1px solid var(--accent-warm);
+  box-shadow: 0 0 0 3px var(--accent-warm-subtle);
 }
 .sticky-edit-input {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid oklch(0.65 0.13 80);
+  border: 1px solid var(--accent-warm);
   border-radius: var(--radius-sm);
   font-size: 13px; line-height: 1.55;
-  background: #fff;
+  background: var(--bg-card);
   color: var(--text);
   outline: none;
   resize: vertical;
@@ -398,8 +400,8 @@ async function saveEdit() {
   min-height: 80px;
 }
 .sticky-edit-input:focus {
-  border-color: oklch(0.55 0.13 75);
-  box-shadow: 0 0 0 3px oklch(0.65 0.13 80 / 0.15);
+  border-color: var(--accent-warm-hover);
+  box-shadow: 0 0 0 3px var(--accent-warm-subtle);
 }
 
 /* 保存 / 取消按钮 */
@@ -411,26 +413,26 @@ async function saveEdit() {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 100ms var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
   border: 1px solid transparent;
 }
 .sticky-cancel {
   background: transparent;
-  border-color: oklch(0.85 0.06 80);
-  color: oklch(0.50 0.08 75);
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
-.sticky-cancel:hover { background: oklch(0.96 0.04 85); border-color: oklch(0.75 0.08 80); color: oklch(0.35 0.10 75); }
+.sticky-cancel:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text); }
 .sticky-save {
-  background: oklch(0.72 0.13 80);
-  color: #fff;
-  border-color: oklch(0.65 0.13 80);
+  background: var(--accent-warm);
+  color: var(--bg-card);
+  border-color: var(--accent-warm);
 }
-.sticky-save:hover:not(:disabled) { background: oklch(0.68 0.13 80); border-color: oklch(0.60 0.13 80); }
+.sticky-save:hover:not(:disabled) { background: var(--accent-warm-hover); border-color: var(--accent-warm-hover); }
 .sticky-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 输入区：仅未完成态显示 */
 .annot-compose {
-  border-top: 1px dashed oklch(0.86 0.05 85);
+  border-top: 1px solid var(--border-light);
   padding-top: 10px;
   display: flex; flex-direction: column; gap: 6px;
   flex-shrink: 0;
@@ -438,31 +440,31 @@ async function saveEdit() {
 .annot-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid oklch(0.86 0.05 85);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   font-size: 13px; line-height: 1.55;
-  background: oklch(0.99 0.02 90);
+  background: var(--bg-card);
   color: var(--text);
   outline: none; resize: vertical;
   font-family: inherit;
   min-height: 90px;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
-.annot-input:focus { border-color: oklch(0.65 0.13 80); }
+.annot-input:focus { border-color: var(--accent-warm); }
 .annot-actions {
   display: flex; justify-content: space-between; align-items: center;
 }
 .annot-hint { font-size: 11px; color: var(--text-tertiary); }
 .annot-btn {
   padding: 5px 16px; border-radius: var(--radius-sm);
-  background: oklch(0.72 0.13 80); color: #fff;
-  border: 1px solid oklch(0.65 0.13 80);
+  background: var(--accent-warm); color: var(--bg-card);
+  border: 1px solid var(--accent-warm);
   font-size: 12px; font-weight: 600;
   cursor: pointer;
-  transition: all 100ms var(--ease-out);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .annot-btn:hover:not(:disabled) {
-  background: oklch(0.68 0.13 80); border-color: oklch(0.60 0.13 80);
+  background: var(--accent-warm-hover); border-color: var(--accent-warm-hover);
 }
 .annot-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

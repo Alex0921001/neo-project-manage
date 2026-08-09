@@ -220,10 +220,10 @@ function avatarColor(name) {
 
 <style scoped>
 .detail-meta {
-  background: #ffffff;
+  background: var(--bg-card);
   border-radius: var(--radius-lg);
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -243,26 +243,26 @@ function avatarColor(name) {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #1f2937;
+  color: var(--text);
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.meta-title-empty { color: #9ca3af; font-weight: 500; }
+.meta-title-empty { color: var(--text-tertiary); font-weight: 500; }
 
 .icon-btn {
   width: 28px;
   height: 28px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--bg-card);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
   padding: 0;
@@ -270,23 +270,23 @@ function avatarColor(name) {
 .btn-back {
   width: 28px;
   height: 28px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-light);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--bg-card);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
   padding: 0;
 }
 .icon-btn:hover,
 .btn-back:hover {
-  background: #f3f4f6;
-  color: #111827;
-  border-color: #9ca3af;
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
 }
 .icon-btn svg,
 .btn-back svg { display: block; }
@@ -297,33 +297,34 @@ function avatarColor(name) {
   gap: 8px;
   flex-wrap: wrap;
   padding: 10px 12px;
-  background: #f9fafb;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
 }
 .meta-status-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.02em;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-light);
+  background: transparent;
 }
 .chip-button {
   cursor: pointer;
   font-family: inherit;
   letter-spacing: 0.02em;
   padding-right: 8px;
-  transition: filter 120ms ease-out, transform 120ms ease-out;
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 .chip-button:hover:not(:disabled) {
-  filter: brightness(0.96);
+  border-color: var(--border);
 }
 .chip-button:active:not(:disabled) {
-  transform: translateY(1px);
+  opacity: 0.75;
 }
 .chip-button:disabled {
   cursor: default;
@@ -340,12 +341,13 @@ function avatarColor(name) {
   height: 8px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px currentColor;
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px currentColor;
 }
-.status-todo { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-.status-doing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-.status-done { background: #d1fae5; color: #065f46; border-color: #a7f3d0; }
-.status-delay { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+/* 状态圆点/文字风格：无底色块，与首页卡片一致 */
+.status-todo { color: var(--status-todo-text); }
+.status-doing { color: var(--status-doing-text); }
+.status-done { color: var(--status-done-text); }
+.status-delay { color: var(--status-delay-text); }
 
 /* 状态下拉容器 */
 .status-dropdown { position: relative; display: inline-flex; }
@@ -356,20 +358,21 @@ function avatarColor(name) {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-light);
   flex: 1;
   justify-content: center;
   min-width: 0;
+  background: transparent;
 }
 .meta-countdown svg { display: block; flex-shrink: 0; }
-.countdown-future { background: #ffffff; color: #374151; border-color: #d1d5db; }
-.countdown-today { background: #f9fafb; color: #111827; border-color: #6b7280; font-weight: 700; }
-.countdown-overdue { background: #f3f4f6; color: #111827; border-color: #1f2937; font-weight: 700; }
-.countdown-started { background: #f9fafb; color: #4b5563; border-color: #e5e7eb; }
-.countdown-done { background: #f9fafb; color: #4b5563; border-color: #e5e7eb; }
+.countdown-future { background: transparent; color: var(--text-secondary); border-color: var(--border); }
+.countdown-today { background: var(--bg-hover); color: var(--text); border-color: var(--text-secondary); font-weight: 700; }
+.countdown-overdue { background: var(--bg-hover); color: var(--danger); border-color: var(--danger); font-weight: 700; }
+.countdown-started { background: transparent; color: var(--text-secondary); border-color: var(--border-light); }
+.countdown-done { background: transparent; color: var(--text-secondary); border-color: var(--border-light); }
 
 /* 字段卡片网格 */
 .meta-grid {
@@ -381,9 +384,9 @@ function avatarColor(name) {
   min-height: 0;
 }
 .meta-card {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -391,8 +394,8 @@ function avatarColor(name) {
   transition: all var(--duration-fast) var(--ease-out);
 }
 .meta-card:hover {
-  border-color: #9ca3af;
-  background: #ffffff;
+  border-color: var(--border);
+  background: var(--bg-card);
 }
 .meta-card-wide { grid-column: 1 / -1; }
 .meta-card-label {
@@ -401,7 +404,7 @@ function avatarColor(name) {
   gap: 5px;
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -409,7 +412,7 @@ function avatarColor(name) {
 .meta-card-value {
   font-size: 14px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--text);
   line-height: 1.45;
 }
 .meta-card-date {
@@ -419,20 +422,20 @@ function avatarColor(name) {
   flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
 }
-.meta-card-date-sep { color: #9ca3af; font-size: 12px; }
+.meta-card-date-sep { color: var(--text-tertiary); font-size: 12px; }
 .meta-desc {
   font-weight: 400;
-  color: #4b5563;
+  color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
 }
 .meta-desc-body {
   font-weight: 400;
-  color: #4b5563;
+  color: var(--text-secondary);
   word-break: break-word;
   line-height: 1.6;
 }
-.meta-empty { color: #9ca3af; font-weight: 400; font-style: italic; }
+.meta-empty { color: var(--text-tertiary); font-weight: 400; font-style: italic; }
 
 /* 成员 pill：头像 + 姓名，姓名能完整显示 */
 .member-pills {
@@ -447,12 +450,12 @@ function avatarColor(name) {
   gap: 5px;
   height: 22px;
   padding: 0 8px 0 2px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: 11px;
   max-width: 100%;
   font-size: 11px;
-  color: #374151;
+  color: var(--text-secondary);
   font-weight: 500;
   flex-shrink: 0;
   min-width: 0;
@@ -464,7 +467,7 @@ function avatarColor(name) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--on-avatar);
   font-size: 10px;
   font-weight: 700;
   flex-shrink: 0;
@@ -491,7 +494,7 @@ function avatarColor(name) {
   height: 8px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 3px currentColor;
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px currentColor;
   flex-shrink: 0;
 }
 .status-dd-item .status-menu-label { line-height: 1.6; }

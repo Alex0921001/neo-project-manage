@@ -38,7 +38,7 @@
 
     <div class="file-grid">
       <div v-for="f in files" :key="f.id" class="file-chip" title="双击打开" @dblclick="openFile(f)">
-        <span class="chip-icon" :class="'chip-'+iconClass(f.name)" v-text="iconShort(f.name)"></span>
+        <span class="chip-icon" v-text="iconShort(f.name)"></span>
         <span class="chip-name">{{ f.name }}</span>
         <button class="chip-del" @click.stop="emit('confirm-ask', { message: '确认删除此文件？', action: 'delete-file', payload: f.id })">✕</button>
         <div class="chip-bottom"><span class="chip-date">{{ f.uploadedAt }}</span></div>
@@ -107,11 +107,6 @@ async function openFile(f) {
   if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 
-function iconClass(name) {
-  const ext = (name || "").split(".").pop()?.toLowerCase();
-  const map = { pdf: "pdf", doc: "doc", docx: "doc", xls: "xls", xlsx: "xls", ppt: "ppt", pptx: "ppt", txt: "txt", md: "md", jpg: "img", jpeg: "img", png: "img", gif: "img", webp: "img", svg: "img", mp4: "vid", mov: "vid", avi: "vid", mkv: "vid", mp3: "aud", wav: "aud", flac: "aud", ogg: "aud", zip: "arc", rar: "arc", "7z": "arc", json: "code", js: "code", css: "code", html: "code", xml: "code", yaml: "code", toml: "code", csv: "data" };
-  return map[ext] || "file";
-}
 function iconShort(name) {
   const ext = (name || "").split(".").pop()?.toLowerCase();
   const map = { doc: "doc", docx: "doc", xls: "xls", xlsx: "xls", ppt: "ppt", pptx: "ppt", jpg: "img", jpeg: "img", png: "img", gif: "img", webp: "img", svg: "img", mp4: "vid", mov: "vid", avi: "vid", mkv: "vid", mp3: "aud", wav: "aud", flac: "aud", zip: "zip", rar: "rar", "7z": "7z", csv: "csv", js: "js", css: "css", html: "htm", xml: "xml", json: "jn", yaml: "yml", toml: "tml" };
@@ -135,16 +130,11 @@ defineExpose({ openAdd, pickFile: openAdd });
 .file-chip:hover { border-color: var(--border); box-shadow: var(--shadow-md); }
 .chip-icon {
   width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 5px; font-size: 10px; font-weight: 700; color: #fff;
+  border-radius: 5px; font-size: 10px; font-weight: 700; color: var(--text-secondary);
   letter-spacing: 0.2px; grid-row: 1; grid-column: 1;
+  background: var(--bg-hover);
 }
-.chip-pdf { background: #e74c3c; } .chip-doc { background: #2b6db0; }
-.chip-xls { background: #27ae60; } .chip-ppt { background: #d35400; }
-.chip-txt { background: #7f8c8d; } .chip-md { background: #3498db; }
-.chip-img { background: #8e44ad; } .chip-vid { background: #e67e22; }
-.chip-aud { background: #1abc9c; } .chip-arc { background: #f39c12; }
-.chip-code { background: #2c3e50; } .chip-data { background: #16a085; }
-.chip-file { background: #95a5a6; }
+/* 文件类型图标统一黑白灰（不再按类型着色） */
 .chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
 .chip-bottom { display: flex; justify-content: space-between; align-items: center; padding-left: 34px; }
 .chip-date { color: var(--text-tertiary); font-size: 12px; white-space: nowrap; }
@@ -156,7 +146,7 @@ defineExpose({ openAdd, pickFile: openAdd });
   grid-row: 1; grid-column: 3;
 }
 .file-chip:hover .chip-del { opacity: 0.6; }
-.chip-del:hover { opacity: 1 !important; background: oklch(0.93 0.05 30 / 0.3); color: oklch(0.5 0.18 30); }
+.chip-del:hover { opacity: 1 !important; background: var(--bg-hover); color: var(--danger); }
 
 .pick-hint {
   margin-top: 6px;
@@ -197,7 +187,7 @@ defineExpose({ openAdd, pickFile: openAdd });
   flex-shrink: 0;
   transition: all 0.15s;
 }
-.pending-del:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
+.pending-del:hover { color: var(--danger); background: var(--bg-hover); }
 .pending-empty {
   font-size: 12px;
   color: var(--text-tertiary);

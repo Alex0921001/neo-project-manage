@@ -209,7 +209,7 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
 
 <style scoped>
 .cal-widget {
-  background: #fff;
+  background: var(--bg-card);
   /* 完整外框 + 圆角：表头左右边框和四角圆角都由这里提供 */
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -305,7 +305,7 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
 .cal-filter-btn:hover { background: var(--bg-hover); }
 .cal-filter-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: var(--bg-card);
 }
 
 /* 时间控制器：< 年-月 > 绝对居中 */
@@ -357,10 +357,10 @@ function goNext() { calendarRef.value?.getApi()?.next(); }
 <style>
 /* ===== FullCalendar 全局样式覆盖 ===== */
 .cal-widget .fc {
-  --fc-border-color: #e5e7eb;
-  --fc-page-bg-color: #fff;
-  --fc-neutral-bg-color: #fff;
-  --fc-today-bg-color: rgba(255, 193, 7, 0.12);
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--calendar-bg);
+  --fc-neutral-bg-color: var(--calendar-bg);
+  --fc-today-bg-color: var(--accent-warm-subtle);
 }
 /* fc 外框与 section 全去边框，外沿统一由 .cal-widget 的 1px 边框 + 圆角提供 */
 .cal-widget .fc .fc-scrollgrid,

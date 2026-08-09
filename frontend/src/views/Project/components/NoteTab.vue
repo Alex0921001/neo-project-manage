@@ -173,25 +173,20 @@ defineExpose({ openAdd: startAdd });
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  background: linear-gradient(180deg, oklch(0.72 0.13 78), oklch(0.66 0.13 75));
-  color: #fff;
-  border: 1px solid oklch(0.60 0.13 73);
-  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg-card);
+  border: 1px solid var(--text);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  transition: all 120ms var(--ease-out);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .notes-add:hover {
-  background: linear-gradient(180deg, oklch(0.66 0.13 75), oklch(0.60 0.13 72));
-  border-color: oklch(0.54 0.13 70);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
-  transform: translateY(-0.5px);
-}
-.notes-add:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: var(--shadow-md);
 }
 
 /* ============ 空态 ============ */
@@ -204,27 +199,27 @@ defineExpose({ openAdd: startAdd });
   padding: 40px 20px;
   text-align: center;
   color: var(--text-tertiary);
-  border: 1.5px dashed oklch(0.88 0.03 80);
-  border-radius: 12px;
-  background: linear-gradient(180deg, oklch(0.99 0.01 90), oklch(0.97 0.02 80));
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
   gap: 6px;
 }
 .notes-empty-deco {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: oklch(0.96 0.04 80);
+  background: var(--bg-hover);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: oklch(0.60 0.06 75);
+  color: var(--text-tertiary);
   margin-bottom: 6px;
 }
 .notes-empty-title {
   margin: 0;
   font-size: 13px;
   font-weight: 600;
-  color: oklch(0.45 0.05 80);
+  color: var(--text-secondary);
 }
 .notes-empty-sub {
   margin: 0;
@@ -246,26 +241,19 @@ defineExpose({ openAdd: startAdd });
 
 .note-card {
   position: relative;
-  background: linear-gradient(180deg, oklch(0.99 0.015 88) 0%, oklch(0.97 0.02 80) 100%);
-  border: 1px solid oklch(0.90 0.04 80);
-  border-left-width: 1px;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
   padding: 14px 16px 10px 22px;
-  box-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
   transition:
-    transform 200ms cubic-bezier(0.34, 1.4, 0.5, 1),
-    box-shadow 200ms ease,
-    border-color 200ms ease;
+    box-shadow var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
   overflow: hidden;
 }
 .note-card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.06),
-    0 10px 22px rgba(0, 0, 0, 0.07);
-  border-color: oklch(0.85 0.06 75);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border);
 }
 
 /* 左侧色条 */
@@ -275,8 +263,8 @@ defineExpose({ openAdd: startAdd });
   bottom: 0;
   left: 0;
   width: 4px;
-  background: var(--accent, oklch(0.72 0.13 75));
-  border-radius: 8px 0 0 8px;
+  background: var(--accent, var(--accent-warm));
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
 }
 
 /* 装饰引号 */
@@ -286,7 +274,7 @@ defineExpose({ openAdd: startAdd });
   right: 12px;
   font-size: 32px;
   line-height: 1;
-  color: var(--accent, oklch(0.72 0.13 75));
+  color: var(--accent, var(--accent-warm));
   opacity: 0.18;
   font-family: Georgia, "Times New Roman", serif;
   pointer-events: none;
@@ -297,7 +285,7 @@ defineExpose({ openAdd: startAdd });
   margin: 0 0 10px;
   font-size: 13.5px;
   line-height: 1.7;
-  color: oklch(0.25 0.04 80);
+  color: var(--text);
   letter-spacing: 0.005em;
 }
 
@@ -306,27 +294,20 @@ defineExpose({ openAdd: startAdd });
   justify-content: space-between;
   align-items: center;
   padding-top: 8px;
-  border-top: 1px dashed oklch(0.88 0.05 75);
+  border-top: 1px solid var(--border-light);
 }
 .note-date {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: oklch(0.55 0.05 75);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 
 .note-actions {
   display: flex;
   gap: 2px;
-  opacity: 0;
-  transform: translateX(4px);
-  transition: all 180ms var(--ease-out);
-}
-.note-card:hover .note-actions {
-  opacity: 1;
-  transform: translateX(0);
 }
 .note-action {
   width: 26px;
@@ -338,16 +319,16 @@ defineExpose({ openAdd: startAdd });
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: oklch(0.55 0.05 75);
-  transition: all 120ms var(--ease-out);
+  color: var(--text-tertiary);
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .note-action-edit:hover {
-  background: oklch(0.94 0.06 80);
-  color: oklch(0.40 0.13 75);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
 }
 .note-action-del:hover {
-  background: oklch(0.93 0.08 30);
-  color: oklch(0.45 0.18 30);
+  background: var(--bg-hover);
+  color: var(--danger);
 }
 
 .form-hint {

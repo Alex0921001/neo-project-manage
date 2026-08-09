@@ -244,6 +244,17 @@ onMounted(async () => {
   --status-doing-text: oklch(0.62 0.21 255);
   --status-done-text: oklch(0.70 0.17 162);
   --status-delay-text: oklch(0.64 0.24 25);
+
+  /* === 危险操作 / 错误提示（删除 hover、错误文字、逾期强调） === */
+  --danger: oklch(0.55 0.22 25);
+
+  /* === 便利贴（批注卡片）专用底色：黄=待确认，绿=已确认 === */
+  --sticky-bg: oklch(0.95 0.10 90);
+  --sticky-bg-confirmed: oklch(0.93 0.10 145);
+
+  /* === 固定前景/表层色（不随主题翻转，因对应底色为固定色板或第三方组件） === */
+  --on-avatar: oklch(0.28 0 0);        /* 成员头像前景（头像底色为 script 固定调色板） */
+  --calendar-bg: oklch(0.98 0 0);      /* 日历表层（FullCalendar 文字色不随主题翻转，表层独立） */
 }
 
 /* === 暗色主题预留框架（启用：根元素加 data-theme="dark"） === */

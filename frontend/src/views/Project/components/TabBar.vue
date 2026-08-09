@@ -2,13 +2,13 @@
   <div class="border-card-tabs">
     <div class="border-tab-bar">
       <button class="border-tab" :class="{ active: modelValue === 'tasks' }" @click="$emit('update:modelValue', 'tasks')">
-        📋 任务 <span class="tab-count">{{ taskCount }}</span>
+        任务 <span class="tab-count">{{ taskCount }}</span>
       </button>
       <button class="border-tab" :class="{ active: modelValue === 'files' }" @click="$emit('update:modelValue', 'files')">
-        📁 文件 <span class="tab-count">{{ fileCount }}</span>
+        文件 <span class="tab-count">{{ fileCount }}</span>
       </button>
       <button class="border-tab" :class="{ active: modelValue === 'notes' }" @click="$emit('update:modelValue', 'notes')">
-        📝 备注 <span class="tab-count">{{ noteCount }}</span>
+        备注 <span class="tab-count">{{ noteCount }}</span>
       </button>
       <div class="tab-bar-spacer"></div>
       <div class="tab-bar-action"><slot name="action"></slot></div>
@@ -34,26 +34,31 @@ defineEmits(["update:modelValue"]);
   border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden;
   margin-bottom: 16px; display: flex; flex-direction: column; flex: 1; min-height: 0;
 }
-.border-tab-bar { display: flex; background: var(--bg-hover); border-bottom: 1px solid var(--border); }
+.border-tab-bar { display: flex; background: var(--bg-card); border-bottom: 1px solid var(--border-light); }
 .tab-bar-spacer { flex: 1; }
 .tab-bar-action { padding: 4px 6px; display: flex; align-items: center; }
 .border-tab {
-  padding: 8px 14px; border: none; border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border); margin-bottom: -1px;
+  padding: 10px 14px; border: none;
+  border-bottom: 2px solid transparent;
   background: transparent; cursor: pointer; font-size: 13px; font-weight: 500;
-  font-family: inherit; color: var(--text-tertiary);
-  transition: all var(--duration-fast) var(--ease-out); white-space: nowrap;
+  font-family: inherit; color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
 }
-.border-tab:last-child { border-right: none; }
-.border-tab:hover { color: var(--text-secondary); background: oklch(0.93 0.005 270); }
-.border-tab.active { background: var(--bg-card); color: var(--accent); border-bottom-color: var(--bg-card); }
+.border-tab:hover { color: var(--text); }
+.border-tab.active { color: var(--accent-warm); border-bottom-color: var(--accent-warm); font-weight: 600; }
 .border-tab-content {
   background: var(--bg-card); padding: 16px; flex: 1; overflow-y: auto; min-height: 0;
   display: flex; flex-direction: column;
 }
 .tab-count {
-  display: inline-block; background: var(--accent-subtle); color: var(--accent);
-  font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 10px;
+  display: inline-block; background: var(--bg-hover); color: var(--text-tertiary);
+  font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-sm);
   margin-left: 4px; vertical-align: middle; line-height: 1.4;
+}
+.border-tab.active .tab-count {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm);
 }
 </style>

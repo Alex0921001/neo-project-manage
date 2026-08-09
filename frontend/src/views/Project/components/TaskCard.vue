@@ -7,7 +7,7 @@
     :class="[
       'task-card',
       `task-card-depth-${depth}`,
-      { 'task-card-done': task.done, 'task-card-locked': task.done, 'task-card-flash': flashing }
+      { 'task-card-done': task.done, 'task-card-flash': flashing }
     ]"
     :data-task-id="task.id"
   >
@@ -316,43 +316,26 @@ defineExpose({
 </script>
 
 <style scoped>
-/* ===== 基础：贴纸质感、暖色调 ===== */
+/* ===== 基础：黑白灰卡片 ===== */
 .task-card {
   position: relative;
-  background: oklch(0.995 0.01 85);
-  border: 1px solid oklch(0.88 0.04 85);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 2px oklch(0.5 0.04 80 / 0.06), 0 2px 6px oklch(0.5 0.04 80 / 0.04);
-  transition: all var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
   overflow: hidden;
 }
-.task-card::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 4px;
-  background: oklch(0.72 0.13 80);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out);
-}
 .task-card:hover {
-  border-color: oklch(0.82 0.06 80);
-  box-shadow: 0 1px 3px oklch(0.5 0.05 80 / 0.10), 0 6px 14px oklch(0.5 0.04 80 / 0.08);
-  transform: translateY(-1px);
+  border-color: var(--border);
+  box-shadow: var(--shadow-md);
 }
-.task-card:hover::before { opacity: 1; }
 
+/* 已完成：保持白底，状态由勾选按钮与划线表达 */
 .task-card-done {
-  background: oklch(0.95 0.06 145);
-  border-color: oklch(0.82 0.08 145);
-}
-.task-card-done::before {
-  background: oklch(0.65 0.16 145);
-  opacity: 0.85;
-}
-.task-card-locked {
-  border-style: dashed;
-  border-color: oklch(0.78 0.10 145);
+  background: var(--bg-card);
+  border-color: var(--border-light);
 }
 
 /* 层级缩进：子任务卡片相对父任务卡片缩进 95px
@@ -373,20 +356,20 @@ defineExpose({
   justify-content: center;
   width: 16px;
   height: 22px;
-  color: oklch(0.65 0.02 80);
+  color: var(--text-tertiary);
   cursor: grab;
   opacity: 0.45;
   transition: opacity 0.15s, color 0.15s;
   border-radius: 4px;
 }
-.drag-handle:hover { opacity: 1; color: oklch(0.45 0.05 80); background: oklch(0.92 0.03 85); }
+.drag-handle:hover { opacity: 1; color: var(--text-secondary); background: var(--bg-hover); }
 .drag-handle:active { cursor: grabbing; }
 .drag-handle-disabled { cursor: default; opacity: 0.2; }
 
 @keyframes task-card-flash {
-  0%   { box-shadow: 0 0 0 0 oklch(0.78 0.16 75 / 0.55), 0 1px 2px rgba(0,0,0,0.04); }
-  50%  { box-shadow: 0 0 0 6px oklch(0.78 0.16 75 / 0.25), 0 1px 2px rgba(0,0,0,0.04); }
-  100% { box-shadow: 0 0 0 0 oklch(0.78 0.16 75 / 0), 0 1px 2px rgba(0,0,0,0.04); }
+  0%   { box-shadow: 0 0 0 0 var(--accent-warm), var(--shadow-sm); }
+  50%  { box-shadow: 0 0 0 5px var(--accent-warm-subtle), var(--shadow-sm); }
+  100% { box-shadow: 0 0 0 0 var(--accent-warm-subtle), var(--shadow-sm); }
 }
 .task-card-flash { animation: task-card-flash 1.5s ease-out; }
 
@@ -416,29 +399,26 @@ defineExpose({
   transition: all var(--duration-fast) var(--ease-out);
   flex-shrink: 0;
   padding: 0;
-  background: oklch(0.99 0.01 85);
-  color: oklch(0.55 0.04 80);
-  border-color: oklch(0.78 0.04 85);
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  border-color: var(--border-light);
 }
 .status-btn-sm { width: 18px; height: 18px; font-size: 10px; }
 .status-btn svg { display: block; }
 .status-btn-complete:hover {
-  background: oklch(0.94 0.08 145);
-  color: oklch(0.45 0.13 145);
-  border-color: oklch(0.65 0.13 145);
-  transform: scale(1.08);
+  background: var(--bg-hover);
+  color: var(--status-done-text);
+  border-color: var(--status-done-text);
 }
 .status-btn-activate {
-  background: oklch(0.65 0.16 145);
-  color: #fff;
-  border-color: oklch(0.55 0.16 145);
-  box-shadow: 0 1px 3px oklch(0.50 0.14 145 / 0.35);
+  background: transparent;
+  color: var(--status-done-text);
+  border-color: var(--status-done-text);
 }
 .status-btn-activate:hover {
-  background: oklch(0.58 0.16 145);
-  border-color: oklch(0.48 0.16 145);
-  box-shadow: 0 2px 6px oklch(0.50 0.14 145 / 0.45);
-  transform: scale(1.08);
+  background: var(--status-done-text);
+  color: var(--text);
+  border-color: var(--status-done-text);
 }
 
 .icon-btn {
@@ -447,7 +427,7 @@ defineExpose({
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
-  color: oklch(0.45 0.08 80);
+  color: var(--text-tertiary);
   cursor: pointer;
   font-size: 12px;
   line-height: 1;
@@ -460,18 +440,18 @@ defineExpose({
 }
 .icon-btn svg { display: block; }
 .icon-btn:hover {
-  background: oklch(0.94 0.06 85);
-  color: oklch(0.35 0.10 80);
-  border-color: oklch(0.85 0.08 85);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
 }
 .icon-btn-danger:hover {
-  background: oklch(0.93 0.10 30 / 0.45);
-  color: oklch(0.45 0.18 30);
-  border-color: oklch(0.72 0.10 30);
+  background: var(--bg-hover);
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .task-idx {
-  color: oklch(0.55 0.04 75);
+  color: var(--text-tertiary);
   font-size: 12px;
   font-family: var(--font-mono, monospace);
   text-align: right;
@@ -488,7 +468,7 @@ defineExpose({
 .task-name {
   font-size: 15px;
   font-weight: 500;
-  color: oklch(0.30 0.04 80);
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -497,9 +477,9 @@ defineExpose({
 }
 .task-done {
   text-decoration: line-through;
-  text-decoration-color: oklch(0.60 0.06 80);
+  text-decoration-color: var(--border);
   text-decoration-thickness: 1.5px;
-  color: oklch(0.55 0.04 80);
+  color: var(--text-tertiary);
 }
 
 .task-card-actions {
@@ -510,21 +490,21 @@ defineExpose({
 
 .task-card-body {
   padding: 0 12px 10px var(--body-indent);
-  animation: slideDown 0.2s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .task-desc {
   margin: 0 0 8px;
   font-size: 13px;
-  color: oklch(0.40 0.04 80);
+  color: var(--text-secondary);
   line-height: 1.6;
   padding: 8px 10px;
-  background: oklch(0.97 0.02 85);
-  border-left: 3px solid oklch(0.85 0.06 85);
+  background: var(--bg);
+  border-left: 3px solid var(--border-light);
   border-radius: 0 4px 4px 0;
   word-break: break-word;
 }
@@ -532,7 +512,7 @@ defineExpose({
   color: var(--text-tertiary);
   font-style: italic;
   background: transparent;
-  border-left-color: oklch(0.90 0.02 85);
+  border-left-color: var(--border-light);
 }
 
 /* 成员 + 起止日期 */
@@ -547,32 +527,32 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  background: oklch(0.94 0.04 75);
-  color: oklch(0.40 0.06 75);
+  background: var(--bg);
+  color: var(--text-secondary);
   font-size: 12px;
   border-radius: 10px;
-  border: 1px solid oklch(0.88 0.04 75);
+  border: 1px solid var(--border-light);
 }
 .task-meta-chip-person {
-  background: oklch(0.93 0.06 240 / 0.35);
-  color: oklch(0.35 0.10 240);
-  border-color: oklch(0.85 0.06 240);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
 }
 .task-card-done .task-meta-chip {
-  background: oklch(0.92 0.05 145);
-  color: oklch(0.35 0.08 145);
-  border-color: oklch(0.78 0.10 145);
+  background: var(--bg);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
 }
 .task-card-done .task-meta-chip-person {
-  background: oklch(0.90 0.06 145);
-  color: oklch(0.30 0.10 145);
-  border-color: oklch(0.75 0.10 145);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
 }
 
 .task-card-done .task-desc {
-  background: oklch(0.92 0.05 145);
-  color: oklch(0.35 0.08 145);
-  border-left-color: oklch(0.75 0.12 145);
+  background: var(--bg);
+  color: var(--text-secondary);
+  border-left-color: var(--border-light);
 }
 
 .annot-badge {
@@ -581,15 +561,14 @@ defineExpose({
   gap: 8px;
   padding: 1px 8px;
   border-radius: 10px;
-  background: oklch(0.93 0.10 85);
-  color: oklch(0.35 0.12 75);
+  background: transparent;
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
-  border: 1px solid oklch(0.85 0.08 80);
+  border: 1px solid var(--border-light);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
   white-space: nowrap;
-  box-shadow: 0 1px 2px oklch(0.5 0.06 80 / 0.10);
 }
 .annot-badge .annot-seg {
   display: inline-flex;
@@ -597,27 +576,25 @@ defineExpose({
   gap: 3px;
 }
 .annot-badge .annot-seg-ok {
-  color: oklch(0.50 0.14 150);
+  color: var(--status-done-text);
 }
 .annot-badge .annot-seg-pending {
-  color: oklch(0.62 0.15 80);
+  color: var(--status-todo-text);
 }
 .annot-badge:hover {
-  background: oklch(0.90 0.12 85);
-  border-color: oklch(0.65 0.13 80);
-  transform: translateY(-1px);
+  background: var(--bg-hover);
+  border-color: var(--border);
 }
-/* 全部已确认：胶囊整体变绿背景（有未确认时保持黄色系） */
 .annot-badge.annot-all-done {
-  background: oklch(0.90 0.10 145);
-  border-color: oklch(0.78 0.10 145);
+  background: transparent;
+  border-color: var(--border-light);
 }
 .annot-badge.annot-all-done .annot-seg-ok {
-  color: oklch(0.40 0.12 150);
+  color: var(--status-done-text);
 }
 .annot-badge.annot-all-done:hover {
-  background: oklch(0.87 0.11 145);
-  border-color: oklch(0.68 0.12 145);
+  background: var(--bg-hover);
+  border-color: var(--border);
 }
 
 .file-refs-row {
@@ -636,23 +613,23 @@ defineExpose({
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  background: oklch(0.94 0.04 75);
-  color: oklch(0.40 0.06 75);
+  background: var(--bg);
+  color: var(--text-secondary);
   font-size: 12px;
   border-radius: 10px;
-  border: 1px solid oklch(0.88 0.04 75);
+  border: 1px solid var(--border-light);
   cursor: pointer;
   transition: all var(--duration-fast) var(--ease-out);
 }
 .file-ref-link:hover {
-  background: oklch(0.91 0.06 75);
-  color: oklch(0.35 0.10 75);
-  border-color: oklch(0.78 0.06 75);
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
 }
 
 /* 子任务列表 */
 .subtask-list {
-  border-top: 1px dashed oklch(0.85 0.05 85);
+  border-top: 1px solid var(--border-light);
   padding-top: 8px;
   margin-top: 8px;
   display: flex;
@@ -660,17 +637,17 @@ defineExpose({
   gap: 2px;
 }
 .subtask-ghost {
-  opacity: 0.5;
-  background: oklch(0.82 0.10 240);
-  border: 1px dashed oklch(0.60 0.15 240);
+  opacity: 0.55;
+  background: transparent;
+  border: 1px dashed var(--status-doing-text);
   border-radius: 4px;
 }
 
-/* 搜索关键字高亮 */
+/* 搜索关键字高亮：浅琥珀底 + 深琥珀字 */
 .task-card :deep(.hl),
 .task-card .hl {
-  background: #fef08a;
-  color: #78350f;
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
   font-weight: 700;
   padding: 0 2px;
   border-radius: 3px;
@@ -679,9 +656,9 @@ defineExpose({
 }
 
 @keyframes subtask-flash {
-  0%   { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0.55); }
-  50%  { box-shadow: 0 0 0 4px oklch(0.70 0.14 240 / 0.30); }
-  100% { box-shadow: 0 0 0 0 oklch(0.70 0.14 240 / 0); }
+  0%   { box-shadow: 0 0 0 0 var(--accent-warm); }
+  50%  { box-shadow: 0 0 0 4px var(--accent-warm-subtle); }
+  100% { box-shadow: 0 0 0 0 var(--accent-warm-subtle); }
 }
 .subtask-flash { animation: subtask-flash 1.5s ease-out; }
 </style>

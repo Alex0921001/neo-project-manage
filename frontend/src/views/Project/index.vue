@@ -253,7 +253,7 @@ async function doConfirm() {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  background: #f9fafb;
+  background: var(--bg);
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -278,61 +278,65 @@ async function doConfirm() {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
+  background: var(--bg-card);
   margin: 0 24px 24px;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  clip-path: inset(0 round 14px);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 .tab-bar {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
 }
+/* tab 风格对齐首页：无底色容器、激活琥珀下划线 */
 .tab-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
   background: transparent;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 600;
-  color: #6b7280;
+  font-weight: 500;
+  color: var(--text-secondary);
   font-family: inherit;
-  transition: all 0.15s ease-out;
+  letter-spacing: 0.02em;
+  transition: color var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
 }
-.tab-btn:hover { background: #f3f4f6; color: #1f2937; }
+.tab-btn:hover { color: var(--text); }
 .tab-btn.active {
-  background: #f3f4f6;
-  color: #111827;
+  color: var(--accent-warm);
+  border-bottom-color: var(--accent-warm);
+  font-weight: 600;
 }
-.tab-btn.active svg { color: #111827; }
+.tab-btn.active svg { color: var(--accent-warm); }
 .tab-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  padding: 0 6px;
-  height: 18px;
-  background: #e5e7eb;
-  color: #6b7280;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: 999px;
+  min-width: 18px;
+  padding: 0 5px;
+  height: 16px;
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
   margin-left: 2px;
 }
 .tab-btn.active .tab-pill {
-  background: #111827;
-  color: #ffffff;
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm);
 }
 .tab-bar-spacer { flex: 1; }
 .tab-bar-right {
@@ -346,51 +350,49 @@ async function doConfirm() {
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 7px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  background: #ffffff;
-  color: #374151;
-  transition: all 0.15s ease-out;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  transition: all var(--duration-fast) var(--ease-out);
   font-family: inherit;
   letter-spacing: 0.01em;
 }
 .header-btn:hover {
-  border-color: #d1d5db;
-  background: #f9fafb;
-  color: #1f2937;
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
 }
 .header-btn-primary {
-  background: #111827;
-  color: #ffffff;
-  border: 1px solid #111827;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: var(--text);
+  color: var(--bg-card);
+  border: 1px solid var(--text);
+  box-shadow: var(--shadow-sm);
 }
 .header-btn-primary:hover {
-  background: #1f2937 !important;
-  border-color: #1f2937 !important;
-  color: #ffffff !important;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.20);
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+  color: var(--bg-card) !important;
+  box-shadow: var(--shadow-md);
 }
-.header-btn-primary:active { transform: translateY(0); }
 .task-filter-select {
   padding: 6px 10px;
-  border: 1px solid #e5e7eb;
-  border-radius: 7px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--bg-card);
+  color: var(--text);
   outline: none;
   cursor: pointer;
   font-family: inherit;
   font-weight: 600;
-  transition: all 0.15s ease-out;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.task-filter-select:hover { border-color: #d1d5db; }
-.task-filter-select:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); }
+.task-filter-select:hover { border-color: var(--border); }
+.task-filter-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--bg-hover); }
 
 .task-search {
   position: relative;
@@ -400,32 +402,32 @@ async function doConfirm() {
 .task-search-icon {
   position: absolute;
   left: 9px;
-  color: #9ca3af;
+  color: var(--text-tertiary);
   pointer-events: none;
 }
 .task-search-input {
   padding: 6px 26px 6px 28px;
-  border: 1px solid #e5e7eb;
-  border-radius: 7px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
   font-size: 12px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--bg-card);
+  color: var(--text);
   outline: none;
   font-family: inherit;
   font-weight: 600;
   width: 160px;
-  transition: all 0.15s ease-out;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.task-search-input::placeholder { color: #9ca3af; font-weight: 500; }
-.task-search-input:hover { border-color: #d1d5db; }
-.task-search-input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17,24,39,0.06); width: 200px; }
+.task-search-input::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.task-search-input:hover { border-color: var(--border); }
+.task-search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--bg-hover); width: 200px; }
 .task-search-clear {
   position: absolute;
   right: 6px;
   width: 16px; height: 16px;
   border: none;
-  background: #e5e7eb;
-  color: #6b7280;
+  background: var(--bg-hover);
+  color: var(--text-tertiary);
   border-radius: 50%;
   font-size: 14px;
   line-height: 1;
@@ -435,13 +437,13 @@ async function doConfirm() {
   justify-content: center;
   padding: 0;
   font-family: inherit;
-  transition: all 0.15s ease-out;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.task-search-clear:hover { background: #d1d5db; color: #1f2937; }
+.task-search-clear:hover { background: var(--border); color: var(--text); }
 
 .tab-content {
   padding: 20px;
-  background: #ffffff;
+  background: var(--bg-card);
 }
 .task-calendar-tab {
   height: 620px; /* 固定高度：日历 tab 的 CalendarWidget 是 flex 布局（.cal-widget flex:1），需要父容器有确定高度才能铺满 */

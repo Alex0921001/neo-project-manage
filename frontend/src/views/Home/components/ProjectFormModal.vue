@@ -203,12 +203,12 @@ async function submit() {
 .form-section-title {
   font-size: 11px;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--text-secondary);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin: 4px 0 10px;
   padding-bottom: 6px;
-  border-bottom: 1px dashed #e5e7eb;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .form-row {
@@ -222,6 +222,6 @@ async function submit() {
 .field-err {
   margin-top: 6px;
   font-size: 12px;
-  color: #dc2626;
+  color: var(--danger);
 }
 </style>
