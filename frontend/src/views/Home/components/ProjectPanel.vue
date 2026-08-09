@@ -6,9 +6,13 @@
         <div class="header-sub">{{ filteredProjects.length }} 个项目</div>
       </div>
       <div class="header-actions">
-        <button class="search-toggle" :class="{ active: showSearch }" @click="showSearch = !showSearch" title="搜索">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-        </button>
+        <div class="header-search">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+          <input v-model="search" class="search-input" placeholder="搜索项目名称...">
+          <button v-if="search" class="search-clear" @click="search = ''" title="清空">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+          </button>
+        </div>
         <button class="btn-primary" @click="openAdd" title="新建项目">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新建项目
@@ -19,16 +23,6 @@
         </button>
       </div>
     </div>
-
-    <transition name="search">
-      <div v-if="showSearch" class="search-area">
-        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-        <input v-model="search" class="search-input" placeholder="搜索项目名称...">
-        <button v-if="search" class="search-clear" @click="search = ''" title="清空">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
-        </button>
-      </div>
-    </transition>
 
     <div v-if="filteredProjects.length === 0 && !loading" class="empty-state">
       <div class="empty-icon">
@@ -91,7 +85,6 @@ const props = defineProps({
 const emit = defineEmits(["open-project", "changed", "confirm-ask"]);
 
 const search = ref("");
-const showSearch = ref(false);
 const projects = ref([]);
 const filSetId = ref(null);
 const loading = ref(true);
@@ -220,7 +213,52 @@ defineExpose({ load, setFilter, filSetId });
   align-items: center;
 }
 
-/* 按钮 */
+/* 常显搜索框 */
+.header-search {
+  position: relative;
+  width: 190px;
+}
+.header-search .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.header-search .search-input {
+  width: 100%;
+  padding: 7px 30px 7px 30px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  background: var(--bg-card);
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.header-search .search-input:focus {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+.header-search .search-input::placeholder { color: var(--text-tertiary); }
+.header-search .search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: var(--bg-hover);
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.header-search .search-clear:hover { background: var(--border); color: var(--text); }
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -263,71 +301,6 @@ defineExpose({ load, setFilter, filSetId });
   border-color: var(--text-secondary);
 }
 
-.search-toggle {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--border-light);
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease-out;
-}
-.search-toggle:hover { background: #f3f4f6; color: #111827; }
-.search-toggle.active { background: #f3f4f6; color: #111827; border-color: #d1d5db; }
-
-/* search area */
-.search-area {
-  position: relative;
-  margin-bottom: 14px;
-  animation: searchIn 0.2s ease-out;
-}
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  pointer-events: none;
-}
-.search-input {
-  width: 100%;
-  padding: 9px 36px 9px 34px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 13px;
-  background: #ffffff;
-  color: #1f2937;
-  outline: none;
-  transition: all 0.15s ease-out;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-}
-.search-input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06); }
-.search-input::placeholder { color: #9ca3af; }
-.search-clear {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px; height: 20px;
-  border: none;
-  background: #f3f4f6;
-  border-radius: 50%;
-  cursor: pointer;
-  color: #6b7280;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.search-clear:hover { background: #e5e7eb; color: #1f2937; }
-
-.search-enter-active, .search-leave-active { transition: all 0.2s ease-out; }
-.search-enter-from { opacity: 0; transform: translateY(-4px); }
-.search-leave-to { opacity: 0; transform: translateY(-4px); }
-
 /* 分组 */
 .proj-group {
   margin-bottom: 24px;
@@ -369,8 +342,8 @@ defineExpose({ load, setFilter, filSetId });
 
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 18px 14px;
 }
 
 /* empty */
@@ -404,10 +377,5 @@ defineExpose({ load, setFilter, filSetId });
   font-size: 13px;
   color: #9ca3af;
   margin-bottom: 16px;
-}
-
-@keyframes searchIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
 }
 </style>

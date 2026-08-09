@@ -1,67 +1,71 @@
 <template>
-  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)">
+  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)" @contextmenu.prevent="openMenu">
+    <!-- 便利贴胶带：状态色 -->
+    <div :class="['tape', `tape-${statusKey(displayStatus)}`]"></div>
+
     <div class="card-content">
-      <!-- 顶部：标题（一行截断）+ 状态 + 操作按钮（常显） -->
-      <div class="card-head">
-        <div class="card-title">{{ project.name }}</div>
-        <span :class="['card-status', statusClass(displayStatus)]">
-          <span class="status-dot"></span>
-          {{ displayStatus }}
-        </span>
-        <div class="card-ops">
-          <button class="card-op" title="复制 id: 名称" @click.stop="copyProject">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button class="card-op" title="编辑" @click.stop="$emit('edit', project)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button class="card-op card-op-danger" title="删除" @click.stop="$emit('delete', project)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-        </div>
-      </div>
+      <!-- 第一行：项目名称 -->
+      <div class="card-name" :title="project.name">{{ project.name }}</div>
 
-      <!-- 描述（两行截断） -->
-      <div class="card-desc">
-        <span v-if="project.description">{{ richTextToPlain(project.description) }}</span>
-        <span v-else class="desc-empty">点击查看项目详情</span>
-      </div>
-
-      <!-- 日期行 -->
+      <!-- 第二行：时间（小字灰色） -->
       <div class="card-date">
-        <span class="date-item">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-          {{ project.planStart || '—' }}
-        </span>
+        <span>{{ fmtDate(project.planStart) }}</span>
         <span class="date-sep">→</span>
-        <span class="date-item">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-          {{ project.planEnd || '—' }}
-        </span>
+        <span>{{ fmtDate(project.planEnd) }}</span>
       </div>
 
-      <!-- 统计行 -->
-      <div class="card-stats">
-        <span class="stat-item">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-          {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }} 任务
-        </span>
-        <span class="stat-item">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          {{ project.fileCount || 0 }} 文件
-        </span>
-      </div>
-
-      <!-- 底部：进度条 + 百分比 -->
-      <div class="card-footer">
+      <!-- 第三行：进度条 -->
+      <div class="card-progress">
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         </div>
-        <span class="progress-percent">{{ progressPercent }}%</span>
+      </div>
+
+      <!-- 第四行：统计（任务 / 文件 / 备注） -->
+      <div class="card-stats">
+        <span class="stat-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
+          {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}
+        </span>
+        <span class="stat-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          {{ project.fileCount || 0 }}
+        </span>
+        <span class="stat-item">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          {{ project.noteCount || 0 }}
+        </span>
+      </div>
+
+      <!-- 最后：描述（灰色短线线框，前100字） -->
+      <div class="card-desc">
+        <template v-if="descText">{{ descText }}</template>
+        <span v-else class="desc-empty">这个用户很懒，还没有添加描述。</span>
+      </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div v-if="menuOpen" class="ctx-menu" @click.stop>
+      <div class="ctx-item" @click="copyProject">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        复制 ID
+      </div>
+      <div class="ctx-item" @click="$emit('edit', project)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        编辑
+      </div>
+      <div class="ctx-item ctx-danger" @click="$emit('delete', project)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        删除
       </div>
     </div>
   </div>
 </template>
+
+<script>
+// 模块级状态：同一时间只允许一个卡片的右键菜单打开（右键第二张时自动关闭第一张）
+let activeMenu = null;
+</script>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from "vue";
@@ -75,7 +79,39 @@ const props = defineProps({
 });
 defineEmits(["open", "edit", "delete"]);
 
-// 复制到剪贴板（webview 内 Clipboard API 被 Permissions Policy 阻止，直接用 execCommand）
+// ===== 右键菜单 =====
+const menuOpen = ref(false);
+function openMenu() {
+  if (activeMenu && activeMenu !== menuOpen) activeMenu.value = false;
+  activeMenu = menuOpen;
+  menuOpen.value = true;
+}
+function closeMenu() {
+  menuOpen.value = false;
+  if (activeMenu === menuOpen) activeMenu = null;
+}
+function onDocClick() {
+  closeMenu();
+}
+function onKeydown(e) {
+  if (e.key === "Escape") closeMenu();
+}
+function onScrollCapture() {
+  closeMenu();
+}
+onMounted(() => {
+  document.addEventListener("click", onDocClick, true);
+  document.addEventListener("keydown", onKeydown);
+  document.addEventListener("scroll", onScrollCapture, true);
+});
+onUnmounted(() => {
+  document.removeEventListener("click", onDocClick, true);
+  document.removeEventListener("keydown", onKeydown);
+  document.removeEventListener("scroll", onScrollCapture, true);
+  if (activeMenu === menuOpen) activeMenu = null;
+});
+
+// ===== 复制 =====
 function copyText(text) {
   try {
     const ta = document.createElement("textarea");
@@ -93,21 +129,18 @@ function copyText(text) {
     toast("复制失败", "error");
   }
 }
-
 function copyProject() {
   if (!props.project) return;
   copyText(`使用项目管理插件工具搜索：【项目 id:${props.project.id}】 ${props.project.name || ""} 的具体内容。`);
 }
 
-function statusClass(s) {
-  return { "待开始": "status-todo", "进行中": "status-doing", "已完成": "status-done", "已延期": "status-delay" }[s] || "status-todo";
-}
+// ===== 状态 =====
 function statusKey(s) {
   return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay" })[s] || "todo";
 }
-
 const displayStatus = computed(() => computeDisplayStatus(props.project));
 
+// ===== 统计 =====
 const doneTaskCount = computed(() => {
   return (props.project.taskCount || 0) - (props.project.incompleteTaskCount || 0);
 });
@@ -116,173 +149,179 @@ const progressPercent = computed(() => {
   if (total === 0) return 0;
   return Math.round((doneTaskCount.value / total) * 100);
 });
+
+// ===== 描述（固定前 100 字） =====
+const descText = computed(() => {
+  const t = (props.project.description || "").trim();
+  if (!t) return "";
+  const plain = richTextToPlain(t);
+  return plain.length > 100 ? plain.slice(0, 100) + "..." : plain;
+});
+
+// ===== 日期 =====
+function fmtDate(d) {
+  if (!d) return "—";
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
+}
 </script>
 
 <style scoped>
 .project-card {
   position: relative;
-  border-radius: var(--radius-lg);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  overflow: hidden;
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out);
+  height: 262px;
+  background: #fff;
+  border: 0.5px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  padding: 22px 16px 14px;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 .project-card:hover {
-  border-color: var(--border);
   box-shadow: var(--shadow-md);
 }
 
+/* 便利贴胶带：透明 + 锯齿撕口 */
+.tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 72px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-3deg);
+  opacity: 0.55;
+  clip-path: polygon(
+    0 6, 3 0, 6 6, 9 0, 12 6, 15 0, 18 6,
+    18 0, 54 0,
+    54 6, 57 0, 60 6, 63 0, 66 6, 69 0, 72 6,
+    72 16, 69 22, 66 16, 63 22, 60 16, 57 22, 54 16,
+    54 22, 18 22,
+    18 16, 15 22, 12 16, 9 22, 6 16, 3 22, 0 16
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.tape-todo { background: var(--status-todo-text); }
+.tape-doing { background: var(--status-doing-text); }
+.tape-done { background: var(--status-done-text); }
+.tape-delay { background: var(--status-delay-text); }
+
 .card-content {
-  padding: var(--space-4) var(--space-5);
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
 }
 
-/* 顶部：标题 + 状态 + 操作按钮 */
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-.card-title {
-  flex: 1;
-  min-width: 0;
+/* 第一行：名称 */
+.card-name {
+  font-size: 14px;
   font-weight: 600;
-  font-size: 13.5px;
   color: var(--text);
-  letter-spacing: -0.01em;
   line-height: 1.4;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-right: 2px;
 }
-.card-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  flex-shrink: 0;
-}
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.status-todo { color: var(--status-todo-text); }
-.status-doing { color: var(--status-doing-text); }
-.status-done { color: var(--status-done-text); }
-.status-delay { color: var(--status-delay-text); }
 
-.card-ops {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  flex-shrink: 0;
-}
-.card-op {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  cursor: pointer;
-  color: var(--text-tertiary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.card-op:hover { background: var(--bg-hover); color: var(--text); }
-.card-op-danger:hover { background: #fdecec; color: #b00020; }
-
-/* description */
-.card-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  min-height: 36px;
-}
-.desc-empty { color: var(--text-tertiary); font-style: italic; }
-
-/* 日期行 */
+/* 第二行：时间 */
 .card-date {
+  margin-top: 6px;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  color: var(--text-secondary);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-.date-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.date-item svg { opacity: 0.55; }
 .date-sep {
   color: var(--text-tertiary);
-  font-size: 10px;
+  opacity: 0.6;
 }
 
-/* 统计行 */
+/* 第三行：进度条（颜色对齐胶带/状态色） */
+.card-progress {
+  margin-top: 14px;
+}
+.progress-bar {
+  height: 4px;
+  background: #f0f0f0;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-warm);
+  transition: width 0.3s var(--ease-out);
+}
+.status-todo .progress-fill { background: var(--status-todo-text); }
+.status-doing .progress-fill { background: var(--status-doing-text); }
+.status-done .progress-fill { background: var(--status-done-text); }
+.status-delay .progress-fill { background: var(--status-delay-text); }
+
+/* 第四行：统计 */
 .card-stats {
+  margin-top: 14px;
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-secondary);
 }
 .stat-item {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 500;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
 }
-.stat-item svg { opacity: 0.55; }
+.stat-item svg { opacity: 0.6; }
 
-/* 底部：进度 + 百分比 */
-.card-footer {
+/* 描述：灰色短线（虚线）线框，前 100 字完整换行显示 */
+.card-desc {
+  margin-top: 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  flex: 1;
+  min-height: 0;
+}
+.desc-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* 右键菜单 */
+.ctx-menu {
+  position: absolute;
+  top: 18px;
+  right: 10px;
+  z-index: 10;
+  min-width: 104px;
+  padding: 4px;
+  background: #fff;
+  border: 0.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.ctx-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-light);
+  gap: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
-
-.progress-bar {
-  flex: 1;
-  height: 3.5px;
-  background: var(--bg-hover);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
-  transition: width 0.3s var(--ease-out);
-}
-.status-doing .progress-fill { background: var(--status-doing-text); }
-.status-todo .progress-fill { background: var(--status-todo-text); }
-.status-done .progress-fill { background: var(--status-done-text); }
-.status-delay .progress-fill { background: var(--status-delay-text); }
-
-.progress-percent {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
+.ctx-item:hover { background: var(--bg-hover); }
+.ctx-danger { color: #e5484d; }
+.ctx-danger:hover { background: #fdecec; color: #d33; }
 </style>
