@@ -8,30 +8,19 @@
     @close="$emit('close')"
   >
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-      <!-- 基本信息 -->
-      <div class="form-section-title">基本信息</div>
+      <!-- 第一行：名称 -->
       <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" placeholder="项目名称" maxlength="20" show-word-limit />
       </el-form-item>
 
-      <!-- 时间安排 -->
-      <div class="form-section-title">时间安排</div>
-      <el-form-item label="计划周期">
-        <el-date-picker
-          v-model="planRangeVal"
-          type="daterange"
-          value-format="YYYY-MM-DD"
-          range-separator="至"
-          start-placeholder="计划开始"
-          end-placeholder="计划结束"
-          style="width: 100%"
-        />
-        <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
-      </el-form-item>
-
-      <!-- 归属：状态 + 项目集 同一行 -->
-      <div class="form-section-title">归属</div>
+      <!-- 第二行：项目集 + 状态 -->
       <div class="form-row">
+        <el-form-item label="项目集">
+          <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
+            <el-option label="未归类" value="" />
+            <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" style="width: 100%">
             <el-option label="待开始" value="待开始" />
@@ -39,34 +28,44 @@
             <el-option label="已完成" value="已完成" />
           </el-select>
         </el-form-item>
-        <el-form-item label="项目集">
-          <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
-            <el-option label="未归类" value="" />
-            <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
+      </div>
+
+      <!-- 第三行：计划周期 + 成员 -->
+      <div class="form-row">
+        <el-form-item label="计划周期">
+          <el-date-picker
+            v-model="planRangeVal"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="计划开始"
+            end-placeholder="计划结束"
+            style="width: 100%"
+          />
+          <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
+        </el-form-item>
+        <el-form-item label="成员">
+          <el-select
+            v-model="form.members"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择成员（可输入新增）"
+            style="width: 100%"
+          >
+            <el-option v-for="m in memberOptions" :key="m" :label="m" :value="m" />
           </el-select>
         </el-form-item>
       </div>
 
-      <!-- 成员 -->
-      <el-form-item label="成员">
-        <el-select
-          v-model="form.members"
-          multiple
-          filterable
-          allow-create
-          default-first-option
-          placeholder="请选择成员（可输入新增）"
-          style="width: 100%"
-        >
-          <el-option v-for="m in memberOptions" :key="m" :label="m" :value="m" />
-        </el-select>
-      </el-form-item>
-
-      <!-- 描述（富文本，置于表单最后一行）-->
+      <!-- 第四行：描述 -->
       <el-form-item label="描述">
-        <RichEditor
+        <el-input
           v-model="form.description"
-          :project-id="projectId"
+          type="textarea"
+          :rows="4"
+          resize="none"
           placeholder="一句话描述项目目标（可选）"
         />
       </el-form-item>
@@ -74,7 +73,7 @@
 
     <template #footer>
       <el-button @click="$emit('close')">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="submit">{{ isEdit ? '保存' : '创建' }}</el-button>
+      <el-button class="btn-save" :loading="saving" @click="submit">{{ isEdit ? '保存' : '创建' }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -82,10 +81,7 @@
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
 import { api } from "../../../api.js";
-import { normalizeRichText } from "../../../utils/text.js";
-import { createRichEditor } from "../../../utils/asyncEditor.js";
-// 富文本编辑器异步加载（含 loading/error/重试）
-const RichEditor = createRichEditor();
+import { normalizeRichText, richTextToPlain } from "../../../utils/text.js";
 
 const props = defineProps({
   show: Boolean,
@@ -151,7 +147,7 @@ watch(() => props.show, (v) => {
       const d = props.data;
       form.id = d.id;
       form.name = d.name;
-      form.description = d.description || "";
+      form.description = richTextToPlain(d.description || "");
       form.planStart = d.planStart || "";
       form.planEnd = d.planEnd || "";
       planRangeVal.value = form.planStart || form.planEnd
@@ -200,17 +196,6 @@ async function submit() {
 </script>
 
 <style scoped>
-.form-section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin: 4px 0 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border-light);
-}
-
 .form-row {
   display: flex;
   gap: 14px;
@@ -223,5 +208,24 @@ async function submit() {
   margin-top: 6px;
   font-size: 12px;
   color: var(--danger);
+}
+</style>
+
+<style>
+/* 保存按钮：黑底白字（el-dialog append-to-body，需全局样式） */
+.btn-save.el-button {
+  background: var(--text) !important;
+  border-color: var(--text) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+.btn-save.el-button:hover {
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+  color: #fff !important;
+}
+.btn-save.el-button.is-loading {
+  background: var(--text) !important;
+  border-color: var(--text) !important;
 }
 </style>

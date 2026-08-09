@@ -10,39 +10,47 @@
       append-to-body
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
+        <!-- 第一行：名称 -->
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
         </el-form-item>
-        <el-form-item label="成员">
-          <el-select
-            v-model="form.assignees"
-            multiple
-            placeholder="未分配"
-            clearable
-            collapse-tags
-            collapse-tags-tooltip
-            style="width: 100%"
-          >
-            <el-option v-for="m in members" :key="m" :label="m" :value="m" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="起止日期">
-          <el-date-picker
-            v-model="dateRangeVal"
-            type="daterange"
-            value-format="YYYY-MM-DD"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-            :disabled-date="disabledTaskDate"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-form-item v-if="files && files.length" label="关联文件">
+
+        <!-- 第二行：起止日期 + 成员 -->
+        <div class="task-form-row">
+          <el-form-item label="起止日期">
+            <el-date-picker
+              v-model="dateRangeVal"
+              type="daterange"
+              value-format="YYYY-MM-DD"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              :disabled-date="disabledTaskDate"
+              style="width: 100%"
+            />
+          </el-form-item>
+          <el-form-item label="成员">
+            <el-select
+              v-model="form.assignees"
+              multiple
+              placeholder="未分配"
+              clearable
+              collapse-tags
+              collapse-tags-tooltip
+              style="width: 100%"
+            >
+              <el-option v-for="m in members" :key="m" :label="m" :value="m" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <!-- 第三行：关联文件 -->
+        <el-form-item label="关联文件">
           <el-select
             v-model="form.fileRefs"
             multiple
-            placeholder="请选择关联文件"
+            :disabled="!files || !files.length"
+            :placeholder="(files && files.length) ? '请选择关联文件' : '项目暂无文件，请先到文件页上传'"
             collapse-tags
             collapse-tags-tooltip
             style="width: 100%"
@@ -50,14 +58,15 @@
             <el-option v-for="f in files" :key="f.id" :label="f.name" :value="f.id" />
           </el-select>
         </el-form-item>
-        <!-- 简述（富文本，置于表单最后一行）-->
+
+        <!-- 第四行：简述 -->
         <el-form-item label="简述">
           <RichEditor v-model="form.description" :project-id="projectId" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogShow = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitInline">{{ isEditMode ? '保存' : '创建' }}</el-button>
+        <el-button class="btn-save" :loading="saving" @click="submitInline">{{ isEditMode ? '保存' : '创建' }}</el-button>
       </template>
     </el-dialog>
 
@@ -78,7 +87,17 @@
       </svg>
 
       <div class="task-tab-list">
-        <div v-if="!tasks.length" class="empty-state">暂无任务</div>
+        <div v-if="!tasks.length" class="tasks-empty">
+          <div class="tasks-empty-deco">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <p class="tasks-empty-title">还没有任务</p>
+          <p class="tasks-empty-sub">拆解项目，规划可执行的任务</p>
+          <button class="tasks-empty-add" @click="openAdd">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>添加第一个任务</span>
+          </button>
+        </div>
         <template v-else>
 <div v-if="displayedUndoneTasks.length" class="task-group">
             <div class="task-group-header">
@@ -766,6 +785,16 @@ defineExpose({ openAdd, scrollToTaskById });
   padding: 24px;
 }
 
+/* 任务弹窗：同行两列 */
+.task-form-row {
+  display: flex;
+  gap: 14px;
+}
+.task-form-row .el-form-item {
+  flex: 1;
+  min-width: 0;
+}
+
 .task-tab-layout {
   position: relative;
   display: flex; gap: 16px;
@@ -777,6 +806,65 @@ defineExpose({ openAdd, scrollToTaskById });
   flex: 1; min-width: 0;
   min-height: 200px;
   padding-right: 4px;
+}
+
+/* 空态：与备注对齐 */
+.tasks-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  gap: 6px;
+}
+.tasks-empty-deco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.tasks-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.tasks-empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.tasks-empty-add {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--text);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+}
+.tasks-empty-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: var(--shadow-md);
 }
 .task-tab-annot {
   width: 320px; flex-shrink: 0;

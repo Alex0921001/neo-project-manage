@@ -10,9 +10,9 @@
     >
       <el-form label-position="top">
         <el-form-item label="选择本地文件">
-          <el-button type="primary" plain :loading="picking" @click="pickFile">
+          <el-button class="btn-save" :loading="picking" @click="pickFile">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            选择本地文件（可多选）
+            上传文件
           </el-button>
           <div class="pick-hint">支持任意文件类型，添加后可双击打开</div>
         </el-form-item>
@@ -30,7 +30,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogShow = false">取消</el-button>
-        <el-button type="primary" :loading="adding" :disabled="!pending.length" @click="confirmAdd">
+        <el-button class="btn-save" :loading="adding" :disabled="!pending.length" @click="confirmAdd">
           添加 {{ pending.length ? `(${pending.length})` : '' }}
         </el-button>
       </template>
@@ -44,7 +44,17 @@
         <div class="chip-bottom"><span class="chip-date">{{ f.uploadedAt }}</span></div>
       </div>
     </div>
-    <div v-if="!files.length" class="empty-state">暂无文件</div>
+    <div v-if="!files.length" class="files-empty">
+      <div class="files-empty-deco">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      </div>
+      <p class="files-empty-title">还没有文件</p>
+      <p class="files-empty-sub">上传项目相关资料，双击即可打开</p>
+      <button class="files-empty-add" @click="openAdd">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>添加第一个文件</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -76,8 +86,19 @@ function openAdd() {
 async function pickFile() {
   if (picking.value) return;
   picking.value = true;
-  const res = await api("api/pick-file");
-  picking.value = false;
+  toast("正在打开系统文件选择窗口，请留意弹窗", "warn");
+  let res = null;
+  const warnTimer = setTimeout(() => {
+    if (picking.value) toast("如果系统弹窗已打开，请完成选择；否则请重试", "warn");
+  }, 12000);
+  try {
+    res = await api("api/pick-file");
+  } catch (err) {
+    res = { ok: false, error: err.message };
+  } finally {
+    clearTimeout(warnTimer);
+    picking.value = false;
+  }
   if (res?.ok && res.paths?.length > 0) {
     for (const p of res.paths) {
       if (p.trim() && !pending.value.includes(p)) pending.value.push(p);
@@ -148,8 +169,68 @@ defineExpose({ openAdd, pickFile: openAdd });
 .file-chip:hover .chip-del { opacity: 0.6; }
 .chip-del:hover { opacity: 1 !important; background: var(--bg-hover); color: var(--danger); }
 
+/* 空态：与备注对齐 */
+.files-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  gap: 6px;
+}
+.files-empty-deco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.files-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.files-empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.files-empty-add {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--text);
+  border-radius: var(--radius-md);
+  background: var(--text);
+  color: #fff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+}
+.files-empty-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: var(--shadow-md);
+}
+
 .pick-hint {
-  margin-top: 6px;
+  flex-basis: 100%;
+  margin-top: 8px;
   font-size: 12px;
   color: var(--text-tertiary);
 }

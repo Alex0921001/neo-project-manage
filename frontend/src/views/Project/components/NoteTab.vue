@@ -16,7 +16,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogShow = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">{{ editingId ? '保存' : '添加备注' }}</el-button>
+        <el-button class="btn-save" :loading="saving" @click="submit">{{ editingId ? '保存' : '添加备注' }}</el-button>
       </template>
     </el-dialog>
 
@@ -93,13 +93,9 @@ const rules = {
   content: [{ required: true, message: "备注内容不能为空", trigger: "blur" }],
 };
 
-// 卡片左侧色条调色板（暖色为主，每张卡片循环）
+// 卡片左侧色条：统一标准便利贴黄（对齐 --sticky-bg 色相，加深一档 + 半透明保证可见又不厚重）
 const palette = [
-  "oklch(0.72 0.13 75)",   // 暖橙
-  "oklch(0.68 0.12 35)",   // 暖红
-  "oklch(0.70 0.10 145)",  // 暖绿
-  "oklch(0.65 0.12 270)",  // 紫
-  "oklch(0.65 0.10 250)",  // 蓝
+  "oklch(0.88 0.14 85 / 0.55)",
 ];
 
 function load() { emit("changed"); }

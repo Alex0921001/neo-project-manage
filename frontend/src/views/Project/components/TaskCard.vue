@@ -503,8 +503,8 @@ defineExpose({
   color: var(--text-secondary);
   line-height: 1.6;
   padding: 8px 10px;
-  background: var(--bg);
-  border-left: 3px solid var(--border-light);
+  background: oklch(0.95 0.10 90 / 0.45);
+  border-left: 3px solid var(--accent-warm);
   border-radius: 0 4px 4px 0;
   word-break: break-word;
 }
@@ -550,9 +550,9 @@ defineExpose({
 }
 
 .task-card-done .task-desc {
-  background: var(--bg);
+  background: oklch(0.93 0.10 145 / 0.45);
   color: var(--text-secondary);
-  border-left-color: var(--border-light);
+  border-left-color: var(--status-done-text);
 }
 
 .annot-badge {
