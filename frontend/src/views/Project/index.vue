@@ -1,13 +1,22 @@
 <template>
   <div class="detail-view">
-    <!-- 主区：左侧详情卡 + 右侧 sticky 日历 -->
+    <!-- 面包屑：返回 + 层级 -->
+    <div class="detail-crumb">
+      <button class="crumb-back" title="返回项目列表" @click="$emit('back')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="crumb-item crumb-root" @click="$emit('back')">全部项目</span>
+      <template v-if="currentSetLabel">
+        <span class="crumb-sep">/</span>
+        <span class="crumb-item">{{ currentSetLabel }}</span>
+      </template>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-item crumb-current">{{ p?.name || '加载中...' }}</span>
+    </div>
+
+    <!-- 主区：详情卡（单列，无日历） -->
     <div class="detail-main">
-      <div class="detail-left">
-        <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @change-status="changeStatus" />
-      </div>
-      <div class="detail-right">
-        <CalendarWidget :projects="p ? [p] : []" />
-      </div>
+      <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" />
     </div>
 
     <!-- Tab 区 -->
@@ -17,10 +26,6 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
           任务
           <span class="tab-pill">{{ incompleteCount }}</span>
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          日历
         </button>
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -39,36 +44,22 @@
             <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
-          <select v-if="tab === 'tasks'" v-model="taskFilter" class="task-filter-select" @click.stop>
-            <option value="all">全部任务</option>
-            <option value="incomplete">仅未完成</option>
-            <option value="done">仅已完成</option>
-          </select>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline v-if="expandAll" points="6 15 12 9 18 15"></polyline>
-              <polyline v-else points="6 9 12 15 18 9"></polyline>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
+              <polyline v-if="expandAll" points="7 17 12 12 17 17"></polyline>
+              <polyline v-if="!expandAll" points="7 13 12 18 17 13"></polyline>
+              <polyline v-if="!expandAll" points="7 7 12 12 17 7"></polyline>
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
-          <button v-if="tab !== 'calendar'" class="header-btn header-btn-primary" @click="onTabAction">
+          <button class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
         </div>
       </div>
       <div class="tab-content">
-        <!-- 问题2：v-if 替代 v-show，避免 FC 在 display:none 容器中渲染 0 尺寸 -->
-        <div v-if="tab === 'calendar'" class="task-calendar-tab">
-          <CalendarWidget
-            :projects="p ? [p] : []"
-            :sets="allSets"
-            :compact="false"
-            task-mode
-            :project-id="p?.id || ''"
-            @select-task="onTabCalendarSelectTask"
-          />
-        </div>
         <TaskTab
           v-show="tab === 'tasks'"
           ref="taskTabRef"
@@ -130,7 +121,6 @@ import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
-import CalendarWidget from "../../components/CalendarWidget.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -156,7 +146,9 @@ const fullBreadcrumb = computed(() => {
 
 // ===== Tab =====
 const tabKey = `neo-pm-tab-${props.projectId}`;
-const tab = ref(localStorage.getItem(tabKey) || "tasks");
+const savedTab = localStorage.getItem(tabKey);
+// 日历 tab 已移除，历史残留值回退到任务
+const tab = ref(savedTab && savedTab !== "calendar" ? savedTab : "tasks");
 watch(tab, (v) => { try { localStorage.setItem(tabKey, v); } catch {} });
 
 // ===== 一键展开/收起 =====
@@ -168,14 +160,10 @@ function toggleExpandAll() {
 
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
-const taskFilter = ref("all");
 const taskSearch = ref("");
 
 const filteredTasks = computed(() => {
-  let arr = p.value?.tasks || [];
-  if (taskFilter.value === "incomplete") arr = arr.filter(t => !t.done);
-  else if (taskFilter.value === "done") arr = arr.filter(t => t.done);
-  return arr;
+  return p.value?.tasks || [];
 });
 
 // ===== Load =====
@@ -214,11 +202,22 @@ function onTabAction() {
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
 }
 
-// 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
-function onTabCalendarSelectTask({ taskId }) {
-  if (!taskId) return;
-  tab.value = "tasks";
-  nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
+// ===== Delete Project =====
+function onDeleteProject() {
+  if (!p.value) return;
+  const taskCount = p.value.taskCount ?? (p.value.tasks || []).length;
+  const incompleteCount = p.value.incompleteTaskCount ?? taskCount;
+  const doneCount = taskCount - incompleteCount;
+  if (doneCount > 0) {
+    toast(`项目「${p.value.name}」下还有 ${doneCount} 个已完成任务，无法删除`, "error");
+    return;
+  }
+  const fileCount = p.value.fileCount ?? (p.value.files || []).length;
+  const msgParts = [];
+  if (incompleteCount > 0) msgParts.push(`${incompleteCount} 个未完成任务`);
+  if (fileCount > 0) msgParts.push(`${fileCount} 个文件`);
+  const summary = msgParts.length > 0 ? `（含 ${msgParts.join('、')}）` : '';
+  onConfirm({ message: `确认删除项目「${p.value.name}」？${summary}`, action: "delete-project", payload: p.value.id });
 }
 async function doEditProject(d) {
   if (!d.name.trim()) return toast("请输入名称", "error");
@@ -241,8 +240,14 @@ async function doConfirm() {
     res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE" });
   } else if (action === "delete-note") {
     res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE" });
+  } else if (action === "delete-project") {
+    res = await api(`api/projects/${payload}`, { method: "DELETE" });
   }
-  if (res?.ok) { toast("已删除"); loadProject(); }
+  if (res?.ok) {
+    toast("已删除");
+    if (action === "delete-project") { emit("back"); return; }
+    loadProject();
+  }
   else if (res) toast(res.error || "删除失败", "error");
 }
 </script>
@@ -260,18 +265,66 @@ async function doConfirm() {
 }
 .detail-view::-webkit-scrollbar { display: none; }
 
+/* ===== 面包屑 ===== */
+.detail-crumb {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px 0;
+}
+.crumb-back {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  padding: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.crumb-back:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
+}
+.crumb-back svg { display: block; }
+.crumb-sep {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  user-select: none;
+}
+.crumb-item {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: default;
+  white-space: nowrap;
+}
+.crumb-root {
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.crumb-root:hover { color: var(--text); }
+.crumb-current {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
 /* ===== 主区 ===== */
 .detail-main {
   flex-shrink: 0;
-  display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 16px;
   padding: 20px 24px;
   overflow: visible;
-  /* 默认 stretch：左右两列等高对齐；右侧日历贴合月历内容高度，左侧拉伸到等高（meta-grid 1fr 吸收留白） */
 }
-.detail-left { min-width: 0; display: flex; flex-direction: column; }
-.detail-right { min-width: 0; } /* 非 flex 容器：日历高度贴合月历内容，不被拉伸；align-items:start 保证不被左侧撑高 */
 
 /* ===== Tab 区 ===== */
 .tab-section {
@@ -294,14 +347,14 @@ async function doConfirm() {
   border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
 }
-/* tab 风格对齐首页：无底色容器、激活琥珀下划线 */
+/* tab 风格对齐项目集 tabs：激活黑字加粗 + 淡灰背景 */
 .tab-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 14px;
+  padding: 7px 14px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-md);
   background: transparent;
   cursor: pointer;
   font-size: 13px;
@@ -309,16 +362,17 @@ async function doConfirm() {
   color: var(--text-secondary);
   font-family: inherit;
   letter-spacing: 0.02em;
-  transition: color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
+  margin: 6px 2px;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
 }
-.tab-btn:hover { color: var(--text); }
+.tab-btn:hover { background: var(--bg-hover); color: var(--text); }
 .tab-btn.active {
-  color: var(--accent-warm);
-  border-bottom-color: var(--accent-warm);
-  font-weight: 600;
+  background: var(--bg-hover);
+  color: var(--text);
+  font-weight: 700;
 }
-.tab-btn.active svg { color: var(--accent-warm); }
+.tab-btn.active svg { color: var(--text); }
 .tab-pill {
   display: inline-flex;
   align-items: center;
@@ -335,8 +389,8 @@ async function doConfirm() {
   margin-left: 2px;
 }
 .tab-btn.active .tab-pill {
-  background: var(--accent-warm-subtle);
-  color: var(--accent-warm);
+  background: var(--border);
+  color: var(--text);
 }
 .tab-bar-spacer { flex: 1; }
 .tab-bar-right {
@@ -378,21 +432,6 @@ async function doConfirm() {
   color: var(--bg-card) !important;
   box-shadow: var(--shadow-md);
 }
-.task-filter-select {
-  padding: 6px 10px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  background: var(--bg-card);
-  color: var(--text);
-  outline: none;
-  cursor: pointer;
-  font-family: inherit;
-  font-weight: 600;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.task-filter-select:hover { border-color: var(--border); }
-.task-filter-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--bg-hover); }
 
 .task-search {
   position: relative;
@@ -444,10 +483,5 @@ async function doConfirm() {
 .tab-content {
   padding: 20px;
   background: var(--bg-card);
-}
-.task-calendar-tab {
-  height: 620px; /* 固定高度：日历 tab 的 CalendarWidget 是 flex 布局（.cal-widget flex:1），需要父容器有确定高度才能铺满 */
-  display: flex;
-  flex-direction: column;
 }
 </style>

@@ -17,8 +17,8 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新建项目
         </button>
-        <button class="btn-calendar" @click="$emit('go-calendar')" title="立即前往日历">
-          立即前往日历
+        <button class="btn-calendar" @click="$emit('go-calendar')" title="前往日历">
+          前往日历
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>

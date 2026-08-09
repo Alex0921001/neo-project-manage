@@ -19,7 +19,9 @@
         <button class="btn-back" @click="goHome" title="返回项目列表">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <span class="calendar-title">项目日历</span>
+        <span class="crumb-item crumb-root" @click="goHome">全部项目</span>
+        <span class="crumb-sep">/</span>
+        <span class="crumb-item crumb-current">项目日历</span>
       </div>
       <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" @select-task="openTaskFromCalendar" />
     </div>
@@ -387,11 +389,26 @@ input, textarea, select { font-family: inherit; }
   margin-bottom: 16px;
   flex-shrink: 0;
 }
-.calendar-title {
-  font-size: 14px;
-  font-weight: 700;
+.crumb-sep {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  user-select: none;
+}
+.crumb-item {
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--text-secondary);
-  letter-spacing: 0.04em;
+  cursor: default;
+  white-space: nowrap;
+}
+.crumb-root {
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.crumb-root:hover { color: var(--text); }
+.crumb-current {
+  color: var(--text);
+  font-weight: 600;
 }
 .btn-back {
   width: 28px;
