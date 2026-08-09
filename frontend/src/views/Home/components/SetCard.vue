@@ -53,59 +53,59 @@ onUnmounted(() => document.removeEventListener("click", onDocClick));
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
-  border-radius: 9px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.15s ease-out;
-  margin: 0 4px 4px;
+  transition: all var(--duration-fast) var(--ease-out);
+  margin: 0 4px 2px;
   border: 1px solid transparent;
-  background: #ffffff;
+  background: transparent;
   position: relative;
 }
-.set-card:hover { background: #f9fafb; border-color: #e5e7eb; }
+.set-card:hover { background: var(--bg-hover); }
 .set-card.active {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .set-color {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   flex-shrink: 0;
 }
 .set-main { flex: 1; min-width: 0; }
 .set-name {
   font-weight: 600;
   font-size: 13px;
-  color: #1f2937;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .set-meta {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-tertiary);
   margin-top: 2px;
   font-weight: 500;
 }
-.set-card.active .set-meta { color: #6b7280; }
+.set-card.active .set-meta { color: var(--text-secondary); }
 
 .set-actions { position: relative; flex-shrink: 0; }
 .set-more {
   width: 24px; height: 24px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
-  color: #9ca3af;
+  color: var(--text-tertiary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.15s ease-out;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 .set-card:hover .set-more { opacity: 1; }
-.set-more:hover { background: #ffffff; color: #1f2937; border-color: #e5e7eb; }
+.set-more:hover { background: var(--bg-hover); color: var(--text); }
 
 .set-dropdown {
   display: none;

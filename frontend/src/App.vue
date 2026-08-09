@@ -1,8 +1,8 @@
 <template>
   <div id="app-root">
     <div class="tab-bar">
-      <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">📋 项目</button>
-      <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">📅 日历</button>
+      <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">项目</button>
+      <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">日历</button>
     </div>
 
     <HomeView
@@ -195,21 +195,27 @@ onMounted(async () => {
   --font-sans: "DM Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "DM Mono", monospace;
 
-  --accent: oklch(0.52 0.18 270);
-  --accent-hover: oklch(0.48 0.2 270);
-  --accent-subtle: oklch(0.92 0.04 270);
+  /* === 黑白灰主题：克制冷静 === */
+  --accent: oklch(0.5 0 0);
+  --accent-hover: oklch(0.35 0 0);
+  --accent-subtle: oklch(0.93 0 0);
 
-  --bg: oklch(0.965 0.006 270);
-  --bg-card: oklch(0.995 0.003 270);
-  --bg-hover: oklch(0.945 0.008 270);
-  --bg-active: oklch(0.92 0.04 270);
+  /* 琥珀强调（唯一暖色点缀：导航激活、进度满格） */
+  --accent-warm: #d97706;
+  --accent-warm-hover: #b45309;
+  --accent-warm-subtle: oklch(0.95 0.03 75);
 
-  --text: oklch(0.2 0.015 270);
-  --text-secondary: oklch(0.55 0.02 270);
-  --text-tertiary: oklch(0.7 0.015 270);
+  --bg: oklch(0.975 0 0);
+  --bg-card: oklch(1 0 0);
+  --bg-hover: oklch(0.945 0 0);
+  --bg-active: oklch(0.9 0 0);
 
-  --border: oklch(0.9 0.008 270);
-  --border-light: oklch(0.94 0.006 270);
+  --text: oklch(0.21 0 0);
+  --text-secondary: oklch(0.45 0 0);
+  --text-tertiary: oklch(0.62 0 0);
+
+  --border: oklch(0.87 0 0);
+  --border-light: oklch(0.92 0 0);
 
   --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
@@ -224,6 +230,39 @@ onMounted(async () => {
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --duration-fast: 150ms;
   --duration-normal: 250ms;
+
+  /* === 间距体系（4/8/12/16/24/32） === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* === 状态语义色（鲜亮糖果色） === */
+  --status-todo-text: oklch(0.77 0.19 70);
+  --status-doing-text: oklch(0.62 0.21 255);
+  --status-done-text: oklch(0.70 0.17 162);
+  --status-delay-text: oklch(0.64 0.24 25);
+}
+
+/* === 暗色主题预留框架（启用：根元素加 data-theme="dark"） === */
+[data-theme="dark"] {
+  --accent: oklch(0.75 0 0);
+  --accent-hover: oklch(0.85 0 0);
+  --accent-subtle: oklch(0.28 0 0);
+
+  --bg: oklch(0.17 0 0);
+  --bg-card: oklch(0.21 0 0);
+  --bg-hover: oklch(0.25 0 0);
+  --bg-active: oklch(0.3 0 0);
+
+  --text: oklch(0.92 0 0);
+  --text-secondary: oklch(0.72 0 0);
+  --text-tertiary: oklch(0.55 0 0);
+
+  --border: oklch(0.32 0 0);
+  --border-light: oklch(0.27 0 0);
 }
 
 /* === Reset polished === */
@@ -266,8 +305,8 @@ input, textarea, select { font-family: inherit; }
 }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--accent-warm);
+  border-bottom-color: var(--accent-warm);
   font-weight: 600;
 }
 
@@ -304,27 +343,11 @@ input, textarea, select { font-family: inherit; }
   border-color: var(--accent);
 }
 
-/* === Status Badges === */
-.status-todo {
-  background: #fef3c7;
-  color: #92400e;
-  border-color: #fde68a;
-}
-.status-doing {
-  background: #dbeafe;
-  color: #1e40af;
-  border-color: #bfdbfe;
-}
-.status-done {
-  background: #d1fae5;
-  color: #065f46;
-  border-color: #a7f3d0;
-}
-.status-delay {
-  background: #fee2e2;
-  color: #991b1b;
-  border-color: #fecaca;
-}
+/* === Status Text Colors（圆点/文字风格，无底色） === */
+.status-todo { color: var(--status-todo-text); }
+.status-doing { color: var(--status-doing-text); }
+.status-done { color: var(--status-done-text); }
+.status-delay { color: var(--status-delay-text); }
 
 /* === Empty State === */
 .empty-state {
@@ -338,13 +361,13 @@ input, textarea, select { font-family: inherit; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: oklch(0.85 0.008 270);
+  background: oklch(0.85 0 0);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0.01 270); }
+::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0 0); }
 
 /* === Selection === */
-::selection { background: oklch(0.85 0.08 270 / 0.3); }
+::selection { background: oklch(0.88 0 0 / 0.35); }
 
 /* === Version Badge === */
 .version-badge {
