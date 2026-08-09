@@ -13,6 +13,10 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           新建项目
         </button>
+        <button class="btn-calendar" @click="$emit('go-calendar')" title="立即前往日历">
+          立即前往日历
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </div>
 
@@ -236,6 +240,27 @@ defineExpose({ load, setFilter, filSetId });
   background: var(--accent-hover);
   border-color: var(--accent-hover);
   box-shadow: var(--shadow-md);
+}
+
+/* 次级入口按钮（前往日历） */
+.btn-calendar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.btn-calendar:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-secondary);
 }
 
 .search-toggle {

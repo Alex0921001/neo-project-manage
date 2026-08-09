@@ -1,10 +1,13 @@
 <template>
   <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)">
     <div class="card-content">
-      <!-- header：首字母图标 + 标题 + 操作按钮（常显） -->
+      <!-- 顶部：标题（一行截断）+ 状态 + 操作按钮（常显） -->
       <div class="card-head">
-        <div class="card-icon">{{ (project.name || '?').slice(0, 1) }}</div>
         <div class="card-title">{{ project.name }}</div>
+        <span :class="['card-status', statusClass(displayStatus)]">
+          <span class="status-dot"></span>
+          {{ displayStatus }}
+        </span>
         <div class="card-ops">
           <button class="card-op" title="复制 id: 名称" @click.stop="copyProject">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -24,35 +27,37 @@
         <span v-else class="desc-empty">点击查看项目详情</span>
       </div>
 
-      <!-- 进度 + 状态 -->
-      <div class="card-progress">
-        <div class="progress-meta">
-          <span class="progress-label">任务进度</span>
-          <span class="progress-count">{{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}</span>
-          <span :class="['card-status', statusClass(displayStatus)]">
-            <span class="status-dot"></span>
-            {{ displayStatus }}
-          </span>
-        </div>
+      <!-- 日期行 -->
+      <div class="card-date">
+        <span class="date-item">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+          {{ project.planStart || '—' }}
+        </span>
+        <span class="date-sep">→</span>
+        <span class="date-item">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
+          {{ project.planEnd || '—' }}
+        </span>
+      </div>
+
+      <!-- 统计行 -->
+      <div class="card-stats">
+        <span class="stat-item">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
+          {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }} 任务
+        </span>
+        <span class="stat-item">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          {{ project.fileCount || 0 }} 文件
+        </span>
+      </div>
+
+      <!-- 底部：进度条 + 百分比 -->
+      <div class="card-footer">
         <div class="progress-bar">
           <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
         </div>
-      </div>
-
-      <!-- 底部信息条 -->
-      <div class="card-footer">
-        <div class="footer-stat">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-          <span>{{ project.incompleteTaskCount || 0 }} 进行中</span>
-        </div>
-        <div class="footer-stat">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <span>{{ project.fileCount || 0 }} 文件</span>
-        </div>
-        <div class="footer-stat footer-date">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>
-          <span>{{ project.planEnd || '∞' }}</span>
-        </div>
+        <span class="progress-percent">{{ progressPercent }}%</span>
       </div>
     </div>
   </div>
@@ -130,8 +135,6 @@ const progressPercent = computed(() => {
   box-shadow: var(--shadow-md);
 }
 
-/* 左侧 3px 强调条（已移除，黑白灰纯净风格） */
-
 .card-content {
   padding: var(--space-4) var(--space-5);
   display: flex;
@@ -139,25 +142,11 @@ const progressPercent = computed(() => {
   gap: var(--space-3);
 }
 
-/* header：图标 + 标题 + 操作按钮 */
+/* 顶部：标题 + 状态 + 操作按钮 */
 .card-head {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-}
-.card-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-hover);
-  flex-shrink: 0;
-  letter-spacing: -0.01em;
+  gap: var(--space-2);
 }
 .card-title {
   flex: 1;
@@ -167,11 +156,30 @@ const progressPercent = computed(() => {
   color: var(--text);
   letter-spacing: -0.01em;
   line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
+.card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-todo { color: var(--status-todo-text); }
+.status-doing { color: var(--status-doing-text); }
+.status-done { color: var(--status-done-text); }
+.status-delay { color: var(--status-delay-text); }
+
 .card-ops {
   display: flex;
   align-items: center;
@@ -207,42 +215,53 @@ const progressPercent = computed(() => {
 }
 .desc-empty { color: var(--text-tertiary); font-style: italic; }
 
-/* progress + status */
-.card-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.progress-meta {
+/* 日期行 */
+.card-date {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
-.progress-label { color: var(--text-tertiary); letter-spacing: 0.03em; }
-.progress-count { color: var(--text-secondary); font-variant-numeric: tabular-nums; font-weight: 600; }
-.card-status {
+.date-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  margin-left: auto;
+  gap: 4px;
+}
+.date-item svg { opacity: 0.55; }
+.date-sep {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+/* 统计行 */
+.card-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   font-size: 11px;
+  color: var(--text-secondary);
+}
+.stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-weight: 500;
-  letter-spacing: 0.01em;
 }
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+.stat-item svg { opacity: 0.55; }
+
+/* 底部：进度 + 百分比 */
+.card-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
 }
-.status-todo { color: var(--status-todo-text); }
-.status-doing { color: var(--status-doing-text); }
-.status-done { color: var(--status-done-text); }
-.status-delay { color: var(--status-delay-text); }
 
 .progress-bar {
-  width: 100%;
+  flex: 1;
   height: 3.5px;
   background: var(--bg-hover);
   border-radius: 999px;
@@ -259,27 +278,11 @@ const progressPercent = computed(() => {
 .status-done .progress-fill { background: var(--status-done-text); }
 .status-delay .progress-fill { background: var(--status-delay-text); }
 
-/* footer */
-.card-footer {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-light);
+.progress-percent {
   font-size: 11px;
-  color: var(--text-tertiary);
-}
-.footer-stat {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-}
-.footer-stat svg { opacity: 0.6; }
-.footer-date {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
   font-weight: 600;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
 </style>

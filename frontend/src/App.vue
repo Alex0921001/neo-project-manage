@@ -1,14 +1,10 @@
 <template>
   <div id="app-root">
-    <div class="tab-bar">
-      <button :class="['tab-btn', { active: view === 'home' }]" @click="goHome">项目</button>
-      <button :class="['tab-btn', { active: view === 'calendar' }]" @click="goCalendar">日历</button>
-    </div>
-
     <HomeView
       v-show="view === 'home'"
       ref="homeRef"
       @open-project="openProject"
+      @go-calendar="goCalendar"
     />
 
     <ProjectDetail
@@ -19,6 +15,12 @@
     />
 
     <div v-show="view === 'calendar'" class="calendar-page">
+      <div class="calendar-head">
+        <button class="btn-back" @click="goHome" title="返回项目列表">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span class="calendar-title">项目日历</span>
+      </div>
       <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" @select-task="openTaskFromCalendar" />
     </div>
 
@@ -292,35 +294,6 @@ body {
 button { font-family: inherit; cursor: pointer; }
 input, textarea, select { font-family: inherit; }
 
-/* === Tab Bar === */
-.tab-bar {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-card);
-  padding: 0 16px;
-  flex-shrink: 0;
-  gap: 2px;
-}
-.tab-btn {
-  padding: 10px 20px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-  transition: color var(--duration-fast) var(--ease-out),
-              border-color var(--duration-fast) var(--ease-out);
-  letter-spacing: 0.02em;
-}
-.tab-btn:hover { color: var(--text); }
-.tab-btn.active {
-  color: var(--accent-warm);
-  border-bottom-color: var(--accent-warm);
-  font-weight: 600;
-}
-
 /* === Global Components === */
 .section-header {
   display: flex;
@@ -406,5 +379,38 @@ input, textarea, select { font-family: inherit; }
 .calendar-page {
   flex: 1; display: flex; flex-direction: column;
   padding: 24px 20px; overflow-y: auto;
+}
+.calendar-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+.calendar-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+}
+.btn-back {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-card);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  padding: 0;
+}
+.btn-back:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--border);
 }
 </style>
