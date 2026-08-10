@@ -22,6 +22,14 @@ export function registerProjectsRoutes(app, data) {
     return c.json({ ok: true, data: summary });
   });
 
+  // V2.0 S14：历史总结列表（data.getProjectSummaries 倒序取最近 N 条，供前端时间线）
+  app.get("/api/projects/:id/summaries", (c) => {
+    const project = data.getProject(c.req.param("id"));
+    if (!project) return c.json({ ok: false, error: "项目不存在" }, 404);
+    const limit = Number(c.req.query("limit")) || 10;
+    return c.json({ ok: true, data: data.getProjectSummaries(c.req.param("id"), limit) });
+  });
+
   app.post("/api/projects", async (c) => {
     const body = await c.req.json();
     try {

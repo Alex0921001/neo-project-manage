@@ -67,6 +67,28 @@
           </ul>
         </div>
       </template>
+
+      <!-- 历史总结时间线（V2.0 S14）：独立折叠块，懒加载，不随概览刷新 -->
+      <div class="ov-tl">
+        <div class="ov-tl-head" @click="toggleTimeline">
+          <svg class="ov-chevron" :class="{ rotated: tlExpanded }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="ov-tl-title">历史总结</span>
+          <span v-if="summaries.length" class="ov-tl-count">{{ summaries.length }}</span>
+        </div>
+        <div v-show="tlExpanded" class="ov-tl-body">
+          <div v-if="tlLoading" class="ov-empty">加载中…</div>
+          <div v-else-if="!summaries.length" class="ov-empty">暂无历史总结</div>
+          <ul v-else class="ov-tl-list">
+            <li v-for="(it, i) in summaries" :key="it.id || i" class="ov-tl-item">
+              <div class="ov-tl-meta">
+                <span class="ov-tl-time">{{ fmtTime(it.createdAt) }}</span>
+                <span class="ov-tl-src" :class="it.source === 'auto' ? 'src-auto' : 'src-manual'">{{ it.source === 'auto' ? '自动' : '手动' }}</span>
+              </div>
+              <p class="ov-tl-text">{{ summaryText(it.content) }}</p>
+            </li>
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 </template>
@@ -81,6 +103,12 @@ const expanded = ref(true); // 默认展开
 const loading = ref(false);
 const s = ref(null); // summary data
 
+// ===== 历史总结时间线（V2.0 S14）=====
+const tlExpanded = ref(false); // 默认折叠
+const tlLoading = ref(false);
+const tlLoaded = ref(false); // 已加载过则缓存，切换折叠不再重复请求
+const summaries = ref([]);
+
 let inflight = null; // 防并发：请求进行中再次调用复用同一 promise
 
 async function refresh() {
@@ -94,7 +122,62 @@ async function refresh() {
   s.value = res?.ok ? (res.data || null) : null;
 }
 
-watch(() => props.projectId, refresh, { immediate: true });
+/** 展开时懒加载历史总结（只拉一次，折叠/展开不重复请求） */
+async function loadSummaries() {
+  if (!props.projectId || tlLoaded.value || tlLoading.value) return;
+  tlLoading.value = true;
+  const res = await api(`api/projects/${props.projectId}/summaries`, { silent: true });
+  tlLoading.value = false;
+  tlLoaded.value = true;
+  // 接口异常降级为空列表，显示「暂无历史总结」
+  summaries.value = res?.ok && Array.isArray(res.data) ? res.data : [];
+}
+
+function toggleTimeline() {
+  tlExpanded.value = !tlExpanded.value;
+  if (tlExpanded.value) loadSummaries();
+}
+
+/** ISO 时间 → 本地可读格式 YYYY-MM-DD HH:mm（不用 toISOString，避免 UTC 偏移） */
+function fmtTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** content 为总结 JSON 字符串：解析后取 summary，兜底 project.name/progress；解析失败显示原文截断 */
+function summaryText(raw) {
+  if (!raw) return "-";
+  try {
+    const obj = JSON.parse(raw);
+    const s = obj?.summary;
+    if (typeof s === "string" && s.trim()) return s.trim();
+    const p = obj?.project;
+    if (p && (p.name || p.progress != null)) {
+      return `${p.name || "项目"}：完成度 ${p.progress ?? 0}%`;
+    }
+    return "（总结内容为空）";
+  } catch {
+    // 解析失败：压缩空白后截断展示原文
+    const text = raw.replace(/\s+/g, " ").trim();
+    return text.length > 100 ? `${text.slice(0, 100)}…` : text;
+  }
+}
+
+// projectId 变化：刷新概览 + 重置时间线缓存（避免串项目数据）
+watch(
+  () => props.projectId,
+  () => {
+    tlLoaded.value = false;
+    tlLoading.value = false;
+    summaries.value = [];
+    tlExpanded.value = false;
+    refresh();
+  },
+  { immediate: true }
+);
 defineExpose({ refresh });
 
 const progress = computed(() => s.value?.project?.progress ?? 0);
@@ -353,4 +436,104 @@ function statusClass(st) {
   background: var(--border);
 }
 .ov-steps-empty li { color: var(--text-tertiary); }
+
+/* ===== 历史总结时间线（V2.0 S14）===== */
+.ov-tl {
+  border-top: 1px solid var(--border-light);
+  padding-top: 8px;
+  margin-top: 2px;
+}
+.ov-tl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.ov-tl-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+.ov-tl-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+  padding: 0 7px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.ov-tl-body {
+  padding: 6px 0 2px;
+}
+.ov-tl-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ov-tl-item {
+  position: relative;
+  padding-left: 16px;
+}
+/* 竖线（最后一条不延伸） */
+.ov-tl-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  bottom: -12px;
+  width: 1px;
+  background: var(--border-light);
+}
+/* 圆点 */
+.ov-tl-item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  box-shadow: 0 0 0 2px var(--bg-card);
+}
+.ov-tl-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+.ov-tl-time {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.ov-tl-src {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+.ov-tl-src.src-auto {
+  color: var(--accent-warm);
+  background: var(--accent-warm-subtle);
+}
+.ov-tl-src.src-manual {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+.ov-tl-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  word-break: break-word;
+}
 </style>
