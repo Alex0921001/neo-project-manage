@@ -248,3 +248,102 @@ test("项目统计：taskCount / incompleteTaskCount", () => {
   assert.equal(proj.taskCount, 2);
   assert.equal(proj.incompleteTaskCount, 1);
 });
+
+// ===== 10. 批注 kind（V2.0） =====
+test("批注 kind：创建/筛选/老数据兜底/非法值拦截", () => {
+  const p = data.createProject({ name: "kind项目" });
+  const t = data.createTask(p.id, { name: "kind任务" });
+
+  const n = data.createAnnotation(p.id, t.id, { content: "备注" });
+  const d = data.createAnnotation(p.id, t.id, { content: "决策", kind: "decision" });
+  const r = data.createAnnotation(p.id, t.id, { content: "风险", kind: "risk" });
+  assert.equal(n.kind, "note");
+  assert.equal(d.kind, "decision");
+  assert.equal(r.kind, "risk");
+
+  // 老数据：库内 NULL → 读取 note
+  data.createAnnotation(p.id, t.id, { content: "x" });
+  // 筛选（note = 显式 note 1 条 + 老数据兜底 1 条 = 2）
+  assert.equal(data.getTaskAnnotations(t.id, "decision").length, 1);
+  assert.equal(data.getTaskAnnotations(t.id, "note").length, 2);
+  // 非法
+  expectThrow(() => data.createAnnotation(p.id, t.id, { content: "x", kind: "bad" }), /kind/);
+});
+
+// ===== 11. 文件资产化（V2.0） =====
+test("文件资产化：登记读元信息 / digest / 路径失效防御", () => {
+  const p = data.createProject({ name: "文件项目" });
+  const real = path.join(tmpDir, "REPORT.PDF");
+  fs.writeFileSync(real, Buffer.alloc(1200));
+  const f = data.addFile(p.id, real, "摘要");
+  assert.equal(f.size, 1200);
+  assert.equal(f.ext, "pdf");
+  assert.equal(f.digest, "摘要");
+  assert.equal(f.indexed, 0);
+  // 不存在路径
+  const bad = data.addFile(p.id, path.join(tmpDir, "missing.pdf"));
+  assert.equal(bad.size, null);
+  // digest 超长截断
+  const long = data.addFile(p.id, real, "a".repeat(600));
+  assert.equal(long.digest.length, 500);
+  // getProject 带新字段
+  const proj = data.getProject(p.id);
+  assert.ok(proj.files.every((x) => "size" in x && "ext" in x && "digest" in x));
+});
+
+// ===== 12. 会话关联（V2.0） =====
+test("会话关联：link 去重 / unlink / 脏数据兜底", () => {
+  const p = data.createProject({ name: "会话项目" });
+  data.linkProjectSession(p.id, "sess-1");
+  data.linkProjectSession(p.id, "sess-1");
+  data.linkProjectSession(p.id, "sess-2");
+  assert.equal(data.listProjectSessions(p.id).length, 2);
+  data.unlinkProjectSession(p.id, "sess-1");
+  assert.equal(data.listProjectSessions(p.id).length, 1);
+  // 非法 sessionId
+  expectThrow(() => data.linkProjectSession(p.id, "a".repeat(129)), /128/);
+  expectThrow(() => data.linkProjectSession(p.id, "bad 空格"), /sessionId/);
+  // 项目不存在
+  expectThrow(() => data.linkProjectSession("no", "s"), /不存在/);
+});
+
+// ===== 13. 总结持久化 + 风险识别（V2.0） =====
+test("总结：保存/查询/50KB 上限 + 风险规则触发", () => {
+  const p = data.createProject({ name: "总结项目", status: "进行中", planStart: "2026-01-01", planEnd: "2026-12-31" });
+  data.saveProjectSummary(p.id, '{"summary":"正常"}', "auto");
+  data.saveProjectSummary(p.id, "{\"summary\":\"正常2\"}", "manual");
+  assert.equal(data.getProjectSummaries(p.id).length, 2);
+  assert.equal(data.getProjectSummaries(p.id, 1).length, 1);
+  // 50KB 上限
+  expectThrow(() => data.saveProjectSummary(p.id, JSON.stringify({ summary: "a".repeat(60000) })), /50KB/);
+  // 风险：延期任务（endDate 在过去）
+  const t = data.createTask(p.id, { name: "延期任务", endDate: "2026-01-01" });
+  const s = data.summarizeProject(p.id);
+  assert.ok(s.risks.some((r) => r.level === "high" && r.desc.includes("延期")), "应识别延期 high 风险");
+  assert.ok(s.delayed.length >= 1, "delayed 应有延期任务");
+  assert.ok(s.project.progress >= 0 && s.project.progress <= 100, "progress 在 0-100");
+  assert.ok(s.nextSteps.length > 0, "nextSteps 非空");
+  // 空项目
+  const empty = data.createProject({ name: "空总结项目" });
+  const se = data.summarizeProject(empty.id);
+  assert.equal(se.project.progress, 0);
+  assert.equal(se.completed.length, 0);
+});
+
+// ===== 14. askProject（V2.0） =====
+test("askProject：scope 齐全 / decisions 过滤 / all 四段", () => {
+  const p = data.createProject({ name: "ask项目" });
+  const t = data.createTask(p.id, { name: "任务" });
+  data.createAnnotation(p.id, t.id, { content: "决策A", kind: "decision" });
+  data.createAnnotation(p.id, t.id, { content: "备注B", kind: "note" });
+  data.createNote(p.id, { content: "备注1" });
+  data.saveProjectSummary(p.id, "{\"summary\":\"进展\"}", "auto");
+
+  const d = data.askProject(p.id, "decisions");
+  assert.equal(d.decisions.length, 1);
+  assert.equal(d.decisions[0].content, "决策A");
+  const a = data.askProject(p.id, "all");
+  assert.ok(a.summary && a.decisions && a.timeline && a.files, "all 四段齐全");
+  assert.equal(a.risks, undefined, "all 不应含顶层 risks");
+  expectThrow(() => data.askProject(p.id, "bad"), /scope/);
+});

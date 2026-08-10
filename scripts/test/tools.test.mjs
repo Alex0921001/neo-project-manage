@@ -24,6 +24,10 @@ const TOOL_FILES = [
   "update-project-set", "update-project", "update-task", "update-annotation",
   "delete-annotations", "delete-tasks", "delete-task", "delete-annotation",
   "delete-project", "delete-project-set",
+  // V2.0 新工具
+  "list-project-files", "get-project-file",
+  "link-project-session", "list-project-sessions", "unlink-project-session",
+  "get-project-summaries", "summarize-project", "ask-project",
 ];
 const tools = {};
 before(async () => {
@@ -141,4 +145,46 @@ test("工具错误场景：非法输入应抛错", async () => {
     () => tools["create_annotation"]({ projectId: "nonexist", taskId: "nonexist", content: "x" }, toolCtx),
     /不存在/
   );
+});
+
+// ===== V2.0 新工具冒烟（总结/会话/文件/批注 kind） =====
+test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", async () => {
+  // 建集→项目→任务→批注（含 kind）→总结
+  const setTxt = await run("create_project_set", { name: "V2工具集" });
+  const setId = firstId(setTxt);
+  const projTxt = await run("create_project", { name: "V2工具项目", projectSetId: setId });
+  const projId = firstId(projTxt);
+  const taskTxt = await run("create_task", { projectId: projId, name: "任务V2", endDate: "2026-01-01" });
+  const taskId = firstId(taskTxt);
+  await run("create_annotation", { projectId: projId, taskId, content: "决策V2", kind: "decision" });
+  await run("create_annotation", { projectId: projId, taskId, content: "备注V2", kind: "note" });
+
+  // summarize_project
+  const sumTxt = await run("summarize_project", { projectId: projId });
+  assert.match(sumTxt, /V2工具项目/);
+  assert.match(sumTxt, /风险|延期/);
+
+  // ask_project（all）
+  const askTxt = await run("ask_project", { projectId: projId, scope: "all" });
+  assert.match(askTxt, /决策V2/);
+  assert.match(askTxt, /备注V2/);
+
+  // 会话关联
+  const linkTxt = await run("link_project_session", { projectId: projId, sessionId: "sess-v2-test" });
+  assert.match(linkTxt, /sess-v2-test/);
+  const sessListTxt = await run("list_project_sessions", { projectId: projId });
+  assert.match(sessListTxt, /sess-v2-test/);
+  const unlinkTxt = await run("unlink_project_session", { projectId: projId, sessionId: "sess-v2-test" });
+  assert.match(unlinkTxt, /解除|移除|成功/);
+
+  // 文件资产（登记真实文件）
+  const realFile = path.join(tmpDir, "v2-report.PDF");
+  fs.writeFileSync(realFile, Buffer.alloc(800));
+  // addFile 是 data 层，工具层用登记接口不存在，直接验证文件工具对已有文件（空项目）友好
+  const filesTxt = await run("list_project_files", { projectId: projId });
+  assert.match(filesTxt, /暂无|清单/);
+
+  // 清理
+  await run("delete_project", { id: projId });
+  await run("delete_project_set", { id: setId });
 });
