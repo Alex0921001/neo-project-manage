@@ -225,11 +225,11 @@ async function doSave() {
   saving.value = true;
   try {
     if (editMode.value === "add") {
-      const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }) });
+      const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }), silent: true });
       if (res.ok) { toast("已创建"); editShow.value = false; emit("changed"); }
       else toast(res.error || "创建失败", "error");
     } else {
-      const res = await api(`api/project-sets/${editTargetId.value}`, { method: "PUT", body: JSON.stringify({ name }) });
+      const res = await api(`api/project-sets/${editTargetId.value}`, { method: "PUT", body: JSON.stringify({ name }), silent: true });
       if (res.ok) { toast("已更新"); editShow.value = false; emit("changed"); }
       else toast(res.error || "更新失败", "error");
     }
@@ -292,7 +292,7 @@ async function mgrSaveEdit(s) {
   }
   saving.value = true;
   try {
-    const res = await api(`api/project-sets/${s.id}`, { method: "PUT", body: JSON.stringify({ name }) });
+    const res = await api(`api/project-sets/${s.id}`, { method: "PUT", body: JSON.stringify({ name }), silent: true });
     if (res.ok) toast("已更新");
     else toast(res.error || "更新失败", "error");
     emit("changed");
@@ -311,7 +311,7 @@ async function mgrAdd() {
   if (props.sets.some((s) => s.name.trim() === name)) return toast(`项目集名称「${name}」已存在`, "error");
   saving.value = true;
   try {
-    const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }) });
+    const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }), silent: true });
     if (res.ok) { toast("已创建"); mgrName.value = ""; emit("changed"); }
     else toast(res.error || "创建失败", "error");
   } finally {

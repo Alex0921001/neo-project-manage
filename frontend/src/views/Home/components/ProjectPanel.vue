@@ -147,11 +147,11 @@ async function saveProject(d) {
   if (!d.name.trim()) return toast("请输入项目名称", "error");
   const body = { name: d.name, description: d.description, planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members: d.members };
   if (d.id) {
-    const res = await api(`api/projects/${d.id}`, { method: "PUT", body: JSON.stringify(body) });
+    const res = await api(`api/projects/${d.id}`, { method: "PUT", body: JSON.stringify(body), silent: true });
     if (res.ok) { toast("已更新"); form.show = false; load(); emit("changed"); }
     else toast(res.error || "更新失败", "error");
   } else {
-    const res = await api("api/projects", { method: "POST", body: JSON.stringify(body) });
+    const res = await api("api/projects", { method: "POST", body: JSON.stringify(body), silent: true });
     if (res.ok) { toast("已创建"); form.show = false; load(); emit("changed"); }
     else toast(res.error || "创建失败", "error");
   }

@@ -205,9 +205,9 @@ const showEditModal = ref(false);
 
 async function changeStatus(status) {
   if (!p.value) return;
-  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ status }) });
+  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ status }), silent: true });
   if (res.ok) { toast(`状态已切换为「${status}」`); loadProject(); }
-  else toast(res.error || "状态切换失败", "error");
+  else toast(res.error || "状态切换失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
 
 function onTabAction() {
@@ -243,9 +243,9 @@ function onDeleteProject() {
 async function doEditProject(d) {
   if (!d.name.trim()) return toast("请输入名称", "error");
   const members = d.members || [];
-  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ name: d.name.trim(), description: d.description.trim(), planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members }) });
+  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ name: d.name.trim(), description: d.description.trim(), planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members }), silent: true });
   if (res.ok) { toast("已更新"); showEditModal.value = false; loadProject(); }
-  else toast(res.error || "更新失败", "error");
+  else toast(res.error || "更新失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
 
 // ===== Confirm =====
@@ -256,20 +256,20 @@ async function doConfirm() {
   confirm.value.show = false;
   let res;
   if (action === "delete-task") {
-    res = await api(`api/projects/${props.projectId}/tasks/${payload}`, { method: "DELETE" });
+    res = await api(`api/projects/${props.projectId}/tasks/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-file") {
-    res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE" });
+    res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-note") {
-    res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE" });
+    res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-project") {
-    res = await api(`api/projects/${payload}`, { method: "DELETE" });
+    res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
   }
   if (res?.ok) {
     toast("已删除");
     if (action === "delete-project") { emit("back"); return; }
     loadProject();
   }
-  else if (res) toast(res.error || "删除失败", "error");
+  else if (res) toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
 </script>
 

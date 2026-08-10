@@ -92,7 +92,7 @@ async function pickFile() {
     if (picking.value) toast("如果系统弹窗已打开，请完成选择；否则请重试", "warn");
   }, 12000);
   try {
-    res = await api("api/pick-file");
+    res = await api("api/pick-file", { silent: true });
   } catch (err) {
     res = { ok: false, error: err.message };
   } finally {
@@ -124,7 +124,7 @@ async function confirmAdd() {
 
 async function openFile(f) {
   if (!f.path) { toast("无文件路径", "error"); return; }
-  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`);
+  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`, { silent: true });
   if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 

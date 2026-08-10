@@ -258,6 +258,7 @@ async function handleCrossMove(event) {
   const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
     method: "POST",
     body: JSON.stringify({ parentTaskId, index }),
+    silent: true,
   });
   if (!res?.ok) toast(res?.error || "移动失败", "error");
   emit("changed");
@@ -271,7 +272,7 @@ const fileRefsList = computed(() => {
 
 async function openFile(f) {
   if (!f?.path) return;
-  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`);
+  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`, { silent: true });
   if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 

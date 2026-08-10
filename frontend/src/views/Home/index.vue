@@ -80,13 +80,13 @@ async function doConfirm() {
   const { action, payload } = confirm.value;
   confirm.value.show = false;
   if (action === "delete-set") {
-    const res = await api(`api/project-sets/${payload}`, { method: "DELETE" });
+    const res = await api(`api/project-sets/${payload}`, { method: "DELETE", silent: true });
     if (res.ok) { toast("已删除"); if (selSetId.value === payload) { selSetId.value = null; projPanel.value?.setFilter(null); } load(); }
-    else toast(res.error || "删除失败", "error");
+    else toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
   } else if (action === "delete-project") {
-    const res = await api(`api/projects/${payload}`, { method: "DELETE" });
+    const res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
     if (res.ok) { toast("已删除"); load(); projPanel.value?.load(); }
-    else toast(res.error || "删除失败", "error");
+    else toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
   }
   confirm.value.action = ""; confirm.value.payload = null;
 }

@@ -417,6 +417,7 @@ async function handleCrossMove(event) {
   const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
     method: "POST",
     body: JSON.stringify({ parentTaskId, index }),
+    silent: true,
   });
   if (!res?.ok) toast(res?.error || "移动失败", "error");
   emit("changed");
@@ -641,13 +642,13 @@ async function submitInline() {
     if (editingSubId.value) {
       // 子/孙任务 id 全局唯一，直接按任务 id 更新（后端已无 /tasks/:id/subtasks/:sid 子路由）
       const res = await api(`api/projects/${props.projectId}/tasks/${editingSubId.value}`, {
-        method: "PUT", body: JSON.stringify(payload),
+        method: "PUT", body: JSON.stringify(payload), silent: true,
       });
       if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
       else toast(res.error || "更新失败", "error");
     } else if (editingId.value) {
       const res = await api(`api/projects/${props.projectId}/tasks/${editingId.value}`, {
-        method: "PUT", body: JSON.stringify(payload),
+        method: "PUT", body: JSON.stringify(payload), silent: true,
       });
       if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
       else toast(res.error || "更新失败", "error");
@@ -655,7 +656,7 @@ async function submitInline() {
       // 子任务 / 孙任务创建（统一路径：POST tasks + parentTaskId）
       const payloadWithParent = { ...payload, parentTaskId: subtaskParent.value.id };
       const res = await api(`api/projects/${props.projectId}/tasks`, {
-        method: "POST", body: JSON.stringify(payloadWithParent),
+        method: "POST", body: JSON.stringify(payloadWithParent), silent: true,
       });
       if (res.ok) {
         showWarnings(res);
@@ -667,7 +668,7 @@ async function submitInline() {
       } else toast(res.error || "创建失败", "error");
     } else {
       const res = await api(`api/projects/${props.projectId}/tasks`, {
-        method: "POST", body: JSON.stringify(payload),
+        method: "POST", body: JSON.stringify(payload), silent: true,
       });
       if (res.ok) {
         showWarnings(res);
@@ -783,6 +784,7 @@ async function markTaskDone({ task, done }) {
   const res = await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
     method: "PUT",
     body: JSON.stringify({ done }),
+    silent: true,  // 手动 toast 错误，避免与 api 拦截重复弹
   });
   if (res?.ok) {
     load();

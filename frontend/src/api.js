@@ -1,4 +1,5 @@
 /* global hana, __BUILD_AT__, __PLUGIN_VERSION__, __PLUGIN_SOURCE__ */
+import { ElMessage } from "element-plus";
 
 const BUILD_AT = typeof __BUILD_AT__ !== "undefined" ? __BUILD_AT__ : "dev";
 // 编译时静态注入：未重启 Hana 之前的后端 fallback（前端打包时已知后端 version）
@@ -51,9 +52,16 @@ export async function api(path, opts = {}) {
     const headers = { "Content-Type": "application/json", ...opts.headers };
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
     const res = await fetch(apiUrl(path), { ...opts, headers });
-    return await res.json();
+    const data = await res.json();
+    // v1.3.1：拦截后端业务错误（ok=false），统一弹 ElMessage；调用方传 silent:true 跳过
+    // 重复 toast 由 toast.js 内部 600ms 内容去重保护，不会刷屏
+    if (data && data.ok === false && !opts.silent) {
+      ElMessage.error(data.error || "操作失败");
+    }
+    return data;
   } catch (err) {
     console.error("API 请求失败:", path, err);
+    if (!opts.silent) ElMessage.error(err.message || "网络异常");
     return { ok: false, error: err.message };
   }
 }

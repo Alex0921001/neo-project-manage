@@ -77,7 +77,7 @@
         <textarea
           v-model="input"
           rows="4"
-          placeholder="写一条批注（例：前端已完成，待后端对接）"
+          placeholder="贴一贴重要信息"
           class="annot-input"
           @keydown.meta.enter="add"
           @keydown.ctrl.enter="add"
@@ -200,7 +200,7 @@ async function add() {
 }
 
 async function remove(ann) {
-  const res = await api(buildUrl(ann.id), { method: "DELETE" });
+  const res = await api(buildUrl(ann.id), { method: "DELETE", silent: true });
   if (res?.ok) emit("changed");
   else toast(res.error || "删除失败", "error");
 }
@@ -222,6 +222,7 @@ async function toggleConfirm(ann) {
   const res = await api(buildUrl(ann.id), {
     method: "PUT",
     body: JSON.stringify({ confirmed: !ann.confirmed }),
+    silent: true,
   });
   if (res?.ok) emit("changed");
   else toast(res.error || "操作失败", "error");
@@ -243,6 +244,7 @@ async function saveEdit() {
     const res = await api(buildUrl(editingAnnId.value), {
       method: "PUT",
       body: JSON.stringify({ content }),
+      silent: true,
     });
     if (res?.ok) {
       toast("已更新");

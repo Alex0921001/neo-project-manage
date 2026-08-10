@@ -132,13 +132,13 @@ async function submit() {
   try {
     if (editingId.value) {
       const res = await api(`api/projects/${props.projectId}/notes/${editingId.value}`, {
-        method: "PUT", body: JSON.stringify({ content }),
+        method: "PUT", body: JSON.stringify({ content }), silent: true,
       });
       if (res.ok) { toast("已更新"); dialogShow.value = false; load(); }
       else toast(res.error || "更新失败", "error");
     } else {
       const res = await api(`api/projects/${props.projectId}/notes`, {
-        method: "POST", body: JSON.stringify({ content }),
+        method: "POST", body: JSON.stringify({ content }), silent: true,
       });
       if (res.ok) { toast("已添加"); dialogShow.value = false; load(); }
       else toast(res.error || "添加失败", "error");
