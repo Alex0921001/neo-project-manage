@@ -10,12 +10,17 @@ export const parameters = {
     taskId: { type: "string", description: "便利贴所属任务 ID" },
     items: {
       type: "array",
-      description: "批注列表（最多 50 个），每项含 content（必填）",
+      description: "批注列表（最多 50 个），每项含 content（必填）、kind（可选）",
       items: {
         type: "object",
         required: ["content"],
         properties: {
           content: { type: "string", description: "便利贴内容" },
+          kind: {
+            type: "string",
+            enum: ["note", "decision", "risk", "milestone"],
+            description: "便利贴类型：note=备注（默认）/ decision=决策 / risk=风险 / milestone=节点",
+          },
         },
       },
     },
@@ -27,6 +32,6 @@ export async function execute(input, toolCtx) {
   if (!Array.isArray(input.items) || input.items.length === 0) throw new Error("items 不能为空");
   if (input.items.length > 50) throw new Error("单次最多创建 50 个批注");
   const anns = data.createAnnotations(input.projectId, input.taskId, input.items);
-  const lines = anns.map((a) => `- ${a.content} [ID: ${a.id}]`);
+  const lines = anns.map((a) => `- ${a.content} [ID: ${a.id}] [类型: ${a.kind}]`);
   return { content: [{ type: "text", text: `已批量创建 ${anns.length} 条批注：\n${lines.join("\n")}` }] };
 }

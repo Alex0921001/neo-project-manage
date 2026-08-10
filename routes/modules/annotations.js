@@ -45,7 +45,8 @@ export function registerAnnotationsRoutes(app, data) {
 
   app.get("/api/projects/:projectId/tasks/:taskId/annotations", (c) => {
     try {
-      const list = data.getTaskAnnotations(c.req.param("taskId"));
+      const kind = c.req.query("kind") || undefined;
+      const list = data.getTaskAnnotations(c.req.param("taskId"), kind);
       return c.json({ ok: true, data: list });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -54,7 +55,7 @@ export function registerAnnotationsRoutes(app, data) {
 
   // ===== 批量操作 =====
 
-  // 批量创建批注（body: { items: [{ content }] }，最多 50 个）
+  // 批量创建批注（body: { items: [{ content, kind? }] }，最多 50 个）
   app.post("/api/projects/:projectId/tasks/:taskId/annotations/batch", async (c) => {
     try {
       const body = await c.req.json();
