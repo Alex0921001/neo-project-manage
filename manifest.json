@@ -45,7 +45,10 @@
       "./tools/update-project-set.js",
       "./tools/update-project.js",
       "./tools/update-task.js",
-      "./tools/update-annotation.js"
+      "./tools/update-annotation.js",
+      "./tools/link-project-session.js",
+      "./tools/list-project-sessions.js",
+      "./tools/unlink-project-session.js"
     ]
   },
   "dev": {
