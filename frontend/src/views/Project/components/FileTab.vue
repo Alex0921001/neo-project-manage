@@ -39,9 +39,14 @@
     <div class="file-grid">
       <div v-for="f in files" :key="f.id" class="file-chip" title="双击打开" @dblclick="openFile(f)">
         <span class="chip-icon" v-text="iconShort(f.name)"></span>
-        <span class="chip-name">{{ f.name }}</span>
+        <span class="chip-name" :title="f.name">{{ f.name }}</span>
         <button class="chip-del" @click.stop="emit('confirm-ask', { message: '确认删除此文件？', action: 'delete-file', payload: f.id })">✕</button>
-        <div class="chip-bottom"><span class="chip-date">{{ f.uploadedAt }}</span></div>
+        <div class="chip-bottom">
+          <span v-if="fileExt(f)" class="chip-tag">{{ fileExt(f) }}</span>
+          <span v-if="f.size != null" class="chip-date">{{ formatSize(f.size) }}</span>
+          <span class="chip-date">{{ f.uploadedAt }}</span>
+        </div>
+        <div v-if="digestText(f)" class="chip-digest" :title="f.digest">{{ digestText(f) }}</div>
       </div>
     </div>
     <div v-if="!files.length" class="files-empty">
@@ -134,6 +139,37 @@ function iconShort(name) {
   return map[ext] || ext?.toUpperCase() || "";
 }
 
+/* ===== V2.0 文件资产化：辅助信息展示 ===== */
+
+/** 人类可读大小：B/KB/MB/GB（size 为空返回空串，由 v-if 兜底） */
+function formatSize(size) {
+  if (size === null || size === undefined || Number.isNaN(Number(size))) return "";
+  const n = Number(size);
+  if (n < 1024) return `${n} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let v = n;
+  let i = -1;
+  do { v /= 1024; i += 1; } while (v >= 1024 && i < units.length - 1);
+  const s = v >= 100 ? v.toFixed(0) : v.toFixed(1);
+  return `${s} ${units[i]}`;
+}
+
+/** 类型标签：f.ext 优先，老数据兜底从文件名提取；都没有返回空串 */
+function fileExt(f) {
+  if (f?.ext) return String(f.ext).toLowerCase();
+  const name = f?.name || "";
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  return ext && ext !== name ? ext : "";
+}
+
+/** 摘要：取前 80 字，无摘要返回空串（模板 v-if 不渲染摘要行） */
+function digestText(f) {
+  const d = f?.digest;
+  if (!d || typeof d !== "string") return "";
+  const s = d.trim();
+  return s.length > 80 ? `${s.slice(0, 80)}…` : s;
+}
+
 defineExpose({ openAdd, pickFile: openAdd });
 </script>
 
@@ -157,8 +193,21 @@ defineExpose({ openAdd, pickFile: openAdd });
 }
 /* 文件类型图标统一黑白灰（不再按类型着色） */
 .chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
-.chip-bottom { display: flex; justify-content: space-between; align-items: center; padding-left: 34px; }
+.chip-bottom { display: flex; align-items: center; gap: 8px; grid-column: 2 / 4; min-width: 0; }
 .chip-date { color: var(--text-tertiary); font-size: 12px; white-space: nowrap; }
+/* V2.0：类型小标签（对齐任务卡片 meta 风格） */
+.chip-tag {
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  padding: 1px 6px; font-size: 11px; font-weight: 500;
+  background: var(--bg-hover); color: var(--text-secondary);
+  border: 1px solid var(--border-light); border-radius: 6px;
+}
+/* V2.0：摘要行（有 digest 时显示，单行省略，hover 看全文） */
+.chip-digest {
+  grid-column: 2 / 4; min-width: 0;
+  font-size: 12px; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .chip-del {
   width: 22px; height: 22px; border: none; border-radius: 4px; background: transparent;
   cursor: pointer; font-size: 13px; line-height: 1; color: var(--text-tertiary);
