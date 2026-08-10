@@ -40,6 +40,8 @@
       "./tools/list-projects.js",
       "./tools/list-tasks.js",
       "./tools/list-annotations.js",
+      "./tools/list-project-files.js",
+      "./tools/get-project-file.js",
       "./tools/update-project-set.js",
       "./tools/update-project.js",
       "./tools/update-task.js",
