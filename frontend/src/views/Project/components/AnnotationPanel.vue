@@ -16,15 +16,29 @@
     </div>
 
     <div v-else class="annot-body">
+      <!-- 类型筛选 chips：全部/备注/决策/风险/节点 -->
+      <div class="annot-kind-filter">
+        <button
+          v-for="k in kindFilterOptions"
+          :key="k.value"
+          class="kind-chip"
+          :class="['kind-chip-' + k.value, { active: kindFilter === k.value }]"
+          @click="kindFilter = k.value"
+        >{{ k.label }}</button>
+      </div>
+
       <!-- 便利贴列表：仅展示每一条便利贴，完成态不再有确认按钮 -->
       <div class="sticky-board">
-        <template v-if="sortedAnnotations.length">
+        <template v-if="filteredAnnotations.length">
           <div
-            v-for="a in sortedAnnotations"
+            v-for="a in filteredAnnotations"
             :key="a.id"
-            :class="['sticky', { 'sticky-done': a.confirmed, 'sticky-editing': editingAnnId === a.id }]"
+            :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': a.confirmed, 'sticky-editing': editingAnnId === a.id }]"
           >
             <template v-if="editingAnnId === a.id">
+              <el-select v-model="editingKind" size="small" class="kind-select">
+                <el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" />
+              </el-select>
               <textarea
                 v-model="editingContent"
                 rows="4"
@@ -35,6 +49,9 @@
               ></textarea>
             </template>
             <template v-else>
+              <div class="sticky-kind-tag" :class="'kind-tag-' + kindOf(a)">
+                <span class="kind-tag-dot"></span>{{ kindLabel(kindOf(a)) }}
+              </div>
               <p class="sticky-content rich-view" v-html="formatDescription(a.content)"></p>
             </template>
             <div class="sticky-foot">
@@ -68,12 +85,17 @@
           </div>
         </template>
         <div v-else class="sticky-empty">
-          {{ targetDone ? '该任务没有批注' : '暂无批注，写一条吧' }}
+          {{ kindFilter === 'all' ? (targetDone ? '该任务没有批注' : '暂无批注，写一条吧') : '该类型暂无批注' }}
         </div>
       </div>
 
       <!-- 输入区：仅未完成态显示 -->
       <div v-if="!targetDone" class="annot-compose">
+        <div class="annot-compose-kind">
+          <el-select v-model="inputKind" size="small" class="kind-select">
+            <el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" />
+          </el-select>
+        </div>
         <textarea
           v-model="input"
           rows="4"
@@ -116,6 +138,37 @@ const emit = defineEmits(["changed", "close"]);
 
 const input = ref("");
 const saving = ref(false);
+
+// ===== 便利贴类型（V2.0）=====
+const KINDS = [
+  { value: "note", label: "备注" },
+  { value: "decision", label: "决策" },
+  { value: "risk", label: "风险" },
+  { value: "milestone", label: "节点" },
+];
+const KIND_VALUES = KINDS.map(k => k.value);
+
+// 新建时选择的类型（切换任务后重置为 note）
+const inputKind = ref("note");
+// 编辑时选择的类型
+const editingKind = ref("note");
+// 面板筛选：all=全部
+const kindFilter = ref("all");
+const kindFilterOptions = [{ value: "all", label: "全部" }, ...KINDS];
+
+// 类型归一化：老数据/非法值兜底为 note
+function kindOf(a) {
+  return KIND_VALUES.includes(a?.kind) ? a.kind : "note";
+}
+function kindLabel(k) {
+  return KINDS.find(x => x.value === k)?.label || "备注";
+}
+
+// 按类型筛选后的列表
+const filteredAnnotations = computed(() => {
+  if (kindFilter.value === "all") return sortedAnnotations.value;
+  return sortedAnnotations.value.filter(a => kindOf(a) === kindFilter.value);
+});
 
 // 编辑状态
 const editingAnnId = ref("");
@@ -165,7 +218,7 @@ const sortedAnnotations = computed(() => {
   return [...pending, ...done];
 });
 
-watch(() => props.task?.id, () => { input.value = ""; });
+watch(() => props.task?.id, () => { input.value = ""; inputKind.value = "note"; });
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -187,7 +240,7 @@ async function add() {
   saving.value = true;
   try {
     const url = `api/projects/${props.projectId}/tasks/${props.task.id}/annotations`;
-    const res = await api(url, { method: "POST", body: JSON.stringify({ content }) });
+    const res = await api(url, { method: "POST", body: JSON.stringify({ content, kind: inputKind.value }) });
     if (res?.ok) {
       input.value = "";
       emit("changed");
@@ -231,6 +284,7 @@ async function toggleConfirm(ann) {
 function startEdit(ann) {
   editingAnnId.value = ann.id;
   editingContent.value = ann.content;
+  editingKind.value = kindOf(ann);
 }
 function cancelEdit() {
   editingAnnId.value = "";
@@ -243,7 +297,7 @@ async function saveEdit() {
   try {
     const res = await api(buildUrl(editingAnnId.value), {
       method: "PUT",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, kind: editingKind.value }),
       silent: true,
     });
     if (res?.ok) {
@@ -348,6 +402,10 @@ async function saveEdit() {
   word-break: break-word;
   transition: background var(--duration-fast) var(--ease-out);
 }
+/* 类型着色（V2.0）：色相对齐全局 status 变量，浅底保证深/浅主题均可见 */
+.sticky-kind-decision { background: oklch(0.95 0.09 255); }
+.sticky-kind-risk { background: oklch(0.95 0.09 25); }
+.sticky-kind-milestone { background: oklch(0.95 0.09 75); }
 .sticky-done {
   background: var(--sticky-bg-confirmed);
 }
@@ -381,9 +439,8 @@ async function saveEdit() {
   color: var(--text-secondary);
 }
 
-/* 编辑态：便利贴高亮 + 输入框 */
+/* 编辑态：保留类型底色，仅叠加金色高亮边框 */
 .sticky.sticky-editing {
-  background: var(--sticky-bg);
   border: 1px solid var(--accent-warm);
   box-shadow: 0 0 0 3px var(--accent-warm-subtle);
 }
@@ -431,6 +488,70 @@ async function saveEdit() {
 }
 .sticky-save:hover:not(:disabled) { background: var(--accent-warm-hover); border-color: var(--accent-warm-hover); }
 .sticky-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 类型筛选 chips（V2.0） */
+.annot-kind-filter {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.kind-chip {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.kind-chip:hover {
+  color: var(--text);
+  background: var(--border-light);
+}
+.kind-chip.active { color: #1a1a1a; }
+.kind-chip-all.active { background: oklch(0.9 0 0); }
+.kind-chip-note.active { background: oklch(0.87 0.10 90); }
+.kind-chip-decision.active { background: oklch(0.85 0.10 255); }
+.kind-chip-risk.active { background: oklch(0.85 0.10 25); }
+.kind-chip-milestone.active { background: oklch(0.87 0.10 75); }
+
+/* 类型小标签（V2.0）：半透明底 + 类型色圆点，在类型底/确认绿底上均清晰 */
+.sticky-kind-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
+}
+.kind-tag-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.kind-tag-note .kind-tag-dot { color: oklch(0.62 0.12 90); }
+.kind-tag-decision .kind-tag-dot { color: oklch(0.62 0.21 255); }
+.kind-tag-risk .kind-tag-dot { color: oklch(0.64 0.24 25); }
+.kind-tag-milestone .kind-tag-dot { color: oklch(0.7 0.15 75); }
+
+/* 类型下拉（V2.0） */
+.kind-select {
+  width: 110px;
+}
+.kind-select :deep(.el-select__wrapper) {
+  font-size: 12px;
+  padding: 0 8px;
+}
+.annot-compose-kind {
+  display: flex;
+}
+.annot-compose-kind .kind-select { width: 96px; }
 
 /* 输入区：仅未完成态显示 */
 .annot-compose {
