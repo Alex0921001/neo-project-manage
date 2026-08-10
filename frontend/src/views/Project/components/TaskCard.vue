@@ -95,16 +95,16 @@
 
       <!-- 子任务列表（递归渲染） -->
       <!-- depth 0（顶层卡片）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表，避免嵌套 draggable -->
+      <!-- v1.3.1：depth 0 无子任务时也渲染空 draggable 放置区，支持从其他任务拖入子任务 -->
       <draggable
-        v-if="(task.subtasks || []).length && draggable_drag"
+        v-if="draggable_drag && !searchQuery"
         :list="subtasksLocal"
         item-key="id"
         handle=".drag-handle"
         ghost-class="subtask-ghost"
         :animation="180"
         group="tasks"
-        :disabled="searchQuery ? true : false"
-        class="subtask-list"
+        :class="['subtask-list', { 'subtask-empty': !(task.subtasks || []).length }]"
         @end="onSubtaskDragEnd"
       >
         <template #item="{ element: s }">
@@ -124,6 +124,9 @@
             @select-annotation="$emit('select-annotation', $event)"
             @changed="$emit('changed')"
           />
+        </template>
+        <template v-if="!(task.subtasks || []).length" #footer>
+          <div class="subtask-drop-hint">拖入任务可添加为子任务</div>
         </template>
       </draggable>
       <div v-else-if="(task.subtasks || []).length" class="subtask-list">
@@ -636,6 +639,29 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+/* v1.3.1：空子任务放置区（拖入任务成为子任务） */
+.subtask-empty {
+  min-height: 24px;
+  border-top: 1px dashed transparent;
+  justify-content: center;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.subtask-empty:hover {
+  border-top-color: var(--border);
+}
+.subtask-drop-hint {
+  display: none;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  text-align: center;
+}
+.subtask-empty:hover .subtask-drop-hint,
+.subtask-empty.sortable-chosen .subtask-drop-hint {
+  display: block;
 }
 .subtask-ghost {
   opacity: 0.55;

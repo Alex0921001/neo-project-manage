@@ -7,6 +7,17 @@ export function registerProjectSetsRoutes(app, data) {
     return c.json({ ok: true, data: sets });
   });
 
+  // v1.3.1：项目集拖拽排序持久化（先于 :id 路由注册，避免 reorder 被当 id）
+  app.post("/api/project-sets/reorder", async (c) => {
+    const body = await c.req.json();
+    try {
+      data.reorderProjectSets(body.ids);
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   app.post("/api/project-sets", async (c) => {
     const body = await c.req.json();
     try {

@@ -65,10 +65,17 @@ function onSelectSet(id) {
   projPanel.value?.setFilter(id);
 }
 
-// tabs 拖拽/弹窗排序：按新顺序重排 sets（内存态，真实库模式刷新还原）
-function onReorder(ids) {
+// tabs 拖拽/弹窗排序：按新顺序重排 sets，并持久化到后端（v1.3.1）
+async function onReorder(ids) {
   const map = new Map(sets.value.map((s) => [s.id, s]));
   sets.value = ids.map((id) => map.get(id)).filter(Boolean);
+  const res = await api("api/project-sets/reorder", { method: "POST", body: JSON.stringify({ ids }), silent: true });
+  if (res?.ok) {
+    load(); // 刷新拿到后端最新 sort，保持顺序
+  } else {
+    toast(res?.error || "排序保存失败", "error");
+    load(); // 失败回滚到后端顺序
+  }
 }
 
 // ===== Confirm =====
