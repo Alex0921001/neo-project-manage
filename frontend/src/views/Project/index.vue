@@ -19,6 +19,9 @@
       <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" />
     </div>
 
+    <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->
+    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" />
+
     <!-- Tab 区 -->
     <section class="tab-section">
       <div class="tab-bar">
@@ -131,6 +134,7 @@ import { ref, computed, watch, nextTick } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
+import ProjectOverview from "./components/ProjectOverview.vue";
 import TaskTab from "./components/TaskTab.vue";
 import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
@@ -146,6 +150,7 @@ const allSets = ref([]);
 const taskTabRef = ref(null);
 const fileTabRef = ref(null);
 const noteTabRef = ref(null);
+const overviewRef = ref(null);
 
 const incompleteCount = computed(() => (p.value?.tasks || []).filter(t => !t.done).length);
 
@@ -186,6 +191,8 @@ async function loadProject() {
   const res = await api(`api/projects/${props.projectId}`);
   if (!res?.ok) { toast("项目不存在", "error"); emit("back"); return; }
   p.value = res.data;
+  // S13：项目数据变化（任务/文件/批注变更）后联动刷新概览总结
+  overviewRef.value?.refresh();
   // 消费日历跳转标记：切到任务 tab 并滚动定位到目标任务
   let scrollId = null;
   try { scrollId = sessionStorage.getItem("neo-pm-scroll-task"); sessionStorage.removeItem("neo-pm-scroll-task"); } catch { /* ignore */ }
