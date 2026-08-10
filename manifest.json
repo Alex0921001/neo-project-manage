@@ -50,7 +50,8 @@
       "./tools/list-project-sessions.js",
       "./tools/unlink-project-session.js",
       "./tools/get-project-summaries.js",
-      "./tools/summarize-project.js"
+      "./tools/summarize-project.js",
+      "./tools/ask-project.js"
     ]
   },
   "dev": {
