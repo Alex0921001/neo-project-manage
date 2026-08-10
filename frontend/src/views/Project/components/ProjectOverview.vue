@@ -120,6 +120,12 @@ async function refresh() {
   loading.value = false;
   // 接口异常时优雅降级：置 null，面板显示「暂无数据」，不抛错
   s.value = res?.ok ? (res.data || null) : null;
+  // P1-2：刷新总结后联动失效时间线缓存并重拉，否则新总结永远不可见
+  if (res?.ok) {
+    tlLoaded.value = false;
+    tlLoading.value = false;
+    loadSummaries();
+  }
 }
 
 /** 展开时懒加载历史总结（只拉一次，折叠/展开不重复请求） */

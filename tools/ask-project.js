@@ -17,13 +17,14 @@ export const parameters = {
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const project = data.getProject(input.projectId);
-  if (!project) throw new Error(`项目 ${input.projectId} 不存在`);
-
+  // P2-2：存在性校验由 askProject 内部轻量 SELECT 完成，项目不存在时错误自然上抛
+  // 不再前置 getProject（全量任务树），避免三重存在性检查
   const scope = input.scope || "all";
   const r = data.askProject(input.projectId, scope);
+  // scope=risks 时无 summary 节，项目名兜底用 projectId
+  const projectName = r.summary?.project?.name || input.projectId;
 
-  const lines = [`📊 项目「${project.name}」问答报告`, `查询范围: ${scope}`, ""];
+  const lines = [`📊 项目「${projectName}」问答报告`, `查询范围: ${scope}`, ""];
   if (scope === "all" || scope === "summary") lines.push(...formatSummary(r.summary));
   // risks 仅 scope=risks 单独输出（all 时已包含在 summary 风险节，不重复）
   if (scope === "risks") lines.push(...formatRisks(r.risks));
