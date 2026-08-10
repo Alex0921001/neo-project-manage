@@ -15,6 +15,13 @@ export function registerProjectsRoutes(app, data) {
     return c.json({ ok: true, data: project });
   });
 
+  // V2.0 S12：项目总结（与 summarize-project 工具同源，数据来自 data.summarizeProject）
+  app.get("/api/projects/:id/summary", (c) => {
+    const summary = data.summarizeProject(c.req.param("id"));
+    if (!summary) return c.json({ ok: false, error: "项目不存在" }, 404);
+    return c.json({ ok: true, data: summary });
+  });
+
   app.post("/api/projects", async (c) => {
     const body = await c.req.json();
     try {
