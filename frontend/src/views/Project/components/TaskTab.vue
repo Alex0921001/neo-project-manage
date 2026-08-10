@@ -501,6 +501,13 @@ function toLocalMidnight(str) {
 }
 function disabledTaskDate(date) {
   const t = date.getTime();
+  // v1.3.1：子任务模式日期范围收紧到父任务（前端控制，后端不动）
+  if (subtaskParent.value) {
+    const ps = subtaskParent.value.startDate ? toLocalMidnight(subtaskParent.value.startDate) : -Infinity;
+    const pe = subtaskParent.value.endDate ? toLocalMidnight(subtaskParent.value.endDate) : Infinity;
+    return t < ps || t > pe;
+  }
+  // 顶层任务：项目计划周期
   const start = props.planStart ? toLocalMidnight(props.planStart) : -Infinity;
   const end = props.planEnd ? toLocalMidnight(props.planEnd) : Infinity;
   return t < start || t > end;
@@ -763,12 +770,25 @@ async function markTaskDone({ task, done }) {
       toast(`无法完成任务：${pendingDesc} 个子任务未完成`, "error");
       return;
     }
+  } else {
+    // v1.3.1：父任务仍为完成时不能激活子任务（未完成状态只能从父任务向下同步）
+    if (task.parentTaskId) {
+      const parent = findTaskInTree(props.tasks, task.parentTaskId);
+      if (parent && parent.done) {
+        toast(`无法激活子任务：父任务「${parent.name}」尚未激活，请先激活父任务`, "error");
+        return;
+      }
+    }
   }
-  await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
+  const res = await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
     method: "PUT",
     body: JSON.stringify({ done }),
   });
-  load();
+  if (res?.ok) {
+    load();
+  } else {
+    toast(res?.error || "更新任务状态失败", "error");
+  }
 }
 
 defineExpose({ openAdd, scrollToTaskById });

@@ -171,17 +171,24 @@ function fmtDate(d) {
   position: relative;
   height: 262px;
   background: #fff;
-  border: 0.5px solid rgba(0, 0, 0, 0.06);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  /* 无圆角 / 无边框，右下角硬阴影 + hover 旋转 */
+  border: none;
+  border-radius: 0;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   padding: 22px 16px 14px;
   display: flex;
   flex-direction: column;
-  transition: box-shadow var(--duration-fast) var(--ease-out);
+  z-index: 0;
+  transition: box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+  will-change: transform;
 }
 .project-card:hover {
-  box-shadow: var(--shadow-md);
+  /* 顺时针轻微旋转 + 阴影加深 + 浮到上层 */
+  transform: rotate(-2deg);
+  box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.15);
+  z-index: 2;
 }
 
 /* 便利贴胶带：透明 + 锯齿撕口 */

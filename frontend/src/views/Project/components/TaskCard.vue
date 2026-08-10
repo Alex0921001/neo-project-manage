@@ -511,8 +511,8 @@ defineExpose({
 .task-desc-empty {
   color: var(--text-tertiary);
   font-style: italic;
-  background: transparent;
-  border-left-color: var(--border-light);
+  background: oklch(0.95 0.10 90 / 0.45);  /* v1.3.1：无描述也染色，未完成为黄色 */
+  border-left-color: var(--accent-warm);
 }
 
 /* 成员 + 起止日期 */
