@@ -97,6 +97,7 @@
           </el-select>
         </div>
         <textarea
+          ref="inputRef"
           v-model="input"
           rows="4"
           placeholder="贴一贴重要信息"
@@ -106,9 +107,12 @@
         ></textarea>
         <div class="annot-actions">
           <span class="annot-hint">⌘/Ctrl + Enter 提交</span>
-          <button class="btn-primary annot-btn" :disabled="!input.trim() || saving" @click="add">
-            {{ saving ? "保存中…" : "贴上" }}
-          </button>
+          <div class="annot-actions-right">
+            <button class="annot-quick-btn" title="记一个节点：类型切到「节点」并自动带上今天日期" @click="quickMilestone">记一个节点</button>
+            <button class="btn-primary annot-btn" :disabled="!input.trim() || saving" @click="add">
+              {{ saving ? "保存中…" : "贴上" }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -138,6 +142,8 @@ const emit = defineEmits(["changed", "close"]);
 
 const input = ref("");
 const saving = ref(false);
+// S9：输入框引用，预填后自动聚焦方便用户继续打字
+const inputRef = ref(null);
 
 // ===== 便利贴类型（V2.0）=====
 const KINDS = [
@@ -232,6 +238,24 @@ function formatDate(iso) {
 
 function buildUrl(annId) {
   return `api/projects/${props.projectId}/tasks/${props.task.id}/annotations/${annId}`;
+}
+
+// ===== S9：里程碑快捷按钮 =====
+// 本地时间 YYYY-MM-DD（不用 toISOString，避免时区偏移）
+function todayStr() {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// 一键切到 milestone 并预填「[节点] YYYY-MM-DD 」，用户补内容后走原有提交
+function quickMilestone() {
+  inputKind.value = "milestone";
+  // 输入框已有草稿时不覆盖，仅切类型，避免丢内容
+  if (!input.value.trim()) {
+    input.value = `[节点] ${todayStr()} `;
+  }
+  inputRef.value?.focus();
 }
 
 async function add() {
@@ -577,7 +601,27 @@ async function saveEdit() {
 .annot-actions {
   display: flex; justify-content: space-between; align-items: center;
 }
+.annot-actions-right {
+  display: flex; align-items: center;
+  gap: 8px;
+}
 .annot-hint { font-size: 11px; color: var(--text-tertiary); }
+/* 里程碑快捷按钮（S9）：金色描边小按钮，风格与「贴上」并列一致 */
+.annot-quick-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid oklch(0.72 0.15 75);
+  color: oklch(0.6 0.14 75);
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.annot-quick-btn:hover {
+  background: oklch(0.95 0.09 75);
+  border-color: oklch(0.72 0.15 75);
+}
 .annot-btn {
   padding: 5px 16px; border-radius: var(--radius-sm);
   background: var(--accent-warm); color: var(--bg-card);
