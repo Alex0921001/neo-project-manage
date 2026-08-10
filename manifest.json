@@ -48,7 +48,8 @@
       "./tools/update-annotation.js",
       "./tools/link-project-session.js",
       "./tools/list-project-sessions.js",
-      "./tools/unlink-project-session.js"
+      "./tools/unlink-project-session.js",
+      "./tools/get-project-summaries.js"
     ]
   },
   "dev": {
