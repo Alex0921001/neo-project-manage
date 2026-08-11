@@ -12,10 +12,10 @@
           刷新总结
         </button>
       </div>
-      <!-- 右标题：历史总结（无数据时整体不显示） -->
-      <div v-if="summaries.length" class="ov-head ov-head-tl">
+      <!-- 右标题：历史总结（始终显示，无数据时列内显示 el-empty） -->
+      <div class="ov-head ov-head-tl">
         <span class="ov-tl-title">历史总结</span>
-        <span class="ov-tl-count">{{ summaries.length }}</span>
+        <span v-if="summaries.length" class="ov-tl-count">{{ summaries.length }}</span>
         <span class="ov-tl-spacer"></span>
         <button v-if="summaries.length > TL_LIMIT" class="ov-tl-more" @click="drawerOpen = true">更多 ></button>
       </div>
@@ -63,9 +63,9 @@
           </div>
 
           <!-- 列 2：风险 -->
-          <div v-if="s.risks?.length" class="ov-col">
+          <div class="ov-col">
             <div class="ov-label ov-label-danger">风险</div>
-            <div class="ov-risks">
+            <div v-if="s.risks?.length" class="ov-risks">
               <div v-for="(r, i) in s.risks" :key="i" class="ov-risk" :class="'risk-' + r.level">
                 <template v-if="riskParts(r)">
                   <span class="ov-risk-num">{{ riskParts(r).num }}</span>
@@ -75,22 +75,33 @@
                 <template v-else>{{ r.desc }}</template>
               </div>
             </div>
+            <!-- 缺省：无风险 -->
+            <div v-else class="ov-empty-state">
+              <img class="ov-empty-img" :src="confettiIcon" alt="" />
+              <p>恭喜您！没有风险。</p>
+            </div>
           </div>
 
           <!-- 列 3：下一步 -->
-          <div v-if="s.nextSteps?.length" class="ov-col">
+          <div class="ov-col">
             <div class="ov-label">下一步</div>
-            <ul class="ov-steps">
+            <ul v-if="s.nextSteps?.length" class="ov-steps">
               <li v-for="(st, i) in s.nextSteps" :key="i" class="ov-step">
                 <span class="ov-step-idx">{{ i + 1 }}</span>
                 <span class="ov-step-text">{{ st }}</span>
               </li>
             </ul>
+            <!-- 缺省：全部完成 -->
+            <div v-else class="ov-empty-state">
+              <img class="ov-empty-img" :src="confettiIcon" alt="" />
+              <p>完结撒花！</p>
+            </div>
           </div>
 
-          <!-- 列 4：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新；无数据不显示 -->
-          <div v-if="summaries.length" class="ov-col ov-col-tl">
+          <!-- 列 4：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新 -->
+          <div class="ov-col ov-col-tl">
             <div v-if="tlLoading" class="ov-empty">加载中…</div>
+            <el-empty v-else-if="!summaries.length" description="暂无数据" :image-size="80" />
             <div v-else class="ov-tl-scroll">
               <ul class="ov-tl-list">
                 <li v-for="(it, i) in shownSummaries" :key="it.id || i" class="ov-tl-item">
@@ -136,9 +147,12 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { api } from "../../../api.js";
+import { api, resolveAssetUrl } from "../../../api.js";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
+
+// 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
+const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/confetti.png");
 
 const expanded = ref(true); // 默认展开
 const loading = ref(false);
@@ -382,6 +396,14 @@ function statusKey(st) {
   justify-content: center;
   padding: 0;
 }
+/* 历史总结列 el-empty：居中占满列 */
+.ov-col-tl :deep(.el-empty) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .ov-col-empty {
   grid-column: 1 / -1;
 }
@@ -390,6 +412,31 @@ function statusKey(st) {
   text-align: center;
   color: var(--text-tertiary);
   font-size: 12.5px;
+}
+/* 缺省态（撒花图标 + 文案） */
+.ov-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 8px;
+  text-align: center;
+  flex: 1;
+  min-height: 120px;
+}
+.ov-empty-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+.ov-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
 }
 .ov-empty-text {
   padding: 14px 0 0;
