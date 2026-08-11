@@ -1,7 +1,7 @@
 <template>
   <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)" @contextmenu.prevent="openMenu">
-    <!-- 便利贴胶带：状态色 -->
-    <div :class="['tape', `tape-${statusKey(displayStatus)}`]"></div>
+    <!-- 便利贴胶带：状态色（已归档项目固定白色） -->
+    <div :class="['tape', project.archived ? 'tape-archived' : `tape-${statusKey(displayStatus)}`]"></div>
 
     <div class="card-content">
       <!-- 第一行：项目名称 -->
@@ -54,6 +54,14 @@
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         编辑
       </div>
+      <div class="ctx-item" v-if="canArchive" @click="$emit('archive', project)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+        归档
+      </div>
+      <div class="ctx-item" v-if="project.archived" @click="$emit('unarchive', project)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        取消归档
+      </div>
       <div class="ctx-item ctx-danger" @click="$emit('delete', project)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         删除
@@ -77,7 +85,7 @@ const props = defineProps({
   project: { type: Object, required: true },
   setLabel: { type: String, default: "" },
 });
-defineEmits(["open", "edit", "delete"]);
+defineEmits(["open", "edit", "delete", "archive", "unarchive"]);
 
 // ===== 右键菜单 =====
 const menuOpen = ref(false);
@@ -136,9 +144,11 @@ function copyProject() {
 
 // ===== 状态 =====
 function statusKey(s) {
-  return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay" })[s] || "todo";
+  return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay", "已取消": "cancel" })[s] || "todo";
 }
 const displayStatus = computed(() => computeDisplayStatus(props.project));
+// 归档入口：未归档且非进行中状态（已取消/待开始/已完成可归档；进行中与已归档不可）
+const canArchive = computed(() => !props.project?.archived && displayStatus.value !== "进行中");
 
 // ===== 统计 =====
 const doneTaskCount = computed(() => {
@@ -214,6 +224,12 @@ function fmtDate(d) {
 .tape-doing { background: var(--status-doing-text); }
 .tape-done { background: var(--status-done-text); }
 .tape-delay { background: var(--status-delay-text); }
+.tape-cancel { background: var(--status-cancel-text); }
+/* 已归档：白色胶带 + 内侧细黑边（inset 模拟边框，锯齿 clip-path 不裁掉） */
+.tape-archived {
+  background: var(--bg-card);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.06), inset 0 0 0 1px oklch(0 0 0 / 0.22);
+}
 
 .card-content {
   flex: 1;
@@ -270,6 +286,7 @@ function fmtDate(d) {
 .status-doing .progress-fill { background: var(--status-doing-text); }
 .status-done .progress-fill { background: var(--status-done-text); }
 .status-delay .progress-fill { background: var(--status-delay-text); }
+.status-cancel .progress-fill { background: var(--status-cancel-text); }
 
 /* 第四行：统计 */
 .card-stats {

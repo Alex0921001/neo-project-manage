@@ -110,6 +110,7 @@ const statusOptions = [
   { value: "待开始", label: "待开始" },
   { value: "进行中", label: "进行中" },
   { value: "已完成", label: "已完成" },
+  { value: "已取消", label: "已取消" },
 ];
 
 function pickStatus(v) {
@@ -152,6 +153,7 @@ function statusClass(s) {
     "进行中": "status-doing",
     "已完成": "status-done",
     "已延期": "status-delay",
+    "已取消": "status-cancel",
   }[s] || "status-todo";
 }
 
@@ -307,6 +309,7 @@ const progressPercent = computed(() => {
 .status-doing { color: var(--status-doing-text); }
 .status-done { color: var(--status-done-text); }
 .status-delay { color: var(--status-delay-text); }
+.status-cancel { color: var(--status-cancel-text); }
 
 /* ===== 描述（纯文本展示） ===== */
 .meta-desc {
@@ -415,6 +418,7 @@ const progressPercent = computed(() => {
 .status-doing .progress-fill { background: var(--status-doing-text); }
 .status-done .progress-fill { background: var(--status-done-text); }
 .status-delay .progress-fill { background: var(--status-delay-text); }
+.status-cancel .progress-fill { background: var(--status-cancel-text); }
 .progress-num {
   font-size: 12px;
   font-weight: 600;

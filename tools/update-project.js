@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_project";
-export const description = "编辑项目信息（名称、描述、成员、时间、状态、归属项目集）";
+export const description = "编辑项目信息（名称、描述、成员、时间、状态、归档、归属项目集）";
 export const parameters = {
   type: "object",
   required: ["id"],
@@ -12,8 +12,9 @@ export const parameters = {
     members: { type: "array", items: { type: "string" }, description: "成员列表" },
     planStart: { type: "string", description: "计划开始日期（YYYY-MM-DD）" },
     planEnd: { type: "string", description: "计划结束日期（YYYY-MM-DD）" },
-    status: { type: "string", enum: ["待开始", "进行中", "已完成"], description: "状态" },
+    status: { type: "string", enum: ["待开始", "进行中", "已完成", "已取消"], description: "状态" },
     projectSetId: { type: "string", description: "归属项目集 ID（空字符串表示未归类）" },
+    archived: { type: "boolean", description: "是否归档（true=归档，false=取消归档）" },
   },
 };
 

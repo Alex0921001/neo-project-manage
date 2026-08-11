@@ -26,6 +26,7 @@
             <el-option label="待开始" value="待开始" />
             <el-option label="进行中" value="进行中" />
             <el-option label="已完成" value="已完成" />
+            <el-option label="已取消" value="已取消" />
           </el-select>
         </el-form-item>
       </div>
@@ -153,8 +154,8 @@ watch(() => props.show, (v) => {
       planRangeVal.value = form.planStart || form.planEnd
         ? [form.planStart || null, form.planEnd || null]
         : [];
-      // 防御：状态不在三个合法选项内时 fallback 到 "待开始"，避免 select 显示空白
-      form.status = ["待开始", "进行中", "已完成"].includes(d.status) ? d.status : "待开始";
+      // 防御：状态不在合法选项内时 fallback 到 "待开始"，避免 select 显示空白
+      form.status = ["待开始", "进行中", "已完成", "已取消"].includes(d.status) ? d.status : "待开始";
       form.projectSetId = d.projectSetId || "";
       form.members = Array.isArray(d.members) ? [...d.members] : [];
     } else {

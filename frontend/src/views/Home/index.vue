@@ -21,6 +21,7 @@
     <ConfirmModal
       :show="confirm.show"
       :message="confirm.message"
+      :confirm-text="confirm.text"
       @close="confirm.show = false"
       @confirm="doConfirm"
     />
@@ -79,9 +80,9 @@ async function onReorder(ids) {
 }
 
 // ===== Confirm =====
-const confirm = ref({ show: false, message: "", action: "", payload: null });
+const confirm = ref({ show: false, message: "", text: "确认删除", action: "", payload: null });
 function onConfirm(e) {
-  confirm.value = { show: true, message: e.message, action: e.action, payload: e.payload };
+  confirm.value = { show: true, message: e.message, text: e.confirmText || "确认删除", action: e.action, payload: e.payload };
 }
 async function doConfirm() {
   const { action, payload } = confirm.value;
@@ -94,6 +95,10 @@ async function doConfirm() {
     const res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
     if (res.ok) { toast("已删除"); load(); projPanel.value?.load(); }
     else toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
+  } else if (action === "archive-project") {
+    const res = await api(`api/projects/${payload}`, { method: "PUT", body: JSON.stringify({ archived: true }), silent: true });
+    if (res.ok) { toast("已归档"); load(); projPanel.value?.load(); }
+    else toast(res.error || "归档失败", "error");
   }
   confirm.value.action = ""; confirm.value.payload = null;
 }

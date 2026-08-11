@@ -209,6 +209,9 @@ onMounted(async () => {
   --accent-warm-hover: #b45309;
   --accent-warm-subtle: oklch(0.95 0.03 75);
 
+  /* 链接/可点击名称（归档表格项目名等） */
+  --link: oklch(0.5 0.19 255);
+
   --bg: oklch(0.975 0 0);
   --bg-card: oklch(1 0 0);
   --bg-hover: oklch(0.945 0 0);
@@ -249,6 +252,7 @@ onMounted(async () => {
   --status-doing-text: oklch(0.62 0.21 255);
   --status-done-text: oklch(0.70 0.17 162);
   --status-delay-text: oklch(0.64 0.24 25);
+  --status-cancel-text: oklch(0.52 0 0);   /* 已取消：中性灰（标识不做的项目） */
 
   /* === 危险操作 / 错误提示（删除 hover、错误文字、逾期强调） === */
   --danger: oklch(0.55 0.22 25);

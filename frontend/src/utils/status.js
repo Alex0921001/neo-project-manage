@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 export function computeDisplayStatus(project) {
   if (!project) return "待开始";
   if (project.status === "已完成") return "已完成";
+  if (project.status === "已取消") return "已取消";
 
   const now = dayjs();
 

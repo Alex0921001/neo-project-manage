@@ -11,7 +11,7 @@
     <p class="confirm-body">{{ message }}</p>
     <template #footer>
       <el-button @click="$emit('close')">取消</el-button>
-      <el-button type="danger" @click="$emit('confirm')">确认删除</el-button>
+      <el-button type="danger" @click="$emit('confirm')">{{ confirmText }}</el-button>
     </template>
   </el-dialog>
 </template>
@@ -23,6 +23,7 @@ import { nextZIndex } from "../utils/zIndex.js";
 const props = defineProps({
   show: Boolean,
   message: { type: String, default: "" },
+  confirmText: { type: String, default: "确认删除" },
 });
 defineEmits(["close", "confirm"]);
 

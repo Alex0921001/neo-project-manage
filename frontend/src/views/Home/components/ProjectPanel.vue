@@ -47,13 +47,22 @@
         </div>
         <div class="project-grid">
           <ProjectCard
-            v-for="p in group.items" :key="p.id"
+            v-for="p in visibleItems(group)" :key="p.id"
             :project="p"
             :set-label="getSetName(p.projectSetId)"
             @open="$emit('open-project', p.id)"
             @edit="editProj"
             @delete="delProj"
+            @archive="archiveProj"
+            @unarchive="unarchiveProj"
           />
+        </div>
+        <!-- 已归档：更多按钮常驻（便于随时打开弹窗查看全部） -->
+        <div v-if="group.key === 'archived' && group.items.length" class="archived-more">
+          <button class="archived-more-btn" @click="archivedShow = true">
+            查看全部已归档项目（{{ group.items.length }} 条）
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
         </div>
       </div>
     </template>
@@ -67,6 +76,15 @@
       @close="form.show = false"
       @save="saveProject"
     />
+
+    <ArchivedProjectsModal
+      :show="archivedShow"
+      :projects="archivedProjects"
+      :sets="sets"
+      @close="archivedShow = false"
+      @open="onArchivedOpen"
+      @restore="restoreFromModal"
+    />
   </div>
 </template>
 
@@ -77,6 +95,7 @@ import { toast } from "../../../toast.js";
 import { computeDisplayStatus } from "../../../utils/status.js";
 import ProjectCard from "./ProjectCard.vue";
 import ProjectFormModal from "./ProjectFormModal.vue";
+import ArchivedProjectsModal from "./ArchivedProjectsModal.vue";
 
 const props = defineProps({
   sets: { type: Array, default: () => [] },
@@ -101,16 +120,32 @@ const filteredProjects = computed(() => {
   return projects.value.filter((p) => (p.name || "").toLowerCase().includes(q));
 });
 
-// ===== 分组（基于展示状态：已延期合并到待开始组） =====
+// ===== 分组（基于展示状态：已延期合并到待开始组；已取消独立组；已归档独立组） =====
+// 已归档组预览条数，超出走弹窗
+const ARCHIVED_PREVIEW = 10;
 const groupedProjects = computed(() => {
   const list = filteredProjects.value;
-  const by = (s) => list.filter(p => computeDisplayStatus(p) === s).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const by = (s) => list
+    .filter(p => !p.archived && computeDisplayStatus(p) === s)
+    .slice()
+    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  const archived = list
+    .filter(p => p.archived)
+    .slice()
+    .sort((a, b) => new Date(b.archivedAt || 0).getTime() - new Date(a.archivedAt || 0).getTime());
   return [
     { key: "doing", label: "进行中", items: by("进行中") },
     { key: "todo", label: "待开始", items: [...by("待开始"), ...by("已延期")] },
     { key: "done", label: "已完成", items: by("已完成") },
+    { key: "cancel", label: "已取消", items: by("已取消") },
+    { key: "archived", label: "已归档", items: archived },
   ];
 });
+
+// 已归档组只预览前 N 条，其余走弹窗
+function visibleItems(group) {
+  return group.key === "archived" ? group.items.slice(0, ARCHIVED_PREVIEW) : group.items;
+}
 
 function getSetName(projectSetId) {
   if (!projectSetId) return "";
@@ -171,6 +206,36 @@ function delProj(p) {
   if (fileCount > 0) msgParts.push(`${fileCount} 个文件`);
   const summary = msgParts.length > 0 ? `（含 ${msgParts.join('、')}）` : '';
   emit("confirm-ask", { message: `确认删除项目「${p.name}」？${summary}`, action: "delete-project", payload: p.id });
+}
+
+// ===== 归档 / 取消归档 =====
+// 归档需二次确认（复用 confirm-ask 链路）；取消归档直接执行
+function archiveProj(p) {
+  emit("confirm-ask", {
+    message: `确认归档项目「${p.name}」？归档后可在「已归档」分组查看，可随时恢复。`,
+    confirmText: "确认归档",
+    action: "archive-project",
+    payload: p.id,
+  });
+}
+async function unarchiveProj(p) {
+  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  if (res?.ok) { toast("已取消归档"); load(); emit("changed"); }
+  else toast(res.error || "操作失败", "error");
+}
+
+// ===== 已归档弹窗 =====
+const archivedShow = ref(false);
+const archivedProjects = computed(() => groupedProjects.value.find((g) => g.key === "archived")?.items || []);
+async function restoreFromModal(p) {
+  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  if (res?.ok) { toast("已恢复"); load(); emit("changed"); }
+  else toast(res.error || "操作失败", "error");
+}
+// 点击项目名：关闭归档弹窗后跳转项目详情
+function onArchivedOpen(id) {
+  archivedShow.value = false;
+  emit("open-project", id);
 }
 
 defineExpose({ load, setFilter, filSetId });
@@ -319,6 +384,8 @@ defineExpose({ load, setFilter, filSetId });
 .dot-doing { background: var(--status-doing-text); }
 .dot-todo { background: var(--status-todo-text); }
 .dot-done { background: var(--status-done-text); }
+.dot-cancel { background: var(--status-cancel-text); }
+.dot-archived { background: var(--text-tertiary); }
 
 .proj-group-title {
   font-size: 12px;
@@ -344,6 +411,31 @@ defineExpose({ load, setFilter, filSetId });
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 18px 14px;
+}
+
+/* 已归档更多入口 */
+.archived-more {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+.archived-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.archived-more-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+  border-color: var(--text-secondary);
 }
 
 /* empty */

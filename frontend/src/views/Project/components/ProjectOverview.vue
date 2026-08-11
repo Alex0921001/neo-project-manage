@@ -40,7 +40,7 @@
           <!-- 列 1：KPI 四宫格（白底便利贴） -->
           <div class="ov-col">
             <div class="ov-kpi-frame">
-              <div class="ov-kpi-tape" :class="'kpi-tape-' + statusKey(s.project?.status)"></div>
+              <div class="ov-kpi-tape"></div>
               <div class="ov-kpis">
                 <!-- 剩余任务：点击数字弹任务列表 -->
                 <el-popover
@@ -432,18 +432,13 @@ function copyTaskItem(t) {
 
 // 风险描述解析：把「2 个任务已延期（最长延期 5 天）」拆成 { num, text, note }
 // 支持 num 形如「6/10」；无数字时返回 null（模板回退显示原文）
-function riskParts(r) {
-  const desc = String(r?.desc || "");
+function riskParts(r) {  const desc = String(r?.desc || "");
   const m = /^(\d+\/?\d*)\s*([^（）]*)\s*（?([^（）]*)）?$/.exec(desc);
   if (!m || !m[1]) return null;
   return { num: m[1], text: m[2]?.trim() || "", note: m[3]?.trim() || "" };
 }
 
-// 项目展示状态 → key（胶带颜色对齐项目状态，含派生的「已延期」）
-// 注意：summary 接口的 project.status 已是 computeStatus 计算后的派生态
-function statusKey(st) {
-  return { "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay" }[st] || "todo";
-}
+// 已取消状态色由 token 直接控制（KPI 胶带已固定白色，不再随状态派生）
 </script>
 
 <style scoped>
@@ -607,14 +602,14 @@ function statusKey(st) {
   font-size: 13px;
 }
 
-/* ===== KPI 四宫格（白底便利贴 + 十字分割线） =====
- * 风格对齐项目卡片：白底 / 无圆角 / 硬阴影 / 顶部锯齿胶带
- * 四格用十字分割线（中缝横竖两条）分隔，白底黑字 */
+/* ===== KPI 四宫格（黄底便利贴 + 十字分割线） =====
+ * 风格对齐项目卡片：黄底 / 无圆角 / 硬阴影 / 顶部锯齿胶带（白色固定）
+ * 四格用十字分割线（中缝横竖两条）分隔，黄底黑字 */
 .ov-kpi-frame {
   position: relative;
   align-self: stretch;
   flex: 1;
-  background: #fff;
+  background: var(--sticky-bg);
   border: none;
   border-radius: 0;
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.08);
@@ -624,7 +619,7 @@ function statusKey(st) {
   display: flex;
   flex-direction: column;
 }
-/* 便利贴胶带：锯齿撕口（对齐 ProjectCard.tape），颜色随项目状态 */
+/* 便利贴胶带：锯齿撕口（对齐 ProjectCard.tape），白色固定 + 内侧细边框 */
 .ov-kpi-tape {
   position: absolute;
   top: -9px;
@@ -632,8 +627,7 @@ function statusKey(st) {
   width: 72px;
   height: 22px;
   transform: translateX(-50%) rotate(-3deg);
-  opacity: 0.55;
-  background: var(--status-doing-text);
+  background: var(--bg-card);
   clip-path: polygon(
     0 6, 3 0, 6 6, 9 0, 12 6, 15 0, 18 6,
     18 0, 54 0,
@@ -642,12 +636,8 @@ function statusKey(st) {
     54 22, 18 22,
     18 16, 15 22, 12 16, 9 22, 6 16, 3 22, 0 16
   );
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), inset 0 0 0 1px #00000014;
 }
-.kpi-tape-todo { background: var(--status-todo-text); }
-.kpi-tape-doing { background: var(--status-doing-text); }
-.kpi-tape-done { background: var(--status-done-text); }
-.kpi-tape-delay { background: var(--status-delay-text); }
 .ov-kpis {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -665,13 +655,9 @@ function statusKey(st) {
   text-align: center;
   cursor: default;
 }
-/* 可点击 KPI（有任务列表）→ 悬停/点击反馈 */
+/* 可点击 KPI（有任务列表）：仅光标提示，悬停不高亮（保持便利贴底色干净） */
 .ov-kpi-click {
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-.ov-kpi-click:hover {
-  background: var(--bg-hover);
 }
 /* 十字分割线：中缝竖线 + 第一行横线（2px 虚线） */
 .ov-kpi:nth-child(odd) {
