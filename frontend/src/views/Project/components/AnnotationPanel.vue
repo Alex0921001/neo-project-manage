@@ -27,7 +27,7 @@
         >{{ k.label }}</button>
       </div>
 
-      <!-- 便利贴列表：仅展示每一条便利贴，完成态不再有确认按钮 -->
+      <!-- 便利贴列表：点击内容即编辑（Windows 便利贴式），删除按钮常驻 -->
       <div class="sticky-board">
         <template v-if="filteredAnnotations.length">
           <div
@@ -35,56 +35,69 @@
             :key="a.id"
             :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': a.confirmed, 'sticky-editing': editingAnnId === a.id }]"
           >
-            <template v-if="editingAnnId === a.id">
-              <el-select v-model="editingKind" size="small" class="kind-select">
-                <el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" />
-              </el-select>
-              <textarea
-                v-model="editingContent"
-                rows="4"
-                class="sticky-edit-input"
-                @keydown.meta.enter="saveEdit"
-                @keydown.ctrl.enter="saveEdit"
-                @keydown.escape="cancelEdit"
-              ></textarea>
-            </template>
-            <template v-else>
-              <p class="sticky-content rich-view" v-html="formatDescription(a.content)"></p>
-            </template>
-            <div class="sticky-foot">
-              <span class="sticky-foot-left">
-                <template v-if="editingAnnId !== a.id">
-                  <span class="sticky-kind-tag" :class="'kind-tag-' + kindOf(a)">
-                    <span class="kind-tag-dot"></span>{{ kindLabel(kindOf(a)) }}
-                  </span>
-                </template>
-                <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
-              </span>
-              <div class="sticky-actions">
-                <template v-if="editingAnnId === a.id">
-                  <button class="sticky-cancel" title="取消" @click="cancelEdit">取消</button>
-                  <button class="sticky-save" :disabled="!editingContent.trim() || editingSaving" @click="saveEdit">
-                    {{ editingSaving ? "保存中…" : "保存" }}
-                  </button>
-                </template>
-                <template v-else>
-                  <button v-if="!a.confirmed" class="sticky-icon-btn" title="编辑" @click="startEdit(a)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  </button>
-                  <button
-                    v-if="!targetDone"
-                    class="sticky-icon-btn"
-                    :title="a.confirmed ? '取消确认' : '确认这条批注'"
-                    @click="toggleConfirm(a)"
-                  >
-                    <svg v-if="!a.confirmed" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
-                    <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
-                  </button>
-                  <button v-if="!a.confirmed" class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                  </button>
-                </template>
+            <!-- 头：最左=确认/激活按钮，右=删除（常驻） -->
+            <div class="sticky-head">
+              <div class="sticky-head-left">
+                <button
+                  class="sticky-icon-btn"
+                  :class="{ 'sticky-confirmed': a.confirmed }"
+                  :title="a.confirmed ? '取消确认' : '确认这条批注'"
+                  @click="toggleConfirm(a)"
+                >
+                  <el-icon v-if="!a.confirmed"><CircleCheck /></el-icon>
+                  <el-icon v-else><RefreshLeft /></el-icon>
+                </button>
               </div>
+              <div class="sticky-actions">
+                <button class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
+                  <el-icon><Close /></el-icon>
+                </button>
+              </div>
+            </div>
+            <!-- 内容：点击即编辑（textarea 就地替换，blur 保存） -->
+            <textarea
+              v-if="editingAnnId === a.id"
+              v-model="editingContent"
+              rows="3"
+              class="sticky-inline-input"
+              ref="inlineInputEls"
+              :data-ann-id="a.id"
+              @focus="$event.target.select()"
+              @blur="saveInline(a)"
+              @keydown.meta.enter.prevent="saveInline(a)"
+              @keydown.ctrl.enter.prevent="saveInline(a)"
+              @keydown.escape.prevent="cancelInline()"
+            ></textarea>
+            <p
+              v-else
+              class="sticky-content rich-view sticky-editable"
+              v-html="formatDescription(a.content)"
+              title="点击编辑"
+              @click="startInline(a)"
+            ></p>
+            <!-- 脚：左=类型下拉（点击即改），右=时间 -->
+            <div class="sticky-foot">
+              <el-dropdown trigger="click" popper-class="annot-kind-menu" @command="(v) => changeKind(a, v)">
+                <span class="sticky-kind-text" :class="'kind-txt-' + kindOf(a)" title="修改类型">
+                  {{ kindLabel(kindOf(a)) }}
+                  <svg class="sticky-kind-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="k in KINDS"
+                      :key="k.value"
+                      :command="k.value"
+                      :class="{ 'kind-active': kindOf(a) === k.value }"
+                    >
+                      <svg v-if="kindOf(a) === k.value" class="kind-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      <span v-else class="kind-check-space"></span>
+                      {{ k.label }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+              <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
             </div>
           </div>
         </template>
@@ -95,20 +108,40 @@
 
       <!-- 输入区：仅未完成态显示 -->
       <div v-if="!targetDone" class="annot-compose">
-        <div class="annot-compose-kind">
-          <el-select v-model="inputKind" size="small" class="kind-select">
-            <el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" />
-          </el-select>
+        <div class="annot-compose-box">
+          <textarea
+            ref="inputRef"
+            v-model="input"
+            rows="4"
+            placeholder="贴一贴重要信息"
+            class="annot-input"
+            @keydown.meta.enter="add"
+            @keydown.ctrl.enter="add"
+          ></textarea>
+          <!-- 左下角类型选择：无边框 dropdown，纯文字标签（当前类型 + 箭头） -->
+          <div class="annot-compose-toolbar">
+            <el-dropdown trigger="click" popper-class="annot-kind-menu" @command="onKindCommand">
+              <span class="annot-kind-trigger" title="选择类型">
+                {{ kindLabel(inputKind) }}
+                <svg class="annot-kind-arrow" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item
+                    v-for="k in KINDS"
+                    :key="k.value"
+                    :command="k.value"
+                    :class="{ 'kind-active': inputKind === k.value }"
+                  >
+                    <svg v-if="inputKind === k.value" class="kind-check" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span v-else class="kind-check-space"></span>
+                    {{ k.label }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
-        <textarea
-          ref="inputRef"
-          v-model="input"
-          rows="4"
-          placeholder="贴一贴重要信息"
-          class="annot-input"
-          @keydown.meta.enter="add"
-          @keydown.ctrl.enter="add"
-        ></textarea>
         <div class="annot-actions">
           <span class="annot-hint">⌘/Ctrl + Enter 提交</span>
           <div class="annot-actions-right">
@@ -131,6 +164,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
+import { CircleCheck, Close, RefreshLeft } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
@@ -159,11 +193,14 @@ const KIND_VALUES = KINDS.map(k => k.value);
 
 // 新建时选择的类型（切换任务后重置为 note）
 const inputKind = ref("note");
-// 编辑时选择的类型
-const editingKind = ref("note");
 // 面板筛选：all=全部
 const kindFilter = ref("all");
 const kindFilterOptions = [{ value: "all", label: "全部" }, ...KINDS];
+
+// dropdown 命令 → 设置新建类型
+function onKindCommand(v) {
+  inputKind.value = v;
+}
 
 // 类型归一化：老数据/非法值兜底为 note
 function kindOf(a) {
@@ -179,10 +216,62 @@ const filteredAnnotations = computed(() => {
   return sortedAnnotations.value.filter(a => kindOf(a) === kindFilter.value);
 });
 
-// 编辑状态
+// 内联编辑状态（Windows 便利贴式：点击内容就地编辑）
 const editingAnnId = ref("");
 const editingContent = ref("");
 const editingSaving = ref(false);
+// textarea 元素引用集合（用于编辑态自动聚焦）
+const inlineInputEls = ref([]);
+
+// 点击内容 → 进入就地编辑
+function startInline(ann) {
+  if (editingSaving.value) return;
+  editingAnnId.value = ann.id;
+  editingContent.value = ann.content;
+  // 等 DOM 渲染后聚焦
+  requestAnimationFrame(() => {
+    const el = (inlineInputEls.value || []).find((x) => x?.dataset?.annId === ann.id);
+    el?.focus();
+  });
+}
+// 失焦 / Ctrl+Enter → 保存（内容为空则回退显示原文）
+async function saveInline(ann) {
+  if (editingAnnId.value !== ann.id) return;
+  const content = editingContent.value.trim();
+  editingAnnId.value = "";
+  if (!content) return; // 空内容不保存，回退显示原文
+  editingSaving.value = true;
+  try {
+    const res = await api(buildUrl(ann.id), {
+      method: "PUT",
+      body: JSON.stringify({ content, kind: kindOf(ann) }),
+      silent: true,
+    });
+    if (res?.ok) {
+      emit("changed");
+    } else {
+      toast(res.error || "更新失败", "error");
+    }
+  } finally {
+    editingSaving.value = false;
+  }
+}
+// Esc → 取消编辑，不保存
+function cancelInline() {
+  editingAnnId.value = "";
+  editingContent.value = "";
+}
+// 类型下拉直接改（选择即保存）
+async function changeKind(ann, v) {
+  if (kindOf(ann) === v) return;
+  const res = await api(buildUrl(ann.id), {
+    method: "PUT",
+    body: JSON.stringify({ kind: v }),
+    silent: true,
+  });
+  if (res?.ok) emit("changed");
+  else toast(res.error || "更新失败", "error");
+}
 
 // 删除二次确认
 const confirmDel = ref({ show: false, ann: null });
@@ -291,37 +380,6 @@ async function toggleConfirm(ann) {
   if (res?.ok) emit("changed");
   else toast(res.error || "操作失败", "error");
 }
-
-function startEdit(ann) {
-  editingAnnId.value = ann.id;
-  editingContent.value = ann.content;
-  editingKind.value = kindOf(ann);
-}
-function cancelEdit() {
-  editingAnnId.value = "";
-  editingContent.value = "";
-}
-async function saveEdit() {
-  const content = editingContent.value.trim();
-  if (!content) return toast("批注内容不能为空", "error");
-  editingSaving.value = true;
-  try {
-    const res = await api(buildUrl(editingAnnId.value), {
-      method: "PUT",
-      body: JSON.stringify({ content, kind: editingKind.value }),
-      silent: true,
-    });
-    if (res?.ok) {
-      toast("已更新");
-      cancelEdit();
-      emit("changed");
-    } else {
-      toast(res.error || "更新失败", "error");
-    }
-  } finally {
-    editingSaving.value = false;
-  }
-}
 </script>
 
 <style scoped>
@@ -404,9 +462,9 @@ async function saveEdit() {
   font-size: 12px; color: var(--text-tertiary); padding: 24px 0;
 }
 
-/* 便利贴：黄底（待确认）/ 绿底（已确认），带轻阴影 */
+/* 便利贴：黄底（待确认）/ 绿底（已确认），带轻阴影；三段式：头/内容/脚 */
 .sticky {
-  padding: 10px 12px;
+  padding: 8px 12px 10px;
   background: var(--sticky-bg);
   box-shadow: var(--shadow-sm);
   border-radius: var(--radius-sm);
@@ -420,26 +478,53 @@ async function saveEdit() {
 .sticky-done {
   background: var(--sticky-bg-confirmed);
 }
+/* 头：左=确认/激活按钮，右=编辑/删除工具栏 */
+.sticky-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.sticky-head-left {
+  display: flex;
+  align-items: center;
+}
 .sticky-content {
   margin: 0 0 8px; font-size: 13px; line-height: 1.55;
   color: var(--text);
 }
 .sticky-done .sticky-content { color: var(--text); }
 .sticky-foot {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
 }
-.sticky-foot-left {
+/* 脚部类型：纯文字 + 下拉箭头（点击修改类型） */
+.sticky-kind-text {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-width: 0;
+  gap: 3px;
+  cursor: pointer;
+  user-select: none;
 }
-.sticky-foot-left .sticky-kind-tag { flex-shrink: 0; }
+.sticky-kind-arrow {
+  opacity: 0.6;
+}
+.kind-txt-note { color: oklch(0.55 0.12 90); }
+.kind-txt-decision { color: oklch(0.55 0.21 255); }
+.kind-txt-risk { color: oklch(0.58 0.24 25); }
+.kind-txt-milestone { color: oklch(0.62 0.15 75); }
 .sticky-done .sticky-foot { color: var(--text-secondary); }
 .sticky-actions { display: flex; gap: 4px; align-items: center; }
 
-/* 统一图标按钮：无边框，仅 hover 变色 */
+/* 统一图标按钮：无边框，hover 无颜色高亮（仅轻微加深） */
 .sticky-icon-btn {
   width: 26px; height: 26px;
   border: none;
@@ -450,62 +535,48 @@ async function saveEdit() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--duration-fast) var(--ease-out);
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 .sticky-icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-secondary);
+  opacity: 1;
+  color: var(--text-tertiary);
+}
+.sticky-icon-btn:not(:hover) {
+  opacity: 0.75;
+}
+/* 确认按钮：已确认绿色（状态语义）；删除按钮 hover 不变色 */
+.sticky-icon-btn.sticky-confirmed {
+  color: oklch(0.55 0.15 150);
 }
 
-/* 编辑态：保留类型底色，仅叠加金色高亮边框 */
+/* 内联编辑态：保留类型底色，仅叠加金色高亮边框 */
 .sticky.sticky-editing {
   border: 1px solid var(--accent-warm);
   box-shadow: 0 0 0 3px var(--accent-warm-subtle);
 }
-.sticky-edit-input {
+/* 内联编辑 textarea：与便利贴同底色、无边框、贴合内容（Windows 便利贴式） */
+.sticky-inline-input {
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--accent-warm);
-  border-radius: var(--radius-sm);
+  padding: 0;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 0;
   font-size: 13px; line-height: 1.55;
-  background: var(--bg-card);
+  background: transparent;
   color: var(--text);
   outline: none;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
-  margin-bottom: 8px;
-  min-height: 80px;
+  min-height: 60px;
 }
-.sticky-edit-input:focus {
-  border-color: var(--accent-warm-hover);
-  box-shadow: 0 0 0 3px var(--accent-warm-subtle);
+/* 内容可点击编辑：hover 轻微提示（光标变化 + 半透明） */
+.sticky-editable {
+  cursor: text;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
-
-/* 保存 / 取消按钮 */
-.sticky-save,
-.sticky-cancel {
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 5px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  border: 1px solid transparent;
+.sticky-editable:hover {
+  opacity: 0.85;
 }
-.sticky-cancel {
-  background: transparent;
-  border-color: var(--border);
-  color: var(--text-secondary);
-}
-.sticky-cancel:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text); }
-.sticky-save {
-  background: var(--accent-warm);
-  color: var(--bg-card);
-  border-color: var(--accent-warm);
-}
-.sticky-save:hover:not(:disabled) { background: var(--accent-warm-hover); border-color: var(--accent-warm-hover); }
-.sticky-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* 类型筛选 chips（V2.0） */
 .annot-kind-filter {
@@ -557,18 +628,44 @@ async function saveEdit() {
 .kind-tag-risk .kind-tag-dot { color: oklch(0.64 0.24 25); }
 .kind-tag-milestone .kind-tag-dot { color: oklch(0.7 0.15 75); }
 
-/* 类型下拉（V2.0） */
-.kind-select {
-  width: 110px;
-}
-.kind-select :deep(.el-select__wrapper) {
-  font-size: 12px;
-  padding: 0 8px;
-}
-.annot-compose-kind {
+/* 类型下拉（V2.0）：无边框 dropdown（左下角纯文字标签） */
+/* 输入框容器：边框/圆角/背景都在这层，textarea 无边框；toolbar 是底部正常流行，不与文字重叠 */
+.annot-compose-box {
   display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
-.annot-compose-kind .kind-select { width: 96px; }
+.annot-compose-box:focus-within {
+  border-color: var(--accent-warm);
+}
+.annot-compose-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 2px 8px 6px;
+}
+.annot-kind-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.annot-kind-trigger:hover {
+  color: var(--text);
+}
+.annot-kind-arrow {
+  color: currentColor;
+  opacity: 0.75;
+}
 
 /* 输入区：仅未完成态显示 */
 .annot-compose {
@@ -579,18 +676,18 @@ async function saveEdit() {
 }
 .annot-input {
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
+  padding: 10px 12px 2px;
+  border: none;
+  border-radius: 0;
   font-size: 13px; line-height: 1.55;
-  background: var(--bg-card);
+  background: transparent;
   color: var(--text);
-  outline: none; resize: vertical;
+  outline: none; resize: none;
   font-family: inherit;
   min-height: 90px;
   transition: border-color var(--duration-fast) var(--ease-out);
 }
-.annot-input:focus { border-color: var(--accent-warm); }
+.annot-input:focus { border-color: transparent; }
 .annot-actions {
   display: flex; justify-content: space-between; align-items: center;
 }
@@ -611,4 +708,49 @@ async function saveEdit() {
   background: var(--accent-warm-hover); border-color: var(--accent-warm-hover);
 }
 .annot-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<style>
+/* ===== 类型 dropdown 菜单（teleport 到 body，必须全局） =====
+ * 无圆角无阴影；hover 项才有阴影；纯文字 + 对勾指示当前项 */
+.annot-kind-menu.el-dropdown__popper {
+  box-shadow: none;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.annot-kind-menu.el-dropdown__popper .el-dropdown-menu {
+  padding: 4px;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--bg-card);
+}
+.annot-kind-menu .el-dropdown-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: 0;
+  line-height: 1.6;
+  color: var(--text);
+  box-shadow: none;
+}
+.annot-kind-menu .el-dropdown-menu__item:hover {
+  background: var(--bg-card);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+.annot-kind-menu .el-dropdown-menu__item.kind-active {
+  font-weight: 700;
+  color: var(--text);
+  background: var(--bg-card);
+}
+.kind-check {
+  flex-shrink: 0;
+  color: var(--text);
+}
+.kind-check-space {
+  width: 12px;
+  flex-shrink: 0;
+}
 </style>
