@@ -1,5 +1,5 @@
 <template>
-  <section class="overview-card">
+  <section class="overview-card" :class="{ 'ov-collapsed': !expanded }">
     <!-- 头部：左右两个平级标题块（项目概览 | 历史总结） -->
     <div class="ov-cols-head">
       <!-- 左标题：项目概览（点击折叠） -->
@@ -25,67 +25,85 @@
       <div v-if="loading" class="ov-empty">正在生成总结…</div>
       <div v-else-if="!s" class="ov-empty">暂无数据</div>
 
-      <div v-else class="ov-cols">
-        <!-- 左栏：项目概览 -->
-        <div class="ov-col ov-col-main">
-          <!-- 空项目引导 -->
-          <template v-if="isEmpty">
+      <div v-else class="ov-cols ov-cols-4">
+        <!-- 空项目引导：独占整行 -->
+        <template v-if="isEmpty">
+          <div class="ov-col ov-col-empty">
             <p class="ov-empty-text">还没有任务，拆解项目开始规划</p>
             <ul v-if="s.nextSteps?.length" class="ov-steps ov-steps-empty">
               <li v-for="(st, i) in s.nextSteps" :key="i">{{ st }}</li>
             </ul>
-          </template>
+          </div>
+        </template>
 
-          <template v-else>
-            <!-- 一句话现状 -->
-            <p class="ov-summary">{{ s.summary }}</p>
-
-            <!-- 待确认批注 -->
-            <div v-if="s.pendingAnnotations?.length" class="ov-metric warn">
-              <span class="ov-dot"></span>
-              <span>{{ s.pendingAnnotations.length }} 条待确认批注</span>
-            </div>
-
-            <!-- 延期任务（红） -->
-            <ul v-if="s.delayed?.length" class="ov-delayed">
-              <li v-for="(d, i) in s.delayed.slice(0, 3)" :key="i">
-                「{{ d.task }}」延期 {{ d.days }} 天
-              </li>
-              <li v-if="s.delayed.length > 3" class="ov-delayed-more">… 还有 {{ s.delayed.length - 3 }} 个延期任务</li>
-            </ul>
-
-            <!-- 风险分级 -->
-            <div v-if="s.risks?.length" class="ov-risks">
-              <div v-for="(r, i) in s.risks" :key="i" class="ov-risk" :class="'risk-' + r.level">
-                {{ r.desc }}
+        <template v-else>
+          <!-- 列 1：KPI 四宫格（白底便利贴） -->
+          <div class="ov-col">
+            <div class="ov-kpi-frame">
+              <div class="ov-kpi-tape" :class="'kpi-tape-' + statusKey(s.project?.status)"></div>
+              <div class="ov-kpis">
+                <div class="ov-kpi">
+                  <span class="ov-kpi-num">{{ s.pending?.length ?? 0 }}</span>
+                  <span class="ov-kpi-label">剩余任务</span>
+                </div>
+                <div class="ov-kpi" :class="{ 'kpi-alert': s.delayed?.length }">
+                  <span class="ov-kpi-num">{{ s.delayed?.length ?? 0 }}</span>
+                  <span class="ov-kpi-label">延期</span>
+                </div>
+                <div class="ov-kpi" :class="{ 'kpi-warn': s.pendingAnnotations?.length }">
+                  <span class="ov-kpi-num">{{ s.pendingAnnotations?.length ?? 0 }}</span>
+                  <span class="ov-kpi-label">待确认</span>
+                </div>
+                <div class="ov-kpi">
+                  <span class="ov-kpi-num">{{ noDateCount }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
+                  <span class="ov-kpi-label">缺日期</span>
+                </div>
               </div>
             </div>
+          </div>
 
-            <!-- 下一步 -->
-            <div v-if="s.nextSteps?.length" class="ov-next">
-              <div class="ov-label">下一步</div>
-              <ul class="ov-steps">
-                <li v-for="(st, i) in s.nextSteps" :key="i">{{ st }}</li>
-              </ul>
+          <!-- 列 2：风险 -->
+          <div v-if="s.risks?.length" class="ov-col">
+            <div class="ov-label ov-label-danger">风险</div>
+            <div class="ov-risks">
+              <div v-for="(r, i) in s.risks" :key="i" class="ov-risk" :class="'risk-' + r.level">
+                <template v-if="riskParts(r)">
+                  <span class="ov-risk-num">{{ riskParts(r).num }}</span>
+                  <span class="ov-risk-text">{{ riskParts(r).text }}</span>
+                  <span v-if="riskParts(r).note" class="ov-risk-note">{{ riskParts(r).note }}</span>
+                </template>
+                <template v-else>{{ r.desc }}</template>
+              </div>
             </div>
-          </template>
-        </div>
+          </div>
 
-        <!-- 右栏：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新；无数据不显示 -->
-        <div v-if="summaries.length" class="ov-col ov-col-tl">
-          <div v-if="tlLoading" class="ov-empty">加载中…</div>
-          <div v-else class="ov-tl-scroll">
-            <ul class="ov-tl-list">
-              <li v-for="(it, i) in shownSummaries" :key="it.id || i" class="ov-tl-item">
-                <div class="ov-tl-meta">
-                  <span class="ov-tl-time">{{ fmtTime(it.createdAt) }}</span>
-                  <span class="ov-tl-src" :class="it.source === 'auto' ? 'src-auto' : 'src-manual'">{{ it.source === 'auto' ? '自动' : '手动' }}</span>
-                </div>
-                <p class="ov-tl-text">{{ summaryText(it.content) }}</p>
+          <!-- 列 3：下一步 -->
+          <div v-if="s.nextSteps?.length" class="ov-col">
+            <div class="ov-label">下一步</div>
+            <ul class="ov-steps">
+              <li v-for="(st, i) in s.nextSteps" :key="i" class="ov-step">
+                <span class="ov-step-idx">{{ i + 1 }}</span>
+                <span class="ov-step-text">{{ st }}</span>
               </li>
             </ul>
           </div>
-        </div>
+
+          <!-- 列 4：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新；无数据不显示 -->
+          <div v-if="summaries.length" class="ov-col ov-col-tl">
+            <div v-if="tlLoading" class="ov-empty">加载中…</div>
+            <div v-else class="ov-tl-scroll">
+              <ul class="ov-tl-list">
+                <li v-for="(it, i) in shownSummaries" :key="it.id || i" class="ov-tl-item">
+                  <div class="ov-tl-meta">
+                    <span class="ov-tl-time">{{ fmtTime(it.createdAt) }}</span>
+                    <span class="ov-tl-src" :class="it.source === 'auto' ? 'src-auto' : 'src-manual'">{{ it.source === 'auto' ? '自动' : '手动' }}</span>
+                  </div>
+                  <p class="ov-tl-text">{{ summaryText(it.content) }}</p>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -127,7 +145,7 @@ const loading = ref(false);
 const s = ref(null); // summary data
 
 // ===== 历史总结时间线（V2.0 S14）=====
-const TL_LIMIT = 3; // 默认只展示前 3 条，更多内容点「更多 >」进 Drawer 查看
+const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
 const SOURCE_FILTERS = [
   { value: "all", label: "全部" },
   { value: "auto", label: "自动" },
@@ -138,7 +156,7 @@ const tlLoaded = ref(false); // 已加载过则缓存，不再重复请求
 const summaries = ref([]);
 const drawerOpen = ref(false); // 历史总结 Drawer 开关
 const tlFilter = ref("all"); // 当前筛选：all / auto / manual
-// 展示列表：默认前 3 条（全部内容在 Drawer 中）
+// 展示列表：默认前 10 条（超过 350px 高度列表滚动，全部内容在 Drawer 中）
 const shownSummaries = computed(() => summaries.value.slice(0, TL_LIMIT));
 // Drawer 内按来源筛选后的列表
 const filteredSummaries = computed(() => {
@@ -222,35 +240,77 @@ const isEmpty = computed(() => {
   if (!s.value) return false;
   return !s.value.completed?.length && !s.value.pending?.length;
 });
+
+// KPI：任务总数 / 缺日期数（从 low 风险描述「6/10 个任务缺少起止日期」解析，容错为 0）
+const totalCount = computed(() => {
+  const n = s.value?.completed?.length + s.value?.pending?.length;
+  return Number.isFinite(n) ? n : 0;
+});
+const noDateCount = computed(() => {
+  const low = (s.value?.risks || []).find((r) => r.level === "low" && r.desc.includes("缺少起止日期"));
+  if (!low) return 0;
+  const m = /^(\d+)\/(\d+)/.exec(low.desc);
+  return m ? Number(m[1]) : 0;
+});
+
+// 风险描述解析：把「2 个任务已延期（最长延期 5 天）」拆成 { num, text, note }
+// 支持 num 形如「6/10」；无数字时返回 null（模板回退显示原文）
+function riskParts(r) {
+  const desc = String(r?.desc || "");
+  const m = /^(\d+\/?\d*)\s*([^（）]*)\s*（?([^（）]*)）?$/.exec(desc);
+  if (!m || !m[1]) return null;
+  return { num: m[1], text: m[2]?.trim() || "", note: m[3]?.trim() || "" };
+}
+
+// 项目展示状态 → key（胶带颜色对齐项目状态，含派生的「已延期」）
+// 注意：summary 接口的 project.status 已是 computeStatus 计算后的派生态
+function statusKey(st) {
+  return { "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay" }[st] || "todo";
+}
 </script>
 
 <style scoped>
 .overview-card {
   flex-shrink: 0;
   margin: 0 24px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 2px 16px 14px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  transition: min-height 0.2s var(--ease-out);
+}
+/* 收起态：内容隐藏后卡片同步收缩 */
+.ov-collapsed {
+  min-height: 0;
+  margin-bottom: 8px;
 }
 
-/* ===== 头部（左右平级标题） ===== */
+/* ===== 头部（与内容区 4 列对齐） =====
+ * 项目概览占前 3 列（含刷新按钮），历史总结占第 4 列 */
 .ov-cols-head {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
+  align-items: center;
   padding: 10px 0;
 }
 .ov-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 .ov-head-main {
-  flex: 1.4;
-  min-width: 0;
+  grid-column: span 3;
   cursor: pointer;
   user-select: none;
 }
 .ov-head-tl {
-  flex: 1;
-  min-width: 0;
+  grid-column: 4;
 }
 .ov-chevron {
   color: var(--text-tertiary);
@@ -286,28 +346,44 @@ const isEmpty = computed(() => {
 .ov-refresh.spinning svg { animation: ov-spin 0.8s linear infinite; }
 @keyframes ov-spin { to { transform: rotate(360deg); } }
 
-/* ===== 内容（左右布局） ===== */
+/* ===== 内容（4 列自适应网格） =====
+ * KPI / 风险 / 下一步 / 历史总结 四等分；
+ * minmax(200px, 1fr)：容器缩窄时自动换行，不挤压堆叠
+ * 历史总结列：内容绝对定位，不参与行高计算；列高由其余列决定，滚动区填满列 */
 .ov-body {
-  padding: 4px 0 14px;
+  padding: 16px 0 14px;
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
 }
-.ov-cols {
-  display: flex;
-  align-items: stretch;
+.ov-cols-4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
+  align-items: stretch;
 }
 .ov-col {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.ov-col-main {
-  flex: 1.4;
-  padding-left: 20px; /* 与头部标题「项目概览」文字左对齐（chevron 12px + gap 8px） */
-}
+/* 历史总结列：position relative + 内容绝对定位填满（不撑高网格行） */
 .ov-col-tl {
-  flex: 1;
-  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+.ov-col-tl .ov-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.ov-col-empty {
+  grid-column: 1 / -1;
 }
 .ov-empty {
   padding: 18px 0;
@@ -320,93 +396,183 @@ const isEmpty = computed(() => {
   color: var(--text-tertiary);
   font-size: 13px;
 }
-.ov-summary {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
 
-/* 待确认批注（黄） */
-.ov-metric {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-.ov-metric .ov-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.ov-metric.warn {
-  color: var(--accent-warm);
-  background: var(--accent-warm-subtle);
-}
-.ov-metric.warn .ov-dot { background: var(--accent-warm); }
-
-/* 延期任务（红） */
-.ov-delayed {
+/* ===== KPI 四宫格（白底便利贴 + 十字分割线） =====
+ * 风格对齐项目卡片：白底 / 无圆角 / 硬阴影 / 顶部锯齿胶带
+ * 四格用十字分割线（中缝横竖两条）分隔，白底黑字 */
+.ov-kpi-frame {
+  position: relative;
+  align-self: stretch;
+  flex: 1;
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 20px;
+  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  list-style: none;
-  padding: 0;
-  margin: 0;
 }
-.ov-delayed li {
+/* 便利贴胶带：锯齿撕口（对齐 ProjectCard.tape），颜色随项目状态 */
+.ov-kpi-tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 72px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-3deg);
+  opacity: 0.55;
+  background: var(--status-doing-text);
+  clip-path: polygon(
+    0 6, 3 0, 6 6, 9 0, 12 6, 15 0, 18 6,
+    18 0, 54 0,
+    54 6, 57 0, 60 6, 63 0, 66 6, 69 0, 72 6,
+    72 16, 69 22, 66 16, 63 22, 60 16, 57 22, 54 16,
+    54 22, 18 22,
+    18 16, 15 22, 12 16, 9 22, 6 16, 3 22, 0 16
+  );
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.kpi-tape-todo { background: var(--status-todo-text); }
+.kpi-tape-doing { background: var(--status-doing-text); }
+.kpi-tape-done { background: var(--status-done-text); }
+.kpi-tape-delay { background: var(--status-delay-text); }
+.ov-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 150px;
+  flex: 1;
+}
+.ov-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: transparent;
+  text-align: center;
+}
+/* 十字分割线：中缝竖线 + 第一行横线（2px 虚线） */
+.ov-kpi:nth-child(odd) {
+  border-right: 2px dashed var(--border);
+}
+.ov-kpi:nth-child(-n + 2) {
+  border-bottom: 2px dashed var(--border);
+}
+.ov-kpi-label {
   font-size: 12px;
-  color: var(--status-delay-text);
-  line-height: 1.6;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
-.ov-delayed-more { color: var(--text-tertiary); }
+.ov-kpi-num {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.ov-kpi-sub {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-left: 1px;
+}
+/* 状态色只染数字：延期红 / 待确认琥珀 */
+.ov-kpi.kpi-alert .ov-kpi-num { color: var(--danger); }
+.ov-kpi.kpi-warn .ov-kpi-num { color: var(--accent-warm); }
 
-/* 风险分级（无圆点，文字左对齐，级别用颜色区分） */
+.ov-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.18em;
+  padding-left: 8px;
+  border-left: 2px solid var(--text);
+  margin-bottom: 6px;
+}
+/* 风险标题：朱砂红（系统 danger 色）左边线 */
+.ov-label-danger {
+  color: var(--danger);
+  border-left-color: var(--danger);
+}
+
+/* 风险：数字强调 + 描述 + 灰色注 */
 .ov-risks {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
 }
 .ov-risk {
-  font-size: 12px;
-  color: var(--text-secondary);
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  font-size: 15px;
+  color: var(--text);
   line-height: 1.6;
 }
-.risk-high { color: var(--status-delay-text); }
-.risk-medium { color: var(--accent-warm); }
-.risk-low { color: var(--text-secondary); }
-
-/* 下一步 */
-.ov-next {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.ov-risk-num {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--danger);
+  margin-right: 5px;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
 }
-.ov-label {
-  font-size: 11px;
-  font-weight: 600;
+.ov-risk-text {
+  color: var(--text);
+}
+.ov-risk-note {
   color: var(--text-tertiary);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 13px;
+  margin-left: 2px;
 }
+
+/* 下一步：数字序号方框 + 文字 */
 .ov-steps {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 14px;
   list-style: none;
   padding: 0;
   margin: 0;
 }
-.ov-steps li {
-  font-size: 12px;
-  color: var(--text-secondary);
+.ov-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 15px;
+  color: var(--text);
   line-height: 1.6;
 }
-.ov-steps-empty li { color: var(--text-tertiary); }
+.ov-step-idx {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  background: var(--text);
+  color: var(--bg-card);
+  font-size: 13px;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.ov-step-text {
+  flex: 1;
+  min-width: 0;
+}
+.ov-steps-empty li {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 /* ===== 历史总结时间线（V2.0 S14）===== */
 .ov-tl-title {
@@ -448,9 +614,10 @@ const isEmpty = computed(() => {
   flex-direction: column;
   gap: 12px;
 }
-/* 滚动容器：列表超 350px 出现滚动条 */
+/* 滚动容器：绝对定位填满历史总结列，内容超高时自己滚动 */
 .ov-tl-scroll {
-  max-height: 350px;
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-width: thin;
