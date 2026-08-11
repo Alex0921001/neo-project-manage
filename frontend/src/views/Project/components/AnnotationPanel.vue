@@ -340,14 +340,24 @@ const annotations = computed(() => {
 });
 
 // 排序：未确认在前（按 createdAt 倒序），已确认在后（按 createdAt 倒序）
+// 本次会话内被本地确认/取消过的批注：保持原始顺序位置，不参与分组移动（点击确认不跳位）
 const sortedAnnotations = computed(() => {
-  const list = annotations.value.map(a => ({ ...a, confirmed: !!a.confirmed }));
-  const pending = list.filter(a => !a.confirmed);
-  const done = list.filter(a => a.confirmed);
+  const list = annotations.value.map((a, idx) => ({ ...a, _srcIdx: idx, confirmed: !!a.confirmed }));
   const byTimeDesc = (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  pending.sort(byTimeDesc);
-  done.sort(byTimeDesc);
-  return [...pending, ...done];
+  const overridden = list
+    .filter((a) => localOverride.value.has(a.id))
+    .sort((a, b) => a._srcIdx - b._srcIdx);
+  const rest = list.filter((a) => !localOverride.value.has(a.id));
+  const pending = rest.filter((a) => !a.confirmed).sort(byTimeDesc);
+  const done = rest.filter((a) => a.confirmed).sort(byTimeDesc);
+  const out = [];
+  let oi = 0, pi = 0, di = 0;
+  for (const a of list) {
+    if (localOverride.value.has(a.id)) out.push(overridden[oi++]);
+    else if (a.confirmed) out.push(done[di++]);
+    else out.push(pending[pi++]);
+  }
+  return out;
 });
 
 watch(() => props.task?.id, () => { input.value = ""; inputKind.value = "note"; });
@@ -413,8 +423,9 @@ async function toggleConfirm(ann) {
     silent: true,
   });
   if (res?.ok) {
-    // 本地乐观更新：立即划线/变绿，保持原位；下次打开便利贴时数据刷新归位
+    // 本地乐观更新：立即划线/变绿且保持原位；同时同步全局数据（大屏/小屏/角标一致）
     localOverride.value.set(ann.id, target);
+    emit("changed");
   } else {
     toast(res.error || "操作失败", "error");
   }
