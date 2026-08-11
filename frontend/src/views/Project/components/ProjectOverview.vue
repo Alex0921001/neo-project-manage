@@ -42,20 +42,131 @@
             <div class="ov-kpi-frame">
               <div class="ov-kpi-tape" :class="'kpi-tape-' + statusKey(s.project?.status)"></div>
               <div class="ov-kpis">
-                <div class="ov-kpi">
-                  <span class="ov-kpi-num">{{ s.pending?.length ?? 0 }}</span>
+                <!-- 剩余任务：点击数字弹任务列表 -->
+                <el-popover
+                  v-if="s.pendingTaskItems?.length"
+                  placement="top-start"
+                  :width="280"
+                  trigger="click"
+                  :show-arrow="false"
+                  popper-class="ov-task-pop"
+                >
+                  <template #reference>
+                    <div class="ov-kpi ov-kpi-click">
+                      <span class="ov-kpi-num">{{ s.pendingTaskItems.length }}</span>
+                      <span class="ov-kpi-label">剩余任务</span>
+                    </div>
+                  </template>
+                  <div class="ov-pop-head">剩余任务（{{ s.pendingTaskItems.length }}）</div>
+                  <ul class="ov-pop-list">
+                    <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item">
+                      <span class="ov-pop-idx">{{ i + 1 }}</span>
+                      <span class="ov-pop-id">#{{ t.id }}</span>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </li>
+                  </ul>
+                </el-popover>
+                <div v-else class="ov-kpi">
+                  <span class="ov-kpi-num">{{ s.pendingTaskItems?.length ?? 0 }}</span>
                   <span class="ov-kpi-label">剩余任务</span>
                 </div>
-                <div class="ov-kpi" :class="{ 'kpi-alert': s.delayed?.length }">
+
+                <!-- 延期：红色数字 -->
+                <el-popover
+                  v-if="s.delayed?.length"
+                  placement="top-start"
+                  :width="280"
+                  trigger="click"
+                  :show-arrow="false"
+                  popper-class="ov-task-pop"
+                >
+                  <template #reference>
+                    <div class="ov-kpi ov-kpi-click kpi-alert">
+                      <span class="ov-kpi-num">{{ s.delayed.length }}</span>
+                      <span class="ov-kpi-label">延期</span>
+                    </div>
+                  </template>
+                  <div class="ov-pop-head">延期任务（{{ s.delayed.length }}）</div>
+                  <ul class="ov-pop-list">
+                    <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item">
+                      <span class="ov-pop-idx">{{ i + 1 }}</span>
+                      <span class="ov-pop-id">#{{ t.id }}</span>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </li>
+                  </ul>
+                </el-popover>
+                <div v-else class="ov-kpi kpi-alert">
                   <span class="ov-kpi-num">{{ s.delayed?.length ?? 0 }}</span>
                   <span class="ov-kpi-label">延期</span>
                 </div>
-                <div class="ov-kpi" :class="{ 'kpi-warn': s.pendingAnnotations?.length }">
+
+                <!-- 待确认：琥珀色（关联任务去重显示） -->
+                <el-popover
+                  v-if="pendingAnnotationTasks.length"
+                  placement="top-start"
+                  :width="280"
+                  trigger="click"
+                  :show-arrow="false"
+                  popper-class="ov-task-pop"
+                >
+                  <template #reference>
+                    <div class="ov-kpi ov-kpi-click kpi-warn">
+                      <span class="ov-kpi-num">{{ s.pendingAnnotations?.length ?? 0 }}</span>
+                      <span class="ov-kpi-label">待确认</span>
+                    </div>
+                  </template>
+                  <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 个任务）</div>
+                  <ul class="ov-pop-list">
+                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.id" class="ov-pop-item">
+                      <span class="ov-pop-idx">{{ i + 1 }}</span>
+                      <span class="ov-pop-id">#{{ t.id }}</span>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </li>
+                  </ul>
+                </el-popover>
+                <div v-else class="ov-kpi kpi-warn">
                   <span class="ov-kpi-num">{{ s.pendingAnnotations?.length ?? 0 }}</span>
                   <span class="ov-kpi-label">待确认</span>
                 </div>
-                <div class="ov-kpi">
-                  <span class="ov-kpi-num">{{ noDateCount }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
+
+                <!-- 缺日期：点击弹任务列表 -->
+                <el-popover
+                  v-if="s.noDateTaskItems?.length"
+                  placement="top-start"
+                  :width="280"
+                  trigger="click"
+                  :show-arrow="false"
+                  popper-class="ov-task-pop"
+                >
+                  <template #reference>
+                    <div class="ov-kpi ov-kpi-click">
+                      <span class="ov-kpi-num">{{ s.noDateTaskItems.length }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
+                      <span class="ov-kpi-label">缺日期</span>
+                    </div>
+                  </template>
+                  <div class="ov-pop-head">缺日期任务（{{ s.noDateTaskItems.length }}）</div>
+                  <ul class="ov-pop-list">
+                    <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item">
+                      <span class="ov-pop-idx">{{ i + 1 }}</span>
+                      <span class="ov-pop-id">#{{ t.id }}</span>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </li>
+                  </ul>
+                </el-popover>
+                <div v-else class="ov-kpi">
+                  <span class="ov-kpi-num">{{ s.noDateTaskItems?.length ?? 0 }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
                   <span class="ov-kpi-label">缺日期</span>
                 </div>
               </div>
@@ -66,14 +177,38 @@
           <div class="ov-col">
             <div class="ov-label ov-label-danger">风险</div>
             <div v-if="s.risks?.length" class="ov-risks">
-              <div v-for="(r, i) in s.risks" :key="i" class="ov-risk" :class="'risk-' + r.level">
-                <template v-if="riskParts(r)">
-                  <span class="ov-risk-num">{{ riskParts(r).num }}</span>
-                  <span class="ov-risk-text">{{ riskParts(r).text }}</span>
-                  <span v-if="riskParts(r).note" class="ov-risk-note">{{ riskParts(r).note }}</span>
+              <el-popover
+                v-for="(r, i) in s.risks"
+                :key="i"
+                :disabled="!r.tasks?.length"
+                placement="top-start"
+                :width="280"
+                trigger="click"
+                :show-arrow="false"
+                popper-class="ov-task-pop"
+              >
+                <template #reference>
+                  <div class="ov-risk" :class="'risk-' + r.level + (r.tasks?.length ? ' ov-risk-click' : '')">
+                    <template v-if="riskParts(r)">
+                      <span class="ov-risk-num">{{ riskParts(r).num }}</span>
+                      <span class="ov-risk-text">{{ riskParts(r).text }}</span>
+                      <span v-if="riskParts(r).note" class="ov-risk-note">{{ riskParts(r).note }}</span>
+                    </template>
+                    <template v-else>{{ r.desc }}</template>
+                  </div>
                 </template>
-                <template v-else>{{ r.desc }}</template>
-              </div>
+                <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
+                <ul class="ov-pop-list">
+                  <li v-for="(t, ti) in r.tasks" :key="t.id" class="ov-pop-item">
+                    <span class="ov-pop-idx">{{ ti + 1 }}</span>
+                    <span class="ov-pop-id">#{{ t.id }}</span>
+                    <span class="ov-pop-name">{{ t.name }}</span>
+                    <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                  </li>
+                </ul>
+              </el-popover>
             </div>
             <!-- 缺省：无风险 -->
             <div v-else class="ov-empty-state">
@@ -148,6 +283,7 @@
 <script setup>
 import { ref, computed, watch } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
+import { toast } from "../../../toast.js";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
 
@@ -252,20 +388,47 @@ defineExpose({ refresh });
 
 const isEmpty = computed(() => {
   if (!s.value) return false;
-  return !s.value.completed?.length && !s.value.pending?.length;
+  const st = s.value.stats;
+  return !(st ? st.total : s.value.completed?.length + s.value.pending?.length);
 });
 
-// KPI：任务总数 / 缺日期数（从 low 风险描述「6/10 个任务缺少起止日期」解析，容错为 0）
-const totalCount = computed(() => {
-  const n = s.value?.completed?.length + s.value?.pending?.length;
-  return Number.isFinite(n) ? n : 0;
+// KPI：任务总数（分母用 stats.total 全量，pending/completed 是截断展示版）
+const totalCount = computed(() => s.value?.stats?.total ?? 0);
+
+// 待确认批注关联的任务（去重，供 KPI popover 显示）
+const pendingAnnotationTasks = computed(() => {
+  const seen = new Set();
+  const out = [];
+  for (const a of s.value?.pendingAnnotations || []) {
+    if (!a.taskId || seen.has(a.taskId)) continue;
+    seen.add(a.taskId);
+    out.push({ id: a.taskId, name: a.name || a.task });
+  }
+  return out;
 });
-const noDateCount = computed(() => {
-  const low = (s.value?.risks || []).find((r) => r.level === "low" && r.desc.includes("缺少起止日期"));
-  if (!low) return 0;
-  const m = /^(\d+)\/(\d+)/.exec(low.desc);
-  return m ? Number(m[1]) : 0;
-});
+
+// ===== 任务复制（复用 TaskCard 的复制文案与 execCommand 方式）=====
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+function copyTaskItem(t) {
+  if (!t?.id) return;
+  copyText(`使用项目管理插件工具搜索：【任务 id:${t.id}】 ${t.name || ""} 的具体内容。`);
+}
 
 // 风险描述解析：把「2 个任务已延期（最长延期 5 天）」拆成 { num, text, note }
 // 支持 num 形如「6/10」；无数字时返回 null（模板回退显示原文）
@@ -500,6 +663,15 @@ function statusKey(st) {
   padding: 16px 12px;
   background: transparent;
   text-align: center;
+  cursor: default;
+}
+/* 可点击 KPI（有任务列表）→ 悬停/点击反馈 */
+.ov-kpi-click {
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.ov-kpi-click:hover {
+  background: var(--bg-hover);
 }
 /* 十字分割线：中缝竖线 + 第一行横线（2px 虚线） */
 .ov-kpi:nth-child(odd) {
@@ -561,6 +733,15 @@ function statusKey(st) {
   font-size: 15px;
   color: var(--text);
   line-height: 1.6;
+  cursor: default;
+}
+/* 可点击风险（有涉及任务）→ 悬停反馈 */
+.ov-risk-click {
+  cursor: pointer;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.ov-risk-click:hover {
+  opacity: 0.72;
 }
 .ov-risk-num {
   font-size: 19px;
@@ -782,5 +963,98 @@ function statusKey(st) {
   font-weight: 600;
   color: var(--text);
   line-height: 1.4;
+}
+
+/* ===== 概览面板任务 Popover（teleport 到 body，必须全局） =====
+ * 黑白极简：白底 / 无箭头 / 硬边框 / 列表行悬停 */
+.ov-task-pop.el-popover {
+  --el-popover-padding: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  background: var(--bg-card);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.ov-pop-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 6px;
+}
+.ov-pop-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ov-pop-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 4px;
+  border-radius: var(--radius-sm);
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.ov-pop-item:hover {
+  background: var(--bg-hover);
+}
+.ov-pop-idx {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--text);
+  color: var(--bg-card);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  border-radius: 3px;
+}
+.ov-pop-id {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.ov-pop-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.ov-pop-copy {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.ov-pop-copy:hover {
+  color: var(--text);
+  background: var(--bg-hover);
 }
 </style>
