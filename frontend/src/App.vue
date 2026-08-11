@@ -224,6 +224,7 @@ onMounted(async () => {
   --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
   --shadow-lg: 0 8px 30px oklch(0 0 0 / 0.1);
+  --shadow-raised: 0 4px 16px oklch(0 0 0 / 0.14);  /* 浮起层级（编辑态便利贴） */
 
   --radius-sm: 6px;
   --radius-md: 8px;

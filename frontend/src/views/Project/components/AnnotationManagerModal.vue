@@ -1,0 +1,208 @@
+<template>
+  <FloatPanel
+    :model-value="modelValue"
+    title="批注管理"
+    :default-width="960"
+    :default-height="600"
+    :min-width="640"
+    :min-height="420"
+    :max-width="1600"
+    :max-height="1000"
+    @update:model-value="(v) => emit('update:modelValue', v)"
+  >
+    <div class="annot-mgr-body">
+      <!-- 左：任务树（可整列折叠） -->
+      <div v-show="!treeCollapsed" class="annot-mgr-tree">
+        <div class="annot-mgr-tree-head">
+          <span class="annot-mgr-tree-title">任务树</span>
+          <span class="annot-mgr-tree-hint">未确认批注数</span>
+          <button class="annot-mgr-fold" title="收起任务树" @click="treeCollapsed = true">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+        </div>
+        <div class="annot-mgr-tree-list">
+          <template v-if="tasks.length">
+            <TaskTreeNode
+              v-for="t in tasks"
+              :key="t.id"
+              :task="t"
+              :depth="0"
+              :selected-id="selectedTaskId"
+              @select="onSelect"
+            />
+          </template>
+          <div v-else class="annot-mgr-tree-empty">项目暂无任务</div>
+        </div>
+      </div>
+      <!-- 折叠后展开按钮（左边缘竖条） -->
+      <button v-if="treeCollapsed" class="annot-mgr-unfold" title="展开任务树" @click="treeCollapsed = false">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <!-- 右：批注管理（内嵌便利贴面板） -->
+      <div class="annot-mgr-panel">
+        <AnnotationPanel
+          v-if="selectedTask"
+          :project-id="projectId"
+          :task="selectedTask"
+          :tasks="tasks"
+          embedded
+          @changed="emit('changed')"
+        />
+        <div v-else class="annot-mgr-panel-empty">请选择左侧任务</div>
+      </div>
+    </div>
+  </FloatPanel>
+</template>
+
+<script setup>
+import { ref, computed, watch } from "vue";
+import FloatPanel from "../../../components/FloatPanel.vue";
+import TaskTreeNode from "./TaskTreeNode.vue";
+import AnnotationPanel from "./AnnotationPanel.vue";
+
+const props = defineProps({
+  modelValue: { type: Boolean, default: false },
+  projectId: { type: String, required: true },
+  tasks: { type: Array, default: () => [] },
+  initialTaskId: { type: String, default: "" },
+});
+const emit = defineEmits(["update:modelValue", "changed"]);
+
+const selectedTaskId = ref("");
+// 任务树整列折叠开关
+const treeCollapsed = ref(false);
+
+// 递归按 id 查找任务（任意层级）
+function findTaskInTree(tasks, id) {
+  for (const t of tasks || []) {
+    if (t.id === id) return t;
+    const sub = findTaskInTree(t.subtasks, id);
+    if (sub) return sub;
+  }
+  return null;
+}
+
+const selectedTask = computed(() => findTaskInTree(props.tasks, selectedTaskId.value));
+
+function onSelect(id) {
+  selectedTaskId.value = id;
+}
+
+// 打开时：优先选中入口任务（initialTaskId）；否则第一个任务
+function onOpen() {
+  if (props.initialTaskId && findTaskInTree(props.tasks, props.initialTaskId)) {
+    selectedTaskId.value = props.initialTaskId;
+  } else if (props.tasks?.length) {
+    selectedTaskId.value = props.tasks[0].id;
+  } else {
+    selectedTaskId.value = "";
+  }
+}
+
+watch(() => props.modelValue, (v) => {
+  if (v) onOpen();
+});
+</script>
+
+<style scoped>
+.annot-mgr-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+}
+/* 左：任务树 */
+.annot-mgr-tree {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  overflow: hidden;
+}
+.annot-mgr-tree-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+.annot-mgr-tree-title {
+  flex-shrink: 0;
+}
+.annot-mgr-tree-hint {
+  flex: 1;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+/* 折叠/展开按钮 */
+.annot-mgr-fold {
+  width: 22px; height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.annot-mgr-fold:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.annot-mgr-unfold {
+  width: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.annot-mgr-unfold:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.annot-mgr-tree-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+.annot-mgr-tree-empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+/* 右：批注面板 */
+.annot-mgr-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.annot-mgr-panel-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+</style>

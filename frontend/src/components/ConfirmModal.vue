@@ -5,6 +5,7 @@
     width="360px"
     :close-on-click-modal="false"
     append-to-body
+    :z-index="z"
     @close="$emit('close')"
   >
     <p class="confirm-body">{{ message }}</p>
@@ -16,11 +17,20 @@
 </template>
 
 <script setup>
-defineProps({
+import { ref, watch } from "vue";
+import { nextZIndex } from "../utils/zIndex.js";
+
+const props = defineProps({
   show: Boolean,
   message: { type: String, default: "" },
 });
 defineEmits(["close", "confirm"]);
+
+// 打开时动态取层级（高于已开的浮动面板/其他弹窗）
+const z = ref(0);
+watch(() => props.show, (v) => {
+  if (v) z.value = nextZIndex();
+});
 </script>
 
 <style scoped>

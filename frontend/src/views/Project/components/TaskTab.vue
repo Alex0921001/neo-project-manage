@@ -237,6 +237,8 @@ function onSelectAnnotation({ taskId, subtaskId }) {
   // 📌 / 📝 点击只展开便利贴面板，不负责关闭
   activeTaskId.value = taskId;
   activeSubtaskId.value = subtaskId || "";
+  // 打开面板时刷新一次数据：批注本地确认标记在此归位并按确认状态重排
+  emit("changed");
 }
 function closeAnnotation() {
   activeTaskId.value = "";

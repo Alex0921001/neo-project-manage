@@ -1,11 +1,16 @@
 <template>
-  <div class="annot-panel">
+  <div class="annot-panel" :class="{ embedded }">
     <div class="annot-head">
       <div class="annot-head-left">
         <span class="annot-title">便利贴</span>
         <span v-if="target" class="annot-target">{{ targetLabel }}</span>
       </div>
-      <button class="annot-close" title="关闭便利贴面板" @click="emit('close')">✕</button>
+      <div v-if="!embedded" class="annot-head-actions">
+        <button class="annot-close" title="批注管理（大屏）" @click="manageShow = true">
+          <el-icon><FullScreen /></el-icon>
+        </button>
+        <button class="annot-close" title="关闭便利贴面板" @click="emit('close')">✕</button>
+      </div>
     </div>
 
     <div v-if="!target" class="annot-empty">
@@ -33,18 +38,18 @@
           <div
             v-for="a in filteredAnnotations"
             :key="a.id"
-            :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': a.confirmed, 'sticky-editing': editingAnnId === a.id }]"
+            :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': effectiveConfirmed(a), 'sticky-editing': editingAnnId === a.id }]"
           >
             <!-- 头：最左=确认/激活按钮，右=删除（常驻） -->
             <div class="sticky-head">
               <div class="sticky-head-left">
                 <button
                   class="sticky-icon-btn"
-                  :class="{ 'sticky-confirmed': a.confirmed }"
-                  :title="a.confirmed ? '取消确认' : '确认这条批注'"
+                  :class="{ 'sticky-confirmed': effectiveConfirmed(a) }"
+                  :title="effectiveConfirmed(a) ? '取消确认' : '确认这条批注'"
                   @click="toggleConfirm(a)"
                 >
-                  <el-icon v-if="!a.confirmed"><CircleCheck /></el-icon>
+                  <el-icon v-if="!effectiveConfirmed(a)"><CircleCheck /></el-icon>
                   <el-icon v-else><RefreshLeft /></el-icon>
                 </button>
               </div>
@@ -70,14 +75,23 @@
             ></textarea>
             <p
               v-else
-              class="sticky-content rich-view sticky-editable"
+              class="sticky-content rich-view"
+              :class="{ 'sticky-editable': !effectiveConfirmed(a) }"
               v-html="formatDescription(a.content)"
-              title="点击编辑"
-              @click="startInline(a)"
+              :title="effectiveConfirmed(a) ? '' : '点击编辑'"
+              @click="!effectiveConfirmed(a) && startInline(a)"
             ></p>
             <!-- 脚：左=类型下拉（点击即改），右=时间 -->
             <div class="sticky-foot">
-              <el-dropdown trigger="click" popper-class="annot-kind-menu" @command="(v) => changeKind(a, v)">
+              <span
+                v-if="effectiveConfirmed(a)"
+                class="sticky-kind-text"
+                :class="'kind-txt-' + kindOf(a)"
+                title="已确认，类型锁定"
+              >
+                {{ kindLabel(kindOf(a)) }}
+              </span>
+              <el-dropdown v-else trigger="click" popper-class="annot-kind-menu" @command="(v) => changeKind(a, v)">
                 <span class="sticky-kind-text" :class="'kind-txt-' + kindOf(a)" title="修改类型">
                   {{ kindLabel(kindOf(a)) }}
                   <svg class="sticky-kind-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -159,26 +173,39 @@
       @close="cancelRemove"
       @confirm="doRemove"
     />
+
+    <!-- 批注管理大弹窗：小窗放不下时点头部按钮打开 -->
+    <AnnotationManagerModal
+      v-model="manageShow"
+      :project-id="projectId"
+      :tasks="tasks"
+      :initial-task-id="target?.id"
+      @changed="emit('changed')"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { CircleCheck, Close, RefreshLeft } from "@element-plus/icons-vue";
+import { CircleCheck, Close, FullScreen, RefreshLeft } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
+import AnnotationManagerModal from "./AnnotationManagerModal.vue";
 import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   projectId: String,
   task: Object,           // 任意层级的任务对象（顶层/子/孙都走这一条）
   tasks: Array,            // 项目下所有任务（用于取最新数据）
+  embedded: Boolean,       // 嵌入大弹窗模式：隐藏头部按钮、高度自适应撑满
 });
 const emit = defineEmits(["changed", "close"]);
 
 const input = ref("");
 const saving = ref(false);
+// 批注管理大弹窗开关（小窗放不下时切大屏管理）
+const manageShow = ref(false);
 // S9：输入框引用，预填后自动聚焦方便用户继续打字
 const inputRef = ref(null);
 
@@ -223,9 +250,16 @@ const editingSaving = ref(false);
 // textarea 元素引用集合（用于编辑态自动聚焦）
 const inlineInputEls = ref([]);
 
-// 点击内容 → 进入就地编辑
+// 本地确认态覆盖：点击确认/取消后立即反映样式，但不触发列表重排（避免确认瞬间跳到末尾）
+const localOverride = ref(new Map());
+function effectiveConfirmed(a) {
+  if (localOverride.value.has(a.id)) return localOverride.value.get(a.id);
+  return !!a.confirmed;
+}
+
+// 点击内容 → 进入就地编辑（已确认的便利贴锁定，不可编辑）
 function startInline(ann) {
-  if (editingSaving.value) return;
+  if (effectiveConfirmed(ann) || editingSaving.value) return;
   editingAnnId.value = ann.id;
   editingContent.value = ann.content;
   // 等 DOM 渲染后聚焦
@@ -372,13 +406,18 @@ async function doRemove() {
 }
 
 async function toggleConfirm(ann) {
+  const target = !effectiveConfirmed(ann);
   const res = await api(buildUrl(ann.id), {
     method: "PUT",
-    body: JSON.stringify({ confirmed: !ann.confirmed }),
+    body: JSON.stringify({ confirmed: target }),
     silent: true,
   });
-  if (res?.ok) emit("changed");
-  else toast(res.error || "操作失败", "error");
+  if (res?.ok) {
+    // 本地乐观更新：立即划线/变绿，保持原位；下次打开便利贴时数据刷新归位
+    localOverride.value.set(ann.id, target);
+  } else {
+    toast(res.error || "操作失败", "error");
+  }
 }
 </script>
 
@@ -394,6 +433,12 @@ async function toggleConfirm(ann) {
   padding: 14px;
   overflow: hidden;
   box-sizing: border-box;
+}
+/* 嵌入大弹窗：解除高度限制，撑满容器 */
+.annot-panel.embedded {
+  max-height: none;
+  min-height: 0;
+  height: 100%;
 }
 
 .annot-head {
@@ -418,6 +463,12 @@ async function toggleConfirm(ann) {
   padding: 2px 8px; border-radius: 10px;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap;
+}
+.annot-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 .annot-close {
   width: 24px; height: 24px;
@@ -494,7 +545,11 @@ async function toggleConfirm(ann) {
   margin: 0 0 8px; font-size: 13px; line-height: 1.55;
   color: var(--text);
 }
-.sticky-done .sticky-content { color: var(--text); }
+.sticky-done .sticky-content {
+  color: var(--text);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
 .sticky-foot {
   display: flex;
   align-items: center;
@@ -524,35 +579,42 @@ async function toggleConfirm(ann) {
 .sticky-done .sticky-foot { color: var(--text-secondary); }
 .sticky-actions { display: flex; gap: 4px; align-items: center; }
 
-/* 统一图标按钮：无边框，hover 无颜色高亮（仅轻微加深） */
+/* 统一图标按钮：无边框；常态不降透明度，hover 加深颜色保证可读 */
 .sticky-icon-btn {
   width: 26px; height: 26px;
   border: none;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: opacity var(--duration-fast) var(--ease-out);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+/* 图标描边加粗，小尺寸下更清晰 */
+.sticky-icon-btn svg,
+.sticky-icon-btn svg path {
+  stroke-width: 2.4;
 }
 .sticky-icon-btn:hover {
-  opacity: 1;
-  color: var(--text-tertiary);
+  color: var(--text);
 }
-.sticky-icon-btn:not(:hover) {
-  opacity: 0.75;
+/* 确认态：类型仅查看（光标默认，无下拉交互） */
+.sticky-done .sticky-kind-text {
+  cursor: default;
 }
-/* 确认按钮：已确认绿色（状态语义）；删除按钮 hover 不变色 */
+/* 确认按钮：已确认绿色（状态语义），hover 同色加深 */
 .sticky-icon-btn.sticky-confirmed {
-  color: oklch(0.55 0.15 150);
+  color: oklch(0.5 0.15 150);
+}
+.sticky-icon-btn.sticky-confirmed:hover {
+  color: oklch(0.42 0.15 150);
 }
 
-/* 内联编辑态：保留类型底色，仅叠加金色高亮边框 */
+/* 内联编辑态：保留类型底色，仅叠加浮起阴影（去琥珀边框，编辑中便利贴呈“被拿起”层级） */
 .sticky.sticky-editing {
-  border: 1px solid var(--accent-warm);
-  box-shadow: 0 0 0 3px var(--accent-warm-subtle);
+  box-shadow: var(--shadow-raised);
 }
 /* 内联编辑 textarea：与便利贴同底色、无边框、贴合内容（Windows 便利贴式） */
 .sticky-inline-input {
@@ -737,8 +799,7 @@ async function toggleConfirm(ann) {
   box-shadow: none;
 }
 .annot-kind-menu .el-dropdown-menu__item:hover {
-  background: var(--bg-card);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  background: var(--bg-hover);
 }
 .annot-kind-menu .el-dropdown-menu__item.kind-active {
   font-weight: 700;
