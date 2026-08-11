@@ -105,7 +105,7 @@
               <span class="task-group-count">{{ displayedUndoneTasks.length }}</span>
             </div>
             <draggable
-              :list="undoneArr"
+              :list="dragUndoneList"
               item-key="id"
               handle=".drag-handle"
               ghost-class="task-ghost"
@@ -142,7 +142,7 @@
               <span class="task-group-count">{{ displayedDoneTasks.length }}</span>
             </div>
             <draggable
-              :list="doneArr"
+              :list="dragDoneList"
               item-key="id"
               handle=".drag-handle"
               ghost-class="task-ghost"
@@ -472,6 +472,9 @@ const displayedDoneTasks = computed(() =>
     ? doneTasks.value.map(t => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
     : doneTasks.value
 );
+// draggable 绑定列表：搜索态渲染过滤结果（拖拽已禁用，安全）；非搜索态用可变数组支持拖拽排序
+const dragUndoneList = computed(() => (searchLower.value ? displayedUndoneTasks.value : undoneArr.value));
+const dragDoneList = computed(() => (searchLower.value ? displayedDoneTasks.value : doneArr.value));
 
 // 弹窗表单状态
 const dialogShow = ref(false);
