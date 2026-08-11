@@ -42,7 +42,7 @@
         <span class="chip-name" :title="f.name">{{ f.name }}</span>
         <button class="chip-del" @click.stop="emit('confirm-ask', { message: '确认删除此文件？', action: 'delete-file', payload: f.id })">✕</button>
         <div class="chip-bottom">
-          <span v-if="fileExt(f)" class="chip-tag">{{ fileExt(f) }}</span>
+          <span v-if="fileExt(f)" class="chip-ext">{{ fileExt(f) }}</span>
           <span v-if="f.size != null" class="chip-date">{{ formatSize(f.size) }}</span>
           <span class="chip-date">{{ f.uploadedAt }}</span>
         </div>
@@ -195,12 +195,12 @@ defineExpose({ openAdd, pickFile: openAdd });
 .chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; }
 .chip-bottom { display: flex; align-items: center; gap: 8px; grid-column: 2 / 4; min-width: 0; }
 .chip-date { color: var(--text-tertiary); font-size: 12px; white-space: nowrap; }
-/* V2.0：类型小标签（对齐任务卡片 meta 风格） */
-.chip-tag {
-  display: inline-flex; align-items: center; flex-shrink: 0;
-  padding: 1px 6px; font-size: 11px; font-weight: 500;
-  background: var(--bg-hover); color: var(--text-secondary);
-  border: 1px solid var(--border-light); border-radius: 6px;
+/* V2.0：类型纯文字（与日期一致，去标签化） */
+.chip-ext {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 /* V2.0：摘要行（有 digest 时显示，单行省略，hover 看全文） */
 .chip-digest {
