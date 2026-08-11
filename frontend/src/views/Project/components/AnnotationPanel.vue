@@ -49,13 +49,17 @@
               ></textarea>
             </template>
             <template v-else>
-              <div class="sticky-kind-tag" :class="'kind-tag-' + kindOf(a)">
-                <span class="kind-tag-dot"></span>{{ kindLabel(kindOf(a)) }}
-              </div>
               <p class="sticky-content rich-view" v-html="formatDescription(a.content)"></p>
             </template>
             <div class="sticky-foot">
-              <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
+              <span class="sticky-foot-left">
+                <template v-if="editingAnnId !== a.id">
+                  <span class="sticky-kind-tag" :class="'kind-tag-' + kindOf(a)">
+                    <span class="kind-tag-dot"></span>{{ kindLabel(kindOf(a)) }}
+                  </span>
+                </template>
+                <span class="sticky-date">{{ formatDate(a.createdAt) }}</span>
+              </span>
               <div class="sticky-actions">
                 <template v-if="editingAnnId === a.id">
                   <button class="sticky-cancel" title="取消" @click="cancelEdit">取消</button>
@@ -108,7 +112,6 @@
         <div class="annot-actions">
           <span class="annot-hint">⌘/Ctrl + Enter 提交</span>
           <div class="annot-actions-right">
-            <button class="annot-quick-btn" title="记一个节点：类型切到「节点」并自动带上今天日期" @click="quickMilestone">记一个节点</button>
             <button class="btn-primary annot-btn" :disabled="!input.trim() || saving" @click="add">
               {{ saving ? "保存中…" : "贴上" }}
             </button>
@@ -242,22 +245,6 @@ function buildUrl(annId) {
 
 // ===== S9：里程碑快捷按钮 =====
 // 本地时间 YYYY-MM-DD（不用 toISOString，避免时区偏移）
-function todayStr() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-// 一键切到 milestone 并预填「[节点] YYYY-MM-DD 」，用户补内容后走原有提交
-function quickMilestone() {
-  inputKind.value = "milestone";
-  // 输入框已有草稿时不覆盖，仅切类型，避免丢内容
-  if (!input.value.trim()) {
-    input.value = `[节点] ${todayStr()} `;
-  }
-  inputRef.value?.focus();
-}
-
 async function add() {
   const content = input.value.trim();
   if (!content || !props.task) return;
@@ -442,6 +429,13 @@ async function saveEdit() {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 11px; color: var(--text-secondary);
 }
+.sticky-foot-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sticky-foot-left .sticky-kind-tag { flex-shrink: 0; }
 .sticky-done .sticky-foot { color: var(--text-secondary); }
 .sticky-actions { display: flex; gap: 4px; align-items: center; }
 
@@ -540,7 +534,7 @@ async function saveEdit() {
 .kind-chip-risk.active { background: oklch(0.85 0.10 25); }
 .kind-chip-milestone.active { background: oklch(0.87 0.10 75); }
 
-/* 类型小标签（V2.0）：半透明底 + 类型色圆点，在类型底/确认绿底上均清晰 */
+/* 类型小标签（V2.0）：半透明底 + 类型色圆点，在时间右侧 */
 .sticky-kind-tag {
   display: inline-flex;
   align-items: center;
@@ -550,7 +544,6 @@ async function saveEdit() {
   line-height: 1;
   padding: 2px 7px;
   border-radius: 8px;
-  margin-bottom: 6px;
   background: rgba(0, 0, 0, 0.08);
   color: var(--text-secondary);
 }
@@ -606,22 +599,6 @@ async function saveEdit() {
   gap: 8px;
 }
 .annot-hint { font-size: 11px; color: var(--text-tertiary); }
-/* 里程碑快捷按钮（S9）：金色描边小按钮，风格与「贴上」并列一致 */
-.annot-quick-btn {
-  padding: 5px 12px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 1px solid oklch(0.72 0.15 75);
-  color: oklch(0.6 0.14 75);
-  font-size: 12px;
-  line-height: 1.4;
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.annot-quick-btn:hover {
-  background: oklch(0.95 0.09 75);
-  border-color: oklch(0.72 0.15 75);
-}
 .annot-btn {
   padding: 5px 16px; border-radius: var(--radius-sm);
   background: var(--accent-warm); color: var(--bg-card);
