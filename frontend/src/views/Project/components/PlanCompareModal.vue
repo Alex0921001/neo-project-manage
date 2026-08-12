@@ -9,10 +9,6 @@
     :min-height="440"
   >
     <div class="cmp-wrap">
-      <div class="cmp-legend">
-        <span class="cmp-legend-item"><span class="cmp-chip cmp-del"></span>删除</span>
-        <span class="cmp-legend-item"><span class="cmp-chip cmp-add"></span>新增</span>
-      </div>
       <div class="cmp-grid">
         <div v-for="(p, idx) in plans" :key="p.id" class="cmp-col">
           <div class="cmp-col-head">
@@ -38,7 +34,13 @@
           </div>
         </div>
       </div>
-      <div class="cmp-foot">逐句对比：仅当两方案完全相同的句子才视为相同，其余按增删标记</div>
+      <div class="cmp-foot">
+        <span class="cmp-note">逐句对比：仅当两方案完全相同的句子才视为相同，其余按增删标记</span>
+        <div class="cmp-legend">
+          <span class="cmp-legend-item"><span class="cmp-chip cmp-del"></span>删除</span>
+          <span class="cmp-legend-item"><span class="cmp-chip cmp-add"></span>新增</span>
+        </div>
+      </div>
     </div>
   </FloatPanel>
 </template>
@@ -79,33 +81,7 @@ function diffSide(idx) {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-.cmp-legend {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 10px;
-}
-.cmp-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-.cmp-chip {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  display: inline-block;
-}
-.cmp-del {
-  background: oklch(0.94 0.04 25);
-  color: var(--status-delay-text);
-  text-decoration: line-through;
-}
-.cmp-add {
-  background: oklch(0.95 0.05 162);
-  color: var(--status-done-text);
+  padding: 4px 16px 16px;
 }
 .cmp-grid {
   display: grid;
@@ -163,9 +139,45 @@ function diffSide(idx) {
   padding: 24px 0;
 }
 .cmp-foot {
-  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--border);
+}
+.cmp-note {
   font-size: 11px;
   color: var(--text-tertiary);
+}
+.cmp-legend {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.cmp-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+/* 图例色块 / diff 内容高亮（删除划线 + 新增底色） */
+.cmp-chip {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.cmp-del {
+  background: oklch(0.94 0.04 25);
+  color: var(--status-delay-text);
+  text-decoration: line-through;
+}
+.cmp-add {
+  background: oklch(0.95 0.05 162);
+  color: var(--status-done-text);
 }
 /* 方案状态标签（与 PlanModal/PlanTab 一致） */
 .plan-st {

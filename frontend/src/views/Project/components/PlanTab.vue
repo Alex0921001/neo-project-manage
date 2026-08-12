@@ -1,19 +1,5 @@
 <template>
   <div class="plan-tab">
-    <div class="plan-head">
-      <div class="plan-head-actions">
-        <button
-          class="header-btn"
-          :disabled="selectedCount < 2"
-          :title="selectedCount < 2 ? '勾选 2 个方案后对比' : '对比选中的 2 个方案'"
-          @click="openCompare"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          对比选中{{ selectedCount > 0 ? `（${selectedCount}/2）` : "" }}
-        </button>
-      </div>
-    </div>
-
     <div v-if="loading" class="plans-empty">加载中…</div>
     <div v-else-if="plans.length === 0" class="plans-empty">
       <div class="plans-empty-deco">
@@ -36,15 +22,15 @@
       >
         <span
           class="plan-row-check"
-          :class="{ checked: selected.has(pl.id) }"
-          title="勾选用于对比"
+          :class="{ checked: selected.has(pl.id), disabled: selectedCount >= 2 && !selected.has(pl.id) }"
+          :title="selectedCount >= 2 && !selected.has(pl.id) ? '对比最多选 2 个' : '勾选用于对比'"
           @click.stop="toggleSelect(pl.id)"
         >
           <svg v-if="selected.has(pl.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </span>
         <span class="plan-row-title" :title="pl.title">{{ pl.title }}</span>
         <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
-        <span v-if="pl.commentCount" class="plan-row-meta">评论 {{ pl.commentCount }}</span>
+        <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
         <span v-if="pl.taskName" class="plan-row-task" @click.stop="jumpTask(pl.taskId)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           已转任务
@@ -111,7 +97,8 @@ function toggleSelect(id) {
   if (next.has(id)) {
     next.delete(id);
   } else {
-    if (next.size >= 2) return toast("对比最多选 2 个方案", "error");
+    // 已选满 2 个：其余 checkbox 置灰，点击静默忽略
+    if (next.size >= 2) return;
     next.add(id);
   }
   selected.value = next;
@@ -127,11 +114,14 @@ function openCompare() {
   if (selectedCount.value < 2) return toast("请先勾选 2 个方案", "error");
   compareShow.value = true;
 }
+
+// 勾选数上报父级（右上角「对比选中」按钮联动 disabled / 计数）
+watch(selected, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
 }
 
-defineExpose({ openCreate, load });
+defineExpose({ openCreate, load, openCompare });
 
 watch(() => props.projectId, () => load(), { immediate: true });
 </script>
@@ -141,16 +131,6 @@ watch(() => props.projectId, () => load(), { immediate: true });
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-.plan-head {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 4px;
-}
-.plan-head-actions {
-  display: flex;
-  gap: 8px;
 }
 .header-btn {
   display: inline-flex;
@@ -279,6 +259,10 @@ watch(() => props.projectId, () => load(), { immediate: true });
   color: #fff;
   background: transparent;
 }
+.plan-row-check.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .plan-row-check.checked {
   background: var(--accent-warm);
   border-color: var(--accent-warm);
@@ -294,9 +278,10 @@ watch(() => props.projectId, () => load(), { immediate: true });
   white-space: nowrap;
 }
 .plan-row-meta {
+  width: 56px;
+  flex-shrink: 0;
   font-size: 12px;
   color: var(--text-tertiary);
-  flex-shrink: 0;
 }
 .plan-row-task {
   display: inline-flex;

@@ -24,9 +24,19 @@
             >
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
-            <button class="pm-btn" @click="enterEdit">编辑</button>
-            <button class="pm-btn pm-btn-primary" @click="confirmConvert">转任务</button>
-            <button class="pm-btn pm-btn-danger" @click="confirmDelete">删除</button>
+            <!-- 操作按钮按状态显示：转任务仅已采纳；编辑仅草稿/进行中；删除仅草稿/已废弃 -->
+            <button
+              v-if="plan?.status === '已采纳'"
+              class="pm-btn pm-btn-primary"
+              title="转为任务"
+              @click="confirmConvert"
+            >转任务</button>
+            <button v-if="plan?.status === '草稿' || plan?.status === '进行中'" class="pm-icon-btn" title="编辑" @click="enterEdit">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button v-if="plan?.status === '草稿' || plan?.status === '已废弃'" class="pm-icon-btn pm-icon-danger" title="删除" @click="confirmDelete">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
           </div>
         </div>
         <div class="pm-grid">
@@ -48,41 +58,34 @@
           <!-- 右 3：评论（任何状态可评论） -->
           <div class="pm-comments">
             <div class="pm-comments-title">评论</div>
-            <div v-if="comments.length === 0" class="pm-comments-empty">暂无评论</div>
-            <div v-for="c in comments" :key="c.id" class="pm-comment">
-              <div class="pm-comment-meta">
-                <span>{{ formatTime(c.createdAt) }}</span>
-                <span class="pm-comment-del" title="删除评论" @click="confirmDeleteComment(c)">×</span>
+            <div class="pm-comment-list">
+              <div v-if="comments.length === 0" class="pm-comments-empty">暂无评论</div>
+              <div v-for="c in comments" :key="c.id" class="pm-comment">
+                <div class="pm-comment-meta">
+                  <span>{{ formatTime(c.createdAt) }}</span>
+                  <span class="pm-comment-del" title="删除评论" @click="confirmDeleteComment(c)">×</span>
+                </div>
+                <div class="pm-comment-body">{{ c.content }}</div>
               </div>
-              <div class="pm-comment-body">{{ c.content }}</div>
             </div>
             <div class="pm-comment-input">
-              <input
+              <textarea
                 v-model="commentDraft"
+                rows="3"
                 placeholder="输入评论，回车发送"
                 @keydown.enter.prevent="sendComment"
-              />
-              <button class="pm-btn pm-btn-primary" :disabled="!commentDraft.trim()" @click="sendComment">发送</button>
+              ></textarea>
             </div>
           </div>
         </div>
       </div>
     </template>
 
-    <!-- ===== 编辑模式（新建 / 编辑共用） ===== -->
+    <!-- ===== 编辑模式（新建 / 编辑共用，状态默认草稿，由阅读模式头部切换） ===== -->
     <template v-else>
       <div class="pm-edit">
-        <div class="pm-head">
+        <div class="pm-edit-head">
           <input v-model="editTitle" class="pm-edit-title" placeholder="方案标题" maxlength="100" />
-          <div class="pm-head-ops">
-            <el-select v-model="editStatus" size="small" style="width: 104px">
-              <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
-            </el-select>
-            <button class="pm-btn" @click="emit('close')">取消</button>
-            <button class="pm-btn pm-btn-primary" :disabled="saving" @click="savePlan">
-              {{ saving ? "保存中…" : "保存" }}
-            </button>
-          </div>
         </div>
         <div class="pm-edit-body">
           <component
@@ -91,6 +94,12 @@
             :project-id="projectId"
             placeholder="方案内容：记录背景、方案要点、优劣对比……"
           />
+        </div>
+        <div class="pm-edit-footer">
+          <button class="pm-btn" @click="emit('close')">取消</button>
+          <button class="pm-btn pm-btn-save" :disabled="saving" @click="savePlan">
+            {{ saving ? "保存中…" : "保存" }}
+          </button>
         </div>
       </div>
     </template>
@@ -135,10 +144,9 @@ const statusVal = ref("草稿");
 const statusSaving = ref(false);
 const commentDraft = ref("");
 
-// 编辑态
+// 编辑态（状态默认草稿，创建后由阅读模式头部切换，编辑弹窗不设状态）
 const editTitle = ref("");
 const editContent = ref("");
-const editStatus = ref("草稿");
 const saving = ref(false);
 
 // 确认弹窗
@@ -146,7 +154,7 @@ const confirm = ref({ show: false, message: "", confirmText: "确认", action: "
 
 const panelTitle = computed(() => {
   if (props.mode === "edit") return props.planId ? "编辑方案" : "新建方案";
-  return plan.value?.title || "方案";
+  return "方案详情";
 });
 
 function formatTime(iso) {
@@ -178,7 +186,6 @@ function enterEdit() {
   if (!plan.value) return;
   editTitle.value = plan.value.title;
   editContent.value = plan.value.content || "";
-  editStatus.value = plan.value.status || "草稿";
   emit("mode-change", "edit");
 }
 
@@ -193,7 +200,7 @@ async function savePlan() {
     if (props.planId) {
       const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
         method: "PUT",
-        body: JSON.stringify({ title, content: editContent.value, status: editStatus.value }),
+        body: JSON.stringify({ title, content: editContent.value }),
       });
       if (!res?.ok) return toast(res?.error || "保存失败", "error");
       toast("已保存");
@@ -259,11 +266,14 @@ function confirmDelete() {
   ask(`确认删除方案「${plan.value?.title}」？评论将一并删除，转出的任务不受影响。`, "删除方案", "delete", null);
 }
 function confirmConvert() {
+  if (plan.value?.status !== "已采纳") return toast("仅「已采纳」状态的方案可转任务", "error");
   if (plan.value?.taskExists) return toast("该方案已转为任务，不能重复转换", "error");
   ask(`将方案「${plan.value?.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, "转任务", "convert", null);
 }
 
 async function doConfirm() {
+  // 点击确认后立即关闭确认框（异步操作后台执行，结果以 toast 呈现）
+  confirm.value.show = false;
   const action = confirm.value.action;
   const c = confirm.value.payload;
   if (action === "delete-comment") {
@@ -306,6 +316,14 @@ watch(() => props.planId, () => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  padding: 0 16px 16px;
+}
+.pm-edit-head {
+  display: flex;
+  align-items: center;
+  padding: 14px 0 12px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 12px;
 }
 .pm-head {
   display: flex;
@@ -358,6 +376,24 @@ watch(() => props.planId, () => {
   cursor: not-allowed;
 }
 .pm-btn-danger {
+  color: var(--status-delay-text);
+}
+.pm-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.pm-icon-btn:hover {
+  background: var(--bg-hover);
+}
+.pm-icon-danger {
   color: var(--status-delay-text);
 }
 .pm-grid {
@@ -425,6 +461,16 @@ watch(() => props.planId, () => {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
+  flex-shrink: 0;
+}
+/* 评论列表：撑满剩余空间，超出滚动 */
+.pm-comment-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 .pm-comments-empty {
   color: var(--text-tertiary);
@@ -446,15 +492,23 @@ watch(() => props.planId, () => {
 }
 .pm-comment-del {
   cursor: pointer;
-  font-size: 13px;
+  font-size: 16px;
   color: var(--text-tertiary);
   visibility: hidden;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  line-height: 1;
 }
 .pm-comment:hover .pm-comment-del {
   visibility: visible;
 }
 .pm-comment-del:hover {
   color: var(--status-delay-text);
+  background: var(--bg-hover);
 }
 .pm-comment-body {
   font-size: 13px;
@@ -463,12 +517,10 @@ watch(() => props.planId, () => {
   word-break: break-word;
 }
 .pm-comment-input {
-  margin-top: auto;
+  flex-shrink: 0;
   display: flex;
-  gap: 8px;
-  align-items: center;
 }
-.pm-comment-input input {
+.pm-comment-input textarea {
   flex: 1;
   min-width: 0;
   border: 0.5px solid var(--border);
@@ -479,9 +531,8 @@ watch(() => props.planId, () => {
   color: var(--text);
   font-family: inherit;
   outline: none;
-}
-.pm-comment-input input:focus {
-  border-color: var(--accent-warm);
+  resize: none;
+  line-height: 1.5;
 }
 .pm-edit-title {
   flex: 1;
@@ -499,5 +550,37 @@ watch(() => props.planId, () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+/* 富文本编辑器自适应撑满剩余空间（仅方案弹窗内生效，不影响其他使用处） */
+.pm-edit-body :deep(.rich-editor) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.pm-edit-body :deep(.rich-content) {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.pm-edit-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--border);
+  margin-top: 12px;
+}
+.pm-btn-save {
+  border-color: transparent;
+  background: var(--text);
+  color: var(--bg-card);
+}
+.pm-btn-save:hover:not(:disabled) {
+  background: var(--text-light);
+}
+.pm-btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

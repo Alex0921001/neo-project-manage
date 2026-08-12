@@ -25,9 +25,15 @@
         <span class="col-target audit-target">{{ targetLabel(log) }}</span>
         <span class="col-diff audit-diff">
           <template v-if="diffText(log)">
-            <span class="diff-old">{{ diffText(log).old }}</span>
+            <span class="diff-old">
+              {{ cutText(diffText(log).old, log.id + ':old') }}
+              <button v-if="isLong(diffText(log).old)" class="diff-more" @click="toggleExpand(log.id, 'old')">{{ expanded.has(log.id + ':old') ? '收起' : '更多' }}</button>
+            </span>
             <span v-if="diffText(log).old && diffText(log).next" class="diff-arrow">→</span>
-            <span class="diff-new">{{ diffText(log).next }}</span>
+            <span class="diff-new">
+              {{ cutText(diffText(log).next, log.id + ':new') }}
+              <button v-if="isLong(diffText(log).next)" class="diff-more" @click="toggleExpand(log.id, 'new')">{{ expanded.has(log.id + ':new') ? '收起' : '更多' }}</button>
+            </span>
           </template>
           <span v-else class="diff-none">-</span>
         </span>
@@ -102,7 +108,7 @@ const VALUE_LABEL = {
   is_milestone: { true: "是", false: "否" },
 };
 
-/** 变更值翻译：JSON 对象 → 「中文名: 业务值」拼接；非 JSON 原样 */
+/** 变更内容翻译：JSON 对象 → 「中文名: 业务值」拼接；非 JSON 原样 */
 function translateObj(raw) {
   if (!raw) return "";
   let obj;
@@ -125,6 +131,25 @@ function translateObj(raw) {
     parts.push(`${label}: ${val}`);
   }
   return parts.join("，");
+}
+
+/** 变更内容截断 + 更多展开：内容过长（>60 字）默认折叠，点「更多」展开全部 */
+const DIFF_CUT = 60;
+const expanded = ref(new Set());
+function isLong(text) {
+  return String(text || "").length > DIFF_CUT;
+}
+function cutText(text, key) {
+  const t = String(text || "");
+  if (t.length <= DIFF_CUT || expanded.value.has(key)) return t;
+  return `${t.slice(0, DIFF_CUT)}…`;
+}
+function toggleExpand(logId, side) {
+  const key = `${logId}:${side}`;
+  const next = new Set(expanded.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  expanded.value = next;
 }
 
 // ===== 表格列处理 =====
@@ -314,9 +339,9 @@ defineExpose({ refresh: () => loadPage(1) });
 .audit-head,
 .audit-row {
   display: grid;
-  grid-template-columns: 92px 110px 150px 1fr;
+  grid-template-columns: 92px 110px 350px minmax(0, 1fr);
   gap: 12px;
-  align-items: center;
+  align-items: start;
   padding: 9px 14px;
   font-size: 12.5px;
 }
@@ -340,8 +365,20 @@ defineExpose({ refresh: () => loadPage(1) });
 }
 .col-time { color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .col-action { white-space: nowrap; }
-.col-target { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.col-diff { min-width: 0; }
+.col-target {
+  color: var(--text-secondary);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.col-diff {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
 
 .audit-action {
   display: inline-flex;
@@ -372,17 +409,28 @@ defineExpose({ refresh: () => loadPage(1) });
   color: var(--text-tertiary);
   text-decoration: line-through;
   text-decoration-color: color-mix(in oklab, var(--text-tertiary) 55%, transparent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 45%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .diff-new {
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.diff-more {
+  border: none;
+  background: none;
+  color: var(--link);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  font-family: inherit;
   white-space: nowrap;
-  max-width: 45%;
+}
+.diff-more:hover {
+  text-decoration: underline;
 }
 .diff-arrow {
   color: var(--text-tertiary);

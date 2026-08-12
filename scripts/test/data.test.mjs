@@ -761,7 +761,9 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   assert.equal(detail.comments.length, 1);
   assert.equal(detail.comments[0].content, "建议优先验证兼容性");
 
-  // 一键转任务：标题→任务名、内容→描述；不重复转
+  // 一键转任务：仅已采纳可转；标题→任务名、内容→描述；不重复转
+  expectThrow(() => data.convertPlanToTask(proj.id, p1.id), /已采纳/); // 已废弃状态不能转
+  data.updatePlan(proj.id, p1.id, { status: "已采纳" });
   const conv = data.convertPlanToTask(proj.id, p1.id);
   assert.ok(conv.taskId, "应返回任务 id");
   expectThrow(() => data.convertPlanToTask(proj.id, p1.id), /已转为任务/);

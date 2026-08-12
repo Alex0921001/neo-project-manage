@@ -45,6 +45,7 @@
                 <!-- 剩余任务：点击数字弹任务列表 -->
                 <el-popover
                   v-if="s.pendingTaskItems?.length"
+                  ref="popPending"
                   placement="top-start"
                   :width="280"
                   trigger="click"
@@ -59,7 +60,7 @@
                   </template>
                   <div class="ov-pop-head">剩余任务（{{ s.pendingTaskItems.length }}）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item">
+                    <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popPending)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
@@ -77,6 +78,7 @@
                 <!-- 延期：红色数字 -->
                 <el-popover
                   v-if="s.delayed?.length"
+                  ref="popDelayed"
                   placement="top-start"
                   :width="280"
                   trigger="click"
@@ -91,7 +93,7 @@
                   </template>
                   <div class="ov-pop-head">延期任务（{{ s.delayed.length }}）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item">
+                    <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popDelayed)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
@@ -109,6 +111,7 @@
                 <!-- 待确认：琥珀色（关联任务去重显示） -->
                 <el-popover
                   v-if="pendingAnnotationTasks.length"
+                  ref="popAnnot"
                   placement="top-start"
                   :width="280"
                   trigger="click"
@@ -123,7 +126,7 @@
                   </template>
                   <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 个任务）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.id" class="ov-pop-item">
+                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popAnnot)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
@@ -141,6 +144,7 @@
                 <!-- 缺日期：点击弹任务列表 -->
                 <el-popover
                   v-if="s.noDateTaskItems?.length"
+                  ref="popNoDate"
                   placement="top-start"
                   :width="280"
                   trigger="click"
@@ -155,7 +159,7 @@
                   </template>
                   <div class="ov-pop-head">缺日期任务（{{ s.noDateTaskItems.length }}）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item">
+                    <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popNoDate)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
@@ -180,6 +184,7 @@
               <el-popover
                 v-for="(r, i) in s.risks"
                 :key="i"
+                :ref="(el) => (riskPopRefs[i] = el)"
                 :disabled="!r.tasks?.length"
                 placement="top-start"
                 :width="280"
@@ -199,7 +204,7 @@
                 </template>
                 <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
                 <ul class="ov-pop-list">
-                  <li v-for="(t, ti) in r.tasks" :key="t.id" class="ov-pop-item">
+                  <li v-for="(t, ti) in r.tasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, riskPopRefs[i])">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
                     <span class="ov-pop-id">#{{ t.id }}</span>
                     <span class="ov-pop-name">{{ t.name }}</span>
@@ -286,6 +291,18 @@ import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
+const emit = defineEmits(["jump-task"]);
+
+// KPI / 风险 popover 任务跳转：关闭浮层后通知父级定位 + 高亮
+const popPending = ref(null);
+const popDelayed = ref(null);
+const popAnnot = ref(null);
+const popNoDate = ref(null);
+const riskPopRefs = ref([]);
+function jumpFromPop(taskId, popRef) {
+  popRef?.hide();
+  emit("jump-task", taskId);
+}
 
 // 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
 const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/confetti.png");
@@ -998,6 +1015,7 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   gap: 8px;
   padding: 5px 4px;
   border-radius: var(--radius-sm);
+  cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
 }
 .ov-pop-item:hover {

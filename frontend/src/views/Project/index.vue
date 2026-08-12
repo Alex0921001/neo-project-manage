@@ -20,7 +20,7 @@
     </div>
 
     <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->
-    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" />
+    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" @jump-task="(taskId) => onTabCalendarSelectTask({ taskId })" />
 
     <!-- Tab 区 -->
     <section class="tab-section">
@@ -64,6 +64,10 @@
               <polyline v-if="!expandAll" points="7 7 12 12 17 7"></polyline>
             </svg>
             {{ expandAll ? '收起' : '展开' }}
+          </button>
+          <button v-if="tab === 'plans'" class="header-btn" :disabled="compareCount < 2" :title="compareCount < 2 ? '勾选 2 个方案后对比' : '对比选中的 2 个方案'" @click="planTabRef?.openCompare()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            对比选中{{ compareCount > 0 ? `（${compareCount}/2）` : "" }}
           </button>
           <button v-if="tab !== 'calendar' && tab !== 'audit'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -125,6 +129,7 @@
           :project-id="p?.id || ''"
           @changed="loadProject"
           @jump-task="onTabCalendarSelectTask"
+          @compare-count="compareCount = $event"
         />
       </div>
     </section>
@@ -173,6 +178,7 @@ const fileTabRef = ref(null);
 const noteTabRef = ref(null);
 const auditTabRef = ref(null);
 const planTabRef = ref(null);
+const compareCount = ref(0);
 const overviewRef = ref(null);
 
 const currentSetLabel = computed(() => {
@@ -555,6 +561,7 @@ async function doConfirm() {
 .tab-content {
   padding: 20px;
   background: var(--bg-card);
+  min-height: 300px;
 }
 .task-calendar-tab {
   height: 620px; /* 固定高度：日历 tab 的 CalendarWidget 是 flex 布局（.cal-widget flex:1），需要父容器有确定高度才能铺满 */
