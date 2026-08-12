@@ -133,6 +133,7 @@
     <ConfirmModal
       :show="confirm.show"
       :message="confirm.message"
+      :confirm-text="confirm.confirmText"
       @close="confirm.show = false"
       @confirm="doConfirm"
     />
@@ -288,8 +289,8 @@ async function doEditProject(d) {
 }
 
 // ===== Confirm =====
-const confirm = ref({ show: false, message: "", action: "", payload: null });
-function onConfirm(e) { confirm.value = { show: true, message: e.message, action: e.action, payload: e.payload }; }
+const confirm = ref({ show: false, message: "", action: "", payload: null, confirmText: "确认" });
+function onConfirm(e) { confirm.value = { show: true, message: e.message, action: e.action, payload: e.payload, confirmText: e.confirmText || "确认" }; }
 async function doConfirm() {
   const { action, payload } = confirm.value;
   confirm.value.show = false;

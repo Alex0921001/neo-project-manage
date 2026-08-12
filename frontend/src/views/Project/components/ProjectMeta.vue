@@ -251,9 +251,9 @@ const progressPercent = computed(() => {
   line-height: 1;
   padding: 4px 8px;
   border-radius: var(--radius-sm);
-  background: var(--bg-muted, oklch(0.95 0 0));
+  background: var(--bg-card);
   color: var(--text-secondary);
-  border: 1px solid oklch(0 0 0 / 0.12);
+  border: 1px solid var(--border-light, oklch(0 0 0 / 0.12));
   white-space: nowrap;
 }
 

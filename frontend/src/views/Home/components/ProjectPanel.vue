@@ -228,16 +228,14 @@ async function unarchiveProj(p) {
 
 // ===== 收藏 / 取消收藏 =====
 // 收藏不改变项目状态/分组，仅同组内置顶；调 update_project 的 pinned 参数
-// 乐观更新：先本地翻转（computed 立即重排置顶），接口失败再回滚
+// 乐观更新：只本地翻转（分组即时重排置顶），不重新拉数据，避免列表跳动
 async function togglePin(p) {
   const next = !p.pinned;
   const prev = p.pinned;
-  p.pinned = next; // 本地立即生效，分组置顶即时重排
+  p.pinned = next; // 本地立即生效，置顶即时重排
   const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ pinned: next }), silent: true });
   if (res?.ok) {
     toast(next ? "已收藏置顶" : "已取消收藏");
-    load(); // 兜底校准（与后端一致）
-    emit("changed");
   } else {
     p.pinned = prev; // 失败回滚
     toast(res.error || "操作失败", "error");

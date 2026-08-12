@@ -206,8 +206,8 @@ function fmtDate(d) {
   will-change: transform;
 }
 .project-card:hover {
-  /* 轻微上浮 + 阴影加深（不用旋转，旋转会导致文字渲染模糊） */
-  transform: translateY(-2px);
+  /* 顺时针轻微旋转 + 阴影加深 + 浮到上层 */
+  transform: rotate(-2deg);
   box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.15);
   z-index: 2;
 }
@@ -264,12 +264,13 @@ function fmtDate(d) {
   width: 20px;
   height: 20px;
   padding: 0;
-  margin-top: 1px; /* SVG 星形视觉重心偏上，微调下移与文字垂直居中 */
   border: none;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   border-radius: var(--radius-sm);
+  line-height: 0; /* 消除 button 行高对 SVG 的偏移，真正按中心对齐 */
+  font-size: 0;
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .pin-btn:hover {
