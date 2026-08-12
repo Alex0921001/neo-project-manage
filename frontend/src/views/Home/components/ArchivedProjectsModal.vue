@@ -52,14 +52,9 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column label="起止日期" width="140" align="center">
+      <el-table-column label="起止日期" width="200" align="center">
         <template #default="{ row }">
           <span class="arch-dates">{{ row.planStart || '—' }} ~ {{ row.planEnd || '—' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="成员" min-width="90">
-        <template #default="{ row }">
-          <span class="arch-members">{{ (row.members || []).join('、') || '—' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="项目集" width="100">
@@ -251,8 +246,7 @@ function formatDate(iso) {
 .status-done { color: var(--status-done-text); }
 .status-delay { color: var(--status-delay-text); }
 .status-cancel { color: var(--status-cancel-text); }
-.arch-dates { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-.arch-members { font-size: 12px; color: var(--text-secondary); }
+.arch-dates { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .arch-set { font-size: 12px; color: var(--text-secondary); }
 .arch-at { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .arch-pager {

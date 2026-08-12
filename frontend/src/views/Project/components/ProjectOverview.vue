@@ -226,10 +226,10 @@
                 <span class="ov-step-text">{{ st }}</span>
               </li>
             </ul>
-            <!-- 缺省：全部完成 -->
+            <!-- 缺省：全部完成 / 已归档 -->
             <div v-else class="ov-empty-state">
               <img class="ov-empty-img" :src="confettiIcon" alt="" />
-              <p>完结撒花！</p>
+              <p>{{ s.project?.archived ? '撒花！项目完结！' : '完结撒花！' }}</p>
             </div>
           </div>
 
@@ -609,7 +609,7 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   position: relative;
   align-self: stretch;
   flex: 1;
-  background: var(--sticky-bg);
+  background: oklch(0.95 0.1 90 / 0.45);
   border: none;
   border-radius: 0;
   box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.08);
@@ -690,6 +690,19 @@ function riskParts(r) {  const desc = String(r?.desc || "");
 /* 状态色只染数字：延期红 / 待确认琥珀 */
 .ov-kpi.kpi-alert .ov-kpi-num { color: var(--danger); }
 .ov-kpi.kpi-warn .ov-kpi-num { color: var(--accent-warm); }
+/* 可点击 KPI（有任务列表）：默认实色，hover 时数字淡化提示可交互（区别于背景色块高亮） */
+.ov-kpi-click:hover .ov-kpi-num {
+  color: color-mix(in oklch, var(--text) 55%, transparent);
+}
+.ov-kpi-click.kpi-alert:hover .ov-kpi-num {
+  color: color-mix(in oklch, var(--danger) 55%, transparent);
+}
+.ov-kpi-click.kpi-warn:hover .ov-kpi-num {
+  color: color-mix(in oklch, var(--accent-warm) 55%, transparent);
+}
+.ov-kpi-click:hover .ov-kpi-sub {
+  color: color-mix(in oklch, var(--text-tertiary) 60%, transparent);
+}
 
 .ov-label {
   font-size: 13.5px;
