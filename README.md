@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、任务日历、自动总结与风险识别的完整闭环。
 
-> 当前版本：**V2.0.0**（项目归档 · 已取消状态 · 批注类型化 · 文件资产 · 会话关联 · 自动总结 + 风险识别 · 项目概览面板 · 历史总结时间线）
+> 当前版本：**V2.1.0**（项目收藏置顶 · 任务等级 P0~P5 · 功能速查弹窗 · 成员管理 · 任务里程碑 · 审计追踪 · 便利贴互斥规则）
 
 ## 快速使用
 
@@ -11,7 +11,10 @@
 1. 创建项目集 → 创建项目 → 创建任务（支持任意层级子任务）
 2. 任务可分配成员、起止日期；便利贴（批注）记录备注/决策/风险/节点
 3. 项目概览面板自动生成：KPI 统计、风险识别、下一步建议、历史总结时间线
-4. 项目可归档（非进行中）或标记已取消；已归档项目可在「已归档」分组查看/恢复
+4. 项目可 ⭐ 收藏置顶；任务可设等级（P0~P5）；成员统一管理（⚙ 人员管理）
+5. 任务可标为里程碑（旗帜），里程碑任务自动汇聚成步骤条时间轴
+6. 审计追踪：所有写操作留痕（时间/行为/目标/变更内容），每页 10 条分页查看
+7. 项目可归档（非进行中）或标记已取消；已归档项目可在「已归档」分组查看/恢复
 
 ### Agent（工具调用）
 
@@ -26,7 +29,7 @@
 6. create_task / create_annotation ...       → 落地新任务/便利贴
 ```
 
-## 工具清单（30 个）
+## 工具清单（35 个）
 
 ### 创建
 
@@ -38,6 +41,7 @@
 | `create_tasks` | 批量创建任务（最多 50 个，事务包裹）|
 | `create_annotation` | 给任务加便利贴（kind: note/decision/risk/milestone）|
 | `create_annotations` | 批量创建便利贴（最多 50 个）|
+| `create_member` | 创建成员（全局成员表，name 唯一）|
 
 ### 更新
 
@@ -45,8 +49,9 @@
 | --- | --- |
 | `update_project_set` | 重命名项目集 |
 | `update_project` | 编辑项目（名称/描述/成员/时间/状态/归档）|
-| `update_task` | 编辑任务（改名/成员/日期/标记完成）|
+| `update_task` | 编辑任务（改名/成员/日期/等级/里程碑/标记完成）|
 | `update_annotation` | 编辑便利贴内容 / 类型 / 确认状态 |
+| `update_member` | 成员改名 |
 
 ### 删除
 
@@ -56,6 +61,7 @@
 | `delete_project` | 删除项目（含已完成任务时拒绝）|
 | `delete_task` / `delete_tasks` | 删除任务（父任务级联删子任务）/ 批量 |
 | `delete_annotation` / `delete_annotations` | 删除便利贴 / 批量 |
+| `delete_member` | 删除成员 |
 
 ### 查询
 
@@ -73,6 +79,8 @@
 | `get_project_summaries` | 项目历史总结（最近 N 条）|
 | `summarize_project` | 项目自动总结（完成度/风险/下一步）|
 | `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/all）|
+| `list_members` | 成员列表（all-known 模式聚合历史人名，带 isHistoric）|
+| `list_audit_logs` | 审计日志（项目级，limit/offset 分页）|
 
 ### 会话关联
 
@@ -98,14 +106,27 @@ update_project { "id": "xxx", "archived": true }
 
 // 搜索任务（按名称/描述/批注内容）
 list_tasks { "projectId": "xxx", "keyword": "登录" }
+
+// 任务标为里程碑 + 标记完成（需全部便利贴已确认）
+update_task { "projectId": "xxx", "id": "任务ID", "isMilestone": true }
+update_task { "projectId": "xxx", "id": "任务ID", "done": true }
+
+// 成员管理
+create_member { "name": "张三" }
+list_members { "all": true }
+
+// 审计追踪
+list_audit_logs { "projectId": "xxx" }
 ```
+
+> **便利贴互斥规则**：任务已完成 → 不能挂载 / 修改 / 取消确认便利贴（冻结，删除放行）；任务完成前置 → 该任务全部便利贴须已确认。规则在工具与 REST 同时生效。
 
 ## 数据存储
 
 - SQLite（better-sqlite3，原生绑定 vendor 在 `lib/vendor/`），WAL 模式 + 外键级联
 - 位置：`ctx.dataDir/projects.sqlite`（卸载插件不删数据）
-- schema 版本 **6**，启动自动幂等迁移（v1→v6 老数据兼容）
-- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / schema_meta
+- schema 版本 **7**，启动自动幂等迁移（v1→v7 老数据兼容）
+- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / schema_meta
 
 ## 开发指南
 
@@ -118,6 +139,7 @@ list_tasks { "projectId": "xxx", "keyword": "登录" }
 
 | 版本 | 日期 | 要点 |
 | --- | --- | --- |
+| V2.1.0 | 2026-08-12 | 收藏置顶 · 任务等级 P0~P5 · 功能速查弹窗（右下角 ?）· 成员管理 · 任务里程碑 + 步骤条 · 批注消费（milestone 标签 / risk 纳入总结）· 审计追踪（分页 + 中文翻译）· 便利贴互斥规则（schema v7）|
 | V2.0.0 | 2026-08-11 | 批注类型化（决策/风险/节点）· 文件资产化 · 会话关联 · 自动总结 + 风险识别 · 概览面板 · 历史时间线 · 批注管理大屏 · 已取消状态 + 项目归档（schema v6）· 后续精修：KPI 半透明/hover 淡化、nextSteps 状态分支、查询工具字段补齐、list_annotations 项目级查询 |
 | V1.3.1 | 2026-08-10 | 项目集拖拽排序持久化 · 嵌套任务状态同步 · 子任务日期范围 · 错误提示拦截（ElMessage）· 卡片精修 |
 | V1.3.0 | 2026-08-09 | 便利贴式项目卡片 · 项目集顶部 tabs · 详情页改造 · 任务日历 tab |
