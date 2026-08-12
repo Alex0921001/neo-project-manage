@@ -34,6 +34,15 @@
       <span class="task-idx">{{ task.index_num != null ? task.index_num + 1 : '' }}</span>
       <div class="task-card-title">
         <span v-if="task.priority" class="priority-badge" :class="`priority-${task.priority.toLowerCase()}`">{{ task.priority }}</span>
+        <button
+          class="milestone-flag-btn"
+          :class="{ active: task.isMilestone }"
+          :title="task.isMilestone ? '取消里程碑' : '标记为里程碑'"
+          @click.stop="$emit('toggle-milestone', task)"
+        >
+          <svg v-if="!task.isMilestone" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        </button>
         <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
           v-if="annotTotal > 0"
@@ -122,6 +131,7 @@
             @subtask="$emit('subtask', $event)"
             @delete="$emit('delete-task-deep', s.id)"
             @delete-task-deep="$emit('delete-task-deep', $event)"
+            @toggle-milestone="$emit('toggle-milestone', $event)"
             @select-annotation="$emit('select-annotation', $event)"
             @changed="$emit('changed')"
           />
@@ -146,6 +156,7 @@
           @subtask="$emit('subtask', $event)"
           @delete="$emit('delete-task-deep', s.id)"
           @delete-task-deep="$emit('delete-task-deep', $event)"
+          @toggle-milestone="$emit('toggle-milestone', $event)"
           @select-annotation="$emit('select-annotation', $event)"
           @changed="$emit('changed')"
         />
@@ -183,6 +194,7 @@ const emit = defineEmits([
   "subtask",
   "delete",
   "delete-task-deep",
+  "toggle-milestone",
   "select-annotation",
   "changed",
 ]);
@@ -492,6 +504,35 @@ defineExpose({
 .priority-p4 { color: #5a7f9c; background: rgba(90, 127, 156, 0.10); border: 1px solid rgba(90, 127, 156, 0.24); }
 .priority-p5 { color: #98a0ab; background: transparent; border: 1px solid var(--border-light); opacity: 0.8; }
 .task-card-done .priority-badge { opacity: 0.55; }
+/* 里程碑旗帜按钮：默认空心灰，标记后实心红 */
+.milestone-flag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.milestone-flag-btn svg { display: block; }
+.milestone-flag-btn:hover {
+  background: var(--bg-hover);
+  color: #e5484d;
+}
+.milestone-flag-btn.active {
+  color: #e5484d;
+}
+.milestone-flag-btn.active:hover {
+  background: rgba(229, 72, 77, 0.1);
+}
+.task-card-done .milestone-flag-btn { opacity: 0.55; }
 .task-name {
   font-size: 15px;
   font-weight: 500;

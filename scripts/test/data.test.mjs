@@ -211,6 +211,49 @@ test("listTasks 排序：等级 → 开始时间 → 创建时间", () => {
   assert.deepEqual(names.slice(5), ["P3先", "P3后"], "无日期同等级按创建时间");
 });
 
+// ===== 3d. 任务里程碑（V2.1） =====
+test("任务里程碑：默认 false / 显式设置 / update 切换 / 非法抛错", () => {
+  const p = data.createProject({ name: "里程碑项目", planStart: "2026-08-01", planEnd: "2026-08-31" });
+
+  // 默认 false
+  const t1 = data.createTask(p.id, { name: "普通任务" });
+  assert.equal(t1.isMilestone, false, "创建默认 isMilestone=false");
+
+  // 显式 true
+  const t2 = data.createTask(p.id, { name: "里程碑任务", isMilestone: true, startDate: "2026-08-10" });
+  assert.equal(t2.isMilestone, true, "创建可指定 isMilestone=true");
+
+  // 0/1 数字归一化
+  const t3 = data.createTask(p.id, { name: "数字1任务", isMilestone: 1 });
+  assert.equal(t3.isMilestone, true, "isMilestone=1 归一化为 true");
+  const t4 = data.createTask(p.id, { name: "数字0任务", isMilestone: 0 });
+  assert.equal(t4.isMilestone, false, "isMilestone=0 归一化为 false");
+
+  // update 可切换
+  const up = data.updateTask(p.id, t1.id, { isMilestone: true });
+  assert.equal(up.isMilestone, true, "update 可设里程碑");
+  const off = data.updateTask(p.id, t1.id, { isMilestone: false });
+  assert.equal(off.isMilestone, false, "update 可取消里程碑");
+
+  // 读回（getTaskById / listTasks / getProjectTasks 三条路径）
+  const got = data.getTaskById(t2.id);
+  assert.equal(got.isMilestone, true, "getTaskById 返回 isMilestone");
+  const listed = data.listTasks(p.id).find((x) => x.id === t2.id);
+  assert.equal(listed.isMilestone, true, "listTasks 返回 isMilestone");
+  const proj = data.getProject(p.id);
+  const treeHit = (list) => list.some((t) => t.id === t2.id ? t.isMilestone : (t.subtasks || []).some((s) => s.id === t2.id && s.isMilestone));
+  assert.ok(treeHit(proj.tasks), "getProject 树形任务返回 isMilestone");
+
+  // 非法值抛错（create / update 双路径）
+  expectThrow(() => data.createTask(p.id, { name: "坏任务", isMilestone: "yes" }), /布尔/);
+  expectThrow(() => data.updateTask(p.id, t1.id, { isMilestone: "true" }), /布尔/);
+
+  // createTasks 批量透传
+  const batch = data.createTasks(p.id, [{ name: "批里程碑", isMilestone: true }, { name: "批普通" }]);
+  assert.equal(batch[0].isMilestone, true);
+  assert.equal(batch[1].isMilestone, false, "批量默认 false");
+});
+
 // ===== 4. 批量创建 + 事务回滚 =====
 test("createTasks：批量 + 中途失败整体回滚", () => {
   const p = data.createProject({ name: "批量项目", members: ["张三"] });
@@ -303,6 +346,14 @@ test("listCalendarTasks：仅返回有起止日期的任务", () => {
   assert.ok(cal.every((t) => t.startDate && t.endDate), "都应有日期");
   assert.ok(cal.some((t) => t.name === "有日期"));
   assert.ok(!cal.some((t) => t.name === "无日期"));
+});
+
+// ===== 8b. 日历任务：里程碑标记透传（V2.1） =====
+test("listCalendarTasks：isMilestone 透传", () => {
+  const p = data.createProject({ name: "日历里程碑项目" });
+  data.createTask(p.id, { name: "里程碑", startDate: "2026-08-05", endDate: "2026-08-10", isMilestone: true });
+  const cal = data.listCalendarTasks("undone", p.id);
+  assert.ok(cal.some((t) => t.name === "里程碑" && t.isMilestone === true), "日历任务应带 isMilestone");
 });
 
 // ===== 9. 项目统计 =====

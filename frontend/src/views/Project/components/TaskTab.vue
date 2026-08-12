@@ -34,6 +34,11 @@
               <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
             </el-select>
           </el-form-item>
+          <el-form-item label="是否里程碑">
+            <el-select v-model="form.isMilestone" style="width: 100%">
+              <el-option v-for="o in milestoneOptions" :key="String(o.value)" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
           <el-form-item label="成员">
             <MemberSelect
               v-model="form.assignees"
@@ -87,6 +92,15 @@
       </svg>
 
       <div class="task-tab-list">
+        <!-- 里程碑步骤图：存在里程碑任务时显示（无则不渲染） -->
+        <div v-if="milestones.length" class="task-tab-milestone-area">
+          <MilestoneTimeline
+            :plan-start="planStart"
+            :plan-end="planEnd"
+            :milestones="milestones"
+            @jump-task="(taskId) => scrollToTaskById(taskId)"
+          />
+        </div>
         <div v-if="!tasks.length" class="tasks-empty">
           <div class="tasks-empty-deco">
             <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
@@ -127,6 +141,7 @@
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
                   @subtask="startSubtask"
+                  @toggle-milestone="toggleMilestone"
                   @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @edit-subtask="startEditSubtask"
@@ -163,6 +178,7 @@
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
               @subtask="startSubtask"
+              @toggle-milestone="toggleMilestone"
               @delete="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @edit-subtask="startEditSubtask"
@@ -193,6 +209,7 @@ import draggable from "vuedraggable";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
+import MilestoneTimeline from "./MilestoneTimeline.vue";
 import AnnotationPanel from "./AnnotationPanel.vue";
 import MemberSelect from "../../../components/MemberSelect.vue";
 import { normalizeRichText } from "../../../utils/text.js";
@@ -485,7 +502,7 @@ const saving = ref(false);
 const editingId = ref(null);
 const subtaskParent = ref(null);
 const editingSubId = ref(null);
-const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", fileRefs: [] });
+const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", isMilestone: false, fileRefs: [] });
 const submitErr = ref(false);
 const formRef = ref(null);
 
@@ -523,6 +540,11 @@ function disabledTaskDate(date) {
 const isEditMode = computed(() => !!editingId.value || !!editingSubId.value);
 // 优先级选项：P0 最急 → P5 最缓，默认 P3（与后端 normalizePriority 对齐）
 const priorityOptions = ["P0", "P1", "P2", "P3", "P4", "P5"];
+// 里程碑下拉选项（与优先级下拉风格一致）
+const milestoneOptions = [
+  { label: "否", value: false },
+  { label: "是", value: true },
+];
 const dialogTitle = computed(() => {
   if (subtaskParent.value) return `子任务 · （父级任务：${subtaskParent.value.name}）`;
   if (isEditMode.value) return "编辑任务";
@@ -551,6 +573,7 @@ function resetForm() {
   form.startDate = "";
   form.endDate = "";
   form.priority = "P3";
+  form.isMilestone = false;
   submitErr.value = false;
 }
 
@@ -574,6 +597,7 @@ function startEdit(t) {
   form.startDate = t.startDate || "";
   form.endDate = t.endDate || "";
   form.priority = t.priority || "P3";
+  form.isMilestone = !!t.isMilestone;
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -599,6 +623,7 @@ function startEditSubtask(task, sub) {
   form.startDate = sub.startDate || "";
   form.endDate = sub.endDate || "";
   form.priority = sub.priority || "P3";
+  form.isMilestone = !!sub.isMilestone;
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -618,6 +643,7 @@ function buildPayload() {
     startDate: form.startDate,
     endDate: form.endDate,
     priority: form.priority || "P3",
+    isMilestone: form.isMilestone,
   };
 }
 
@@ -770,8 +796,7 @@ function countIncompleteDescendants(task) {
  * 完成时校验：任务自身批注未确认、后代任务未完成 → 阻止
  * @param {{task: Object, done: boolean}} payload
  */
-async function markTaskDone({ task, done }) {
-  if (!task) return;
+async function markTaskDone({ task, done }) {  if (!task) return;
   if (done) {
     const pendingAnns = (task.annotations || []).filter(a => !a.confirmed);
     if (pendingAnns.length) {
@@ -804,6 +829,35 @@ async function markTaskDone({ task, done }) {
     toast(res?.error || "更新任务状态失败", "error");
   }
 }
+
+/**
+ * 切换任务里程碑标记（旗帜按钮点击，双入口之一，与编辑表单一致）
+ * 任意层级任务共用：直接按任务 id 更新
+ */
+async function toggleMilestone(task) {
+  if (!task) return;
+  const res = await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ isMilestone: !task.isMilestone }),
+    silent: true,
+  });
+  if (res?.ok) {
+    toast(task.isMilestone ? "已取消里程碑" : "已标记为里程碑");
+    load();
+  } else {
+    toast(res?.error || "更新里程碑状态失败", "error");
+  }
+}
+
+// 递归收集全部里程碑任务（任意层级，isMilestone=true）
+function collectMilestones(list, acc = []) {
+  for (const t of list || []) {
+    if (t.isMilestone) acc.push(t);
+    collectMilestones(t.subtasks, acc);
+  }
+  return acc;
+}
+const milestones = computed(() => collectMilestones(props.tasks));
 
 defineExpose({ openAdd, scrollToTaskById });
 </script>
@@ -846,6 +900,15 @@ defineExpose({ openAdd, scrollToTaskById });
   flex: 1; min-width: 0;
   min-height: 200px;
   padding-right: 4px;
+}
+
+/* 里程碑步骤图容器：任务列表上方，底部留白与列表隔开 */
+.task-tab-milestone-area {
+  margin-bottom: 18px;
+  padding: 14px 16px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
 }
 
 /* 空态：与备注对齐 */
