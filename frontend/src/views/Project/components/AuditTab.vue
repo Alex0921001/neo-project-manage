@@ -33,20 +33,21 @@
         </span>
       </div>
 
-      <!-- 加载更多 -->
+      <!-- 分页 -->
       <div class="audit-foot">
         <span class="audit-count">共 {{ total }} 条</span>
-        <button v-if="hasMore" class="audit-more" :disabled="loadingMore" @click="loadMore">
-          {{ loadingMore ? "加载中…" : "加载更多" }}
-        </button>
-        <span v-else-if="logs.length" class="audit-end">已加载全部</span>
+        <div class="audit-pager">
+          <button class="pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
+          <span class="pager-info">{{ page }} / {{ totalPages }}</span>
+          <button class="pager-btn" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页 ›</button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 
 const props = defineProps({
@@ -54,15 +55,72 @@ const props = defineProps({
   project: { type: Object, default: null }, // 项目详情（用于目标名反查兜底）
 });
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10; // 每页 10 条
 const logs = ref([]);
 const total = ref(0);
 const loading = ref(false);
-const loadingMore = ref(false);
-const offset = ref(0);
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
-const hasMore = () => offset.value < total.value;
+// ===== 字段名 / 值 翻译（英文数据结构 → 业务语言） =====
+const FIELD_LABEL = {
+  name: "名称",
+  description: "描述",
+  members: "成员",
+  assignees: "成员",
+  planStart: "开始日期",
+  planEnd: "结束日期",
+  startDate: "开始日期",
+  endDate: "结束日期",
+  status: "状态",
+  projectSetId: "项目集",
+  archived: "归档",
+  pinned: "收藏",
+  priority: "优先级",
+  isMilestone: "里程碑",
+  done: "完成状态",
+  content: "内容",
+  kind: "类型",
+  confirmed: "确认状态",
+  parentTaskId: "父任务",
+  fileRefs: "文件引用",
+};
+const VALUE_LABEL = {
+  status: { 待开始: "待开始", 进行中: "进行中", 已完成: "已完成", 已取消: "已取消", 已延期: "已延期" },
+  done: { 1: "完成", 0: "未完成", true: "完成", false: "未完成" },
+  confirmed: { 1: "已确认", 0: "待确认", true: "已确认", false: "待确认" },
+  kind: { note: "备注", decision: "决策", risk: "风险", milestone: "节点" },
+  archived: { 1: "已归档", 0: "未归档", true: "已归档", false: "未归档" },
+  pinned: { 1: "已收藏", 0: "未收藏", true: "已收藏", false: "未收藏" },
+  isMilestone: { true: "是", false: "否" },
+};
 
+/** 变更值翻译：JSON 对象 → 「中文名: 业务值」拼接；非 JSON 原样 */
+function translateObj(raw) {
+  if (!raw) return "";
+  let obj;
+  try {
+    obj = JSON.parse(raw);
+  } catch {
+    return fmtVal(raw);
+  }
+  if (obj === null || typeof obj !== "object") return fmtVal(obj);
+  if (Array.isArray(obj)) return obj.length ? obj.join("、") : "空";
+  const parts = [];
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === null || v === undefined || v === "") continue;
+    const label = FIELD_LABEL[k] || k;
+    let val;
+    if (Array.isArray(v)) val = v.length ? v.join("、") : "空";
+    else if (VALUE_LABEL[k] && VALUE_LABEL[k][String(v)] !== undefined) val = VALUE_LABEL[k][String(v)];
+    else if (typeof v === "object") val = JSON.stringify(v);
+    else val = String(v);
+    parts.push(`${label}: ${val}`);
+  }
+  return parts.join("，");
+}
+
+// ===== 表格列处理 =====
 const TYPE_LABEL = {
   project: "项目",
   task: "任务",
@@ -158,49 +216,39 @@ function targetLabel(log) {
   return name ? `${label}「${name}」` : `${label} ${log.targetId || ""}`;
 }
 
-/** 变更内容：old → new 两侧分别展示 */
+/** 变更内容：翻译后的 old → new 两侧展示 */
 function diffText(log) {
-  const oldT = fmtVal(log.oldValue);
-  const newT = fmtVal(log.newValue);
+  const oldT = translateObj(log.oldValue);
+  const newT = translateObj(log.newValue);
   return { old: oldT, next: newT };
 }
 
-async function load() {
+async function loadPage(p) {
   if (!props.projectId) return;
   loading.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/audit-logs?limit=${PAGE_SIZE}&offset=0`, { silent: true });
+    const res = await api(`api/projects/${props.projectId}/audit-logs?limit=${PAGE_SIZE}&offset=${(p - 1) * PAGE_SIZE}`, { silent: true });
     if (res?.ok) {
       logs.value = res.data.items || [];
       total.value = res.data.total || 0;
-      offset.value = PAGE_SIZE;
+      page.value = p;
     } else {
       logs.value = [];
       total.value = 0;
-      offset.value = 0;
+      page.value = 1;
     }
   } finally {
     loading.value = false;
   }
 }
 
-async function loadMore() {
-  if (loadingMore.value || !hasMore()) return;
-  loadingMore.value = true;
-  try {
-    const res = await api(`api/projects/${props.projectId}/audit-logs?limit=${PAGE_SIZE}&offset=${offset.value}`, { silent: true });
-    if (res?.ok) {
-      logs.value = logs.value.concat(res.data.items || []);
-      total.value = res.data.total || 0;
-      offset.value += PAGE_SIZE;
-    }
-  } finally {
-    loadingMore.value = false;
-  }
+function goPage(p) {
+  if (p < 1 || p > totalPages.value || p === page.value) return;
+  loadPage(p);
 }
 
-watch(() => props.projectId, load, { immediate: true });
-defineExpose({ refresh: load });
+watch(() => props.projectId, () => loadPage(1), { immediate: true });
+defineExpose({ refresh: () => loadPage(1) });
 </script>
 
 <style scoped>
@@ -339,7 +387,7 @@ defineExpose({ refresh: load });
 .audit-foot {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 14px;
   padding: 10px 14px;
   border-top: 1px solid var(--border-light);
@@ -350,8 +398,13 @@ defineExpose({ refresh: load });
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-.audit-more {
-  padding: 5px 18px;
+.audit-pager {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pager-btn {
+  padding: 4px 14px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
@@ -362,17 +415,20 @@ defineExpose({ refresh: load });
   font-family: inherit;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.audit-more:hover:not(:disabled) {
+.pager-btn:hover:not(:disabled) {
   border-color: var(--border);
   background: var(--bg);
   color: var(--text);
 }
-.audit-more:disabled {
-  opacity: 0.6;
+.pager-btn:disabled {
+  opacity: 0.4;
   cursor: default;
 }
-.audit-end {
-  font-size: 11px;
-  color: var(--text-tertiary);
+.pager-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
 }
 </style>
