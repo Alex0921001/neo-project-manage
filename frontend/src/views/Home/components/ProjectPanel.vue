@@ -122,15 +122,17 @@ const filteredProjects = computed(() => {
 });
 
 // ===== 分组（基于展示状态：已延期合并到待开始组；已取消独立组；已归档独立组） =====
-// 同组内：收藏（pinned=1）置顶在前，置顶组内按创建时间倒序；非收藏组保持原有 created_at 倒序
 // 已归档组预览条数，超出走弹窗
 const ARCHIVED_PREVIEW = 10;
+// 排序依据快照（非响应式 Map，load 时填充）：点击收藏只变星星视觉，不触发排序重排（避免卡片跳动）
+// 置顶排序在下次数据刷新（load）时体现
+const pinSnapshot = new Map(); // id -> boolean
 const groupedProjects = computed(() => {
   const list = filteredProjects.value;
   const by = (s) => list
     .filter(p => !p.archived && computeDisplayStatus(p) === s)
     .slice()
-    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    .sort((a, b) => ((pinSnapshot.get(b.id) ? 1 : 0) - (pinSnapshot.get(a.id) ? 1 : 0)) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const archived = list
     .filter(p => p.archived)
     .slice()
@@ -165,7 +167,12 @@ async function load() {
   const res = await api(`api/projects${q}`);
   if (id === loadId) {
     loading.value = false;
-    if (res && res.ok) projects.value = res.data || [];
+    if (res && res.ok) {
+      projects.value = res.data || [];
+      // 刷新排序快照（收藏置顶在下一次数据刷新时生效）
+      pinSnapshot.clear();
+      for (const p of projects.value) pinSnapshot.set(p.id, !!p.pinned);
+    }
   }
 }
 
@@ -227,12 +234,11 @@ async function unarchiveProj(p) {
 }
 
 // ===== 收藏 / 取消收藏 =====
-// 收藏不改变项目状态/分组，仅同组内置顶；调 update_project 的 pinned 参数
-// 乐观更新：只本地翻转（分组即时重排置顶），不重新拉数据，避免列表跳动
+// 点击只切换星星视觉 + 持久化，不触发排序重排（卡片不跳动）；置顶在下次数据刷新时生效
 async function togglePin(p) {
   const next = !p.pinned;
   const prev = p.pinned;
-  p.pinned = next; // 本地立即生效，置顶即时重排
+  p.pinned = next; // 星星视觉即时反馈（排序不受影响，读 pinSnapshot）
   const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ pinned: next }), silent: true });
   if (res?.ok) {
     toast(next ? "已收藏置顶" : "已取消收藏");
