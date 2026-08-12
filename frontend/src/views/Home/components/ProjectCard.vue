@@ -279,8 +279,6 @@ function fmtDate(d) {
 }
 .pin-btn svg {
   display: block;
-  /* 星形 polygon 视觉重心偏上（viewBox y 2~21），下移 1px 与文字视觉中心对齐 */
-  margin-top: 1px;
 }
 .pin-btn:hover {
   color: #f5a623;
