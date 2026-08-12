@@ -72,6 +72,11 @@ const FIELD_LABEL = {
   planEnd: "结束日期",
   startDate: "开始日期",
   endDate: "结束日期",
+  // 任务 diff 键名为 DB 列名（snake_case）
+  start_date: "开始日期",
+  end_date: "结束日期",
+  is_milestone: "里程碑",
+  parent_task_id: "父任务",
   status: "状态",
   projectSetId: "项目集",
   archived: "归档",
@@ -93,6 +98,7 @@ const VALUE_LABEL = {
   archived: { 1: "已归档", 0: "未归档", true: "已归档", false: "未归档" },
   pinned: { 1: "已收藏", 0: "未收藏", true: "已收藏", false: "未收藏" },
   isMilestone: { true: "是", false: "否" },
+  is_milestone: { true: "是", false: "否" },
 };
 
 /** 变更值翻译：JSON 对象 → 「中文名: 业务值」拼接；非 JSON 原样 */
