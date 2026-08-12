@@ -34,10 +34,10 @@
           <div v-if="!it.edge" class="milestone-node-date">{{ shortDate(it.g.date) }}</div>
           <div class="milestone-node-names">
             <template v-if="it.g.tasks.length === 1">
-              <span class="milestone-node-name">{{ it.g.tasks[0].name }}</span>
+              <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
             </template>
             <template v-else>
-              <span class="milestone-node-name">{{ it.g.tasks[0].name }}</span>
+              <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
               <span class="milestone-node-more">（+{{ it.g.tasks.length - 1 }}）</span>
             </template>
           </div>
@@ -255,6 +255,11 @@ function annLabel(a) {
   const plain = richTextToPlain(a.content);
   const cut = plain.slice(0, 10);
   return `${cut}${plain.length > 10 ? "..." : ""}`;
+}
+// 任务名：节点下方限 10 字，超长截断（popover 内仍显示完整名）
+function shortName(name) {
+  const s = String(name || "");
+  return s.length > 10 ? `${s.slice(0, 10)}...` : s;
 }
 // popover 内完整时间（MM-DD HH:mm）
 function formatTime(iso) {
@@ -555,6 +560,9 @@ function nextTickDraw() {
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  min-width: 0;
 }
 .milestone-node-more {
   font-size: 11px;
