@@ -689,3 +689,42 @@ test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔
   assert.equal(orphan, 0, "删除项目后审计应级联删除");
   expectThrow(() => data.listAuditLogs(p2.id), /不存在/);
 });
+
+// ===== 17. 便利贴与任务完成互斥规则（V2.1） =====
+test("便利贴规则：已完成任务禁挂载 / 禁修改冻结 / 完成前置需全部确认", () => {
+  const p = data.createProject({ name: "规则项目" });
+  const t = data.createTask(p.id, { name: "规则任务" });
+
+  // 未完成任务：可挂载、可修改
+  const a = data.createAnnotation(p.id, t.id, { content: "初始" });
+  data.updateAnnotation(t.id, a.id, { content: "改后" });
+
+  // 完成前置：有未确认便利贴时拒绝
+  expectThrow(() => data.updateTask(p.id, t.id, { done: true }), /便利贴未确认/);
+
+  // 确认后完成
+  data.updateAnnotation(t.id, a.id, { confirmed: true });
+  data.updateTask(p.id, t.id, { done: true });
+
+  // 已完成任务：挂载被拒
+  expectThrow(() => data.createAnnotation(p.id, t.id, { content: "新挂" }), /任务已完成/);
+  expectThrow(() => data.createAnnotations(p.id, t.id, [{ content: "批量" }]), /任务已完成/);
+
+  // 已完成任务：修改冻结（内容 / kind / confirmed 均拒绝）
+  expectThrow(() => data.updateAnnotation(t.id, a.id, { content: "再改" }), /已冻结/);
+  expectThrow(() => data.updateAnnotation(t.id, a.id, { kind: "risk" }), /已冻结/);
+  expectThrow(() => data.updateAnnotation(t.id, a.id, { confirmed: false }), /已冻结/);
+
+  // 已完成任务：删除不受限（下面在未完成任务上验证删除正常）
+  const t2 = data.createTask(p.id, { name: "规则任务2" });
+  const b = data.createAnnotation(p.id, t2.id, { content: "待删" });
+  data.deleteAnnotation(p.id, t2.id, b.id);
+
+  // 取消完成后再挂载：允许（流程放行，重新完成时仍要求全部确认）
+  data.updateTask(p.id, t.id, { done: false });
+  const c = data.createAnnotation(p.id, t.id, { content: "重新挂载" });
+  data.updateAnnotation(t.id, c.id, { confirmed: true });
+  data.updateTask(p.id, t.id, { done: true });
+  const after = data.getTaskById(t.id);
+  assert.equal(after.done, true, "重新完成应成功");
+});
