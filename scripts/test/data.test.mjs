@@ -728,3 +728,65 @@ test("便利贴规则：已完成任务禁挂载 / 禁修改冻结 / 完成前�
   const after = data.getTaskById(t.id);
   assert.equal(after.done, true, "重新完成应成功");
 });
+
+// ===== N. 方案管理（V2.1，plans + plan_comments + 转任务）=====
+test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
+  const proj = data.createProject({ name: "方案测试项目" });
+
+  // 创建（默认草稿）
+  const p1 = data.createPlan(proj.id, "A 方案：技术选型", "<p>富文本内容</p>");
+  assert.equal(p1.status, "草稿");
+  assert.ok(p1.id, "应返回 id");
+  expectThrow(() => data.createPlan(proj.id, "  "), /不能为空/);
+  expectThrow(() => data.createPlan(proj.id, "超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题"), /100/);
+
+  // 列表（含评论数）
+  const list = data.listPlans(proj.id);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].commentCount, 0);
+
+  // 更新标题 + 状态（4 态：草稿/进行中/已采纳/已废弃）
+  const updated = data.updatePlan(proj.id, p1.id, { status: "进行中", title: "A 方案：技术选型 v2" });
+  assert.equal(updated.status, "进行中");
+  assert.equal(updated.title, "A 方案：技术选型 v2");
+  expectThrow(() => data.updatePlan(proj.id, p1.id, { status: "非法状态" }), /非法/);
+  data.updatePlan(proj.id, p1.id, { status: "已废弃" });
+  assert.equal(data.getPlan(proj.id, p1.id).status, "已废弃");
+
+  // 评论（任何状态可评）
+  const c1 = data.addPlanComment(proj.id, p1.id, "建议优先验证兼容性");
+  assert.ok(c1.id, "评论应返回 id");
+  expectThrow(() => data.addPlanComment(proj.id, p1.id, "  "), /不能为空/);
+  const detail = data.getPlan(proj.id, p1.id);
+  assert.equal(detail.comments.length, 1);
+  assert.equal(detail.comments[0].content, "建议优先验证兼容性");
+
+  // 一键转任务：标题→任务名、内容→描述；不重复转
+  const conv = data.convertPlanToTask(proj.id, p1.id);
+  assert.ok(conv.taskId, "应返回任务 id");
+  expectThrow(() => data.convertPlanToTask(proj.id, p1.id), /已转为任务/);
+  const after = data.getPlan(proj.id, p1.id);
+  assert.equal(after.taskId, conv.taskId);
+  assert.equal(after.taskExists, true);
+  assert.ok(after.taskName, "应带任务名");
+  const task = data.getTaskById(conv.taskId);
+  assert.equal(task.name, "A 方案：技术选型 v2");
+  assert.ok(task.description.includes("富文本内容"), "任务描述应含方案内容");
+
+  // 删评论
+  data.deletePlanComment(proj.id, p1.id, c1.id);
+  assert.equal(data.getPlan(proj.id, p1.id).comments.length, 0);
+  expectThrow(() => data.deletePlanComment(proj.id, p1.id, c1.id), /不存在/);
+
+  // 删除方案（级联删评论；任务保留）
+  data.deletePlan(proj.id, p1.id);
+  expectThrow(() => data.getPlan(proj.id, p1.id), /不存在/);
+  assert.ok(data.getTaskById(conv.taskId), "转出的任务应保留");
+
+  // 审计联动：6 种动作全部留痕
+  const audit = data.listAuditLogs(proj.id, {});
+  const actions = audit.items.map((a) => a.action);
+  for (const act of ["创建方案", "更新方案", "方案评论", "方案转任务", "删除方案评论", "删除方案"]) {
+    assert.ok(actions.includes(act), `审计应包含 ${act}`);
+  }
+});

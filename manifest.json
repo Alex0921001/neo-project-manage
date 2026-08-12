@@ -56,7 +56,15 @@
       "./tools/create-member.js",
       "./tools/update-member.js",
       "./tools/delete-member.js",
-      "./tools/list-audit-logs.js"
+      "./tools/list-audit-logs.js",
+      "./tools/create-plan.js",
+      "./tools/update-plan.js",
+      "./tools/delete-plan.js",
+      "./tools/list-plans.js",
+      "./tools/get-plan.js",
+      "./tools/add-plan-comment.js",
+      "./tools/delete-plan-comment.js",
+      "./tools/convert-plan-to-task.js"
     ]
   },
   "dev": {

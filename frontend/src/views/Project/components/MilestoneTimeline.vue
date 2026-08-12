@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { nextZIndex } from "../../../utils/zIndex.js";
 import { formatDescription, richTextToPlain } from "../../../utils/text.js";
 
@@ -204,11 +204,18 @@ const layoutNodes = computed(() => {
   const lineStart = PAD_X;
   const lineEnd = Math.max(w - PAD_X, lineStart + 1);
 
-  // 首尾与项目起止时间重叠检测（日期相等即重叠；单节点不贴端点，居中显示）
+  // 首尾与项目起止时间重叠检测（日期相等即重叠）
   const s = endpoints.value.s;
   const e = endpoints.value.e;
-  const firstAlign = n > 1 && !!s && items[0].date === s; // 第一个 == 项目开始 → 贴左端
-  const lastAlign = n > 1 && !!e && items[n - 1].date === e; // 最后一个 == 项目结束 → 贴右端
+  // 单节点特例：与项目开始重叠贴左端；与结束重叠（且不与开始重叠）贴右端；否则居中
+  if (n === 1) {
+    const g0 = items[0];
+    if (!!s && g0.date === s) return [{ g: g0, left: lineStart, edge: true, row: 0 }];
+    if (!!e && g0.date === e) return [{ g: g0, left: lineEnd, edge: true, row: 0 }];
+    return [{ g: g0, left: Math.round((lineStart + lineEnd) / 2), edge: false, row: 0 }];
+  }
+  const firstAlign = !!s && items[0].date === s; // 第一个 == 项目开始 → 贴左端
+  const lastAlign = !!e && items[n - 1].date === e; // 最后一个 == 项目结束 → 贴右端
 
   // 中间均分区间（端点被占则让出空间）
   const innerStart = firstAlign ? lineStart + NODE_EDGE_GAP : lineStart;
@@ -352,6 +359,30 @@ const popover = ref({ show: false, date: "", tasks: [], x: 0, y: 0, z: 0 });
 // 里程碑批注 popover（3.1）
 const annPopover = ref({ show: false, anns: [], x: 0, y: 0, z: 0 });
 
+// popover 视口适配：测量真实尺寸后 clamp 到视口内，四周留呼吸边距
+const POPOVER_BREATH = 50;
+function fitToViewport(x, y, w, h) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // 水平：x 为浮层中心点
+  const cx = Math.min(Math.max(x, POPOVER_BREATH + w / 2), vw - POPOVER_BREATH - w / 2);
+  // 垂直：y 为浮层顶部；高度超可用空间时顶部优先（内部滚动承载溢出）
+  let cy;
+  if (h >= vh - 2 * POPOVER_BREATH) cy = POPOVER_BREATH;
+  else cy = Math.min(Math.max(y, POPOVER_BREATH), vh - POPOVER_BREATH - h);
+  return { x: Math.round(cx), y: Math.round(cy) };
+}
+// v-if 渲染后测量实际尺寸再约束（避免用估算宽度定位不准）
+function constrainToViewport(refObj, selector) {
+  nextTick(() => {
+    const el = document.querySelector(selector);
+    if (!el) return;
+    const { x, y } = fitToViewport(refObj.x, refObj.y, el.offsetWidth, el.offsetHeight);
+    refObj.x = x;
+    refObj.y = y;
+  });
+}
+
 function onNodeClick(g, ev) {
   if (g.tasks.length > 1) {
     openPopover(g, ev);
@@ -365,18 +396,16 @@ function openPopover(g, ev) {
   const rect = ev.currentTarget.getBoundingClientRect();
   const cx = Math.round(rect.left + rect.width / 2);
   const cy = Math.round(rect.bottom + 10);
-  // 视口边界兜底：避免浮层溢出屏幕两侧
-  const estW = 240;
-  const x = Math.min(Math.max(cx, 12 + estW / 2), window.innerWidth - 12 - estW / 2);
   closeAnnPopover();
   popover.value = {
     show: true,
     date: g.date,
     tasks: g.tasks,
-    x,
+    x: cx,
     y: cy,
     z: nextZIndex(),
   };
+  constrainToViewport(popover.value, ".milestone-popover");
 }
 
 // 里程碑批注 popover：点击标签打开，便利贴展示完整内容 + 挂载任务名
@@ -384,16 +413,15 @@ function openAnnPopover(g, ev) {
   const rect = ev.currentTarget.getBoundingClientRect();
   const cx = Math.round(rect.left + rect.width / 2);
   const cy = Math.round(rect.bottom + 8);
-  const estW = 280;
-  const x = Math.min(Math.max(cx, 12 + estW / 2), window.innerWidth - 12 - estW / 2);
   closePopover();
   annPopover.value = {
     show: true,
     anns: g.anns,
-    x,
+    x: cx,
     y: cy,
     z: nextZIndex(),
   };
+  constrainToViewport(annPopover.value, ".milestone-ann-popover");
 }
 
 function closePopover() {

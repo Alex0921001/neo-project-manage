@@ -44,6 +44,10 @@
           备注
           <span class="tab-pill">{{ (p?.notes || []).length }}</span>
         </button>
+        <button class="tab-btn" :class="{ active: tab === 'plans' }" @click="tab = 'plans'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+          方案
+        </button>
         <button class="tab-btn" :class="{ active: tab === 'audit' }" @click="tab = 'audit'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           审计
@@ -64,7 +68,7 @@
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
-          <button v-if="tab !== 'calendar' && tab !== 'audit'" class="header-btn header-btn-primary" @click="onTabAction">
+          <button v-if="tab !== 'calendar' && tab !== 'audit' && tab !== 'plans'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
@@ -118,6 +122,12 @@
           :project-id="p?.id || ''"
           :project="p"
         />
+        <PlanTab
+          v-show="tab === 'plans'"
+          :project-id="p?.id || ''"
+          @changed="loadProject"
+          @jump-task="onTabCalendarSelectTask"
+        />
       </div>
     </section>
 
@@ -150,6 +160,7 @@ import TaskTab from "./components/TaskTab.vue";
 import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import AuditTab from "./components/AuditTab.vue";
+import PlanTab from "./components/PlanTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
 import CalendarWidget from "../../components/CalendarWidget.vue";

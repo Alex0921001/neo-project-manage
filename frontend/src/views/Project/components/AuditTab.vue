@@ -65,6 +65,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)
 // ===== 字段名 / 值 翻译（英文数据结构 → 业务语言） =====
 const FIELD_LABEL = {
   name: "名称",
+  title: "标题",
   description: "描述",
   members: "成员",
   assignees: "成员",
@@ -91,7 +92,7 @@ const FIELD_LABEL = {
   fileRefs: "文件引用",
 };
 const VALUE_LABEL = {
-  status: { 待开始: "待开始", 进行中: "进行中", 已完成: "已完成", 已取消: "已取消", 已延期: "已延期" },
+  status: { 待开始: "待开始", 进行中: "进行中", 已完成: "已完成", 已取消: "已取消", 已延期: "已延期", 草稿: "草稿", 已采纳: "已采纳", 已废弃: "已废弃" },
   done: { 1: "完成", 0: "未完成", true: "完成", false: "未完成" },
   confirmed: { 1: "已确认", 0: "待确认", true: "已确认", false: "待确认" },
   kind: { note: "备注", decision: "决策", risk: "风险", milestone: "节点" },
@@ -135,6 +136,8 @@ const TYPE_LABEL = {
   note: "备注",
   member: "成员",
   project_set: "项目集",
+  plan: "方案",
+  plan_comment: "评论",
 };
 
 // 动作色系：删除类红色、归档类暖色、创建/更新类默认
