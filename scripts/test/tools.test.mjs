@@ -126,6 +126,12 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
   assert.match(upSet, /AT-改名集/);
   const upProj = await run("update_project", { id: projId, name: "AT-改名项目", status: "已完成" });
   assert.match(upProj, /AT-改名项目/);
+  // V2.1 规则：完成任务前便利贴必须全部确认（先确认任务下全部便利贴）
+  const allAnns = await run("list_annotations", { taskId });
+  const toConfirm = [...allAnns.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
+  for (const aid of toConfirm) {
+    await run("update_annotation", { taskId, annotationId: aid, confirmed: true });
+  }
   const upTask = await run("update_task", { projectId: projId, id: taskId, name: "AT-改名任务", done: true });
   assert.match(upTask, /AT-改名任务/);
   const upAnn = await run("update_annotation", { taskId, annotationId: annId, content: "改后内容", confirmed: true });

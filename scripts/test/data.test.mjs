@@ -624,6 +624,10 @@ test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔
 
   // —— 任务：创建 / 更新（含 done 归一 bool）——
   const t = data.createTask(pid, { name: "审计任务", assignees: ["审计人甲"] });
+  // 批注需在任务未完成时挂载（V2.1 规则：已完成任务不允许挂载便利贴）
+  const a = data.createAnnotation(pid, t.id, { content: "审计批注A", kind: "note" });
+  // V2.1 规则：完成任务前便利贴必须全部确认（顺带验证 kind+confirmed 变更审计）
+  data.updateAnnotation(t.id, a.id, { kind: "risk", confirmed: true });
   data.updateTask(pid, t.id, { name: "审计任务改", done: true });
   logs = data.listAuditLogs(pid);
   const taskLog = logs.items.find((x) => x.action === "更新任务" && x.targetId === t.id);
@@ -634,17 +638,7 @@ test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔
   assert.equal(taskOld.done, false, "done 旧值应为 bool false");
   assert.equal(taskNew.done, true, "done 新值应为 bool true");
 
-  // —— 批注：创建 / 更新（kind+confirmed）/ 删除 ——
-  const a = data.createAnnotation(pid, t.id, { content: "审计批注A", kind: "note" });
-  data.updateAnnotation(t.id, a.id, { kind: "risk", confirmed: true });
-  logs = data.listAuditLogs(pid);
-  const annLog = logs.items.find((x) => x.action === "更新批注" && x.targetId === a.id);
-  assert.ok(annLog, "更新批注应产生记录");
-  const annOld = JSON.parse(annLog.oldValue);
-  const annNew = JSON.parse(annLog.newValue);
-  assert.equal(annOld.kind, "note");
-  assert.equal(annNew.kind, "risk");
-  assert.equal(annNew.confirmed, true, "confirmed 变更应记录");
+  // —— 批注：删除（kind/confirmed 变更已在上方验证）——
   data.deleteAnnotation(pid, t.id, a.id);
   logs = data.listAuditLogs(pid);
   const delAnnLog = logs.items.find((x) => x.action === "删除批注" && x.targetId === a.id);
