@@ -1,7 +1,6 @@
 <template>
   <div class="plan-tab">
     <div class="plan-head">
-      <span class="plan-head-title">方案</span>
       <div class="plan-head-actions">
         <button
           class="header-btn"
@@ -12,16 +11,20 @@
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
           对比选中{{ selectedCount > 0 ? `（${selectedCount}/2）` : "" }}
         </button>
-        <button class="header-btn header-btn-primary" @click="openCreate">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          新建方案
-        </button>
       </div>
     </div>
 
-    <div v-if="loading" class="plan-empty">加载中…</div>
-    <div v-else-if="plans.length === 0" class="plan-empty">
-      暂无方案，点击「新建方案」记录第一个选型对比
+    <div v-if="loading" class="plans-empty">加载中…</div>
+    <div v-else-if="plans.length === 0" class="plans-empty">
+      <div class="plans-empty-deco">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 13l2 2 4-4"/></svg>
+      </div>
+      <p class="plans-empty-title">还没有方案</p>
+      <p class="plans-empty-sub">记录方案选型，对比后一键转任务</p>
+      <button class="plans-add plans-add-large" @click="openCreate">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>添加第一个方案</span>
+      </button>
     </div>
     <div v-else class="plan-list">
       <div
@@ -128,6 +131,8 @@ function jumpTask(taskId) {
   emit("jump-task", taskId);
 }
 
+defineExpose({ openCreate, load });
+
 watch(() => props.projectId, () => load(), { immediate: true });
 </script>
 
@@ -140,13 +145,8 @@ watch(() => props.projectId, () => load(), { immediate: true });
 .plan-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 4px;
-}
-.plan-head-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
 }
 .plan-head-actions {
   display: flex;
@@ -186,6 +186,67 @@ watch(() => props.projectId, () => load(), { immediate: true });
   font-size: 13px;
   text-align: center;
   padding: 36px 0;
+}
+/* ===== 空态（对齐备注页） ===== */
+.plans-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  gap: 6px;
+}
+.plans-empty-deco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.plans-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.plans-empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.plans-add.plans-add-large {
+  margin-top: 14px;
+  padding: 8px 20px;
+  font-size: 13px;
+}
+.plans-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--text);
+  color: var(--bg-card);
+  border: 1px solid var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+.plans-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 .plan-list {
   display: flex;

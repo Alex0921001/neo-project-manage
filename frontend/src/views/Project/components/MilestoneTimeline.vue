@@ -21,33 +21,34 @@
         :key="gi"
         class="milestone-node"
         :class="{ 'milestone-node-multi': it.g.tasks.length > 1, 'milestone-node-edge': it.edge }"
-        :style="{ left: it.left + 'px', top: (43 + it.row * NODE_ROW_STEP) + 'px' }"
+        :style="{ left: it.left + 'px', top: (22 + it.row * NODE_ROW_STEP) + 'px' }"
         :title="`里程碑 · ${it.g.date}`"
         @click.stop="onNodeClick(it.g, $event)"
       >
+        <!-- 任务名：旗子正上方（平衡上下视觉；贴端点节点不显示日期，由端点蓝点日期承担） -->
+        <div class="milestone-node-names">
+          <template v-if="it.g.tasks.length === 1">
+            <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
+          </template>
+          <template v-else>
+            <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
+            <span class="milestone-node-more">（+{{ it.g.tasks.length - 1 }}）</span>
+          </template>
+        </div>
         <!-- 旗子立在波浪线上（有里程碑任务 = 红；纯批注节点 = 琥珀） -->
         <span class="milestone-flag" :class="{ 'flag-amber': !it.g.hasTask }">
           <svg width="15" height="15" viewBox="0 0 24 22" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
         </span>
         <div class="milestone-node-info">
-          <!-- 旗子下方：时间 + 任务名（贴端点节点不显示日期，由端点蓝点日期承担，避免重叠） -->
+          <!-- 时间（贴端点节点不显示，由端点蓝点日期承担，避免重叠） -->
           <div v-if="!it.edge" class="milestone-node-date">{{ shortDate(it.g.date) }}</div>
-          <div class="milestone-node-names">
-            <template v-if="it.g.tasks.length === 1">
-              <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
-            </template>
-            <template v-else>
-              <span class="milestone-node-name">{{ shortName(it.g.tasks[0].name) }}</span>
-              <span class="milestone-node-more">（+{{ it.g.tasks.length - 1 }}）</span>
-            </template>
-          </div>
-          <!-- 里程碑批注标签：单色块显示「前10字...」，多于 1 条在同一色块内追加（+n）；点击弹便利贴 popover（3.1） -->
+          <!-- 里程碑批注标签：固定「便利贴 × N」格式（清爽），点击弹便利贴 popover -->
           <div v-if="it.g.anns.length" class="milestone-node-anns">
             <span
               class="milestone-ann-tag"
               title="查看里程碑批注"
               @click.stop="openAnnPopover(it.g, $event)"
-            >{{ annLabel(it.g.anns[0]) }}<template v-if="it.g.anns.length > 1"> （+{{ it.g.anns.length - 1 }}）</template></span>
+            >便利贴 × {{ it.g.anns.length }}</span>
           </div>
         </div>
       </div>
@@ -112,7 +113,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { nextZIndex } from "../../../utils/zIndex.js";
-import { formatDescription, richTextToPlain } from "../../../utils/text.js";
+import { formatDescription } from "../../../utils/text.js";
 
 const props = defineProps({
   planStart: { type: String, default: "" },
@@ -188,8 +189,8 @@ const spanMs = computed(() => {
   return d > 0 ? d : 1;
 });
 
-// 轴左右留白（px）：给两端蓝点与极端位置节点留出空间
-const PAD_X = 56;
+// 轴左右留白（px）：给两端蓝点与极端位置节点留出呼吸空间（端点内移，边缘节点不顶格）
+const PAD_X = 72;
 
 // 节点横向位置：有时间的按比例定位，无时间的放轴右端
 // ===== 布局：去重排序后，首尾与项目起止时间重叠的贴端点，其余在中间均分；密集时碰撞错层 =====
@@ -252,17 +253,6 @@ const axisHeight = computed(() => {
 });
 
 // ===== 里程碑批注标签（3.1） =====
-// 批注时间：创建日期优先，兜底任务开始日期；格式 MM-DD
-function annDateMMDD(a) {
-  const d = String(a?.createdAt || a?.taskStartDate || "").slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : "";
-}
-// 标签文本：只显示内容前 10 字（不带日期前缀，超长加 ...）
-function annLabel(a) {
-  const plain = richTextToPlain(a.content);
-  const cut = plain.slice(0, 10);
-  return `${cut}${plain.length > 10 ? "..." : ""}`;
-}
 // 任务名：节点下方限 10 字，超长截断（popover 内仍显示完整名）
 function shortName(name) {
   const s = String(name || "");
@@ -509,8 +499,8 @@ function nextTickDraw() {
   pointer-events: none;
   user-select: none;
 }
-.timeline-endpoint-start { left: 56px; transform: translateX(-50%); }
-.timeline-endpoint-end { right: 56px; transform: translateX(50%); }
+.timeline-endpoint-start { left: 72px; transform: translateX(-50%); }
+.timeline-endpoint-end { right: 72px; transform: translateX(50%); }
 
 .endpoint-dot {
   width: 9px;
@@ -527,10 +517,11 @@ function nextTickDraw() {
   font-variant-numeric: tabular-nums;
 }
 
-/* ===== 里程碑节点：旗子 + 任务名 + 时间 ===== */
+/* ===== 里程碑节点：任务名（上） + 旗子（中，插在波浪线上） + 时间/便利贴（下） =====
+ * 任务名上移平衡视觉：上方 任务名，旗杆插波浪线，下方 时间 + 便利贴 */
 .milestone-node {
   position: absolute;
-  top: 43px; /* 旗子底部对齐波浪线（cy=58，旗子高 15px） */
+  top: 22px; /* 旗子底部对齐波浪线（cy=58）；任务名 12px×1.5 + gap 3 上移到旗子上方 */
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -569,12 +560,12 @@ function nextTickDraw() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
-/* 贴端点节点：自身不显示日期，文字下移避开端点蓝点日期（端点日期约在 68~82px 区域） */
+/* 贴端点节点：自身不显示日期，便利贴标签下移避开端点蓝点日期（端点日期约在 68~82px 区域） */
 .milestone-node-edge .milestone-node-info {
-  padding-top: 22px;
+  padding-top: 24px;
 }
 .milestone-node-names {
   display: flex;

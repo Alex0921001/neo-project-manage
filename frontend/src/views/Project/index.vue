@@ -28,7 +28,6 @@
         <button class="tab-btn" :class="{ active: tab === 'tasks' }" @click="tab = 'tasks'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
           任务
-          <span class="tab-pill">{{ incompleteCount }}</span>
         </button>
         <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -37,12 +36,10 @@
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           文件
-          <span class="tab-pill">{{ (p?.files || []).length }}</span>
         </button>
         <button class="tab-btn" :class="{ active: tab === 'notes' }" @click="tab = 'notes'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           备注
-          <span class="tab-pill">{{ (p?.notes || []).length }}</span>
         </button>
         <button class="tab-btn" :class="{ active: tab === 'plans' }" @click="tab = 'plans'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
@@ -68,7 +65,7 @@
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
-          <button v-if="tab !== 'calendar' && tab !== 'audit' && tab !== 'plans'" class="header-btn header-btn-primary" @click="onTabAction">
+          <button v-if="tab !== 'calendar' && tab !== 'audit'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
@@ -87,7 +84,7 @@
           />
         </div>
         <TaskTab
-          v-show="tab === 'tasks'"
+          v-if="tab === 'tasks'"
           ref="taskTabRef"
           :project-id="p?.id || ''"
           :tasks="filteredTasks"
@@ -101,7 +98,7 @@
           @confirm-ask="onConfirm"
         />
         <FileTab
-          v-show="tab === 'files'"
+          v-if="tab === 'files'"
           ref="fileTabRef"
           :project-id="p?.id || ''"
           :files="p?.files || []"
@@ -109,7 +106,7 @@
           @confirm-ask="onConfirm"
         />
         <NoteTab
-          v-show="tab === 'notes'"
+          v-if="tab === 'notes'"
           ref="noteTabRef"
           :project-id="p?.id || ''"
           :notes="p?.notes || []"
@@ -117,13 +114,14 @@
           @confirm-ask="onConfirm"
         />
         <AuditTab
-          v-show="tab === 'audit'"
+          v-if="tab === 'audit'"
           ref="auditTabRef"
           :project-id="p?.id || ''"
           :project="p"
         />
         <PlanTab
-          v-show="tab === 'plans'"
+          v-if="tab === 'plans'"
+          ref="planTabRef"
           :project-id="p?.id || ''"
           @changed="loadProject"
           @jump-task="onTabCalendarSelectTask"
@@ -174,9 +172,8 @@ const taskTabRef = ref(null);
 const fileTabRef = ref(null);
 const noteTabRef = ref(null);
 const auditTabRef = ref(null);
+const planTabRef = ref(null);
 const overviewRef = ref(null);
-
-const incompleteCount = computed(() => (p.value?.tasks || []).filter(t => !t.done).length);
 
 const currentSetLabel = computed(() => {
   if (!p.value?.projectSetId) return "";
@@ -194,8 +191,7 @@ const tabKey = `neo-pm-tab-${props.projectId}`;
 const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => {
   try { localStorage.setItem(tabKey, v); } catch {}
-  // 审计 tab：切回时刷新（v-show 常驻组件，操作后需重新拉取）
-  if (v === "audit") nextTick(() => auditTabRef.value?.refresh());
+  // 各 tab 均为 v-if 按需渲染：切回时组件重建，内部 watch(projectId, immediate) 自动拉取最新数据
 });
 
 // ===== 一键展开/收起 =====
@@ -249,6 +245,7 @@ function onTabAction() {
   if (tab.value === 'tasks') taskTabRef.value?.openAdd();
   else if (tab.value === 'files') fileTabRef.value?.pickFile();
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
+  else if (tab.value === 'plans') planTabRef.value?.openCreate();
 }
 
 // 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
