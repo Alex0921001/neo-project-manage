@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_task";
-export const description = "按任务 ID 全局查询任务详情（含所属项目、父任务、批注、子任务，无需 projectId）";
+export const description = "按任务 ID 全局查询任务详情（含所属项目、父任务、批注类型、子任务，无需 projectId）";
 export const parameters = {
   type: "object",
   required: ["taskId"],
@@ -21,7 +21,7 @@ export async function execute(input, toolCtx) {
     `状态: ${task.done ? "已完成" : "未完成"}`,
     task.assignees?.length ? `成员: ${task.assignees.join("、")}` : null,
     task.startDate || task.endDate
-      ? `起止日期: ${task.startDate || "…"} ~ ${task.endDate || "…"}`
+      ? `起止日期: ${task.startDate || "—"} ~ ${task.endDate || "—"}`
       : null,
     `所属项目: ${task.project ? `${task.project.name} [ID: ${task.project.id}]` : "-"}`,
     task.parentTask ? `父任务: ${task.parentTask.name} [ID: ${task.parentTask.id}]` : null,
@@ -32,13 +32,16 @@ export async function execute(input, toolCtx) {
   if (task.subtasks?.length) {
     lines.push(`--- 子任务 (${task.subtasks.length}) ---`);
     for (const s of task.subtasks) {
-      lines.push(`  ${s.done ? "☑" : "☐"} ${s.name} [ID: ${s.id}]`);
+      lines.push(`  ${s.done ? "✅" : "⬜"} ${s.name} [ID: ${s.id}]`);
     }
   }
   if (task.annotations?.length) {
     lines.push(`--- 批注 (${task.annotations.length}) ---`);
     for (const a of task.annotations) {
-      lines.push(`  ${a.confirmed ? "✅" : "🟡"} ${a.content} [ID: ${a.id}]`);
+      const kindText = a.kind ? ` [类型: ${a.kind}]` : "";
+      const confirmText = a.confirmed ? " [已确认]" : " [待确认]";
+      const contentText = String(a.content || "").replace(/\s*\n+\s*/g, " ").trim();
+      lines.push(`  ${a.confirmed ? "✅" : "🟡"} ${contentText}${kindText}${confirmText} [ID: ${a.id}]`);
     }
   }
 

@@ -22,7 +22,9 @@ export async function execute(input, toolCtx) {
   );
   const lines = projects.map((p) => {
     const displayStatus = data.computeStatus(p);
-    const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴" }[displayStatus] || "⚪";
+    const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴", "已取消": "⚪" }[displayStatus] || "⚪";
+    // 已归档标记：图标前缀包裹 + 名称后缀标记，Agent 可一眼区分归档项目
+    const archivedMark = p.archived ? " [已归档]" : "";
     // 描述可能含换行，归一化为单行（对齐 list_tasks）
     const descText = p.description ? p.description.replace(/\s*\n+\s*/g, " ").trim() : "";
     const descPart = descText ? ` — ${descText}` : "";
@@ -34,7 +36,7 @@ export async function execute(input, toolCtx) {
         ? ` [项目集: ${setIdToName.get(p.projectSetId)}]`
         : "";
     // 风格对齐 list_tasks：图标 名称 — 描述 [状态] [成员] [计划] [统计] [项目集] [创建] [ID]
-    return `${statusIcon} ${p.name}${descPart} [状态: ${displayStatus}]${membersText}${planText} [任务: ${p.taskCount}（未完成 ${p.incompleteTaskCount}）] [文件: ${p.fileCount}] [备注: ${p.noteCount}]${setText} [创建: ${p.createdAt}] [ID: ${p.id}]`;
+    return `${statusIcon} ${p.name}${archivedMark}${descPart} [状态: ${displayStatus}]${membersText}${planText} [任务: ${p.taskCount}（未完成 ${p.incompleteTaskCount}）] [文件: ${p.fileCount}] [备注: ${p.noteCount}]${setText} [创建: ${p.createdAt}] [ID: ${p.id}]`;
   });
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }

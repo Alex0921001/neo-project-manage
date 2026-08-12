@@ -23,7 +23,7 @@ export async function execute(input, toolCtx) {
   const lines = [`📄 项目「${project.name}」文件清单（共 ${files.length} 个）`, ""];
   for (const f of files) {
     lines.push(
-      `- 📄 ${f.name} [类型: ${f.ext || "无"}] [大小: ${formatSize(f.size)}] ` +
+      `- 📄 ${f.name} [路径: ${f.path || "-"}] [类型: ${f.ext || "无"}] [大小: ${formatSize(f.size)}] ` +
         `[摘要: ${shortDigest(f.digest)}] [索引: ${f.indexed ? "已索引" : "未索引"}] [登记: ${f.uploadedAt}] [ID: ${f.id}]`
     );
   }
