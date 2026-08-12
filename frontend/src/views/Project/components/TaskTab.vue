@@ -92,12 +92,12 @@
       </svg>
 
       <div class="task-tab-list">
-        <!-- 里程碑步骤图：存在里程碑任务时显示（无则不渲染） -->
-        <div v-if="milestones.length" class="task-tab-milestone-area">
+        <!-- 里程碑步骤图：有里程碑节点才渲染（避免空容器显示灰色条） -->
+        <div v-if="hasMilestones" class="task-tab-milestone-area">
           <MilestoneTimeline
             :plan-start="planStart"
             :plan-end="planEnd"
-            :milestones="milestones"
+            :tasks="tasks"
             @jump-task="(taskId) => scrollToTaskById(taskId)"
           />
         </div>
@@ -849,18 +849,19 @@ async function toggleMilestone(task) {
   }
 }
 
-// 递归收集全部里程碑节点（任意层级）：isMilestone 任务，或挂有 milestone（节点）类型批注的任务
-function collectMilestones(list, acc = []) {
-  for (const t of list || []) {
-    if (t.isMilestone || t.annotations?.some((a) => a.kind === "milestone")) acc.push(t);
-    collectMilestones(t.subtasks, acc);
-  }
-  return acc;
-}
-const milestones = computed(() => collectMilestones(props.tasks));
+// 是否存在里程碑节点（isMilestone 任务 或 挂有 milestone 批注的任务）——决定是否渲染步骤条容器
+const hasMilestones = computed(() => {
+  const walk = (list) => {
+    for (const t of list || []) {
+      if (t.isMilestone || t.annotations?.some((a) => a.kind === "milestone")) return true;
+      if (walk(t.subtasks)) return true;
+    }
+    return false;
+  };
+  return walk(props.tasks);
+});
 
-defineExpose({ openAdd, scrollToTaskById });
-</script>
+defineExpose({ openAdd, scrollToTaskById });</script>
 
 <style scoped>
 .area-section {

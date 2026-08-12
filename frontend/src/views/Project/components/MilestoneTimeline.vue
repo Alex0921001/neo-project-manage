@@ -1,6 +1,7 @@
 <template>
-  <div class="milestone-timeline">
-    <div class="milestone-axis" ref="axisRef">      <!-- 波浪虚线（canvas 正弦波 + 虚线） -->
+  <div v-if="milestones.length" class="milestone-timeline">
+      <!-- 轴容器：宽度自适应外层，高度随错层层数动态（一屏展示，不横向滚动） -->
+      <div class="milestone-axis" ref="axisRef" :style="{ height: axisHeight + 'px' }">
       <canvas ref="canvasRef" class="milestone-canvas" aria-hidden="true" />
 
       <!-- 左端：项目计划开始日期 -->
@@ -16,43 +17,37 @@
 
       <!-- 里程碑节点（DOM 绝对定位，可点击 / 弹 popover） -->
       <div
-        v-for="(g, gi) in groups"
+        v-for="(it, gi) in layoutNodes"
         :key="gi"
         class="milestone-node"
-        :class="{ 'milestone-node-multi': g.tasks.length > 1, 'milestone-node-nodate': !g.date }"
-        :style="{ left: nodeLeft(g) + 'px' }"
-        :title="g.date ? `里程碑 · ${g.date}` : '里程碑（未设置时间）'"
-        @click.stop="onNodeClick(g, $event)"
+        :class="{ 'milestone-node-multi': it.g.tasks.length > 1, 'milestone-node-edge': it.edge }"
+        :style="{ left: it.left + 'px', top: (43 + it.row * NODE_ROW_STEP) + 'px' }"
+        :title="`里程碑 · ${it.g.date}`"
+        @click.stop="onNodeClick(it.g, $event)"
       >
-        <span class="milestone-flag">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+        <!-- 旗子立在波浪线上（有里程碑任务 = 红；纯批注节点 = 琥珀） -->
+        <span class="milestone-flag" :class="{ 'flag-amber': !it.g.hasTask }">
+          <svg width="15" height="15" viewBox="0 0 24 22" fill="currentColor" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
         </span>
         <div class="milestone-node-info">
+          <!-- 旗子下方：时间 + 任务名（贴端点节点不显示日期，由端点蓝点日期承担，避免重叠） -->
+          <div v-if="!it.edge" class="milestone-node-date">{{ shortDate(it.g.date) }}</div>
           <div class="milestone-node-names">
-            <template v-if="g.tasks.length === 1">
-              <span class="milestone-node-name">{{ g.tasks[0].name }}</span>
+            <template v-if="it.g.tasks.length === 1">
+              <span class="milestone-node-name">{{ it.g.tasks[0].name }}</span>
             </template>
             <template v-else>
-              <span v-for="t in g.tasks.slice(0, 2)" :key="t.id" class="milestone-node-name">{{ t.name }}</span>
-              <span class="milestone-node-more">等{{ g.tasks.length - 2 }}个</span>
+              <span class="milestone-node-name">{{ it.g.tasks[0].name }}</span>
+              <span class="milestone-node-more">（+{{ it.g.tasks.length - 1 }}）</span>
             </template>
           </div>
-          <div class="milestone-node-date">{{ g.date ? shortDate(g.date) : '未设置时间' }}</div>
-          <!-- 里程碑批注标签：时间 + 前10字；点击弹便利贴 popover（3.1） -->
-          <div v-if="g.anns.length" class="milestone-node-anns">
+          <!-- 里程碑批注标签：单色块显示「前10字...」，多于 1 条在同一色块内追加（+n）；点击弹便利贴 popover（3.1） -->
+          <div v-if="it.g.anns.length" class="milestone-node-anns">
             <span
-              v-for="a in g.anns.slice(0, 2)"
-              :key="a.id"
               class="milestone-ann-tag"
               title="查看里程碑批注"
-              @click.stop="openAnnPopover(g, $event)"
-            >{{ annLabel(a) }}</span>
-            <span
-              v-if="g.anns.length > 2"
-              class="milestone-ann-tag milestone-ann-tag-more"
-              title="查看全部里程碑批注"
-              @click.stop="openAnnPopover(g, $event)"
-            >+{{ g.anns.length - 2 }}</span>
+              @click.stop="openAnnPopover(it.g, $event)"
+            >{{ annLabel(it.g.anns[0]) }}<template v-if="it.g.anns.length > 1"> （+{{ it.g.anns.length - 1 }}）</template></span>
           </div>
         </div>
       </div>
@@ -122,10 +117,20 @@ import { formatDescription, richTextToPlain } from "../../../utils/text.js";
 const props = defineProps({
   planStart: { type: String, default: "" },
   planEnd: { type: String, default: "" },
-  // 扁平里程碑列表：{ id, name, startDate, createdAt }
-  milestones: { type: Array, default: () => [] },
+  // 完整任务树（任意层级），组件内部收集里程碑节点与 milestone 批注（控件自包含）
+  tasks: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["jump-task"]);
+
+// ===== 收集里程碑节点：isMilestone 任务，或挂有 milestone（节点）类型批注的任务 =====
+function collectMilestones(list, acc = []) {
+  for (const t of list || []) {
+    if (t.isMilestone || t.annotations?.some((a) => a.kind === "milestone")) acc.push(t);
+    collectMilestones(t.subtasks, acc);
+  }
+  return acc;
+}
+const milestones = computed(() => collectMilestones(props.tasks));
 
 // ===== 数据分组：按开始日期聚合，同日归一组；无时间节点排最后 =====
 // 组内附带 anns：收集挂在该组里程碑任务上的 milestone 类型批注（3.1）
@@ -143,20 +148,20 @@ function collectMilestoneAnns(tasks) {
 
 const groups = computed(() => {
   const byDate = new Map();
-  const noDate = [];
-  for (const m of props.milestones || []) {
-    if (m.startDate) {
-      if (!byDate.has(m.startDate)) byDate.set(m.startDate, []);
-      byDate.get(m.startDate).push(m);
-    } else {
-      noDate.push(m);
-    }
+  // 无开始时间的里程碑任务不显示在步骤条上（用户要求）
+  for (const m of milestones.value || []) {
+    if (!m.startDate) continue;
+    if (!byDate.has(m.startDate)) byDate.set(m.startDate, []);
+    byDate.get(m.startDate).push(m);
   }
-  const list = [...byDate.entries()]
+  return [...byDate.entries()]
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)) // 日期升序
-    .map(([date, tasks]) => ({ date, tasks, anns: collectMilestoneAnns(tasks) }));
-  if (noDate.length) list.push({ date: "", tasks: noDate, anns: collectMilestoneAnns(noDate) }); // 无时间的排最后
-  return list;
+    .map(([date, tasks]) => ({
+      date,
+      tasks,
+      anns: collectMilestoneAnns(tasks),
+      hasTask: tasks.some((t) => t.isMilestone), // 存在真里程碑任务 → 红旗；纯批注节点 → 琥珀旗
+    }));
 });
 
 // ===== 端点兜底：优先项目计划起止，缺失时用里程碑日期范围 =====
@@ -187,20 +192,57 @@ const spanMs = computed(() => {
 const PAD_X = 56;
 
 // 节点横向位置：有时间的按比例定位，无时间的放轴右端
-function nodeLeft(g) {
+// ===== 布局：去重排序后，首尾与项目起止时间重叠的贴端点，其余在中间均分；密集时碰撞错层 =====
+const NODE_MIN_GAP = 140; // 节点最小水平间距（px，按文字块宽度估算）
+const NODE_ROW_STEP = 26; // 每层垂直偏移（px）
+const NODE_EDGE_GAP = 64; // 端点对齐节点与相邻中间节点的间距（px）
+const layoutNodes = computed(() => {
+  const items = groups.value; // 去重、按日期升序
+  const n = items.length;
+  if (!n) return [];
   const w = axisWidth.value;
-  if (!w) return PAD_X;
   const lineStart = PAD_X;
   const lineEnd = Math.max(w - PAD_X, lineStart + 1);
-  let pos;
-  if (!g.date) {
-    pos = 1; // 无时间 → 轴末尾（右端蓝点上方）
-  } else {
-    const t = Date.parse(g.date + "T00:00:00");
-    pos = Math.min(1, Math.max(0, (t - startT.value) / spanMs.value));
+
+  // 首尾与项目起止时间重叠检测（日期相等即重叠；单节点不贴端点，居中显示）
+  const s = endpoints.value.s;
+  const e = endpoints.value.e;
+  const firstAlign = n > 1 && !!s && items[0].date === s; // 第一个 == 项目开始 → 贴左端
+  const lastAlign = n > 1 && !!e && items[n - 1].date === e; // 最后一个 == 项目结束 → 贴右端
+
+  // 中间均分区间（端点被占则让出空间）
+  const innerStart = firstAlign ? lineStart + NODE_EDGE_GAP : lineStart;
+  const innerEnd = lastAlign ? lineEnd - NODE_EDGE_GAP : lineEnd;
+
+  const placed = [];
+  if (firstAlign) placed.push({ g: items[0], left: lineStart, edge: true });
+  const midCount = n - (firstAlign ? 1 : 0) - (lastAlign ? 1 : 0);
+  if (midCount > 0) {
+    const usable = Math.max(innerEnd - innerStart, 0);
+    const midItems = items.slice(firstAlign ? 1 : 0, n - (lastAlign ? 1 : 0));
+    midItems.forEach((g, i) => {
+      const pos = midCount > 1 ? (i + 1) / (midCount + 1) : 0.5; // 中间均分，两端留白
+      placed.push({ g, left: innerStart + pos * usable, edge: false });
+    });
   }
-  return lineStart + pos * (lineEnd - lineStart);
-}
+  if (lastAlign) placed.push({ g: items[n - 1], left: lineEnd, edge: true });
+
+  // 碰撞错层：相邻节点间距不足时垂直换行，文字不重叠
+  const rowRight = []; // 每行最后一个节点的 left
+  return placed.map((it) => {
+    let row = 0;
+    while (row < rowRight.length && it.left - rowRight[row] < NODE_MIN_GAP) row++;
+    if (row === rowRight.length) rowRight.push(it.left);
+    else rowRight[row] = it.left;
+    return { ...it, row };
+  });
+});
+
+// 轴高动态：基础 118 + 错层层数 × 行距（给下方信息留足空间）
+const axisHeight = computed(() => {
+  const maxRow = layoutNodes.value.reduce((m, n) => Math.max(m, n.row), 0);
+  return 118 + maxRow * NODE_ROW_STEP;
+});
 
 // ===== 里程碑批注标签（3.1） =====
 // 批注时间：创建日期优先，兜底任务开始日期；格式 MM-DD
@@ -208,12 +250,11 @@ function annDateMMDD(a) {
   const d = String(a?.createdAt || a?.taskStartDate || "").slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.slice(5) : "";
 }
-// 标签文本：时间 + 前 10 字（超长加 …）
+// 标签文本：只显示内容前 10 字（不带日期前缀，超长加 ...）
 function annLabel(a) {
   const plain = richTextToPlain(a.content);
-  const date = annDateMMDD(a);
   const cut = plain.slice(0, 10);
-  return `${date ? date + " " : ""}${cut}${plain.length > 10 ? "…" : ""}`;
+  return `${cut}${plain.length > 10 ? "..." : ""}`;
 }
 // popover 内完整时间（MM-DD HH:mm）
 function formatTime(iso) {
@@ -258,9 +299,11 @@ function draw() {
   const canvas = canvasRef.value;
   const axis = axisRef.value;
   if (!canvas || !axis || !axis.clientWidth || !axis.clientHeight) return;
-  const dpr = window.devicePixelRatio || 1;
+  // 实时读宽度并同步 ref（节点定位与画线始终一致）
   const w = axis.clientWidth;
+  axisWidth.value = w;
   const h = axis.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(w * dpr);
   canvas.height = Math.round(h * dpr);
   canvas.style.width = `${w}px`;
@@ -272,7 +315,7 @@ function draw() {
   const lineStart = PAD_X;
   const lineEnd = w - PAD_X;
   if (lineEnd <= lineStart) return;
-  const cy = Math.round(h / 2) + 8; // 波浪线略偏下，旗子节点立于线上方
+  const cy = 58; // 波浪线垂直位置（固定）：与端点蓝点（top 54 + 半径 4.5）及旗子底部对齐
 
   ctx.strokeStyle = readCssVar("--border", "#d3d7de");
   ctx.lineWidth = 1.5;
@@ -289,6 +332,14 @@ function draw() {
   }
   ctx.stroke();
   ctx.setLineDash([]);
+
+  // 节点位置灰点：每个里程碑节点在波浪线上的落点标记（与 DOM 节点 left 对齐）
+  ctx.fillStyle = "rgba(120, 130, 145, 0.5)";
+  for (const it of layoutNodes.value) {
+    ctx.beginPath();
+    ctx.arc(it.left, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 // ===== popover（自定义浮层）=====
@@ -384,7 +435,7 @@ onUnmounted(() => {
 });
 
 // 数据 / 容器变化时重绘
-watch(() => [props.planStart, props.planEnd, props.milestones], () => {
+watch(() => [props.planStart, props.planEnd, props.tasks], () => {
   nextTickDraw();
 });
 function nextTickDraw() {
@@ -396,16 +447,14 @@ function nextTickDraw() {
 .milestone-timeline {
   width: 100%;
   min-width: 0;
-  /* 窄屏横向滚动：轴内容保持最小渲染宽度，超出部分滚动查看 */
-  overflow-x: auto;
-  scrollbar-width: thin;
 }
 
-/* 轴容器：overflow-x 由外层承载，自身不裁切节点 */
+/* 轴容器：宽度自适应外层（一屏展示，随容器缩放拉长），不横向滚动 */
 .milestone-axis {
   position: relative;
-  min-width: 560px;
-  height: 100px;
+  width: 100%;
+  min-width: 0;
+  height: 118px; /* 顶部旗子 + 下方时间/名称/批注留足空间 */
 }
 
 .milestone-canvas {
@@ -427,8 +476,8 @@ function nextTickDraw() {
   pointer-events: none;
   user-select: none;
 }
-.timeline-endpoint-start { left: 0; transform: translateX(-50%); }
-.timeline-endpoint-end { right: 0; transform: translateX(50%); }
+.timeline-endpoint-start { left: 56px; transform: translateX(-50%); }
+.timeline-endpoint-end { right: 56px; transform: translateX(50%); }
 
 .endpoint-dot {
   width: 9px;
@@ -448,32 +497,25 @@ function nextTickDraw() {
 /* ===== 里程碑节点：旗子 + 任务名 + 时间 ===== */
 .milestone-node {
   position: absolute;
-  top: 2px;
+  top: 43px; /* 旗子底部对齐波浪线（cy=58，旗子高 15px） */
   transform: translateX(-50%);
   display: flex;
-  align-items: flex-start;
-  gap: 5px;
-  padding: 5px 8px 5px 6px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  max-width: 320px;
-  transition: border-color var(--duration-fast) var(--ease-out),
-              box-shadow var(--duration-fast) var(--ease-out),
-              transform var(--duration-fast) var(--ease-out);
+  max-width: 220px;
+  z-index: 2;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
-/* hover：旗子放大 + 节点描边高亮 */
+/* hover：旗子放大 */
 .milestone-node:hover {
-  border-color: var(--border);
-  box-shadow: var(--shadow-md);
   z-index: 5;
 }
 .milestone-node:hover .milestone-flag {
-  transform: scale(1.18);
+  transform: translate(4px, -4px) scale(1.18);
 }
 .milestone-flag {
   color: #e5484d;
@@ -481,15 +523,25 @@ function nextTickDraw() {
   display: inline-flex;
   line-height: 1;
   transition: transform var(--duration-fast) var(--ease-out);
-  margin-top: 1px;
+  /* 旗杆在 svg 内 x=4 偏左、底部视觉偏下：右移 4px + 上移 4px，让杆底插到灰点中心 */
+  transform: translate(4px, -4px);
 }
 .milestone-flag svg { display: block; }
+/* 纯批注节点：橙色旗（与批注标签同色系），与红色里程碑旗区分 */
+.milestone-flag.flag-amber {
+  color: oklch(0.72 0.16 55);
+}
 
 .milestone-node-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 1px;
   min-width: 0;
+}
+/* 贴端点节点：自身不显示日期，文字下移避开端点蓝点日期（端点日期约在 68~82px 区域） */
+.milestone-node-edge .milestone-node-info {
+  padding-top: 22px;
 }
 .milestone-node-names {
   display: flex;
@@ -514,13 +566,6 @@ function nextTickDraw() {
   font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
-}
-/* 无时间节点：弱化（灰色旗子 + 虚线边框） */
-.milestone-node-nodate {
-  border-style: dashed;
-}
-.milestone-node-nodate .milestone-flag {
-  color: var(--text-tertiary);
 }
 
 /* ===== 里程碑批注标签（3.1）：便利贴式小标签，色相对齐 milestone 类型 ===== */
