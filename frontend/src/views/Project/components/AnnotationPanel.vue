@@ -44,6 +44,7 @@
             <div class="sticky-head">
               <div class="sticky-head-left">
                 <button
+                  v-if="!targetDone"
                   class="sticky-icon-btn"
                   :class="{ 'sticky-confirmed': effectiveConfirmed(a) }"
                   :title="effectiveConfirmed(a) ? '取消确认' : '确认这条批注'"
@@ -76,10 +77,10 @@
             <p
               v-else
               class="sticky-content rich-view"
-              :class="{ 'sticky-editable': !effectiveConfirmed(a) }"
+              :class="{ 'sticky-editable': !effectiveConfirmed(a) && !targetDone }"
               v-html="formatDescription(a.content)"
-              :title="effectiveConfirmed(a) ? '' : '点击编辑'"
-              @click="!effectiveConfirmed(a) && startInline(a)"
+              :title="effectiveConfirmed(a) || targetDone ? '' : '点击编辑'"
+              @click="!effectiveConfirmed(a) && !targetDone && startInline(a)"
             ></p>
             <!-- 脚：左=类型下拉（点击即改），右=时间 -->
             <div class="sticky-foot">
@@ -416,6 +417,7 @@ async function doRemove() {
 }
 
 async function toggleConfirm(ann) {
+  if (targetDone.value) return; // V2.1 规则：任务已完成便利贴冻结，不可切换确认状态
   const target = !effectiveConfirmed(ann);
   const res = await api(buildUrl(ann.id), {
     method: "PUT",
