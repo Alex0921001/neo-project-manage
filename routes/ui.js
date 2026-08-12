@@ -12,6 +12,7 @@ import { registerNotesRoutes } from "./modules/notes.js";
 import { registerUploadRoutes } from "./modules/upload.js";
 import { registerCalendarRoutes } from "./modules/calendar.js";
 import { registerMembersRoutes } from "./modules/members.js";
+import { registerAuditRoutes } from "./modules/audit.js";
 
 const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname_ui, "..");
@@ -124,6 +125,7 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerUploadRoutes(app, data, ctx);
   registerCalendarRoutes(app, data);
   registerMembersRoutes(app, data);
+  registerAuditRoutes(app, data);
 
   // ===== Version（前端角标使用）=====
   app.get("/api/version", (c) => {

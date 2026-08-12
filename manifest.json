@@ -55,7 +55,8 @@
       "./tools/list-members.js",
       "./tools/create-member.js",
       "./tools/update-member.js",
-      "./tools/delete-member.js"
+      "./tools/delete-member.js",
+      "./tools/list-audit-logs.js"
     ]
   },
   "dev": {

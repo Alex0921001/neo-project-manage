@@ -576,3 +576,122 @@ test("成员：allKnownNames 聚合（含历史项目里的成员名、去重）
   // 排序
   assert.deepEqual(known, [...known].sort((a, b) => a.localeCompare(b, "zh")), "应按名称排序");
 });
+
+// ===== 16. 审计日志（V2.1 审计追踪） =====
+test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔离 / 分页 / 级联删除", () => {
+  const p = data.createProject({ name: "审计项目", members: ["审计人甲"], status: "待开始" });
+  const p2 = data.createProject({ name: "审计项目2" });
+  const pid = p.id;
+
+  // —— 创建项目 ——
+  let logs = data.listAuditLogs(pid);
+  assert.equal(logs.items.length, 1, "建项目应产生 1 条审计");
+  assert.equal(logs.items[0].action, "创建项目");
+  assert.equal(logs.items[0].targetType, "project");
+  assert.equal(logs.items[0].targetId, pid);
+  assert.equal(logs.items[0].oldValue, null, "创建无旧值");
+  const createdNew = JSON.parse(logs.items[0].newValue);
+  assert.equal(createdNew.name, "审计项目");
+  assert.equal(createdNew.status, "待开始");
+  assert.deepEqual(createdNew.members, ["审计人甲"]);
+
+  // —— 改状态：old/new 正确 ——
+  data.updateProject(pid, { status: "进行中" });
+  logs = data.listAuditLogs(pid);
+  // 注：多条操作可能同毫秒（created_at 相同），断言按动作+内容匹配，不依赖 items[0] 顺序
+  const statusLog = logs.items.find((x) => x.action === "更新项目" && JSON.parse(x.oldValue).status === "待开始");
+  assert.ok(statusLog, "改状态应产生更新项目记录");
+  assert.equal(JSON.parse(statusLog.newValue).status, "进行中");
+
+  // —— 改成员 ——
+  data.updateProject(pid, { members: ["审计人甲", "审计人乙"] });
+  logs = data.listAuditLogs(pid);
+  const memberLog = logs.items.find((x) => x.action === "更新项目" && Array.isArray(JSON.parse(x.oldValue).members));
+  assert.ok(memberLog, "改成员应产生更新项目记录");
+  assert.deepEqual(JSON.parse(memberLog.oldValue).members, ["审计人甲"]);
+  assert.deepEqual(JSON.parse(memberLog.newValue).members, ["审计人甲", "审计人乙"]);
+
+  // —— 归档 / 恢复归档：动作特判 ——
+  data.updateProject(pid, { archived: true });
+  logs = data.listAuditLogs(pid);
+  const archLog = logs.items.find((x) => x.action === "归档项目");
+  assert.ok(archLog, "归档应产生归档项目记录");
+  assert.equal(JSON.parse(archLog.oldValue).archived, false);
+  assert.equal(JSON.parse(archLog.newValue).archived, true);
+  data.updateProject(pid, { archived: false });
+  logs = data.listAuditLogs(pid);
+  assert.ok(logs.items.find((x) => x.action === "恢复归档"), "取消归档应产生恢复归档记录");
+
+  // —— 任务：创建 / 更新（含 done 归一 bool）——
+  const t = data.createTask(pid, { name: "审计任务", assignees: ["审计人甲"] });
+  data.updateTask(pid, t.id, { name: "审计任务改", done: true });
+  logs = data.listAuditLogs(pid);
+  const taskLog = logs.items.find((x) => x.action === "更新任务" && x.targetId === t.id);
+  assert.ok(taskLog, "更新任务应产生记录");
+  const taskOld = JSON.parse(taskLog.oldValue);
+  const taskNew = JSON.parse(taskLog.newValue);
+  assert.equal(taskOld.name, "审计任务");
+  assert.equal(taskOld.done, false, "done 旧值应为 bool false");
+  assert.equal(taskNew.done, true, "done 新值应为 bool true");
+
+  // —— 批注：创建 / 更新（kind+confirmed）/ 删除 ——
+  const a = data.createAnnotation(pid, t.id, { content: "审计批注A", kind: "note" });
+  data.updateAnnotation(t.id, a.id, { kind: "risk", confirmed: true });
+  logs = data.listAuditLogs(pid);
+  const annLog = logs.items.find((x) => x.action === "更新批注" && x.targetId === a.id);
+  assert.ok(annLog, "更新批注应产生记录");
+  const annOld = JSON.parse(annLog.oldValue);
+  const annNew = JSON.parse(annLog.newValue);
+  assert.equal(annOld.kind, "note");
+  assert.equal(annNew.kind, "risk");
+  assert.equal(annNew.confirmed, true, "confirmed 变更应记录");
+  data.deleteAnnotation(pid, t.id, a.id);
+  logs = data.listAuditLogs(pid);
+  const delAnnLog = logs.items.find((x) => x.action === "删除批注" && x.targetId === a.id);
+  assert.ok(delAnnLog, "删除批注应产生记录");
+  assert.ok(JSON.parse(delAnnLog.oldValue).content.includes("审计批注A"), "删除应留旧值");
+  assert.equal(delAnnLog.newValue, null);
+
+  // —— 读操作不产生记录 ——
+  const beforeRead = data.listAuditLogs(pid).total;
+  data.getProject(pid);
+  data.listProjects();
+  data.listTasks(pid);
+  data.getTaskById(t.id);
+  data.getTaskAnnotations(t.id);
+  assert.equal(data.listAuditLogs(pid).total, beforeRead, "读操作不应产生审计");
+
+  // —— 项目隔离：p2 只有自己的创建记录 ——
+  const logs2 = data.listAuditLogs(p2.id);
+  assert.equal(logs2.total, 1, "p2 应只有 1 条（创建项目）");
+  assert.equal(logs2.items[0].targetId, p2.id, "不应看到其他项目的记录");
+
+  // —— 分页：limit / offset / total ——
+  const all = data.listAuditLogs(pid, { limit: 200 });
+  assert.ok(all.total > 3, `应有多条审计（实际 ${all.total}）`);
+  assert.equal(all.items.length, all.total, "limit 200 应取全");
+  const page1 = data.listAuditLogs(pid, { limit: 2 });
+  assert.equal(page1.items.length, 2);
+  assert.equal(page1.total, all.total, "total 不受 limit 影响");
+  const page2 = data.listAuditLogs(pid, { limit: 2, offset: 2 });
+  assert.equal(page2.items[0].id, all.items[2].id, "offset 分页应与全量顺序一致");
+  // limit 上限 200
+  assert.equal(data.listAuditLogs(pid, { limit: 999 }).items.length, all.total, "limit 超 200 应封顶");
+
+  // —— 筛选：action 精确 / keyword 模糊 ——
+  assert.equal(data.listAuditLogs(pid, { action: "删除批注" }).total, 1);
+  assert.ok(data.listAuditLogs(pid, { keyword: "审计任务改" }).total >= 1, "keyword 应命中任务名");
+  assert.ok(data.listAuditLogs(pid, { keyword: "审计批注A" }).total >= 1, "keyword 应命中 old_value");
+
+  // —— 全局操作（成员/项目集）不污染任何项目 ——
+  data.createMember("审计全局成员");
+  data.createProjectSet({ name: "审计全局集" });
+  assert.equal(data.listAuditLogs(pid).total, all.total, "全局操作不应出现在项目审计中");
+
+  // —— 删除项目：审计级联删除（直查表验证无孤儿）——
+  data.deleteTask(pid, t.id); // 先删任务（含已完成任务阻止删除项目的业务规则）
+  data.deleteProject(p2.id);
+  const orphan = data._db.prepare("SELECT COUNT(*) as c FROM audit_logs WHERE project_id = ?").get(p2.id).c;
+  assert.equal(orphan, 0, "删除项目后审计应级联删除");
+  expectThrow(() => data.listAuditLogs(p2.id), /不存在/);
+});
