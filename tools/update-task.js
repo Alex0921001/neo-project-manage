@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_task";
-export const description = "编辑任务（改名、改描述、改成员、改起止日期、标记完成/未完成）";
+export const description = "编辑任务（改名、改描述、改成员、改起止日期、改优先级、标记完成/未完成）";
 export const parameters = {
   type: "object",
   required: ["projectId", "id"],
@@ -14,6 +14,7 @@ export const parameters = {
     assignees: { type: "array", items: { type: "string" }, description: "任务成员列表（每个必须在项目 members 中，传空数组清空）" },
     startDate: { type: "string", description: "任务开始日期 YYYY-MM-DD（传空字符串清空）" },
     endDate: { type: "string", description: "任务结束日期 YYYY-MM-DD，需 >= startDate（传空字符串清空）" },
+    priority: { type: "string", enum: ["P0", "P1", "P2", "P3", "P4", "P5"], description: "任务优先级（默认 P3，P0 最急 → P5 最缓，非必填）" },
   },
 };
 
@@ -26,6 +27,7 @@ export async function execute(input, toolCtx) {
     assignees: input.assignees,
     startDate: input.startDate,
     endDate: input.endDate,
+    priority: input.priority,
   });
   const dateText = [task.startDate, task.endDate].filter(Boolean).join(" ~ ");
   const parts = [

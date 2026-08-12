@@ -33,6 +33,7 @@
       </button>
       <span class="task-idx">{{ task.index_num != null ? task.index_num + 1 : '' }}</span>
       <div class="task-card-title">
+        <span v-if="task.priority" class="priority-badge" :class="`priority-${task.priority.toLowerCase()}`">{{ task.priority }}</span>
         <span :class="['task-name', { 'task-done': task.done }]" v-html="highlight(task.name, searchQuery)"></span>
         <span
           v-if="annotTotal > 0"
@@ -469,6 +470,28 @@ defineExpose({
   gap: 6px;
   min-width: 0;
 }
+/* 优先级等级标签：P0 深红（最急）→ P5 浅灰（最缓），低饱和点缀，不抢任务名 */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  user-select: none;
+}
+.priority-p0 { color: #b3261e; background: rgba(179, 38, 30, 0.12); border: 1px solid rgba(179, 38, 30, 0.28); }
+.priority-p1 { color: #c0392b; background: rgba(192, 57, 43, 0.10); border: 1px solid rgba(192, 57, 43, 0.24); }
+.priority-p2 { color: #b9791f; background: rgba(185, 121, 31, 0.10); border: 1px solid rgba(185, 121, 31, 0.24); }
+.priority-p3 { color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border-light); }
+.priority-p4 { color: #5a7f9c; background: rgba(90, 127, 156, 0.10); border: 1px solid rgba(90, 127, 156, 0.24); }
+.priority-p5 { color: #98a0ab; background: transparent; border: 1px solid var(--border-light); opacity: 0.8; }
+.task-card-done .priority-badge { opacity: 0.55; }
 .task-name {
   font-size: 15px;
   font-weight: 500;

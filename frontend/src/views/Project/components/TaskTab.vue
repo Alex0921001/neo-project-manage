@@ -15,7 +15,7 @@
           <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
         </el-form-item>
 
-        <!-- 第二行：起止日期 + 成员 -->
+        <!-- 第二行：起止日期 + 优先级 + 成员 -->
         <div class="task-form-row">
           <el-form-item label="起止日期">
             <el-date-picker
@@ -28,6 +28,11 @@
               :disabled-date="disabledTaskDate"
               style="width: 100%"
             />
+          </el-form-item>
+          <el-form-item label="优先级">
+            <el-select v-model="form.priority" style="width: 100%">
+              <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
+            </el-select>
           </el-form-item>
           <el-form-item label="成员">
             <el-select
@@ -484,7 +489,7 @@ const saving = ref(false);
 const editingId = ref(null);
 const subtaskParent = ref(null);
 const editingSubId = ref(null);
-const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", fileRefs: [] });
+const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", fileRefs: [] });
 const submitErr = ref(false);
 const formRef = ref(null);
 
@@ -520,6 +525,8 @@ function disabledTaskDate(date) {
 }
 
 const isEditMode = computed(() => !!editingId.value || !!editingSubId.value);
+// 优先级选项：P0 最急 → P5 最缓，默认 P3（与后端 normalizePriority 对齐）
+const priorityOptions = ["P0", "P1", "P2", "P3", "P4", "P5"];
 const dialogTitle = computed(() => {
   if (subtaskParent.value) return `子任务 · （父级任务：${subtaskParent.value.name}）`;
   if (isEditMode.value) return "编辑任务";
@@ -547,6 +554,7 @@ function resetForm() {
   form.assignees = [];
   form.startDate = "";
   form.endDate = "";
+  form.priority = "P3";
   submitErr.value = false;
 }
 
@@ -569,6 +577,7 @@ function startEdit(t) {
   form.assignees = Array.isArray(t.assignees) ? [...t.assignees] : [];
   form.startDate = t.startDate || "";
   form.endDate = t.endDate || "";
+  form.priority = t.priority || "P3";
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -593,6 +602,7 @@ function startEditSubtask(task, sub) {
   form.assignees = Array.isArray(sub.assignees) ? [...sub.assignees] : [];
   form.startDate = sub.startDate || "";
   form.endDate = sub.endDate || "";
+  form.priority = sub.priority || "P3";
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -611,6 +621,7 @@ function buildPayload() {
     assignees: form.assignees,
     startDate: form.startDate,
     endDate: form.endDate,
+    priority: form.priority || "P3",
   };
 }
 
@@ -812,14 +823,20 @@ defineExpose({ openAdd, scrollToTaskById });
   padding: 24px;
 }
 
-/* 任务弹窗：同行两列 */
+/* 任务弹窗：同行多列 */
 .task-form-row {
   display: flex;
   gap: 14px;
+  flex-wrap: wrap;
 }
 .task-form-row .el-form-item {
   flex: 1;
   min-width: 0;
+}
+/* 起止日期占更多宽度（daterange 有最小输入宽度），优先级/成员均分剩余 */
+.task-form-row .el-form-item:first-child {
+  flex: 1.5;
+  min-width: 280px;
 }
 
 .task-tab-layout {

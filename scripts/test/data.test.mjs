@@ -162,6 +162,55 @@ test("任务：父子孙树 / 成员契约 / 日期边界 / 级联删除", () =>
   assert.ok(!after.some((t) => t.id === t1.id || t.id === sub.id || t.id === grand.id), "级联删除子孙");
 });
 
+// ===== 3b. 任务优先级（V2.0） =====
+test("任务优先级：默认 P3 / update 可改 / 非法抛错", () => {
+  const p = data.createProject({ name: "优先级项目" });
+
+  // 默认 P3
+  const t1 = data.createTask(p.id, { name: "默认任务" });
+  assert.equal(t1.priority, "P3", "创建默认 P3");
+
+  // 显式设置
+  const t2 = data.createTask(p.id, { name: "紧急任务", priority: "P0" });
+  assert.equal(t2.priority, "P0", "创建可指定 P0");
+
+  // update 可改优先级
+  const up = data.updateTask(p.id, t1.id, { priority: "P1" });
+  assert.equal(up.priority, "P1", "update 可改优先级");
+  const got = data.getTaskById(t1.id);
+  assert.equal(got.priority, "P1", "改后读回正确");
+
+  // 非法 priority 抛错（create / update 双路径）
+  expectThrow(() => data.createTask(p.id, { name: "坏任务", priority: "P9" }), /P0~P5/);
+  expectThrow(() => data.createTask(p.id, { name: "坏任务2", priority: "p2" }), /P0~P5/);
+  expectThrow(() => data.updateTask(p.id, t1.id, { priority: "P8" }), /P0~P5/);
+
+  // createTasks 批量透传
+  const batch = data.createTasks(p.id, [{ name: "批A", priority: "P4" }, { name: "批B" }]);
+  assert.equal(batch[0].priority, "P4");
+  assert.equal(batch[1].priority, "P3", "批量默认 P3");
+});
+
+// ===== 3c. listTasks 排序（V2.0） =====
+test("listTasks 排序：等级 → 开始时间 → 创建时间", () => {
+  const p = data.createProject({ name: "排序项目" });
+  data.createTask(p.id, { name: "P0", priority: "P0" });
+  data.createTask(p.id, { name: "P2晚", priority: "P2", startDate: "2026-08-10" });
+  data.createTask(p.id, { name: "P2早", priority: "P2", startDate: "2026-08-02" });
+  data.createTask(p.id, { name: "P2无日期", priority: "P2" });
+  data.createTask(p.id, { name: "P1", priority: "P1" });
+  data.createTask(p.id, { name: "P3先", priority: "P3" });
+  data.createTask(p.id, { name: "P3后", priority: "P3" });
+
+  const names = data.listTasks(p.id).map((t) => t.name);
+  // 等级优先：P0 → P1 → P2 → P3
+  assert.deepEqual(names.slice(0, 2), ["P0", "P1"], "P0/P1 等级在前");
+  // 同等级按开始时间（有日期在前，按日期升序），无日期排最后
+  assert.deepEqual(names.slice(2, 5), ["P2早", "P2晚", "P2无日期"], "同等级按开始时间，无日期垫底");
+  // 同等级同无日期：按创建时间（先创建在前；稳定排序下即使同毫秒也保持插入序）
+  assert.deepEqual(names.slice(5), ["P3先", "P3后"], "无日期同等级按创建时间");
+});
+
 // ===== 4. 批量创建 + 事务回滚 =====
 test("createTasks：批量 + 中途失败整体回滚", () => {
   const p = data.createProject({ name: "批量项目", members: ["张三"] });

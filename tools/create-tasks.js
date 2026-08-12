@@ -9,7 +9,7 @@ export const parameters = {
     projectId: { type: "string", description: "项目 ID" },
     tasks: {
       type: "array",
-      description: "任务列表（最多 50 个），每项含 name（必填）、description / parentTaskId / assignees / startDate / endDate（可选）",
+      description: "任务列表（最多 50 个），每项含 name（必填）、description / parentTaskId / assignees / startDate / endDate / priority（可选）",
       items: {
         type: "object",
         required: ["name"],
@@ -20,6 +20,7 @@ export const parameters = {
           assignees: { type: "array", items: { type: "string" }, description: "任务成员列表（每个必须在项目 members 中，非必填）" },
           startDate: { type: "string", description: "任务开始日期 YYYY-MM-DD（非必填）" },
           endDate: { type: "string", description: "任务结束日期 YYYY-MM-DD，需 >= startDate（非必填）" },
+          priority: { type: "string", enum: ["P0", "P1", "P2", "P3", "P4", "P5"], description: "任务优先级（默认 P3，P0 最急 → P5 最缓，非必填）" },
         },
       },
     },
@@ -40,6 +41,7 @@ export async function execute(input, toolCtx) {
       assignees: t.assignees,
       startDate: t.startDate,
       endDate: t.endDate,
+      priority: t.priority,
     }))
   );
   const lines = created.map((t) => {
