@@ -251,15 +251,19 @@ function fmtDate(d) {
 
 /* 第一行：收藏星标 + 名称 */
 .card-name-row {
+  position: relative; /* 星星绝对定位锚点 */
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  line-height: 1.4; /* 与 .card-name 行高统一，行盒对齐 */
+  padding-left: 22px; /* 给星星让位（16px 按钮 + 6px gap） */
 }
 .pin-btn {
-  flex-shrink: 0;
-  display: inline-flex;
+  position: absolute; /* 绝对定位：与 button 行高/文字基线彻底解耦 */
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 16px;
