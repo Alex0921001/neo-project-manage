@@ -109,6 +109,15 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
   assert.match(tasksList, /任务A/);
   const annsList = await run("list_annotations", { taskId });
   assert.match(annsList, /第一条批注/);
+  // 项目级查询：带任务名 + kind 筛选 + 关键词（补一条 decision 便于验证 kind 筛选）
+  await run("create_annotation", { projectId: projId, taskId, content: "决策批注", kind: "decision" });
+  const projAnns = await run("list_annotations", { projectId: projId });
+  assert.match(projAnns, /@/); // 带任务名标注
+  const projAnnDec = await run("list_annotations", { projectId: projId, kind: "decision" });
+  assert.match(projAnnDec, /决策批注/);
+  assert.ok(!projAnnDec.includes("第一条批注"), "kind 筛选应排除其他类型");
+  const projAnnKw = await run("list_annotations", { projectId: projId, keyword: "第一条" });
+  assert.match(projAnnKw, /第一条批注/);
 
   // 8. 更新
   const upSet = await run("update_project_set", { id: setId, name: "AT-改名集" });
