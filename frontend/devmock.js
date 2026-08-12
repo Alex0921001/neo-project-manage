@@ -53,6 +53,8 @@ const delSets = new Set();
 const delTasks = new Set();
 const delFiles = new Set();
 const delNotes = new Set();
+const ovMembers = new Map(); // id -> 新建/覆盖的成员
+const delMembers = new Set();
 
 let seq = 9000;
 const now = new Date().toISOString().slice(0, 10);
@@ -235,6 +237,11 @@ const mockFiles = [
 const mockNotes = [
   { id: "n1", project_id: "p-eln", content: "7/28 会议纪要：权限模型定稿。", createdAt: "2026-07-28" },
 ];
+const mockMembers = [
+  { id: "mem-1", name: "丁鹏", createdAt: "2026-07-01" },
+  { id: "mem-2", name: "小李", createdAt: "2026-07-01" },
+  { id: "mem-3", name: "阿凯", createdAt: "2026-07-01" },
+];
 
 // ================= 纯 mock 查询（fallback） =================
 
@@ -298,6 +305,76 @@ export async function mockApi(method, path, query, body) {
   }
   if (p === "api/pick-file") return respond({ ok: true, path: "C:/mock/示例文件.docx", name: "示例文件.docx" });
   if (p.startsWith("api/open-file")) return respond({ ok: true });
+
+// ================= 成员（realDb 只读 + overlay，与后端 /api/members/* 语义对齐） =================
+
+function realMemberList() {
+  const rows = qAll("SELECT id, name, created_at FROM members ORDER BY name, created_at");
+  if (!rows) return [];
+  const live = rows.filter((r) => !delMembers.has(r.id) && !ovMembers.has(r.id));
+  return [
+    ...live.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at })),
+    ...[...ovMembers.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), "zh")),
+  ];
+}
+
+function realAllKnown() {
+  const set = new Set();
+  (qAll("SELECT name FROM members") || []).forEach((r) => set.add(r.name));
+  (qAll("SELECT members FROM projects") || []).forEach((r) => (parseArr(r.members) || []).forEach((m) => { if (m) set.add(String(m).trim()); }));
+  (qAll("SELECT assignees FROM tasks") || []).forEach((r) => (parseArr(r.assignees) || []).forEach((m) => { if (m) set.add(String(m).trim()); }));
+  set.delete("");
+  return [...set].sort((a, b) => a.localeCompare(b, "zh"));
+}
+
+function mockAllKnown() {
+  const set = new Set(mockMembers.map((m) => m.name));
+  mockProjects.forEach((pr) => (pr.members || []).forEach((m) => { if (m) set.add(String(m).trim()); }));
+  const walk = (arr) => arr.forEach((t) => { (t.assignees || []).forEach((m) => { if (m) set.add(String(m).trim()); }); if (t.subtasks?.length) walk(t.subtasks); });
+  walk(mockTasks);
+  set.delete("");
+  return [...set].sort((a, b) => a.localeCompare(b, "zh"));
+}
+
+  // ---- 成员 ----
+  if (p === "api/members/all-known" && method === "GET") {
+    const names = realDb ? realAllKnown() : mockAllKnown();
+    const formal = new Set((realDb ? realMemberList() : mockMembers).map((m) => m.name));
+    return respond(names.map((name) => ({ name, isHistoric: !formal.has(name) })));
+  }
+  if (p === "api/members" && method === "GET") {
+    const list = realDb ? realMemberList() : mockMembers;
+    const kw = String(query?.keyword || "").trim();
+    return respond(kw ? list.filter((m) => m.name.includes(kw)) : list);
+  }
+  if (p === "api/members" && method === "POST") {
+    const name = String(body?.name || "").trim();
+    if (!name) return err("成员名称不能为空");
+    const list = realDb ? realMemberList() : mockMembers;
+    if (list.some((m) => m.name === name)) return err(`成员「${name}」已存在`);
+    const m = { id: realDb ? uid("mem") : "mem-" + uid("m"), name, createdAt: now };
+    if (realDb) ovMembers.set(m.id, m); else mockMembers.push(m);
+    return respond(m);
+  }
+  const memMatch = p.match(/^api\/members\/([^/]+)$/);
+  if (memMatch && method === "PUT") {
+    const name = String(body?.name || "").trim();
+    if (!name) return err("成员名称不能为空");
+    const list = realDb ? realMemberList() : mockMembers;
+    const cur = list.find((m) => m.id === memMatch[1]);
+    if (!cur) return err("成员不存在");
+    if (list.some((m) => m.id !== memMatch[1] && m.name === name)) return err(`成员「${name}」已存在`);
+    const updated = { ...cur, name };
+    if (realDb) ovMembers.set(memMatch[1], updated); else Object.assign(cur, updated);
+    return respond(updated);
+  }
+  if (memMatch && method === "DELETE") {
+    const list = realDb ? realMemberList() : mockMembers;
+    if (!list.some((m) => m.id === memMatch[1])) return err("成员不存在");
+    if (realDb) delMembers.add(memMatch[1]);
+    else { const i = mockMembers.findIndex((m) => m.id === memMatch[1]); if (i >= 0) mockMembers.splice(i, 1); }
+    return respond({ ok: true });
+  }
 
   // ---- 项目集 ----
   if (p === "api/project-sets" && method === "GET") {

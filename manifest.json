@@ -51,7 +51,11 @@
       "./tools/unlink-project-session.js",
       "./tools/get-project-summaries.js",
       "./tools/summarize-project.js",
-      "./tools/ask-project.js"
+      "./tools/ask-project.js",
+      "./tools/list-members.js",
+      "./tools/create-member.js",
+      "./tools/update-member.js",
+      "./tools/delete-member.js"
     ]
   },
   "dev": {

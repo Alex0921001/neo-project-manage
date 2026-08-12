@@ -35,17 +35,12 @@
             </el-select>
           </el-form-item>
           <el-form-item label="成员">
-            <el-select
+            <MemberSelect
               v-model="form.assignees"
-              multiple
+              :restrict-to="members"
               placeholder="未分配"
               clearable
-              collapse-tags
-              collapse-tags-tooltip
-              style="width: 100%"
-            >
-              <el-option v-for="m in members" :key="m" :label="m" :value="m" />
-            </el-select>
+            />
           </el-form-item>
         </div>
 
@@ -199,6 +194,7 @@ import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
 import AnnotationPanel from "./AnnotationPanel.vue";
+import MemberSelect from "../../../components/MemberSelect.vue";
 import { normalizeRichText } from "../../../utils/text.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 // 富文本编辑器异步加载（Tiptap 体积大，拆独立 chunk，含 loading/error/重试）

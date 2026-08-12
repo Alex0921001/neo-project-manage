@@ -28,6 +28,8 @@ const TOOL_FILES = [
   "list-project-files", "get-project-file",
   "link-project-session", "list-project-sessions", "unlink-project-session",
   "get-project-summaries", "summarize-project", "ask-project",
+  // V2.0 成员管理
+  "list-members", "create-member", "update-member", "delete-member",
 ];
 const tools = {};
 before(async () => {
@@ -196,4 +198,29 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   // 清理
   await run("delete_project", { id: projId });
   await run("delete_project_set", { id: setId });
+});
+
+test("成员工具：创建 / 重名拒绝 / 改名 / 过滤 / 删除", async () => {
+  const t1 = await run("create_member", { name: "AT-成员甲" });
+  const id = firstId(t1);
+  assert.match(t1, /AT-成员甲/);
+
+  // 重名拒绝
+  await assert.rejects(() => tools.create_member({ name: " AT-成员甲 " }, toolCtx), /已存在/);
+  await assert.rejects(() => tools.create_member({ name: "  " }, toolCtx), /不能为空/);
+
+  // 改名
+  const t2 = await run("update_member", { id, name: "AT-成员乙" });
+  assert.match(t2, /AT-成员乙/);
+
+  // 列表 + keyword 过滤
+  const t3 = await run("list_members", { keyword: "AT-成员乙" });
+  assert.match(t3, /AT-成员乙/);
+  const t3b = await run("list_members", { keyword: "不存在的名字XYZ" });
+  assert.match(t3b, /暂无|没有/);
+
+  // 删除 + 删除后列表为空
+  await run("delete_member", { id });
+  const t4 = await run("list_members", { keyword: "AT-成员乙" });
+  assert.match(t4, /暂无|没有/);
 });

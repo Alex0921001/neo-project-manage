@@ -428,3 +428,58 @@ test("askProject：scope 齐全 / decisions 过滤 / all 四段", () => {
   assert.equal(a.risks, undefined, "all 不应含顶层 risks");
   expectThrow(() => data.askProject(p.id, "bad"), /scope/);
 });
+
+// ===== 15. 成员管理（V2.0） =====
+test("成员：创建 / 重名拒绝 / 改名 / 删除", () => {
+  const m = data.createMember("MEM-甲");
+  assert.ok(m.id, "应返回 id");
+  assert.equal(m.name, "MEM-甲");
+
+  // trim + 空名校验
+  const mTrim = data.createMember("  MEM-乙  ");
+  assert.equal(mTrim.name, "MEM-乙", "应 trim 后入库");
+  expectThrow(() => data.createMember("   "), /不能为空/);
+
+  // 重名拒绝（含 trim 后重名）
+  expectThrow(() => data.createMember("MEM-甲"), /成员.*已存在/);
+  expectThrow(() => data.createMember(" MEM-乙 "), /成员.*已存在/);
+
+  // listMembers 按 name 排序
+  const names = data.listMembers().map((x) => x.name);
+  assert.ok(names.includes("MEM-甲") && names.includes("MEM-乙"), "list 应包含新建成员");
+  assert.deepEqual(names, [...names].sort(), "list 应按 name 排序");
+
+  // 改名 + 改后重名拒绝（排除自身）
+  const renamed = data.renameMember(m.id, "MEM-甲改");
+  assert.equal(renamed.name, "MEM-甲改");
+  // 改回同名：不视为重名，正常返回
+  const same = data.renameMember(m.id, "MEM-甲改");
+  assert.equal(same.name, "MEM-甲改", "改成同名应成功");
+  expectThrow(() => data.renameMember(mTrim.id, "MEM-甲改"), /成员.*已存在/, "改名撞他人应拒绝");
+  expectThrow(() => data.renameMember(m.id, "  "), /不能为空/);
+  expectThrow(() => data.renameMember("no-such", "任意名"), /不存在/);
+
+  // 删除 + 删不存在
+  assert.equal(data.deleteMember(m.id), true);
+  expectThrow(() => data.deleteMember(m.id), /不存在/);
+  assert.ok(!data.listMembers().some((x) => x.id === m.id), "删除后不应再列出");
+});
+
+test("成员：allKnownNames 聚合（含历史项目里的成员名、去重）", () => {
+  // 历史人名：只出现在项目/任务里，未录入全局 members 表
+  const p = data.createProject({ name: "MEM-聚合项目", members: ["MEM-历史人甲", "MEM-历史人乙"] });
+  data.createTask(p.id, { name: "MEM-聚合任务", assignees: ["MEM-历史人甲"] });
+  // 全局成员
+  data.createMember("MEM-全局人");
+
+  const known = data.allKnownNames();
+  assert.ok(Array.isArray(known) && known.length > 0, "应聚合出名字");
+  // members 表 ∪ projects.members ∪ tasks.assignees
+  assert.ok(known.includes("MEM-全局人"), "应含全局成员");
+  assert.ok(known.includes("MEM-历史人甲"), "应含项目成员（历史）");
+  assert.ok(known.includes("MEM-历史人乙"), "应含项目成员（历史）");
+  // 去重：同名只出现一次
+  assert.equal(known.filter((n) => n === "MEM-历史人甲").length, 1, "同名应去重");
+  // 排序
+  assert.deepEqual(known, [...known].sort((a, b) => a.localeCompare(b, "zh")), "应按名称排序");
+});

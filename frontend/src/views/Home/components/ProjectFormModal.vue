@@ -46,17 +46,7 @@
           <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
         </el-form-item>
         <el-form-item label="成员">
-          <el-select
-            v-model="form.members"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            placeholder="请选择成员（可输入新增）"
-            style="width: 100%"
-          >
-            <el-option v-for="m in memberOptions" :key="m" :label="m" :value="m" />
-          </el-select>
+          <MemberSelect v-model="form.members" />
         </el-form-item>
       </div>
 
@@ -81,8 +71,8 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
-import { api } from "../../../api.js";
 import { normalizeRichText, richTextToPlain } from "../../../utils/text.js";
+import MemberSelect from "../../../components/MemberSelect.vue";
 
 const props = defineProps({
   show: Boolean,
@@ -95,24 +85,6 @@ const emit = defineEmits(["close", "save"]);
 
 const isEdit = computed(() => props.mode === "edit");
 const projectId = computed(() => (props.data?.id) || "");
-
-// 成员候选池：聚合所有项目的 members（P2-2/3：新建项目时下拉也有候选）
-const allMembers = ref([]);
-async function loadAllMembers() {
-  const res = await api("api/projects");
-  if (res?.ok && Array.isArray(res.data)) {
-    const set = new Set();
-    for (const p of res.data) {
-      for (const m of (p.members || [])) set.add(String(m).trim());
-    }
-    allMembers.value = [...set];
-  }
-}
-// 候选 = 全局聚合 + 当前已输入（去重），allow-create 新输入自动并入 form.members
-const memberOptions = computed(() => {
-  const set = new Set([...allMembers.value, ...form.members]);
-  return [...set];
-});
 
 const formRef = ref(null);
 const saving = ref(false);
@@ -142,7 +114,6 @@ const dateRangeErr = computed(() => {
 });
 
 watch(() => props.show, (v) => {
-  if (v) loadAllMembers();
   if (v) {
     if (isEdit.value && props.data) {
       const d = props.data;
