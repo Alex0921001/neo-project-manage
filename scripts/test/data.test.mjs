@@ -93,6 +93,25 @@ test("项目：CRUD + 参数校验", () => {
   assert.equal(data.getProject(p.id), null);
 });
 
+// ===== 2b. 收藏（V2.0 P0-1） =====
+test("收藏：创建默认 0 / update 可设 1 / 查询返回 pinned", () => {
+  const p = data.createProject({ name: "收藏项目" });
+  assert.equal(p.pinned, 0, "创建默认 pinned=0");
+
+  const up = data.updateProject(p.id, { pinned: true });
+  assert.equal(up.pinned, true, "update 可设 pinned=1");
+
+  const listed = data.listProjects().find((x) => x.id === p.id);
+  assert.equal(listed.pinned, true, "listProjects 返回 pinned");
+
+  const got = data.getProject(p.id);
+  assert.equal(got.pinned, true, "getProject 返回 pinned");
+
+  // 取消收藏
+  const off = data.updateProject(p.id, { pinned: false });
+  assert.equal(off.pinned, false, "update 可取消收藏");
+});
+
 // ===== 3. 任务树 =====
 test("任务：父子孙树 / 成员契约 / 日期边界 / 级联删除", () => {
   const p = data.createProject({

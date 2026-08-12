@@ -4,8 +4,19 @@
     <div :class="['tape', project.archived ? 'tape-archived' : `tape-${statusKey(displayStatus)}`]"></div>
 
     <div class="card-content">
-      <!-- 第一行：项目名称 -->
-      <div class="card-name" :title="project.name">{{ project.name }}</div>
+      <!-- 第一行：收藏星标 + 项目名称 -->
+      <div class="card-name-row">
+        <button
+          class="pin-btn"
+          :class="{ 'pin-on': !!project.pinned }"
+          :title="project.pinned ? '取消收藏' : '收藏置顶'"
+          @click.stop="$emit('toggle-pin', project)"
+        >
+          <svg v-if="!project.pinned" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+        <div class="card-name" :title="project.name">{{ project.name }}</div>
+      </div>
 
       <!-- 第二行：时间（小字灰色） -->
       <div class="card-date">
@@ -85,7 +96,7 @@ const props = defineProps({
   project: { type: Object, required: true },
   setLabel: { type: String, default: "" },
 });
-defineEmits(["open", "edit", "delete", "archive", "unarchive"]);
+defineEmits(["open", "edit", "delete", "archive", "unarchive", "toggle-pin"]);
 
 // ===== 右键菜单 =====
 const menuOpen = ref(false);
@@ -238,6 +249,40 @@ function fmtDate(d) {
   flex-direction: column;
 }
 
+/* 第一行：收藏星标 + 名称 */
+.card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.pin-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.pin-btn:hover {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.12);
+}
+.pin-btn.pin-on {
+  color: #f5a623;
+}
+.pin-btn.pin-on:hover {
+  color: var(--text-tertiary);
+}
+.pin-btn svg { display: block; }
+
 /* 第一行：名称 */
 .card-name {
   font-size: 14px;
@@ -249,6 +294,7 @@ function fmtDate(d) {
   overflow: hidden;
   text-overflow: ellipsis;
   padding-right: 2px;
+  min-width: 0;
 }
 
 /* 第二行：时间 */

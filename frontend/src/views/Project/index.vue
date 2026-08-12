@@ -230,6 +230,22 @@ function onTabCalendarSelectTask({ taskId }) {
   nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
 }
 
+// ===== Archive / Unarchive（与首页右键归档同一数据调用：update_project 的 archived 参数） =====
+function onArchiveProject() {
+  if (!p.value) return;
+  onConfirm({
+    message: `确认归档项目「${p.value.name}」？归档后可在首页「已归档」分组查看，可随时恢复。`,
+    confirmText: "确认归档",
+    action: "archive-project",
+    payload: p.value.id,
+  });
+}
+async function onUnarchiveProject() {
+  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  if (res.ok) { toast("已恢复归档"); loadProject(); }
+  else toast(res.error || "操作失败", "error");
+}
+
 // ===== Delete Project =====
 function onDeleteProject() {
   if (!p.value) return;
@@ -270,9 +286,12 @@ async function doConfirm() {
     res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-project") {
     res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
+  } else if (action === "archive-project") {
+    res = await api(`api/projects/${payload}`, { method: "PUT", body: JSON.stringify({ archived: true }), silent: true });
   }
   if (res?.ok) {
-    toast("已删除");
+    if (action === "archive-project") toast("已归档");
+    else toast("已删除");
     if (action === "delete-project") { emit("back"); return; }
     loadProject();
   }

@@ -34,6 +34,13 @@
         <button class="icon-btn" v-if="project" title="编辑项目" @click="$emit('edit')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
+        <!-- 归档：非进行中且未归档显示；已归档显示恢复（免确认） -->
+        <button class="icon-btn" v-if="project && !project.archived && displayStatus !== '进行中'" title="归档项目" @click="$emit('archive')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+        </button>
+        <button class="icon-btn" v-if="project && project.archived" title="恢复归档" @click="$emit('unarchive')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        </button>
         <button class="icon-btn icon-btn-danger" v-if="project" title="删除项目" @click="$emit('delete')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
@@ -101,7 +108,7 @@ const props = defineProps({
   project: Object,
   setLabel: { type: String, default: "" },
 });
-const emit = defineEmits(["edit", "back", "delete", "change-status"]);
+const emit = defineEmits(["edit", "back", "delete", "change-status", "archive", "unarchive"]);
 
 // ===== 描述（纯文本展示） =====
 const descText = computed(() => richTextToPlain(props.project?.description || ""));

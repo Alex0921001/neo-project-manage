@@ -55,6 +55,7 @@
             @delete="delProj"
             @archive="archiveProj"
             @unarchive="unarchiveProj"
+            @toggle-pin="togglePin"
           />
         </div>
         <!-- 已归档：更多按钮常驻（便于随时打开弹窗查看全部） -->
@@ -121,6 +122,7 @@ const filteredProjects = computed(() => {
 });
 
 // ===== 分组（基于展示状态：已延期合并到待开始组；已取消独立组；已归档独立组） =====
+// 同组内：收藏（pinned=1）置顶在前，置顶组内按创建时间倒序；非收藏组保持原有 created_at 倒序
 // 已归档组预览条数，超出走弹窗
 const ARCHIVED_PREVIEW = 10;
 const groupedProjects = computed(() => {
@@ -128,7 +130,7 @@ const groupedProjects = computed(() => {
   const by = (s) => list
     .filter(p => !p.archived && computeDisplayStatus(p) === s)
     .slice()
-    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const archived = list
     .filter(p => p.archived)
     .slice()
@@ -221,6 +223,15 @@ function archiveProj(p) {
 async function unarchiveProj(p) {
   const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
   if (res?.ok) { toast("已取消归档"); load(); emit("changed"); }
+  else toast(res.error || "操作失败", "error");
+}
+
+// ===== 收藏 / 取消收藏 =====
+// 收藏不改变项目状态/分组，仅同组内置顶；调 update_project 的 pinned 参数
+async function togglePin(p) {
+  const next = !p.pinned;
+  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ pinned: next }), silent: true });
+  if (res?.ok) { toast(next ? "已收藏置顶" : "已取消收藏"); load(); emit("changed"); }
   else toast(res.error || "操作失败", "error");
 }
 
