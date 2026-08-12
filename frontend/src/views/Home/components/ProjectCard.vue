@@ -255,23 +255,28 @@ function fmtDate(d) {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  line-height: 1.4; /* 与 .card-name 行高统一，行盒对齐 */
 }
 .pin-btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  line-height: 0; /* 消除 button 行高对 SVG 的偏移，真正按中心对齐 */
-  font-size: 0;
+  line-height: 0;
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.pin-btn svg {
+  display: block;
+  /* 星形 polygon 视觉重心偏上（viewBox y 2~21），下移 1px 与文字视觉中心对齐 */
+  margin-top: 1px;
 }
 .pin-btn:hover {
   color: #f5a623;
@@ -283,7 +288,6 @@ function fmtDate(d) {
 .pin-btn.pin-on:hover {
   color: var(--text-tertiary);
 }
-.pin-btn svg { display: block; }
 
 /* 第一行：名称 */
 .card-name {
