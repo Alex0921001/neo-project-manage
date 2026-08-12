@@ -328,6 +328,19 @@ test("总结：保存/查询/50KB 上限 + 风险规则触发", () => {
   const se = data.summarizeProject(empty.id);
   assert.equal(se.project.progress, 0);
   assert.equal(se.completed.length, 0);
+  // 已取消：nextSteps 提示可重启，风险仍保留（规则不受影响）
+  const cancelled = data.createProject({ name: "已取消项目", status: "已取消" });
+  data.createTask(cancelled.id, { name: "取消任务", endDate: "2026-01-01" });
+  const sc = data.summarizeProject(cancelled.id);
+  assert.ok(sc.nextSteps.some((n) => n.includes("重启")), "已取消项目应提示可重启");
+  assert.equal(sc.nextSteps.length, 1, "已取消项目只输出一条重启提示");
+  assert.ok(sc.project.status === "已取消", "已取消状态应透传");
+  // 已归档：nextSteps 为空（前端走撒花缺省态），project.archived 标记透传
+  const archived = data.createProject({ name: "归档项目", status: "已完成" });
+  data.updateProject(archived.id, { archived: true });
+  const sa = data.summarizeProject(archived.id);
+  assert.equal(sa.nextSteps.length, 0, "已归档项目 nextSteps 应为空");
+  assert.equal(sa.project.archived, true, "archived 标记应透传");
 });
 
 // ===== 14. askProject（V2.0） =====
