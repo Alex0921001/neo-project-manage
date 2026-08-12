@@ -16,7 +16,7 @@
 
     <!-- 主区：详情卡（单列，无日历） -->
     <div class="detail-main">
-      <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" />
+      <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" @archive="onArchiveProject" @unarchive="onUnarchiveProject" />
     </div>
 
     <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->

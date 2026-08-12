@@ -849,10 +849,10 @@ async function toggleMilestone(task) {
   }
 }
 
-// 递归收集全部里程碑任务（任意层级，isMilestone=true）
+// 递归收集全部里程碑节点（任意层级）：isMilestone 任务，或挂有 milestone（节点）类型批注的任务
 function collectMilestones(list, acc = []) {
   for (const t of list || []) {
-    if (t.isMilestone) acc.push(t);
+    if (t.isMilestone || t.annotations?.some((a) => a.kind === "milestone")) acc.push(t);
     collectMilestones(t.subtasks, acc);
   }
   return acc;

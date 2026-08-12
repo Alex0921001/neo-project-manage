@@ -206,8 +206,8 @@ function fmtDate(d) {
   will-change: transform;
 }
 .project-card:hover {
-  /* 顺时针轻微旋转 + 阴影加深 + 浮到上层 */
-  transform: rotate(-2deg);
+  /* 轻微上浮 + 阴影加深（不用旋转，旋转会导致文字渲染模糊） */
+  transform: translateY(-2px);
   box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.15);
   z-index: 2;
 }
@@ -264,6 +264,7 @@ function fmtDate(d) {
   width: 20px;
   height: 20px;
   padding: 0;
+  margin-top: 1px; /* SVG 星形视觉重心偏上，微调下移与文字垂直居中 */
   border: none;
   background: transparent;
   color: var(--text-tertiary);

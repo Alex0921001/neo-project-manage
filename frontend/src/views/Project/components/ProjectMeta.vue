@@ -4,6 +4,7 @@
     <div class="meta-head">
       <span class="meta-title" v-if="project?.name">{{ fullTitle }}</span>
       <span v-else class="meta-title meta-title-empty">未命名项目</span>
+      <span v-if="project?.archived" class="meta-archived-tag">已归档</span>
       <div class="meta-actions">
         <div class="status-dropdown" @click.stop>
           <el-dropdown trigger="click" :disabled="!project" @command="pickStatus">
@@ -240,6 +241,21 @@ const progressPercent = computed(() => {
   white-space: nowrap;
 }
 .meta-title-empty { color: var(--text-tertiary); font-weight: 500; }
+
+/* 已归档标签：项目名称右侧（详情页） */
+.meta-archived-tag {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted, oklch(0.95 0 0));
+  color: var(--text-secondary);
+  border: 1px solid oklch(0 0 0 / 0.12);
+  white-space: nowrap;
+}
 
 .meta-actions {
   display: flex;
