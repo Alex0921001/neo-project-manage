@@ -25,6 +25,9 @@
       @close="confirm.show = false"
       @confirm="doConfirm"
     />
+
+    <!-- 右下角功能速查入口（v2.1.0） -->
+    <CapabilityCheatSheet />
   </div>
 </template>
 
@@ -35,6 +38,7 @@ import { toast } from "../../toast.js";
 import ProjectSetTabs from "./components/ProjectSetTabs.vue";
 import ProjectPanel from "./components/ProjectPanel.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
+import CapabilityCheatSheet from "../../components/CapabilityCheatSheet.vue";
 
 const emit = defineEmits(["open-project", "go-calendar"]);
 

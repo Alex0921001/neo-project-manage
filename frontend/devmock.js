@@ -14,6 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ================= 真实库（只读） =================
 
@@ -274,6 +275,19 @@ export async function mockApi(method, path, query, body) {
 
   if (p === "api/version") {
     return respond({ version: "1.2.0", source: realDb ? "real-sqlite(ro)" : "mock", loadedAt: now + "T00:00:00", frontendBuiltAt: "dev" });
+  }
+  // 功能速查：运行时读插件 docs/capabilities.md（内容更新即时生效，无需重启）
+  if (p === "api/capabilities") {
+    const __dirname_dev = path.dirname(fileURLToPath(import.meta.url));
+    const mdPath = path.join(__dirname_dev, "..", "docs", "capabilities.md");
+    try {
+      if (fs.existsSync(mdPath)) {
+        return respond({ markdown: fs.readFileSync(mdPath, "utf-8"), version: "2.1.0" });
+      }
+    } catch (e) {
+      console.warn("[devmock] 读取 capabilities.md 失败:", e.message);
+    }
+    return respond({ markdown: "# 功能速查\n\n（dev mock：未读取到 docs/capabilities.md）", version: "2.1.0" });
   }
   // 桌面专属能力：浏览器预览环境不可用，明确提示
   if (p === "api/pick-file") {

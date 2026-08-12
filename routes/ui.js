@@ -137,6 +137,18 @@ export default function registerPluginUiRoutes(app, ctx) {
     });
   });
 
+  // ===== 功能速查（v2.1.0）：运行时读 docs/capabilities.md，内容更新无需重新构建 =====
+  const capabilitiesFile = path.join(PLUGIN_ROOT, "docs", "capabilities.md");
+  app.get("/api/capabilities", (c) => {
+    try {
+      const markdown = fs.readFileSync(capabilitiesFile, "utf-8");
+      return c.json({ ok: true, data: { markdown, version: CACHED_MANIFEST.version } });
+    } catch (e) {
+      ctx.log.warn(`[capabilities] 读取失败: ${e.message}`);
+      return c.json({ ok: false, error: "capabilities.md 读取失败" }, 500);
+    }
+  });
+
   // ===== Debug（仅保留 pick-file / open-file 桌面能力）=====
 
   // ===== Windows 文件选取 / 打开 =====
