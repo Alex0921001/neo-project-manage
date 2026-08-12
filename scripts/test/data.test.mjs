@@ -462,6 +462,48 @@ test("总结：保存/查询/50KB 上限 + 风险规则触发", () => {
   assert.equal(sa.project.archived, true, "archived 标记应透传");
 });
 
+// ===== 13b. risk 批注纳入风险统计（V2.1 3.2） =====
+test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已确认 high / 无则不产生）", () => {
+  const p = data.createProject({ name: "风险批注项目" });
+  const t = data.createTask(p.id, { name: "风险任务" });
+
+  // 未确认 risk 批注 → medium
+  data.createAnnotation(p.id, t.id, { content: "数据库性能隐患，需要尽快评估", kind: "risk" });
+  const s1 = data.summarizeProject(p.id);
+  const hit1 = s1.risks.find((r) => r.kind === "risk" && r.tasks?.[0]?.id === t.id);
+  assert.ok(hit1, "未确认 risk 批注应生成风险项");
+  assert.equal(hit1.level, "medium", "未确认应为 medium");
+  assert.equal(hit1.confirmed, false, "应透传未确认态");
+  assert.ok(hit1.desc.startsWith("风险批注："), "desc 应带风险批注前缀");
+  assert.ok(hit1.desc.includes("风险任务"), "desc 应含挂载任务名");
+  assert.deepEqual(hit1.tasks, [{ id: t.id, name: t.name }], "tasks 应含挂载任务");
+
+  // 确认后 → high
+  const anns = data.getTaskAnnotations(t.id);
+  assert.equal(anns.length, 1, "应只有一条批注");
+  data.updateAnnotation(t.id, anns[0].id, { confirmed: true });
+  const s2 = data.summarizeProject(p.id);
+  const hit2 = s2.risks.find((r) => r.kind === "risk");
+  assert.equal(hit2.level, "high", "已确认应为 high");
+  assert.equal(hit2.confirmed, true, "应透传确认态");
+
+  // 排序保持 high → medium → low（批注风险项也遵守）
+  const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };
+  for (let i = 1; i < s2.risks.length; i++) {
+    assert.ok(
+      LEVEL_ORDER[s2.risks[i - 1].level] <= LEVEL_ORDER[s2.risks[i].level],
+      `risks 应按 high→medium→low 排序（第 ${i} 项失序）`
+    );
+  }
+
+  // 无 risk 批注的项目不受影响
+  const p2 = data.createProject({ name: "无风险批注项目" });
+  const t2 = data.createTask(p2.id, { name: "普通任务" });
+  data.createAnnotation(p2.id, t2.id, { content: "普通备注" });
+  const s3 = data.summarizeProject(p2.id);
+  assert.ok(!s3.risks.some((r) => r.kind === "risk"), "无 risk 批注不应产生批注风险项");
+});
+
 // ===== 14. askProject（V2.0） =====
 test("askProject：scope 齐全 / decisions 过滤 / all 四段", () => {
   const p = data.createProject({ name: "ask项目" });

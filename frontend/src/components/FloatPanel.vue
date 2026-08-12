@@ -38,7 +38,7 @@ const props = defineProps({
   maxWidth: { type: Number, default: 1920 },
   maxHeight: { type: Number, default: 1080 },
 });
-const emit = defineEmits(["update:modelValue", "close"]);
+const emit = defineEmits(["update:modelValue", "close", "resize"]);
 
 const pos = ref({ x: 0, y: 0 });
 const size = ref({ w: props.defaultWidth, h: props.defaultHeight });
@@ -125,6 +125,8 @@ function startResize(e) {
       w: clamp(orig.w + ev.clientX - startX, props.minWidth, props.maxWidth),
       h: clamp(orig.h + ev.clientY - startY, props.minHeight, props.maxHeight),
     };
+    // 3.3：宽度变化事件透传（供大屏 <500px 自动收起任务树等响应式逻辑）
+    emit("resize", { width: size.value.w, height: size.value.h });
   };
   const onUp = () => {
     resizing.value = false;

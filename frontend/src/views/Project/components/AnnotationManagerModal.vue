@@ -4,11 +4,12 @@
     title="批注管理"
     :default-width="960"
     :default-height="600"
-    :min-width="640"
+    :min-width="350"
     :min-height="420"
     :max-width="1600"
     :max-height="1000"
     @update:model-value="(v) => emit('update:modelValue', v)"
+    @resize="onResize"
   >
     <div class="annot-mgr-body">
       <!-- 左：任务树（可整列折叠） -->
@@ -88,8 +89,19 @@ function onSelect(id) {
   selectedTaskId.value = id;
 }
 
+// 3.3：面板宽度 <500px 时自动收起任务树（只留批注面板），展开按钮可恢复
+// 只在跨越 500px 边界时自动收起，避免打断用户手动展开
+let lastWidth = 0;
+function onResize({ width }) {
+  const w = Number(width) || 0;
+  if (w < 500 && lastWidth >= 500) treeCollapsed.value = true;
+  lastWidth = w;
+}
+
 // 打开时：优先选中入口任务（initialTaskId）；否则第一个任务
 function onOpen() {
+  // 初始宽度 960（FloatPanel 默认值），供 onResize 边沿判断
+  lastWidth = 960;
   if (props.initialTaskId && findTaskInTree(props.tasks, props.initialTaskId)) {
     selectedTaskId.value = props.initialTaskId;
   } else if (props.tasks?.length) {
