@@ -822,7 +822,10 @@ function scrollToTaskById(taskId) {
 function scrollToSubtask(subtaskId) {
   const root = layoutRef.value;
   if (!root) return;
-  const el = root.querySelector(`[data-connector-id="sub-${subtaskId}"]`);
+  // TaskCard 所有层级统一 data-task-id / data-connector-id="task-{id}"（无 sub- 前缀）
+  const el =
+    root.querySelector(`[data-task-id="${subtaskId}"]`) ||
+    root.querySelector(`[data-connector-id="task-${subtaskId}"]`);
   if (!el) return;
   el.scrollIntoView({ behavior: "smooth", block: "center" });
   el.classList.add("subtask-flash");
@@ -878,8 +881,9 @@ async function markTaskDone({ task, done }) {  if (!task) return;
     }
   } else {
     // v1.3.1：父任务仍为完成时不能激活子任务（未完成状态只能从父任务向下同步）
-    if (task.parentTaskId) {
-      const parent = findTaskInTree(props.tasks, task.parentTaskId);
+    // 树节点字段为 parent_task_id（snake_case，buildTaskTree 原样保留）
+    if (task.parent_task_id) {
+      const parent = findTaskInTree(props.tasks, task.parent_task_id);
       if (parent && parent.done) {
         toast(`无法激活子任务：父任务「${parent.name}」尚未激活，请先激活父任务`, "error");
         return;

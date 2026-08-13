@@ -219,7 +219,7 @@ async function save() {
   saving.value = true;
   const payload = JSON.parse(JSON.stringify(rules.value));
   if (typeof payload.noDateTasks?.ratio === "number") payload.noDateTasks.ratio = Math.max(0, Math.min(100, payload.noDateTasks.ratio)) / 100;
-  const res = await api(`api/projects/${props.projectId}/risk-config`, { method: "PUT", body: { rules: payload } });
+  const res = await api(`api/projects/${props.projectId}/risk-config`, { method: "PUT", body: JSON.stringify({ rules: payload }) });
   saving.value = false;
   if (res?.ok) {
     toast("风险规则已保存");

@@ -1,44 +1,15 @@
 <template>
   <div class="req-tab">
-    <!-- 新建/编辑弹窗（配置对齐任务/备注弹窗：top label、append-to-body、点遮罩不关闭） -->
-    <el-dialog
-      v-model="dialogShow"
-      :title="isEdit ? '编辑需求' : '新建需求'"
-      width="640px"
-      class="req-dialog-el"
-      :close-on-click-modal="false"
-      append-to-body
-    >
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="需求名称" prop="name">
-          <el-input v-model="form.name" placeholder="需求名称" maxlength="50" show-word-limit />
-        </el-form-item>
-        <el-form-item label="优先级">
-          <el-select v-model="form.priority" style="width: 160px">
-            <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关联方案（多选，双向挂载）">
-          <el-select
-            v-model="form.planIds"
-            multiple
-            filterable
-            :placeholder="plans.length ? '选择满足该需求的方案' : '项目暂无方案'"
-            collapse-tags
-            style="width: 100%"
-          >
-            <el-option v-for="pl in plans" :key="pl.id" :label="pl.title" :value="pl.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="需求简述">
-          <component :is="editorComp" v-model="form.description" :project-id="projectId" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogShow = false">取消</el-button>
-        <el-button class="btn-save" :loading="saving" @click="submit">{{ isEdit ? '保存' : '创建' }}</el-button>
-      </template>
-    </el-dialog>
+    <!-- 详情/编辑弹窗（对齐方案弹窗：FloatPanel 阅读 7:3 + 编辑模式，无评论）
+     常挂载 + v-model:show：保证 FloatPanel 从 false→true 触发居中定位，且关闭（update:show）能收回 -->
+    <RequirementModal
+      v-model:show="modalShow"
+      :project-id="props.projectId"
+      :requirement-id="modalId"
+      :mode="modalMode"
+      @close="modalShow = false"
+      @changed="load"
+    />
 
     <!-- 空态（对齐方案/任务：图标 + 文案 + 添加按钮） -->
     <div v-if="loading" class="reqs-empty">加载中…</div>
@@ -54,35 +25,23 @@
       </button>
     </div>
     <div v-else class="req-list">
+      <!-- 点击行打开详情预览；右键菜单：打开/编辑/删除 -->
       <div
         v-for="r in list"
         :key="r.id"
         class="req-row"
         :class="{ 'req-row-done': r.status !== '待处理' }"
+        :title="r.description ? stripHtml(r.description) : ''"
+        @click="openDetail(r)"
+        @contextmenu.prevent="openCtx($event, r)"
       >
-        <span class="req-name" :title="r.description ? stripHtml(r.description) : ''" v-html="highlight(r.name, searchQuery)"></span>
-        <span class="req-st" :class="`req-st-${statusKey(r.status)}`">{{ r.status }}</span>
+        <span class="req-name" v-html="highlight(r.name, searchQuery)"></span>
+        <span class="req-meta">关联 {{ r.planCount }}</span>
         <span class="priority-badge" :class="`priority-${(r.priority || 'P3').toLowerCase()}`">{{ r.priority || 'P3' }}</span>
-        <span class="req-meta">关联方案 {{ r.planCount }} · {{ fmtTime(r.createdAt) }}</span>
-        <div class="req-ops">
-          <template v-if="r.status === '待处理'">
-            <button class="icon-btn" title="编辑" @click="openEdit(r)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </button>
-            <button class="icon-btn" title="标记完成" @click="changeStatus(r, '已完成')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </button>
-            <button class="icon-btn" title="标记取消" @click="changeStatus(r, '已取消')">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </template>
-          <button class="icon-btn icon-btn-danger" title="删除" @click="remove(r)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
-        </div>
+        <span class="req-st" :class="`req-st-${statusKey(r.status)}`">{{ r.status }}</span>
       </div>
-      <!-- 分页（对齐方案列表：共 N 条 + 上/下页） -->
-      <div v-if="total > 0" class="req-pager">
+      <!-- 分页（超过一页才显示） -->
+      <div v-if="total > pageSize" class="req-pager">
         <span class="req-pager-count">共 {{ total }} 条</span>
         <div class="req-pager-btns">
           <button class="req-pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
@@ -91,44 +50,49 @@
         </div>
       </div>
     </div>
+
+    <!-- 右键菜单（fixed 定位，随鼠标；打开 / 编辑 / 删除，编辑仅待处理） -->
+    <div v-if="ctx.show" class="req-ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
+      <div class="req-ctx-item" @click="ctxOpen">打开</div>
+      <div v-if="ctxCanEdit" class="req-ctx-item" @click="ctxEdit">编辑</div>
+      <div v-if="ctx.req?.status !== '已完成'" class="req-ctx-item req-ctx-danger" @click="ctxDel">删除</div>
+    </div>
+
+    <ConfirmModal
+      :show="confirm.show"
+      :message="confirm.message"
+      :confirm-text="confirm.confirmText"
+      @close="confirm.show = false"
+      @confirm="doCtxConfirm"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from "vue";
+import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { highlight } from "../../../utils/highlight.js";
-import { createRichEditor } from "../../../utils/asyncEditor.js";
+import RequirementModal from "./RequirementModal.vue";
+import ConfirmModal from "../../../components/ConfirmModal.vue";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
-  searchQuery: { type: String, default: "" }, // index.vue 搜索框（后端筛选 + 标题高亮）
-  statusQuery: { type: String, default: "全部" }, // index.vue 状态下拉（后端精确匹配）
+  searchQuery: { type: String, default: "" },
+  statusQuery: { type: String, default: "全部" },
 });
 const emit = defineEmits(["changed"]);
 
-const editorComp = createRichEditor();
-const priorityOptions = ["P0", "P1", "P2", "P3", "P4", "P5"];
-
-const list = ref([]);
-const total = ref(0);
-const page = ref(1);
-const pageSize = 20;
-const loading = ref(false);
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
-
-// 状态 → 徽标样式 key（映射方式对齐方案 planStatusKey）
 function statusKey(s) {
   return { 待处理: "todo", 已完成: "done", 已取消: "cancel" }[s] || "todo";
 }
 
-// 方案列表（关联多选数据源）
-const plans = ref([]);
-async function loadPlans() {
-  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
-  if (res?.ok) plans.value = res.data.items || [];
-}
+const list = ref([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = 10;
+const loading = ref(false);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 
 async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
@@ -145,16 +109,14 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
       // 页码越界回退（如删除后总页数减少）
       if (page.value > totalPages.value) {
         page.value = totalPages.value;
-        load(page.value, keyword, status);
+        load(page.value);
+        return;
       }
-    } else {
-      toast(res?.error || "加载需求失败", "error");
     }
   } finally {
     loading.value = false;
   }
 }
-
 function goPage(p) {
   if (p < 1 || p > totalPages.value || p === page.value) return;
   load(p);
@@ -163,65 +125,64 @@ function goPage(p) {
 // 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
 watch(() => props.searchQuery, () => load(1));
 watch(() => props.statusQuery, () => load(1));
+// projectId 就绪/变化：重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
 watch(() => props.projectId, () => load(), { immediate: true });
 
-// ===== 弹窗 =====
-const dialogShow = ref(false);
-const isEdit = ref(false);
-const saving = ref(false);
-const editingId = ref("");
-const form = ref({ name: "", description: "", priority: "P3", planIds: [] });
-const formRef = ref(null);
-const rules = { name: [{ required: true, message: "请输入需求名称", trigger: "blur" }] };
+// ===== 详情/编辑弹窗（对齐方案：点击列表行预览，编辑/删除在弹窗内） =====
+const modalShow = ref(false);
+const modalMode = ref("read"); // read | edit
+const modalId = ref(null); // null = 新建
 
 function openCreate() {
-  isEdit.value = false;
-  editingId.value = "";
-  form.value = { name: "", description: "", priority: "P3", planIds: [] };
-  dialogShow.value = true;
+  modalId.value = null;
+  modalMode.value = "edit";
+  modalShow.value = true;
 }
-function openEdit(r) {
-  isEdit.value = true;
-  editingId.value = r.id;
-  form.value = { name: r.name, description: r.description || "", priority: r.priority || "P3", planIds: [...(r.planIds || [])] };
-  dialogShow.value = true;
+function openDetail(r) {
+  modalId.value = r.id;
+  modalMode.value = "read";
+  modalShow.value = true;
 }
 
-async function submit() {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
-  saving.value = true;
-  const body = { name: form.value.name, description: form.value.description, priority: form.value.priority, planIds: form.value.planIds };
-  const url = `api/projects/${props.projectId}/requirements${isEdit.value ? `/${editingId.value}` : ""}`;
-  const res = await api(url, { method: isEdit.value ? "PUT" : "POST", body: JSON.stringify(body) });
-  saving.value = false;
-  if (res?.ok) {
-    toast(isEdit.value ? "已更新需求" : "已创建需求");
-    dialogShow.value = false;
-    load();
-    emit("changed");
-  } else {
-    toast(res?.error || "保存失败", "error");
-  }
-}
+// ===== 右键菜单：打开 / 编辑 / 删除（对齐方案列表） =====
+const ctx = reactive({ show: false, x: 0, y: 0, req: null });
+const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", req: null });
+const ctxCanEdit = computed(() => ctx.req && ctx.req.status === "待处理");
 
-async function changeStatus(r, status) {
-  const res = await api(`api/projects/${props.projectId}/requirements/${r.id}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status }),
-  });
-  if (res?.ok) {
-    toast(`已标记为「${status}」`);
-    load();
-    emit("changed");
-  } else {
-    toast(res?.error || "状态流转失败", "error");
-  }
+function openCtx(e, r) {
+  ctx.req = r;
+  ctx.x = Math.min(e.clientX, window.innerWidth - 140);
+  ctx.y = Math.min(e.clientY, window.innerHeight - 200);
+  ctx.show = true;
 }
-
-async function remove(r) {
-  if (!confirm(`确认删除需求「${r.name}」？关联方案不受影响。`)) return;
-  const res = await api(`api/projects/${props.projectId}/requirements/${r.id}`, { method: "DELETE" });
+function closeCtx() {
+  ctx.show = false;
+}
+function ctxOpen() {
+  closeCtx();
+  openDetail(ctx.req);
+}
+function ctxEdit() {
+  closeCtx();
+  modalId.value = ctx.req.id;
+  modalMode.value = "edit";
+  modalShow.value = true;
+}
+function ctxDel() {
+  closeCtx();
+  confirm.value = {
+    show: true,
+    message: `确认删除需求「${ctx.req.name}」？关联方案不受影响。`,
+    confirmText: "删除",
+    action: "delete",
+    req: ctx.req,
+  };
+}
+async function doCtxConfirm() {
+  confirm.value.show = false;
+  const { action, req } = confirm.value;
+  if (!req || action !== "delete") return;
+  const res = await api(`api/projects/${props.projectId}/requirements/${req.id}`, { method: "DELETE" });
   if (res?.ok) {
     toast("已删除需求");
     load();
@@ -230,23 +191,16 @@ async function remove(r) {
     toast(res?.error || "删除失败", "error");
   }
 }
+// 全局点击关闭右键菜单
+onMounted(() => window.addEventListener("click", closeCtx));
+onBeforeUnmount(() => window.removeEventListener("click", closeCtx));
 
 // ===== 工具 =====
 function stripHtml(html) {
   return (html || "").replace(/<[^>]*>/g, "").slice(0, 80);
 }
-function fmtTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 defineExpose({ openCreate, load });
-
-onMounted(() => {
-  loadPlans();
-});
 </script>
 
 <style scoped>
@@ -254,11 +208,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-/* 弹窗 body 内边距（对齐任务弹窗 .task-dialog-el） */
-.req-dialog-el :deep(.el-dialog__body) {
-  padding: 24px;
 }
 
 /* ===== 空态（对齐方案/任务：图标 + 文案 + 添加按钮） ===== */
@@ -335,6 +284,7 @@ onMounted(() => {
   padding: 10px 12px;
   border-bottom: 0.5px solid var(--border);
   border-radius: 6px;
+  cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
 }
 .req-row:hover {
@@ -350,13 +300,7 @@ onMounted(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 已完成/已取消：白底保持，名称删除线 + 文字变灰（对齐任务卡 .task-done） */
-.req-row-done .req-name {
-  text-decoration: line-through;
-  text-decoration-color: var(--border);
-  text-decoration-thickness: 1.5px;
-  color: var(--text-tertiary);
-}
+/* 已完成/已取消：名称样式与待处理一致（V2.1.4 去掉删除线） */
 /* 搜索关键字高亮（对齐方案/任务列表 .hl） */
 .req-name :deep(.hl),
 .req-name .hl {
@@ -403,49 +347,44 @@ onMounted(() => {
 .priority-p3 { color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border-light); }
 .priority-p4 { color: #5a7f9c; background: rgba(90, 127, 156, 0.10); border: 1px solid rgba(90, 127, 156, 0.24); }
 .priority-p5 { color: #98a0ab; background: transparent; border: 1px solid var(--border-light); opacity: 0.8; }
-/* 已完成/已取消：徽标降透明度（对齐任务卡 .task-card-done） */
-.req-row-done .priority-badge {
-  opacity: 0.55;
-}
+/* 已完成/已取消：徽标与待处理一致（V2.1.4 去掉降透明） */
 .req-meta {
   flex-shrink: 0;
   font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-/* 操作区（对齐任务卡 .icon-btn 形态：主信息左、操作右） */
-.req-ops {
-  display: flex;
-  gap: 2px;
-  flex-shrink: 0;
+
+/* 右键菜单（fixed 跟随鼠标，对齐方案列表 .plan-ctx） */
+.req-ctx {
+  position: fixed;
+  z-index: 2100;
+  min-width: 110px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
 }
-.icon-btn {
-  width: 22px;
-  height: 22px;
-  border: 1px solid transparent;
+.req-ctx-item {
+  padding: 6px 12px;
   border-radius: 5px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
   font-size: 12px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--duration-fast) var(--ease-out);
-  flex-shrink: 0;
-  padding: 0;
-}
-.icon-btn svg { display: block; }
-.icon-btn:hover {
-  background: var(--bg-hover);
   color: var(--text-secondary);
-  border-color: var(--border-light);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.icon-btn-danger:hover {
+.req-ctx-item:hover {
   background: var(--bg-hover);
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--text);
+}
+.req-ctx-danger {
+  color: var(--status-delay-text);
+}
+.req-ctx-danger:hover {
+  background: var(--status-delay-bg);
+  color: var(--status-delay-text);
 }
 
 /* ===== 分页（对齐方案列表 .plan-pager） ===== */

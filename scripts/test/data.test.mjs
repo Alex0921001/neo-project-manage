@@ -893,9 +893,12 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   const r3 = data.updateRequirementStatus(pj.id, r1.id, "已完成");
   assert.equal(r3.status, "已完成");
 
-  // 已完成冻结：不可编辑、不可再流转
+  // 已完成冻结：不可编辑（V2.1.4 状态流转已放开，仅编辑仍限待处理）
   assert.throws(() => data.updateRequirement(pj.id, r1.id, { name: "x" }), /不可修改/);
-  assert.throws(() => data.updateRequirementStatus(pj.id, r1.id, "已取消"), /不可再变更/);
+  // 状态自由流转：已完成 → 已取消（V2.1.4 放开状态机）
+  assert.equal(data.updateRequirementStatus(pj.id, r1.id, "已取消").status, "已取消");
+  // 已取消 → 待处理（切回）
+  assert.equal(data.updateRequirementStatus(pj.id, r1.id, "待处理").status, "待处理");
 
   // 关联/解除
   data.linkRequirementPlans(pj.id, r1.id, [planB.id]);
@@ -910,6 +913,24 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
 
   // 无效状态
   assert.throws(() => data.updateRequirementStatus(pj.id, r1.id, "进行中"), /无效需求状态/);
+
+  // V2.1.4：已完成不可删除（交付记录保留）
+  const rDone = data.createRequirement(pj.id, { name: "完成不可删", description: "", priority: "P3", planIds: [] });
+  data.updateRequirementStatus(pj.id, rDone.id, "已完成");
+  assert.throws(() => data.deleteRequirement(pj.id, rDone.id), /已完成的需求不可删除/);
+  assert.equal(data.getRequirement(pj.id, rDone.id).status, "已完成", "禁删后仍存在");
+  // 已取消可删（清理废弃数据）
+  data.updateRequirementStatus(pj.id, rDone.id, "已取消");
+  data.deleteRequirement(pj.id, rDone.id);
+  assert.throws(() => data.getRequirement(pj.id, rDone.id), /不存在/);
+
+  // V2.1.4 方案侧反向挂载：updatePlan 关联需求 + 双向一致 + 仅改关联也生效
+  data.updatePlan(pj.id, planA.id, { requirementIds: [r1.id] });
+  assert.equal(data.getPlan(pj.id, planA.id).requirements.length, 1, "方案应挂 1 个需求");
+  assert.ok(data.getRequirement(pj.id, r1.id).planIds.includes(planA.id), "需求侧应反向可见");
+  data.updatePlan(pj.id, planA.id, { requirementIds: [] });
+  assert.equal(data.getPlan(pj.id, planA.id).requirements.length, 0, "清空关联生效");
+  assert.equal(data.getRequirement(pj.id, r1.id).planIds.includes(planA.id), false, "需求侧同步清空");
 
   // 删除 + 级联清关联 + 审计
   data.deleteRequirement(pj.id, r1.id);

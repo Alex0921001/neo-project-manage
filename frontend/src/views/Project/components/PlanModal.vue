@@ -70,9 +70,9 @@
               <span class="pm-task-name" @click="emit('jump-task', plan.taskId)">▸ {{ plan.taskName }}</span>
             </div>
             <div v-if="plan?.taskExists === false" class="pm-task-gone">已转任务（原任务已删除）</div>
-            <!-- V2.1.3 需求管理：方案反向展示满足的需求 -->
+            <!-- V2.1.3 需求管理：方案反向展示关联需求 -->
             <div v-if="plan?.requirements?.length" class="pm-reqs">
-              <div class="pm-reqs-title">满足的需求（{{ plan.requirements.length }}）</div>
+              <div class="pm-reqs-title">关联需求（{{ plan.requirements.length }}）</div>
               <div v-for="r in plan.requirements" :key="r.id" class="pm-req-item">
                 <span class="pm-req-dot" :class="`dot-${r.status}`"></span>
                 <span class="pm-req-name">{{ r.name }}</span>
@@ -124,6 +124,19 @@
             :project-id="projectId"
             placeholder="方案内容：记录背景、方案要点、优劣对比……"
           />
+        </div>
+        <!-- V2.1.4 方案侧关联需求（多选，样式对齐需求弹窗的关联方案下拉） -->
+        <div class="pm-edit-plans">
+          <el-select
+            v-model="editRequirementIds"
+            multiple
+            filterable
+            size="small"
+            style="width: 100%"
+            :placeholder="requirements.length ? '关联需求（多选）' : '项目暂无需求'"
+          >
+            <el-option v-for="r in requirements" :key="r.id" :label="r.name" :value="r.id" />
+          </el-select>
         </div>
         <div class="pm-edit-footer">
           <button class="pm-btn" @click="emit('close')">取消</button>
@@ -180,6 +193,14 @@ const commentsCollapsed = ref(false); // V2.1.3 评论折叠（默认展开）
 const editTitle = ref("");
 const editContent = ref("");
 const saving = ref(false);
+// V2.1.4 方案侧关联需求（多对多，编辑态多选）
+const requirements = ref([]);
+const editRequirementIds = ref([]);
+async function loadRequirements() {
+  if (!props.projectId) return;
+  const res = await api(`api/projects/${props.projectId}/requirements?limit=100`);
+  if (res?.ok) requirements.value = res.data.items || [];
+}
 
 // ===== 从文件导入（txt / md / docx，仅新建/编辑态） =====
 const importFileInput = ref(null);
@@ -230,12 +251,15 @@ function initEdit() {
   if (props.clonePlan) {
     editTitle.value = props.clonePlan.title;
     editContent.value = props.clonePlan.content || "";
+    editRequirementIds.value = [...(props.clonePlan.requirementIds || [])];
   } else if (!props.planId) {
     editTitle.value = "";
     editContent.value = "";
+    editRequirementIds.value = [];
   } else if (plan.value) {
     editTitle.value = plan.value.title;
     editContent.value = plan.value.content || "";
+    editRequirementIds.value = (plan.value.requirements || []).map((r) => r.id);
   }
 }
 
@@ -271,14 +295,14 @@ async function savePlan() {
     if (props.planId) {
       const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
         method: "PUT",
-        body: JSON.stringify({ title, content: editContent.value }),
+        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value }),
       });
       if (!res?.ok) return toast(res?.error || "保存失败", "error");
       toast("已保存");
     } else {
       const res = await api(`api/projects/${props.projectId}/plans`, {
         method: "POST",
-        body: JSON.stringify({ title, content: editContent.value }),
+        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value }),
       });
       if (!res?.ok) return toast(res?.error || "创建失败", "error");
       toast("已创建方案");
@@ -409,12 +433,14 @@ watch(() => props.show, (v) => {
   if (v) {
     initEdit();
     loadDetail();
+    loadRequirements();
   }
 });
 watch(() => props.planId, () => {
   if (props.show) {
     initEdit();
     loadDetail();
+    loadRequirements();
   }
 });
 // 克隆源变化兜底：详情内克隆（read→edit 切换、planId 同 tick 置空）时强制预填，与右击克隆效果对齐
@@ -424,6 +450,7 @@ watch(
     if (v && props.show && props.mode === "edit") {
       editTitle.value = v.title;
       editContent.value = v.content || "";
+      editRequirementIds.value = [...(v.requirementIds || [])];
     }
   },
   { immediate: true }
@@ -604,7 +631,7 @@ watch(
   font-size: 12px;
   color: var(--text-tertiary);
 }
-/* V2.1.3 满足的需求（方案反向展示） */
+/* V2.1.3 关联需求（方案反向展示） */
 .pm-reqs {
   margin-top: 14px;
   border-top: 0.5px solid var(--border);
@@ -791,6 +818,17 @@ watch(
   flex: 1;
   min-height: 0;
   max-height: none;
+}
+/* V2.1.4 方案编辑态关联需求：与富文本留呼吸间距，下拉加高 */
+.pm-edit-plans {
+  padding: 10px 0 12px;
+  flex-shrink: 0;
+}
+.pm-edit-plans :deep(.el-select__wrapper) {
+  min-height: 38px;
+}
+.pm-edit-plans :deep(.el-select__selection) {
+  min-height: 34px;
 }
 .pm-edit-footer {
   display: flex;

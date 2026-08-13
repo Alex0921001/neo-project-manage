@@ -8,34 +8,40 @@
       </div>
 
       <div class="tc-body">
-        <div class="tc-hint">调整顺序与显隐，点击「全局应用」或「本项目应用」后生效</div>
-        <div class="tc-list">
-          <div v-for="(key, idx) in localDraft.order" :key="key" class="tc-row" :class="{ 'tc-row-hidden': localDraft.hidden.includes(key) }">
-            <span class="tc-idx">{{ idx + 1 }}</span>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
-            <span class="tc-name">{{ defLabel(key) }}</span>
-            <div class="tc-ops">
-              <button class="tc-arrow" title="上移" :disabled="idx === 0" @click="move(key, -1)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
-              </button>
-              <button class="tc-arrow" title="下移" :disabled="idx === localDraft.order.length - 1" @click="move(key, 1)">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-              </button>
-              <label class="tc-vis">
-                <input type="checkbox" :checked="!localDraft.hidden.includes(key)" @change="toggle(key, $event.target.checked)" />
-                显示
-              </label>
+        <div class="tc-hint">拖动手柄调整顺序，勾选控制显隐，点击「全局应用」或「本项目应用」后生效</div>
+        <draggable
+          v-model="localDraft.order"
+          item-key="key"
+          handle=".tc-drag"
+          ghost-class="tc-ghost"
+          :animation="150"
+          class="tc-list"
+        >
+          <template #item="{ element: key, index: idx }">
+            <div class="tc-row" :class="{ 'tc-row-hidden': localDraft.hidden.includes(key) }">
+              <span class="tc-drag" title="拖动排序">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.6"/><circle cx="15" cy="5" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="19" r="1.6"/><circle cx="15" cy="19" r="1.6"/></svg>
+              </span>
+              <span class="tc-idx">{{ idx + 1 }}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
+              <span class="tc-name">{{ defLabel(key) }}</span>
+              <div class="tc-ops">
+                <label class="tc-vis">
+                  <input type="checkbox" :checked="!localDraft.hidden.includes(key)" @change="toggle(key, $event.target.checked)" />
+                  显示
+                </label>
+              </div>
             </div>
-          </div>
-        </div>
+          </template>
+        </draggable>
       </div>
 
       <div class="tc-foot">
         <button class="tc-btn tc-btn-ghost" @click="resetLocal">重置默认</button>
         <div class="tc-foot-spacer"></div>
         <button class="tc-btn" @click="$emit('cancel')">取消</button>
-        <button class="tc-btn tc-btn-global" @click="$emit('apply', 'global', localDraft.value)">全局应用</button>
-        <button class="tc-btn tc-btn-primary" @click="$emit('apply', 'project', localDraft.value)">本项目应用</button>
+        <button class="tc-btn tc-btn-global" @click="$emit('apply', 'global', localDraft)">全局应用</button>
+        <button class="tc-btn tc-btn-primary" @click="$emit('apply', 'project', localDraft)">本项目应用</button>
       </div>
     </div>
   </div>
@@ -43,6 +49,7 @@
 
 <script setup>
 import { ref } from "vue";
+import draggable from "vuedraggable";
 
 const props = defineProps({
   defs: { type: Array, required: true },
@@ -75,14 +82,6 @@ function defLabel(key) {
 }
 function defSvg(key) {
   return props.defs.find((d) => d.key === key)?.svg || "";
-}
-function move(key, dir) {
-  const order = [...localDraft.value.order];
-  const i = order.indexOf(key);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= order.length) return;
-  [order[i], order[j]] = [order[j], order[i]];
-  localDraft.value.order = order;
 }
 function toggle(key, visible) {
   const hidden = new Set(localDraft.value.hidden);
@@ -159,20 +158,23 @@ function toggle(key, visible) {
 }
 .tc-name { flex: 1; }
 .tc-ops { display: inline-flex; align-items: center; gap: 6px; }
-.tc-arrow {
+/* 拖拽手柄（vuedraggable handle） */
+.tc-drag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--border-light);
+  color: var(--text-tertiary);
+  cursor: grab;
+  padding: 2px;
   border-radius: 4px;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
-.tc-arrow:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
-.tc-arrow:disabled { opacity: 0.3; cursor: default; }
+.tc-drag:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+.tc-drag:active { cursor: grabbing; }
+.tc-ghost { opacity: 0.4; background: var(--bg-hover); }
 .tc-vis {
   display: inline-flex;
   align-items: center;

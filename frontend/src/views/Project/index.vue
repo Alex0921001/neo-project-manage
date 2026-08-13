@@ -108,6 +108,12 @@
             </svg>
             {{ expandAll ? '收起' : '展开' }}
           </button>
+          <!-- 文件搜索（tab 栏新建按钮左侧，与任务/方案/需求同形态） -->
+          <div v-if="tab === 'files'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="fileSearch" class="task-search-input" placeholder="搜索文件名称" @click.stop />
+            <button v-if="fileSearch" class="task-search-clear" title="清空" @click="fileSearch = ''">×</button>
+          </div>
           <button v-if="tab === 'plans'" class="header-btn" :disabled="compareCount < 2" :title="compareCount < 2 ? '勾选 2 个方案后对比' : '对比选中的 2 个方案'" @click="planTabRef?.openCompare()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             对比选中{{ compareCount > 0 ? `（${compareCount}/2）` : "" }}
@@ -136,7 +142,6 @@
           :draft="tabCfgDraft"
           @cancel="tabConfigShow = false"
           @apply="tabCfgApply"
-          @reset="tabCfgReset"
         />
       </div>
       <div class="tab-content">
@@ -275,6 +280,7 @@ const fileTabRef = ref(null);
 const noteTabRef = ref(null);
 const auditTabRef = ref(null);
 const planTabRef = ref(null);
+const requirementTabRef = ref(null);
 const compareCount = ref(0);
 const overviewRef = ref(null);
 
@@ -381,10 +387,6 @@ function tabCfgApply(scope, draft) {
   tabConfigShow.value = false;
   toast(scope === "project" ? "已应用到本项目" : "已应用到全部项目");
 }
-function tabCfgReset() {
-  if (!tabCfgDraft.value) return;
-  tabCfgDraft.value = { order: [...DEFAULT_TAB_ORDER], hidden: [] };
-}
 
 // ===== Tab 右键菜单 =====
 const tabMenuShow = ref(false);
@@ -434,6 +436,7 @@ const sortTip = computed(() => {
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
+const fileSearch = ref("");
 const annotManageShow = ref(false); // 批注管理大屏弹窗
 const calShow = ref(false); // 项目日历弹窗
 const planSearch = ref("");
@@ -486,13 +489,14 @@ async function changeStatus(status) {
 
 function onTabAction() {
   if (tab.value === 'tasks') taskTabRef.value?.openAdd();
-  else if (tab.value === 'files') fileTabRef.value?.pickFile();
+  else if (tab.value === 'files') fileTabRef.value?.openAdd();
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
   else if (tab.value === 'plans') planTabRef.value?.openCreate();
   else if (tab.value === 'requirements') requirementTabRef.value?.openCreate();
 }
 
-// 日历 tab / 方案转任务点击任务：切回任务 tab 并滚动定位（兼容字符串 taskId 与 { taskId } 两种 payload）
+// 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）
+watch(fileSearch, (v) => { fileTabRef.value?.setSearch?.(v); });
 function onTabCalendarSelectTask(payload) {
   const taskId = typeof payload === "string" ? payload : payload?.taskId;
   if (!taskId) return;
@@ -703,15 +707,19 @@ async function doConfirm() {
   border: none;
   border-radius: var(--radius-md);
   background: transparent;
-  cursor: pointer;
+  cursor: grab; /* 可拖拽调序提示 */
   font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   font-family: inherit;
   letter-spacing: 0.02em;
   margin: 6px 2px;
+  user-select: none;
   transition: background var(--duration-fast) var(--ease-out),
               color var(--duration-fast) var(--ease-out);
+}
+.tab-btn:active {
+  cursor: grabbing;
 }
 .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
 .tab-btn.active {

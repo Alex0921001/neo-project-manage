@@ -37,8 +37,8 @@
         <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
         <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
       </div>
-      <!-- 分页（每页 10 条） -->
-      <div v-if="total > 0" class="plan-pager">
+      <!-- 分页（每页 10 条，超过一页才显示） -->
+      <div v-if="total > PAGE_SIZE" class="plan-pager">
         <span class="plan-pager-count">共 {{ total }} 条</span>
         <div class="plan-pager-btns">
           <button class="plan-pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>

@@ -60,41 +60,13 @@
       </template>
     </el-dialog>
 
-    <!-- 工具栏 -->
-    <div class="ft-toolbar">
-      <div class="ft-actions">
-        <button class="ft-new-folder" @click="openNewRootFolder">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
-          <span>新建文件夹</span>
-        </button>
-      </div>
-      <el-input
-        v-model="search"
-        class="ft-search"
-        placeholder="搜索文件名称"
-        clearable
-        :prefix-icon="SearchIcon"
-      />
-      <button class="btn-save ft-add-btn" @click="openAdd">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        <span>登记文件</span>
-      </button>
-    </div>
+    <!-- 搜索框已移至 tab 栏「新建」左侧（index.vue 联动 setSearch） -->
 
     <!-- 主体：左树右网格 -->
     <div class="ft-body">
       <aside class="ft-sidebar">
         <div class="ft-tree">
-          <div
-            class="ft-tree-fixed"
-            :class="{ active: selectedFolder === 'all' }"
-            @click="selectFolder('all')"
-            @dragover.prevent
-            @drop.prevent="moveDragFilesTo(null)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
-            <span>全部文件</span>
-          </div>
+          <!-- V2.1.4：去掉「全部文件」选项，默认根目录 -->
           <div
             class="ft-tree-fixed"
             :class="{ active: selectedFolder === 'root' }"
@@ -110,7 +82,7 @@
             :key="node.id"
             :node="node"
             :depth="0"
-            :selected-id="selectedFolder === 'all' || selectedFolder === 'root' ? '' : selectedFolder"
+            :selected-id="selectedFolder === 'root' ? '' : selectedFolder"
             @select="selectFolder"
             @menu="openFolderMenu"
             @drop-file="moveDragFilesTo"
@@ -119,9 +91,8 @@
         </div>
       </aside>
 
-      <div class="ft-main" @click.self="selected = []">
+      <div class="ft-main" @click.self="selected = []" @contextmenu.prevent="openRootMenu($event)">
         <div class="ft-view-head">
-          <span class="ft-view-title" :title="viewTitle">{{ viewTitle }}</span>
           <span v-if="selected.length" class="ft-selected-info">已选 {{ selected.length }} 项（Delete 删除）</span>
         </div>
 
@@ -135,7 +106,7 @@
             :title="f.path || f.name"
             @click="onCardClick(f, idx, $event)"
             @dblclick="openFile(f)"
-            @contextmenu.prevent="openFileMenu(f, $event)"
+            @contextmenu.stop.prevent="openFileMenu(f, $event)"
             @dragstart="onDragStart(f)"
           >
             <div class="fg-icon" v-text="iconShort(f.name)"></div>
@@ -166,12 +137,13 @@
       </div>
     </div>
 
-    <!-- 右键菜单（文件夹 / 文件通用） -->
+    <!-- 右键菜单（文件夹 / 文件通用；folder=null 表示在空白处右键 → 根层新建文件夹） -->
     <div v-if="menu.show" class="ctx-menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.type === 'folder'">
-        <div class="ctx-item" @click.stop="menuNewChild">新建子文件夹</div>
-        <div class="ctx-item" @click.stop="menuRename">重命名</div>
-        <div class="ctx-item danger" @click.stop="menuDeleteFolder">删除</div>
+        <div v-if="!menu.folder" class="ctx-item" @click.stop="menuNewRoot">新建文件夹</div>
+        <div v-if="menu.folder" class="ctx-item" @click.stop="menuNewChild">新建子文件夹</div>
+        <div v-if="menu.folder" class="ctx-item" @click.stop="menuRename">重命名</div>
+        <div v-if="menu.folder" class="ctx-item danger" @click.stop="menuDeleteFolder">删除</div>
       </template>
       <template v-else>
         <div class="ctx-item" @click.stop="menuOpenFile">打开</div>
@@ -184,7 +156,6 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { Search } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import FolderNode from "./FolderNode.vue";
@@ -196,11 +167,9 @@ const props = defineProps({
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
-const SearchIcon = Search;
-
 // ===== 视图状态 =====
 const search = ref("");
-const selectedFolder = ref("all"); // 'all' 全部 | 'root' 根目录 | folderId 具体文件夹
+const selectedFolder = ref("root"); // 'root' 根目录 | folderId 具体文件夹（V2.1.4 去掉「全部文件」）
 const selected = ref([]); // 选中的文件 id
 const anchorIndex = ref(-1); // shift 连选锚点
 const dragIds = ref([]); // 拖拽中的文件 id 集
@@ -235,21 +204,12 @@ function folderNameOf(id) {
   return folderMap.value.get(id) || "";
 }
 
-const viewTitle = computed(() => {
-  if (search.value.trim()) return `搜索「${search.value.trim()}」`;
-  if (selectedFolder.value === "all") return "全部文件";
-  if (selectedFolder.value === "root") return "根目录";
-  return folderNameOf(selectedFolder.value) || "文件夹";
-});
-
 const emptyTitle = computed(() => {
   if (search.value.trim()) return "未找到匹配文件";
-  if (selectedFolder.value === "all") return "还没有文件";
   return "此目录暂无文件";
 });
 const emptySub = computed(() => {
   if (search.value.trim()) return "换个关键词试试，或清空搜索查看全部文件";
-  if (selectedFolder.value === "all") return "登记项目相关资料，双击即可打开";
   return "可将文件拖拽到左侧文件夹中归类";
 });
 
@@ -261,18 +221,18 @@ const visibleFiles = computed(() => {
     list = list.filter((f) => (f.name || "").toLowerCase().includes(kw));
   } else if (selectedFolder.value === "root") {
     list = list.filter((f) => !f.folderId);
-  } else if (selectedFolder.value !== "all") {
+  } else {
     list = list.filter((f) => f.folderId === selectedFolder.value);
   }
   return list;
 });
 
-/** 是否需要展示文件夹归属标签（全部文件/搜索视图下才显示，夹内视图无需） */
-const showFolderLabel = computed(() => !!search.value.trim() || selectedFolder.value === "all");
+/** 是否需要展示文件夹归属标签（仅搜索视图下显示） */
+const showFolderLabel = computed(() => !!search.value.trim());
 
-/** 登记文件的目标夹：当前选中的具体文件夹（all/root 时登记到根目录） */
+/** 登记文件的目标夹：当前选中的具体文件夹（root 时登记到根目录） */
 const addTargetLabel = computed(() => {
-  if (selectedFolder.value !== "all" && selectedFolder.value !== "root") {
+  if (selectedFolder.value !== "root") {
     return `文件夹「${folderNameOf(selectedFolder.value)}」`;
   }
   return "根目录";
@@ -332,6 +292,19 @@ function selectFolder(id) {
 
 function openNewRootFolder() {
   folderDialog.value = { show: true, mode: "create", parentId: "", id: "", name: "" };
+}
+
+/** 文件区空白右键：根层新建文件夹（folder=null） */
+function openRootMenu(e) {
+  if (menu.value.show) closeMenu();
+  menu.value = {
+    show: true, x: e.clientX, y: e.clientY, type: "folder",
+    folder: null, file: null,
+  };
+}
+function menuNewRoot() {
+  closeMenu();
+  openNewRootFolder();
 }
 
 function openFolderMenu({ folder, event }) {
@@ -549,7 +522,12 @@ function fileExt(f) {
 onMounted(() => window.addEventListener("keydown", onKeydown));
 onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
-defineExpose({ openAdd, pickFile: openAdd });
+defineExpose({ openAdd, pickFile, setSearch });
+
+/** tab 栏搜索框联动（index.vue watch fileSearch 调用） */
+function setSearch(v) {
+  search.value = v || "";
+}
 </script>
 
 <style scoped>
@@ -557,26 +535,13 @@ defineExpose({ openAdd, pickFile: openAdd });
 
 /* 工具栏 */
 .ft-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.ft-actions { display: flex; align-items: center; gap: 8px; }
-.ft-new-folder {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 7px 14px; font-size: 13px; font-weight: 500;
-  border: 1px solid var(--border-light); border-radius: var(--radius-sm);
-  background: var(--bg-card); color: var(--text-secondary);
-  cursor: pointer; font-family: inherit;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.ft-new-folder:hover { border-color: var(--border); color: var(--text); background: var(--bg-hover); }
-.ft-search { width: 220px; flex-shrink: 0; }
-.ft-add-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
-
-/* 主体布局 */
-.ft-body { display: flex; gap: 14px; align-items: flex-start; }
+/* 主体布局：左右等高，中间分割线（V2.1.4 去边框包裹） */
+.ft-body { display: flex; align-items: stretch; }
 .ft-sidebar {
   width: 200px; flex-shrink: 0;
-  border: 1px solid var(--border-light); border-radius: var(--radius-md);
-  background: var(--bg-card); padding: 8px;
-  max-height: 480px; overflow-y: auto;
+  border-right: 1px solid var(--border-light);
+  padding-right: 14px;
+  overflow-y: auto;
 }
 .ft-tree { display: flex; flex-direction: column; gap: 1px; }
 .ft-tree-fixed {
@@ -591,9 +556,8 @@ defineExpose({ openAdd, pickFile: openAdd });
 .ft-tree-empty { padding: 10px 8px; font-size: 12px; color: var(--text-tertiary); }
 
 /* 主区 */
-.ft-main { flex: 1; min-width: 0; }
-.ft-view-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-.ft-view-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-main { flex: 1; min-width: 0; padding-left: 14px; }
+.ft-view-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 18px; }
 .ft-selected-info { font-size: 12px; color: var(--accent); flex-shrink: 0; }
 
 /* 文件网格 */
