@@ -64,6 +64,14 @@
           <el-select v-if="tab === 'plans'" v-model="planStatus" class="plan-status-select" size="small" @click.stop>
             <el-option v-for="s in PLAN_STATUS_FILTERS" :key="s" :label="s" :value="s" />
           </el-select>
+          <!-- 审计筛选：行为下拉 + 时间范围（与任务/方案搜索对齐右上角） -->
+          <el-select v-if="tab === 'audit'" v-model="auditAction" class="audit-filter-action" size="small" clearable placeholder="全部行为" @click.stop>
+            <el-option v-for="a in auditActions" :key="a" :label="a" :value="a" />
+          </el-select>
+          <input v-if="tab === 'audit'" v-model="auditDateFrom" type="date" class="audit-filter-date" title="开始日期" @click.stop />
+          <span v-if="tab === 'audit'" class="audit-filter-sep">至</span>
+          <input v-if="tab === 'audit'" v-model="auditDateTo" type="date" class="audit-filter-date" title="结束日期" @click.stop />
+          <button v-if="tab === 'audit' && hasAuditFilter" class="audit-filter-clear" @click="clearAuditFilters">清空</button>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -130,6 +138,10 @@
           ref="auditTabRef"
           :project-id="p?.id || ''"
           :project="p"
+          :action-filter="auditAction"
+          :date-from="auditDateFrom"
+          :date-to="auditDateTo"
+          @actions-ready="auditActions = $event"
         />
         <PlanTab
           v-if="tab === 'plans'"
@@ -223,6 +235,17 @@ const taskSearch = ref("");
 const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
 const planStatus = ref("全部");
+// 审计筛选：行为 + 时间范围（tab 栏右上角）
+const auditActions = ref([]);
+const auditAction = ref("");
+const auditDateFrom = ref("");
+const auditDateTo = ref("");
+const hasAuditFilter = computed(() => !!auditAction.value || !!auditDateFrom.value || !!auditDateTo.value);
+function clearAuditFilters() {
+  auditAction.value = "";
+  auditDateFrom.value = "";
+  auditDateTo.value = "";
+}
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -538,6 +561,49 @@ async function doConfirm() {
 .plan-status-select :deep(.el-select__wrapper) {
   min-height: 31px;
   border-radius: var(--radius-sm);
+}
+/* 审计筛选（tab 栏右上角）：行为下拉 + 起止日期 */
+.audit-filter-action {
+  width: 130px;
+  flex-shrink: 0;
+}
+.audit-filter-action :deep(.el-select__wrapper) {
+  min-height: 31px;
+  border-radius: var(--radius-sm);
+}
+.audit-filter-date {
+  padding: 5px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.audit-filter-date:focus {
+  border-color: var(--border);
+}
+.audit-filter-sep {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.audit-filter-clear {
+  padding: 5px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.audit-filter-clear:hover {
+  border-color: var(--border);
+  color: var(--text);
 }
 .task-search-icon {
   position: absolute;

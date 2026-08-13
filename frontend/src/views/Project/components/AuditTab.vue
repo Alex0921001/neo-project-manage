@@ -1,16 +1,5 @@
 <template>
   <div class="audit-area">
-    <!-- 筛选栏：行为 + 时间范围（空态也显示，便于先筛选再查看） -->
-    <div class="audit-filters">
-      <el-select v-model="actionFilter" class="audit-filter-action" size="small" clearable placeholder="全部行为">
-        <el-option v-for="a in actionOptions" :key="a" :label="a" :value="a" />
-      </el-select>
-      <input v-model="dateFrom" type="date" class="audit-filter-date" title="开始日期" />
-      <span class="audit-filter-sep">至</span>
-      <input v-model="dateTo" type="date" class="audit-filter-date" title="结束日期" />
-      <button v-if="hasFilter" class="audit-filter-clear" @click="clearFilters">清空</button>
-    </div>
-
     <!-- 空态 -->
     <div v-if="!loading && !logs.length" class="audit-empty">
       <div class="audit-empty-deco">
@@ -70,7 +59,12 @@ import { api } from "../../../api.js";
 const props = defineProps({
   projectId: String,
   project: { type: Object, default: null }, // 项目详情（用于目标名反查兜底）
+  // 筛选状态（index.vue tab 栏右上角传入）：行为 + 时间范围
+  actionFilter: { type: String, default: "" },
+  dateFrom: { type: String, default: "" },
+  dateTo: { type: String, default: "" },
 });
+const emit = defineEmits(["actions-ready"]); // 行为下拉选项上报（后端返回项目全部行为去重）
 
 const PAGE_SIZE = 10; // 每页 10 条
 const logs = ref([]);
@@ -79,19 +73,11 @@ const loading = ref(false);
 const page = ref(1);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 
-// ===== 筛选状态：行为 + 时间范围 =====
-const actionOptions = ref([]); // 行为下拉选项（后端返回项目全部行为去重）
-const actionFilter = ref("");
-const dateFrom = ref("");
-const dateTo = ref("");
-const hasFilter = computed(() => !!actionFilter.value || !!dateFrom.value || !!dateTo.value);
-function clearFilters() {
-  actionFilter.value = "";
-  dateFrom.value = "";
-  dateTo.value = "";
-}
-// 筛选变化 → 回到第 1 页重新查询
-watch([actionFilter, dateFrom, dateTo], () => loadPage(1));
+// ===== 筛选状态：行为 + 时间范围（由父级 index.vue 管理，变化时刷新） =====
+watch(
+  () => [props.actionFilter, props.dateFrom, props.dateTo],
+  () => loadPage(1)
+);
 
 // ===== 字段名 / 值 翻译（英文数据结构 → 业务语言） =====
 const FIELD_LABEL = {
@@ -286,17 +272,17 @@ async function loadPage(p) {
   if (!props.projectId) return;
   loading.value = true;
   try {
-    // 筛选参数：行为（精确）+ 时间范围（dateFrom / dateTo）
+    // 筛选参数：行为（精确）+ 时间范围（dateFrom / dateTo），来自父级 tab 栏
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
-    if (actionFilter.value) params.set("action", actionFilter.value);
-    if (dateFrom.value) params.set("dateFrom", dateFrom.value);
-    if (dateTo.value) params.set("dateTo", dateTo.value);
+    if (props.actionFilter) params.set("action", props.actionFilter);
+    if (props.dateFrom) params.set("dateFrom", props.dateFrom);
+    if (props.dateTo) params.set("dateTo", props.dateTo);
     const res = await api(`api/projects/${props.projectId}/audit-logs?${params}`, { silent: true });
     if (res?.ok) {
       logs.value = res.data.items || [];
       total.value = res.data.total || 0;
-      // 行为下拉选项：取自后端返回的项目全部行为（去重）
-      if (Array.isArray(res.data.actions)) actionOptions.value = res.data.actions;
+      // 行为下拉选项上报父级（tab 栏下拉用）
+      if (Array.isArray(res.data.actions)) emit("actions-ready", res.data.actions);
       page.value = p;
     } else {
       logs.value = [];
@@ -363,54 +349,6 @@ defineExpose({ refresh: () => loadPage(1) });
 }
 
 /* ============ 表格 ============ */
-/* 筛选栏：行为下拉 + 时间范围（date 输入） */
-.audit-filters {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 2px 10px;
-  flex-wrap: wrap;
-}
-.audit-filter-action {
-  width: 150px;
-}
-.audit-filter-action :deep(.el-select__wrapper) {
-  min-height: 30px;
-}
-.audit-filter-date {
-  padding: 5px 8px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-.audit-filter-date:focus {
-  border-color: var(--border);
-}
-.audit-filter-sep {
-  font-size: 12px;
-  color: var(--text-tertiary);
-}
-.audit-filter-clear {
-  padding: 4px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.audit-filter-clear:hover {
-  border-color: var(--border);
-  color: var(--text);
-}
 .audit-table {
   border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
