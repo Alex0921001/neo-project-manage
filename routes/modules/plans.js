@@ -17,7 +17,8 @@ export function registerPlansRoutes(app, data) {
       const limit = q.limit ? Math.min(Math.max(parseInt(q.limit) || 10, 1), 100) : undefined;
       const offset = q.offset ? Math.max(parseInt(q.offset) || 0, 0) : 0;
       const keyword = q.keyword ? String(q.keyword).trim() : undefined;
-      return c.json({ ok: true, data: data.listPlans(c.req.param("projectId"), { limit, offset, keyword }) });
+      const status = q.status ? String(q.status).trim() : undefined;
+      return c.json({ ok: true, data: data.listPlans(c.req.param("projectId"), { limit, offset, keyword, status }) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }

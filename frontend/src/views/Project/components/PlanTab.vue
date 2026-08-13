@@ -73,6 +73,7 @@ import PlanCompareModal from "./PlanCompareModal.vue";
 const props = defineProps({
   projectId: { type: String, default: "" },
   searchQuery: { type: String, default: "" }, // 标题筛选关键字（index.vue 搜索框，后端筛选 + 高亮）
+  statusQuery: { type: String, default: "全部" }, // 状态筛选（index.vue 下拉，后端精确匹配）
 });
 const emit = defineEmits(["changed", "jump-task"]);
 
@@ -91,12 +92,13 @@ const selectedCount = computed(() => selectedMap.value.size);
 // 对比数据：从跨页 Map 取完整方案（不依赖当前页）
 const comparePlans = computed(() => [...selectedMap.value.values()].slice(0, 2));
 
-async function load(p = page.value, keyword = props.searchQuery) {
+async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
   loading.value = true;
   try {
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
     if (keyword.trim()) params.set("keyword", keyword.trim());
+    if (status && status !== "全部") params.set("status", status);
     const res = await api(`api/projects/${props.projectId}/plans?${params}`);
     if (res?.ok) {
       plans.value = res.data.items || [];
@@ -111,7 +113,7 @@ async function load(p = page.value, keyword = props.searchQuery) {
       // 页码越界回退（如删除后总页数减少）
       if (page.value > totalPages.value) {
         page.value = totalPages.value;
-        load(page.value, keyword);
+        load(page.value, keyword, status);
       }
     } else {
       toast(res?.error || "加载方案失败", "error");
@@ -126,8 +128,9 @@ function goPage(p) {
   load(p);
 }
 
-// 搜索关键字变化：回到第 1 页重新查询（后端筛选）
+// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
 watch(() => props.searchQuery, () => load(1));
+watch(() => props.statusQuery, () => load(1));
 
 function toggleSelect(pl) {
   const m = new Map(selectedMap.value);
@@ -364,6 +367,17 @@ watch(() => props.projectId, () => load(), { immediate: true });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 搜索关键字高亮：与任务列表 TaskCard 一致（浅琥珀底 + 深琥珀字） */
+.plan-row-title :deep(.hl),
+.plan-row-title .hl {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .plan-row-meta {
   width: 56px;

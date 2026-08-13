@@ -61,6 +61,9 @@
             <input v-model="planSearch" class="task-search-input" placeholder="搜索方案标题" @click.stop />
             <button v-if="planSearch" class="task-search-clear" title="清空" @click="planSearch = ''">×</button>
           </div>
+          <el-select v-if="tab === 'plans'" v-model="planStatus" class="plan-status-select" size="small" @click.stop>
+            <el-option v-for="s in PLAN_STATUS_FILTERS" :key="s" :label="s" :value="s" />
+          </el-select>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -133,6 +136,7 @@
           ref="planTabRef"
           :project-id="p?.id || ''"
           :search-query="planSearch"
+          :status-query="planStatus"
           @changed="loadProject"
           @jump-task="onTabCalendarSelectTask"
           @compare-count="compareCount = $event"
@@ -217,6 +221,8 @@ function toggleExpandAll() {
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
 const planSearch = ref("");
+const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃"];
+const planStatus = ref("全部");
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -523,6 +529,14 @@ async function doConfirm() {
   position: relative;
   display: inline-flex;
   align-items: center;
+}
+/* 方案状态筛选下拉（tab 栏，对比按钮左侧） */
+.plan-status-select {
+  width: 96px;
+  flex-shrink: 0;
+}
+.plan-status-select :deep(.el-select__wrapper) {
+  min-height: 26px;
 }
 .task-search-icon {
   position: absolute;
