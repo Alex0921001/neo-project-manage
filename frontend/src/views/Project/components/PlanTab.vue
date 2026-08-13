@@ -64,6 +64,7 @@
       :mode="modal.mode"
       :clone-plan="modal.clonePlan"
       @mode-change="modal.mode = $event"
+      @clone="(p) => (modal.value = { show: true, planId: null, mode: 'edit', clonePlan: p })"
       @close="modal.show = false"
       @changed="onChanged"
       @jump-task="jumpTask"

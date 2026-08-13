@@ -25,7 +25,10 @@
             >
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
-            <!-- 操作按钮按状态显示：转任务仅已采纳；编辑仅草稿/进行中；删除仅草稿/已废弃 -->
+            <!-- 克隆：无权限控制，复制当前方案到新建编辑弹窗（保存即新建） -->
+            <button class="pm-icon-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 17h4M6 13h4M6 9h10"/><path d="M9 3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"/><path d="M21 3h-8"/><path d="M21 7h-4"/></svg>
+            </button>
             <button class="pm-icon-btn" title="复制方案（标题 + 内容）" @click="copyPlan">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
@@ -138,7 +141,7 @@ const props = defineProps({
   mode: { type: String, default: "read" }, // read | edit
   clonePlan: { type: Object, default: null }, // 克隆源：新建编辑态预填其标题 + 内容（无权限控制）
 });
-const emit = defineEmits(["close", "changed", "jump-task", "update:show"]);
+const emit = defineEmits(["close", "changed", "jump-task", "mode-change", "clone", "update:show"]);
 
 const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
@@ -279,7 +282,13 @@ async function sendComment() {
   }
 }
 
-// 复制方案：标题 + 内容（纯文本，去 HTML）
+// 克隆：通知父级以当前方案为克隆源重开新建编辑态（planId 置空，保存走新建）
+function startClone() {
+  if (!plan.value) return;
+  emit("clone", plan.value);
+}
+
+// 复制方案：标题 + 内容（纯文本，去 HTML）；clipboard API 失败时降级 execCommand
 async function copyPlan() {
   if (!plan.value) return;
   const plain = String(plan.value.content || "")
@@ -291,7 +300,18 @@ async function copyPlan() {
     await navigator.clipboard.writeText(text);
     toast("已复制标题 + 内容");
   } catch {
-    toast("复制失败，请手动选择复制", "error");
+    // 降级：textarea + execCommand（非安全上下文 / iframe 未授权 clipboard）
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { /* ignore */ }
+    document.body.removeChild(ta);
+    if (ok) toast("已复制标题 + 内容");
+    else toast("复制失败，请手动选择复制", "error");
   }
 }
 
