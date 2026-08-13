@@ -193,10 +193,10 @@ function fmtDate(d) {
   return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
 }
 
-// ===== 项目集名称（最多 10 字，hover 显示全名） =====
+// ===== 项目集名称（最多 5 字，hover 显示全名） =====
 function shortSet(name) {
   const s = String(name || "").trim();
-  return s.length > 10 ? `${s.slice(0, 10)}…` : s;
+  return s.length > 5 ? `${s.slice(0, 5)}…` : s;
 }
 </script>
 
