@@ -919,3 +919,160 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   const actions = new Set(audit.items.map((a) => a.action));
   ["创建需求", "更新需求", "更新需求状态", "关联方案", "解除方案关联", "删除需求"].forEach((a) => assert.ok(actions.has(a), `应有审计动作 ${a}`));
 });
+
+// ===== 19. 文件夹（V2.1.4 文件系统重构） =====
+test("文件夹：创建/同级重名拒绝/不同父级可同名/树结构/更新", () => {
+  const p = data.createProject({ name: "文件夹项目" });
+  // 根级创建
+  const a = data.createFolder(p.id, { name: "设计稿" });
+  assert.ok(a.id, "应返回 id");
+  assert.equal(a.parentId, null);
+  // 同级重名拒绝
+  expectThrow(() => data.createFolder(p.id, { name: "设计稿" }), /已存在/);
+  // 名称校验
+  expectThrow(() => data.createFolder(p.id, { name: "  " }), /不能为空/);
+  expectThrow(() => data.createFolder(p.id, { name: "x".repeat(51) }), /50/);
+  // 嵌套
+  const b = data.createFolder(p.id, { name: "V2", parentId: a.id });
+  const c = data.createFolder(p.id, { name: "V2.1", parentId: b.id });
+  assert.equal(b.parentId, a.id);
+  assert.equal(c.parentId, b.id);
+  // 不同父级可同名（根下再建 V2 不冲突）
+  const d = data.createFolder(p.id, { name: "V2" });
+  assert.ok(d.id);
+  // 父级不存在 / 不属于该项目
+  expectThrow(() => data.createFolder(p.id, { name: "x", parentId: "nope" }), /不存在/);
+  const other = data.createProject({ name: "别的项目" });
+  expectThrow(() => data.createFolder(other.id, { name: "x", parentId: a.id }), /不存在/);
+  // 树结构
+  const tree = data.listFolders(p.id);
+  assert.equal(tree.length, 2);
+  const rootA = tree.find((n) => n.id === a.id);
+  assert.ok(rootA, "设计稿应在根层");
+  assert.equal(rootA.children.length, 1);
+  assert.equal(rootA.children[0].id, b.id);
+  assert.equal(rootA.children[0].children[0].id, c.id);
+  // getFolder 单查
+  assert.equal(data.getFolder(p.id, b.id).name, "V2");
+  assert.equal(data.getFolder(p.id, "nope"), null);
+  // 更新：改名
+  const renamed = data.updateFolder(p.id, a.id, { name: "设计v2" });
+  assert.equal(renamed.name, "设计v2");
+  // 同名不改不拦（幂等）
+  const same = data.updateFolder(p.id, d.id, { name: "V2" });
+  assert.equal(same.name, "V2");
+  // 同级重名拒绝（根下已有「设计v2」）
+  expectThrow(() => data.updateFolder(p.id, d.id, { name: "设计v2" }), /已存在/);
+  // 名称空校验
+  expectThrow(() => data.updateFolder(p.id, d.id, { name: "" }), /不能为空/);
+  // 不属于该项目
+  expectThrow(() => data.updateFolder(other.id, a.id, { name: "x" }), /不存在/);
+});
+
+test("文件夹：换父级防环（自身/子孙）+ 正常移动", () => {
+  const p = data.createProject({ name: "防环项目" });
+  const a = data.createFolder(p.id, { name: "A" });
+  const b = data.createFolder(p.id, { name: "B", parentId: a.id });
+  const c = data.createFolder(p.id, { name: "C", parentId: b.id });
+  // 自身
+  expectThrow(() => data.updateFolder(p.id, a.id, { parentId: a.id }), /自身/);
+  // 子孙（C 是 A 的孙）
+  expectThrow(() => data.updateFolder(p.id, a.id, { parentId: c.id }), /子文件夹/);
+  // 不存在父级
+  expectThrow(() => data.updateFolder(p.id, a.id, { parentId: "nope" }), /不存在/);
+  // 正常移动：C 移到根
+  const moved = data.updateFolder(p.id, c.id, { parentId: "" });
+  assert.equal(moved.parentId, null);
+  // 移回 B 下
+  assert.equal(data.updateFolder(p.id, c.id, { parentId: b.id }).parentId, b.id);
+  // 改名 + 换父同时发生：重名按新父级校验（根下无 C，可移）
+  const b2 = data.createFolder(p.id, { name: "B2" });
+  const moved2 = data.updateFolder(p.id, b2.id, { name: "C", parentId: null });
+  assert.equal(moved2.name, "C");
+  assert.equal(moved2.parentId, null);
+});
+
+test("文件夹：删除提升语义（子文件+子文件夹提升到父级，不删文件不丢结构）", () => {
+  const p = data.createProject({ name: "删除提升项目" });
+  const real = path.join(tmpDir, "folder-test.txt");
+  fs.writeFileSync(real, "hello");
+  // 结构：A/B/C 三层
+  const a = data.createFolder(p.id, { name: "A" });
+  const b = data.createFolder(p.id, { name: "B", parentId: a.id });
+  const c = data.createFolder(p.id, { name: "C", parentId: b.id });
+  // 文件分布：根 1 个、A 下 1 个、B 下 1 个、C 下 1 个
+  const fRoot = data.addFile(p.id, real);
+  const fA = data.addFile(p.id, real, undefined, a.id);
+  const fB = data.addFile(p.id, real, undefined, b.id);
+  const fC = data.addFile(p.id, real, undefined, c.id);
+  assert.equal(fA.folderId, a.id);
+
+  // 删除 C：C 下文件提升到 B，B 仍存在
+  data.deleteFolder(p.id, c.id);
+  assert.equal(data.getFolder(p.id, c.id), null);
+  assert.equal(data.getFile(p.id, fC.id).folderId, b.id, "C 下文件应提升到 B");
+  assert.equal(data.getFile(p.id, fB.id).folderId, b.id, "B 下文件不动");
+
+  // 删除 A：A 下文件提升到根；B（含其下文件）整体提升到根，fB 仍属 B
+  data.deleteFolder(p.id, a.id);
+  assert.equal(data.getFolder(p.id, a.id), null);
+  assert.equal(data.getFile(p.id, fA.id).folderId, null, "A 下文件应提升到根");
+  assert.equal(data.getFile(p.id, fB.id).folderId, b.id, "B 下文件不动（B 提升到根，文件仍属 B）");
+  const tree = data.listFolders(p.id);
+  assert.equal(tree.length, 1);
+  assert.equal(tree[0].id, b.id, "B 应提升为根级文件夹");
+  assert.equal(tree[0].children.length, 0, "C 已删，B 无子夹");
+  // 所有文件都在（不级联删文件）
+  assert.equal(data.listFiles(p.id).length, 4);
+  // 删除不存在的文件夹
+  expectThrow(() => data.deleteFolder(p.id, "nope"), /不存在/);
+});
+
+test("文件夹：listFiles 过滤（folderId/名称搜索）+ moveFile + getProject 联动", () => {
+  const p = data.createProject({ name: "过滤项目" });
+  const real = path.join(tmpDir, "filter.txt");
+  fs.writeFileSync(real, "hi");
+  const a = data.createFolder(p.id, { name: "夹A" });
+  const f1 = data.addFile(p.id, real);                     // 根
+  const f2 = data.addFile(p.id, real, undefined, a.id);    // 夹A
+  const f3 = data.addFile(p.id, real, undefined, a.id);    // 夹A
+  // folderId 过滤：全部 / 根 / 指定夹
+  assert.equal(data.listFiles(p.id).length, 3);
+  assert.deepEqual(data.listFiles(p.id, { folderId: null }).map((f) => f.id), [f1.id]);
+  assert.deepEqual(data.listFiles(p.id, { folderId: a.id }).map((f) => f.id).sort(), [f2.id, f3.id].sort());
+  // 名称搜索（不区分大小写 + 通配符转义）
+  assert.equal(data.listFiles(p.id, { name: "FILTER" }).length, 3);
+  assert.equal(data.listFiles(p.id, { name: "夹" }).length, 0);
+  assert.equal(data.listFiles(p.id, { name: "%" }).length, 0, "通配符应转义为字面量");
+  // moveFile：移入夹 / 移回根 / 不存在目标 / 无变化幂等
+  assert.equal(data.moveFile(p.id, f1.id, a.id).folderId, a.id);
+  assert.equal(data.moveFile(p.id, f1.id, null).folderId, null);
+  expectThrow(() => data.moveFile(p.id, f1.id, "nope"), /不存在/);
+  expectThrow(() => data.moveFile(p.id, "nope", a.id), /不存在/);
+  assert.equal(data.moveFile(p.id, f1.id, a.id).folderId, a.id);
+  // 跨项目隔离：其他项目的文件夹不能过滤本项目文件
+  const other = data.createProject({ name: "隔离项目" });
+  const fOther = data.addFile(other.id, real);
+  assert.equal(data.listFiles(other.id, { folderId: a.id }).length, 0, "其他项目的文件夹不能过滤本项目文件");
+  assert.equal(data.listFiles(other.id).map((f) => f.id)[0], fOther.id);
+  // getProject 联动：files 带 folderId/pathExists，folders 为树
+  const proj = data.getProject(p.id);
+  const fa = proj.files.find((f) => f.id === f2.id);
+  assert.equal(fa.folderId, a.id);
+  assert.equal(fa.pathExists, true);
+  const missing = data.addFile(p.id, path.join(tmpDir, "not-exist.txt"));
+  assert.equal(data.getFile(p.id, missing.id).pathExists, false, "失效路径 pathExists=false");
+  assert.ok(proj.folders.some((n) => n.id === a.id), "getProject 应返回 folders 树");
+});
+
+test("文件夹：审计日志（创建/更新/删除 + folder targetType）", () => {
+  const p = data.createProject({ name: "审计项目" });
+  const a = data.createFolder(p.id, { name: "审A" });
+  data.updateFolder(p.id, a.id, { name: "审A改" });
+  data.deleteFolder(p.id, a.id);
+  const audit = data.listAuditLogs(p.id, {});
+  const actions = new Set(audit.items.map((x) => x.action));
+  ["创建文件夹", "更新文件夹", "删除文件夹"].forEach((x) => assert.ok(actions.has(x), "应有审计动作 " + x));
+  const folderLogs = audit.items.filter((x) => x.targetType === "folder");
+  assert.ok(folderLogs.length >= 3, "文件夹操作应记 targetType=folder");
+});

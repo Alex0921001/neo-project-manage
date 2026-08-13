@@ -1,6 +1,6 @@
 <template>
   <div class="req-tab">
-    <!-- 新建/编辑弹窗 -->
+    <!-- 新建/编辑弹窗（配置对齐任务/备注弹窗：top label、append-to-body、点遮罩不关闭） -->
     <el-dialog
       v-model="dialogShow"
       :title="isEdit ? '编辑需求' : '新建需求'"
@@ -40,73 +40,88 @@
       </template>
     </el-dialog>
 
-    <div class="req-toolbar">
-      <div class="req-search">
-        <svg class="req-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="keyword" class="req-search-input" placeholder="搜索需求" @keyup.enter="load" />
+    <!-- 空态（对齐方案/任务：图标 + 文案 + 添加按钮） -->
+    <div v-if="loading" class="reqs-empty">加载中…</div>
+    <div v-else-if="!list.length" class="reqs-empty">
+      <div class="reqs-empty-deco">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
       </div>
-      <el-select v-model="statusFilter" class="req-status-select" size="small" style="width: 110px" @change="load">
-        <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
-      </el-select>
-      <div class="req-toolbar-spacer"></div>
-      <button class="header-btn header-btn-primary" @click="openCreate">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        新建需求
+      <p class="reqs-empty-title">还没有需求</p>
+      <p class="reqs-empty-sub">记录需求，明确项目要做的事</p>
+      <button class="reqs-add reqs-add-large" @click="openCreate">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>添加第一个需求</span>
       </button>
     </div>
-
-    <div class="req-list">
-      <div v-if="loading" class="req-empty">加载中...</div>
-      <div v-else-if="!list.length" class="req-empty">暂无需求</div>
-      <div v-for="r in list" :key="r.id" class="req-row" :class="{ 'req-row-done': r.status !== '待处理' }">
-        <div class="req-main">
-          <span class="req-name" :title="r.description ? stripHtml(r.description) : ''">{{ r.name }}</span>
-          <span class="req-badge req-status" :class="`st-${r.status}`">{{ r.status }}</span>
-          <span class="req-badge req-priority" :class="`prio-${r.priority || 'P3'}`">{{ r.priority || 'P3' }}</span>
-          <span class="req-meta">关联方案 {{ r.planCount }} · {{ fmtTime(r.createdAt) }}</span>
-        </div>
+    <div v-else class="req-list">
+      <div
+        v-for="r in list"
+        :key="r.id"
+        class="req-row"
+        :class="{ 'req-row-done': r.status !== '待处理' }"
+      >
+        <span class="req-name" :title="r.description ? stripHtml(r.description) : ''" v-html="highlight(r.name, searchQuery)"></span>
+        <span class="req-st" :class="`req-st-${statusKey(r.status)}`">{{ r.status }}</span>
+        <span class="priority-badge" :class="`priority-${(r.priority || 'P3').toLowerCase()}`">{{ r.priority || 'P3' }}</span>
+        <span class="req-meta">关联方案 {{ r.planCount }} · {{ fmtTime(r.createdAt) }}</span>
         <div class="req-ops">
           <template v-if="r.status === '待处理'">
-            <button class="req-op" @click="openEdit(r)">编辑</button>
-            <button class="req-op" @click="changeStatus(r, '已完成')">✓ 完成</button>
-            <button class="req-op" @click="changeStatus(r, '已取消')">取消</button>
+            <button class="icon-btn" title="编辑" @click="openEdit(r)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="icon-btn" title="标记完成" @click="changeStatus(r, '已完成')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </button>
+            <button class="icon-btn" title="标记取消" @click="changeStatus(r, '已取消')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </template>
-          <button class="req-op req-op-danger" @click="remove(r)">删除</button>
+          <button class="icon-btn icon-btn-danger" title="删除" @click="remove(r)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
         </div>
       </div>
-    </div>
-
-    <div v-if="total > pageSize" class="req-pager">
-      <button class="req-page-btn" :disabled="page === 1" @click="page--; load()">上一页</button>
-      <span class="req-page-info">{{ page }} / {{ totalPages }}</span>
-      <button class="req-page-btn" :disabled="page >= totalPages" @click="page++; load()">下一页</button>
+      <!-- 分页（对齐方案列表：共 N 条 + 上/下页） -->
+      <div v-if="total > 0" class="req-pager">
+        <span class="req-pager-count">共 {{ total }} 条</span>
+        <div class="req-pager-btns">
+          <button class="req-pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
+          <span class="req-pager-info">{{ page }} / {{ totalPages }}</span>
+          <button class="req-pager-btn" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页 ›</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, watch, onMounted } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { highlight } from "../../../utils/highlight.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
+  searchQuery: { type: String, default: "" }, // index.vue 搜索框（后端筛选 + 标题高亮）
+  statusQuery: { type: String, default: "全部" }, // index.vue 状态下拉（后端精确匹配）
 });
 const emit = defineEmits(["changed"]);
 
 const editorComp = createRichEditor();
 const priorityOptions = ["P0", "P1", "P2", "P3", "P4", "P5"];
-const statusOptions = ["全部", "待处理", "已完成", "已取消"];
 
 const list = ref([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
-const keyword = ref("");
-const statusFilter = ref("全部");
 const loading = ref(false);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+
+// 状态 → 徽标样式 key（映射方式对齐方案 planStatusKey）
+function statusKey(s) {
+  return { 待处理: "todo", 已完成: "done", 已取消: "cancel" }[s] || "todo";
+}
 
 // 方案列表（关联多选数据源）
 const plans = ref([]);
@@ -115,21 +130,40 @@ async function loadPlans() {
   if (res?.ok) plans.value = res.data.items || [];
 }
 
-async function load() {
+async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
   loading.value = true;
-  const q = new URLSearchParams({ limit: String(pageSize), offset: String((page.value - 1) * pageSize) });
-  if (statusFilter.value !== "全部") q.set("status", statusFilter.value);
-  if (keyword.value.trim()) q.set("keyword", keyword.value.trim());
-  const res = await api(`api/projects/${props.projectId}/requirements?${q}`);
-  loading.value = false;
-  if (res?.ok) {
-    list.value = res.data.items || [];
-    total.value = res.data.total || 0;
-  } else {
-    toast(res?.error || "加载需求失败", "error");
+  try {
+    const q = new URLSearchParams({ limit: String(pageSize), offset: String((p - 1) * pageSize) });
+    if (status !== "全部") q.set("status", status);
+    if (keyword.trim()) q.set("keyword", keyword.trim());
+    const res = await api(`api/projects/${props.projectId}/requirements?${q}`);
+    if (res?.ok) {
+      list.value = res.data.items || [];
+      total.value = res.data.total || 0;
+      page.value = p;
+      // 页码越界回退（如删除后总页数减少）
+      if (page.value > totalPages.value) {
+        page.value = totalPages.value;
+        load(page.value, keyword, status);
+      }
+    } else {
+      toast(res?.error || "加载需求失败", "error");
+    }
+  } finally {
+    loading.value = false;
   }
 }
+
+function goPage(p) {
+  if (p < 1 || p > totalPages.value || p === page.value) return;
+  load(p);
+}
+
+// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
+watch(() => props.searchQuery, () => load(1));
+watch(() => props.statusQuery, () => load(1));
+watch(() => props.projectId, () => load(), { immediate: true });
 
 // ===== 弹窗 =====
 const dialogShow = ref(false);
@@ -208,95 +242,256 @@ function fmtTime(iso) {
   return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+defineExpose({ openCreate, load });
+
 onMounted(() => {
-  load();
   loadPlans();
 });
 </script>
 
 <style scoped>
-.req-tab { padding: 4px 2px; }
-.req-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.req-search { position: relative; display: flex; align-items: center; }
-.req-search-icon { position: absolute; left: 8px; color: var(--text-tertiary); }
-.req-search-input {
-  width: 200px;
-  height: 30px;
-  padding: 0 10px 0 28px;
+.req-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 弹窗 body 内边距（对齐任务弹窗 .task-dialog-el） */
+.req-dialog-el :deep(.el-dialog__body) {
+  padding: 24px;
+}
+
+/* ===== 空态（对齐方案/任务：图标 + 文案 + 添加按钮） ===== */
+.reqs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
   border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  gap: 6px;
+}
+.reqs-empty-deco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.reqs-empty-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.reqs-empty-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.reqs-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--text);
+  color: var(--bg-card);
+  border: 1px solid var(--text);
   border-radius: var(--radius-sm);
   font-size: 12px;
-  background: var(--bg-card);
-  color: var(--text);
-  outline: none;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
-.req-search-input:focus { border-color: var(--accent); }
-.req-toolbar-spacer { flex: 1; }
-.req-list { display: flex; flex-direction: column; gap: 6px; }
+.reqs-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.reqs-add.reqs-add-large {
+  margin-top: 14px;
+  padding: 8px 20px;
+  font-size: 13px;
+}
+
+/* ===== 列表（对齐方案列表行：细分隔线 + hover 底色） ===== */
+.req-list {
+  display: flex;
+  flex-direction: column;
+}
 .req-row {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  transition: opacity var(--duration-fast) var(--ease-out);
+  border-bottom: 0.5px solid var(--border);
+  border-radius: 6px;
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.req-row-done { opacity: 0.65; }
-.req-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.req-row:hover {
+  background: var(--bg-hover);
+}
 .req-name {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 320px;
 }
-.req-row-done .req-name { text-decoration: line-through; }
-.req-badge {
+/* 已完成/已取消：白底保持，名称删除线 + 文字变灰（对齐任务卡 .task-done） */
+.req-row-done .req-name {
+  text-decoration: line-through;
+  text-decoration-color: var(--border);
+  text-decoration-thickness: 1.5px;
+  color: var(--text-tertiary);
+}
+/* 搜索关键字高亮（对齐方案/任务列表 .hl） */
+.req-name :deep(.hl),
+.req-name .hl {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+/* 状态徽标（对齐方案状态标签 .plan-st：同色系染色规则） */
+.req-st {
   display: inline-flex;
   align-items: center;
-  padding: 1px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 18px;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
-.req-status.st-待处理 { background: var(--bg-hover); color: var(--text-secondary); }
-.req-status.st-已完成 { background: var(--status-ok-bg, rgba(46, 160, 67, 0.12)); color: var(--status-ok-text, #2ea043); }
-.req-status.st-已取消 { background: var(--bg-hover); color: var(--text-tertiary); }
-.req-priority.prio-P0 { color: #d93838; }
-.req-priority.prio-P1 { color: #e07b1a; }
-.req-priority.prio-P2 { color: #2f6fe4; }
-.req-priority.prio-P3 { color: var(--text-secondary); }
-.req-priority.prio-P4, .req-priority.prio-P5 { color: var(--text-tertiary); }
-.req-meta { font-size: 11px; color: var(--text-tertiary); }
-.req-ops { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.req-op {
-  padding: 4px 10px;
+.req-st-todo { color: var(--status-todo-text); background: oklch(0.95 0.03 75); }
+.req-st-done { color: var(--status-done-text); background: oklch(0.95 0.04 162); }
+.req-st-cancel { color: var(--status-cancel-text); background: oklch(0.94 0.005 80); }
+/* 优先级徽标（对齐任务卡 .priority-badge：色值完全一致） */
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  user-select: none;
+}
+.priority-p0 { color: #b3261e; background: rgba(179, 38, 30, 0.12); border: 1px solid rgba(179, 38, 30, 0.28); }
+.priority-p1 { color: #c0392b; background: rgba(192, 57, 43, 0.10); border: 1px solid rgba(192, 57, 43, 0.24); }
+.priority-p2 { color: #b9791f; background: rgba(185, 121, 31, 0.10); border: 1px solid rgba(185, 121, 31, 0.24); }
+.priority-p3 { color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border-light); }
+.priority-p4 { color: #5a7f9c; background: rgba(90, 127, 156, 0.10); border: 1px solid rgba(90, 127, 156, 0.24); }
+.priority-p5 { color: #98a0ab; background: transparent; border: 1px solid var(--border-light); opacity: 0.8; }
+/* 已完成/已取消：徽标降透明度（对齐任务卡 .task-card-done） */
+.req-row-done .priority-badge {
+  opacity: 0.55;
+}
+.req-meta {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+/* 操作区（对齐任务卡 .icon-btn 形态：主信息左、操作右） */
+.req-ops {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.icon-btn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out);
+  flex-shrink: 0;
+  padding: 0;
+}
+.icon-btn svg { display: block; }
+.icon-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border-color: var(--border-light);
+}
+.icon-btn-danger:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ===== 分页（对齐方案列表 .plan-pager） ===== */
+.req-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px 0;
+}
+.req-pager-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.req-pager-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.req-pager-btn {
+  padding: 4px 14px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  background: transparent;
-  font-size: 12px;
+  background: var(--bg-card);
   color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.req-op:hover { background: var(--bg-hover); color: var(--text); }
-.req-op-danger:hover { color: var(--status-delay-text); border-color: currentColor; }
-.req-empty { padding: 60px 20px; text-align: center; color: var(--text-tertiary); font-size: 13px; }
-.req-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 14px; }
-.req-page-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: transparent;
+.req-pager-btn:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.req-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.req-pager-info {
   font-size: 12px;
   color: var(--text-secondary);
-  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
 }
-.req-page-btn:disabled { opacity: 0.35; cursor: default; }
-.req-page-info { font-size: 12px; color: var(--text-secondary); }
 </style>

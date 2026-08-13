@@ -61,6 +61,15 @@
           <el-select v-if="tab === 'plans'" v-model="planStatus" class="plan-status-select" size="small" @click.stop>
             <el-option v-for="s in PLAN_STATUS_FILTERS" :key="s" :label="s" :value="s" />
           </el-select>
+          <!-- 需求筛选（tab 栏右上角，与方案筛选同形态）：搜索框 + 状态下拉 -->
+          <div v-if="tab === 'requirements'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="requirementSearch" class="task-search-input" placeholder="搜索需求" @click.stop />
+            <button v-if="requirementSearch" class="task-search-clear" title="清空" @click="requirementSearch = ''">×</button>
+          </div>
+          <el-select v-if="tab === 'requirements'" v-model="requirementStatus" class="plan-status-select" size="small" @click.stop>
+            <el-option v-for="s in REQUIREMENT_STATUS_FILTERS" :key="s" :label="s" :value="s" />
+          </el-select>
           <!-- 审计筛选：行为下拉 + 时间范围（daterange，与其他 tab 对齐右上角） -->
           <el-select v-if="tab === 'audit'" v-model="auditAction" class="audit-filter-action" size="small" clearable placeholder="全部行为" @click.stop>
             <el-option v-for="a in auditActions" :key="a" :label="a" :value="a" />
@@ -151,6 +160,7 @@
           ref="fileTabRef"
           :project-id="p?.id || ''"
           :files="p?.files || []"
+          :folders="p?.folders || []"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -187,6 +197,8 @@
           v-if="tab === 'requirements'"
           ref="requirementTabRef"
           :project-id="p?.id || ''"
+          :search-query="requirementSearch"
+          :status-query="requirementStatus"
           @changed="loadProject"
         />
         <!-- 知识 tab（占位：内容随知识沉淀方案填充） -->
@@ -427,6 +439,10 @@ const calShow = ref(false); // 项目日历弹窗
 const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
 const planStatus = ref("全部");
+// 需求筛选（tab 栏右上角，与方案同形态；后端筛选 + 标题高亮）
+const requirementSearch = ref("");
+const REQUIREMENT_STATUS_FILTERS = ["全部", "待处理", "已完成", "已取消"];
+const requirementStatus = ref("全部");
 // 审计筛选：行为 + 时间范围（daterange，tab 栏右上角）
 const auditActions = ref([]);
 const auditAction = ref("");
@@ -542,7 +558,20 @@ async function doConfirm() {
   if (action === "delete-task") {
     res = await api(`api/projects/${props.projectId}/tasks/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-file") {
-    res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE", silent: true });
+    // 支持单个 id 与批量数组（V2.1.4 文件系统重构：多选 Delete 批量删除登记）
+    if (Array.isArray(payload)) {
+      const rs = [];
+      for (const fid of payload) {
+        rs.push(await api(`api/projects/${props.projectId}/files/${fid}`, { method: "DELETE", silent: true }));
+      }
+      const failed = rs.find((r) => !r?.ok);
+      res = failed ? failed : { ok: true };
+    } else {
+      res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE", silent: true });
+    }
+  } else if (action === "delete-folder") {
+    // 删除文件夹：内容提升语义（数据和子文件夹提升到父级），不删任何文件
+    res = await api(`api/projects/${props.projectId}/folders/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-note") {
     res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-project") {

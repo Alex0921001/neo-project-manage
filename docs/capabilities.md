@@ -1,10 +1,20 @@
 # 项目管理 · 功能速查
 
-项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产、方案管理、需求管理、分析总结与会话关联。人工端在「项目管理」页面操作，Agent 端通过 59 个工具读写数据，两侧数据实时互通。
+项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产（多级文件夹）、方案管理、需求管理、分析总结与会话关联。人工端在「项目管理」页面操作，Agent 端通过 63 个工具读写数据，两侧数据实时互通。
 
 ---
 
-## v2.1.3 当前版本
+## v2.1.4 当前版本
+
+### 本次新增
+
+| 能力 | 说明 |
+| --- | --- |
+| 文件系统重构 | `file_folders` 表多层嵌套（parent_id 自引用）+ `files.folder_id`；左侧文件夹树 + 右侧网格视图；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除（内容提升，不级联删）；文件名称搜索 + 文件夹过滤；Ctrl/Shift 多选 + Delete 批量删除；路径失效角标；工具 59→63 |
+| 新工具 ×4 | `create_project_folder` / `update_project_folder`（改名+换父级）/ `delete_project_folder`（内容提升）/ `read_project_file`（txt 直读、docx 提取、pdf FlateDecode 文本提取、图片/未登记报错） |
+| 需求页样式对齐 | 需求 tab 工具栏统一上移至 index.vue（搜索/筛选复用 `.task-search`/`.plan-status-select`）；列表行/空态/分页/弹窗对齐 PlanTab；优先级徽标复制 TaskCard 染色；搜索命中高亮；修复右上角「新建」按钮（defineExpose） |
+
+### Agent 工具（63 个）
 
 ### 本次新增
 
@@ -24,7 +34,7 @@
 | 任务 | `create_task` `create_tasks` `update_task` `delete_task` `delete_tasks` `get_task` `list_tasks` | 树形任务增删改查；list 支持 `nearDeadlineDays` 临近截止筛选 |
 | 批注 | `create_annotation` `create_annotations` `update_annotation` `delete_annotation` `delete_annotations` `list_annotations` `confirm_annotations` | 批注增删改查 + 批量确认（三范围） |
 | 风险 | `get_project_risks` `list_project_risks` | 项目风险（读侧）与跨项目风险汇总 |
-| 文件 | `list_project_files` `get_project_file` `register_project_file` | 项目文件资产清单 / 详情 / 登记 |
+| 文件 | `list_project_files` `get_project_file` `register_project_file` `create_project_folder` `update_project_folder` `delete_project_folder` `read_project_file` | 项目文件资产清单 / 详情 / 登记；多级文件夹管理（建/改/删，删除提升）；文件内容提取（txt/docx/pdf） |
 | 成员 | `list_members` `create_member` `update_member` `delete_member` | 全局成员管理 |
 | 会话 | `link_project_session` `list_project_sessions` `unlink_project_session` | 项目与会话双向关联 |
 | 总结 | `summarize_project` `ask_project` `get_project_summaries` | 项目总结 / 问答 / 历史总结 |
@@ -63,9 +73,9 @@
 
 ---
 
-## v2.1.2 历史能力
+## v2.1.3 历史能力
 
-v2.1.2 建立的能力（v2.1.3 持续沿用）：
+v2.1.3 建立的能力（v2.1.4 持续沿用）：
 
 ### 本次新增
 
@@ -109,6 +119,7 @@ v2.1.1 建立的能力（v2.1.2 持续沿用）：
 | 里程碑步骤条 | 有里程碑的任务自动生成时间轴：项目起止端点 + 旗子节点 + 批注标签（前 10 字），popover 展示全部里程碑 |
 | 审计追踪 | 所有写操作记录（创建/更新/删除，含新旧值）；行为 + 时间范围筛选；变更字段自动翻译成业务语言 |
 | 文件 | 资产化登记：大小、类型、摘要（digest）；路径失效防御（文件被移动/删除不报错）；上传与桌面文件选取 |
+| 多级文件夹 | file_folders 无限层级树；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除内容提升；Agent 工具建/改/删；文件夹与文件名称搜索 |
 | 备注 | 项目级备注，随项目详情查看与编辑 |
 | 日历 | 全项目 / 单项目任务日历弹窗：按任务起止日期聚合，点击任务跳转定位 |
 
