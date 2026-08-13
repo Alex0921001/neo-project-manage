@@ -91,7 +91,7 @@ const rules = ref(null); // { delayed: {...}, ... }（存储结构）
 const RULE_META = {
   delayed: {
     name: "任务延期",
-    desc: "endDate 早于今天 N 天以上且未完成",
+    desc: "截止日期早于今天 N 天以上且未完成",
     nums: [{ field: "days", label: "阈值(天)", min: 0, max: 365 }],
     levels: [{ field: "level", label: "等级" }],
   },
