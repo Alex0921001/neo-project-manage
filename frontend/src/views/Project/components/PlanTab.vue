@@ -17,7 +17,7 @@
         v-for="pl in plans"
         :key="pl.id"
         class="plan-row"
-        :class="{ 'plan-row-selected': selected.has(pl.id) }"
+        :class="{ 'plan-row-selected': selectedMap.has(pl.id) }"
         @click="openDetail(pl)"
       >
         <span
@@ -153,7 +153,7 @@ function openCompare() {
 }
 
 // 勾选数上报父级（右上角「对比选中」按钮联动 disabled / 计数）
-watch(selected, () => emit("compare-count", selectedCount.value));
+watch(selectedMap, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
 }
