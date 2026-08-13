@@ -33,11 +33,12 @@
       </div>
 
       <!-- 便利贴列表：点击内容即编辑（Windows 便利贴式），删除按钮常驻 -->
-      <div class="sticky-board">
+      <div class="sticky-board" ref="stickyBoardRef">
         <template v-if="filteredAnnotations.length">
           <div
             v-for="a in filteredAnnotations"
             :key="a.id"
+            :data-ann-id="a.id"
             :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': effectiveConfirmed(a), 'sticky-editing': editingAnnId === a.id }]"
           >
             <!-- 头：最左=确认/激活按钮，右=删除（常驻） -->
@@ -200,6 +201,7 @@ const props = defineProps({
   task: Object,           // 任意层级的任务对象（顶层/子/孙都走这一条）
   tasks: Array,            // 项目下所有任务（用于取最新数据）
   embedded: Boolean,       // 嵌入大弹窗模式：隐藏头部按钮、高度自适应撑满
+  highlightAnnId: { type: String, default: "" }, // 定位高亮目标批注（滚动 + 闪烁）
 });
 const emit = defineEmits(["changed", "close"]);
 
@@ -221,7 +223,24 @@ const KIND_VALUES = KINDS.map(k => k.value);
 
 // 新建时选择的类型（切换任务后重置为 note）
 const inputKind = ref("note");
-// 面板筛选：all=全部
+// ===== 定位高亮：外部传入 highlightAnnId → 重置筛选 + 滚动到该批注 + 闪烁 =====
+const stickyBoardRef = ref(null);
+watch(
+  () => props.highlightAnnId,
+  async (id) => {
+    if (!id) return;
+    kindFilter.value = "all"; // 确保目标批注不被类型筛选过滤掉
+    await nextTick();
+    await nextTick(); // 筛选重置后再等一次渲染
+    const el = stickyBoardRef.value?.querySelector(`[data-ann-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("sticky-flash");
+    setTimeout(() => el.classList.remove("sticky-flash"), 1600);
+  }
+);
+
+// ===== 类型筛选 chips：全部/备注/决策/风险/节点 =====
 const kindFilter = ref("all");
 const kindFilterOptions = [{ value: "all", label: "全部" }, ...KINDS];
 
@@ -541,6 +560,15 @@ async function toggleConfirm(ann) {
 .sticky-kind-milestone { background: oklch(0.95 0.09 75); }
 .sticky-done {
   background: var(--sticky-bg-confirmed);
+}
+/* 定位高亮：外部跳转（概览/里程碑）定位批注时闪烁（琥珀脉冲 3 次） */
+.sticky-flash {
+  animation: sticky-flash-pulse 0.5s ease-in-out 3;
+  box-shadow: 0 0 0 3px var(--accent-warm-hover);
+}
+@keyframes sticky-flash-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.22); }
 }
 /* 头：左=确认/激活按钮，右=编辑/删除工具栏 */
 .sticky-head {

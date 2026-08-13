@@ -20,7 +20,7 @@
     </div>
 
     <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->
-    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" @jump-task="(taskId) => onTabCalendarSelectTask({ taskId })" />
+    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" @jump-task="(taskId) => onTabCalendarSelectTask({ taskId })" @jump-annotation="onJumpAnnotation" />
 
     <!-- Tab 区 -->
     <section class="tab-section">
@@ -298,6 +298,13 @@ function onTabCalendarSelectTask(payload) {
   if (!taskId) return;
   tab.value = "tasks";
   nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
+}
+
+// 概览/里程碑点击批注：切任务 tab → 展开祖先链 → 打开批注面板 → 高亮闪烁
+function onJumpAnnotation({ taskId, annotationId }) {
+  if (!taskId || !annotationId) return;
+  tab.value = "tasks";
+  nextTick(() => taskTabRef.value?.scrollToAnnotation?.(taskId, annotationId));
 }
 
 // ===== Archive / Unarchive（与首页右键归档同一数据调用：update_project 的 archived 参数） =====

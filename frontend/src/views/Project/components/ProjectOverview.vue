@@ -124,15 +124,12 @@
                       <span class="ov-kpi-label">待确认</span>
                     </div>
                   </template>
-                  <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 个任务）</div>
+                  <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 条）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popAnnot)">
+                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, popAnnot)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
-                      <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      </button>
+                      <span class="ov-pop-ann">{{ t.content || t.name }}</span>
+                      <span class="ov-pop-id">@{{ t.name }}</span>
                     </li>
                   </ul>
                 </el-popover>
@@ -204,13 +201,13 @@
                 </template>
                 <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
                 <ul class="ov-pop-list">
-                  <li v-for="(t, ti) in r.tasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, riskPopRefs[i])">
+                  <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
-                    <span class="ov-pop-id">#{{ t.id }}</span>
-                    <span class="ov-pop-name">{{ t.name }}</span>
-                    <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    </button>
+                    <span v-if="t.annotationId" class="ov-pop-ann">{{ t.content || t.name }}</span>
+                    <template v-else>
+                      <span class="ov-pop-id">#{{ t.id }}</span>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                    </template>
                   </li>
                 </ul>
               </el-popover>
@@ -291,7 +288,7 @@ import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
-const emit = defineEmits(["jump-task"]);
+const emit = defineEmits(["jump-task", "jump-annotation"]);
 
 // KPI / 风险 popover 任务跳转：关闭浮层后通知父级定位 + 高亮
 const popPending = ref(null);
@@ -302,6 +299,12 @@ const riskPopRefs = ref([]);
 function jumpFromPop(taskId, popRef) {
   popRef?.hide();
   emit("jump-task", taskId);
+}
+// 批注跳转：关闭浮层后通知父级定位批注（任务定位 + 批注高亮闪烁）
+function jumpAnnFromPop(item, popRef) {
+  popRef?.hide();
+  if (item?.annotationId) emit("jump-annotation", { taskId: item.id, annotationId: item.annotationId });
+  else if (item?.id) emit("jump-task", item.id);
 }
 
 // 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
@@ -412,14 +415,11 @@ const isEmpty = computed(() => {
 // KPI：任务总数（分母用 stats.total 全量，pending/completed 是截断展示版）
 const totalCount = computed(() => s.value?.stats?.total ?? 0);
 
-// 待确认批注关联的任务（去重，供 KPI popover 显示）
+// 待确认批注：逐条列出（含批注 id/内容/类型），点击定位到具体批注并高亮
 const pendingAnnotationTasks = computed(() => {
-  const seen = new Set();
   const out = [];
   for (const a of s.value?.pendingAnnotations || []) {
-    if (!a.taskId || seen.has(a.taskId)) continue;
-    seen.add(a.taskId);
-    out.push({ id: a.taskId, name: a.name || a.task });
+    out.push({ id: a.taskId, name: a.name, annotationId: a.annotationId, content: a.content, kind: a.kind });
   }
   return out;
 });
@@ -1045,6 +1045,19 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   letter-spacing: 0.01em;
 }
 .ov-pop-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+  word-break: break-word;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+/* 批注条目（待确认/风险批注）：内容 + 任务名标注 */
+.ov-pop-ann {
   flex: 1;
   min-width: 0;
   font-size: 12.5px;

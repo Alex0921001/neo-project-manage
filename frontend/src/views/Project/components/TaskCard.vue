@@ -124,6 +124,7 @@
             :search-query="searchQuery"
             :project-id="projectId"
             :expand-all="expandAll"
+            :force-expand-ids="forceExpandIds"
             :depth="depth + 1"
             @mark-task-done="$emit('mark-task-done', $event)"
             @edit="$emit('edit-subtask', task, s)"
@@ -149,6 +150,7 @@
           :search-query="searchQuery"
           :project-id="projectId"
           :expand-all="expandAll"
+          :force-expand-ids="forceExpandIds"
           :depth="depth + 1"
           @mark-task-done="$emit('mark-task-done', $event)"
           @edit="$emit('edit-subtask', task, s)"
@@ -185,6 +187,7 @@ const props = defineProps({
   searchQuery: { type: String, default: "" },
   projectId: { type: String, default: "" },
   expandAll: { type: Boolean, default: null },
+  forceExpandIds: { type: Array, default: () => [] }, // 定位跳转：命中任务 id 强制展开（祖先链）
   depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
 });
 const emit = defineEmits([
@@ -212,6 +215,15 @@ const flashing = ref(false);
 watch(() => props.expandAll, (val) => {
   if (val !== null && val !== undefined) expanded.value = val;
 });
+
+// 定位跳转（概览/里程碑→批注）：目标任务或祖先在 forceExpandIds 中 → 强制展开
+watch(
+  () => props.forceExpandIds,
+  (ids) => {
+    if (ids?.includes(props.task.id)) expanded.value = true;
+  },
+  { immediate: true }
+);
 
 // 搜索状态下强制展开（已完成任务默认折叠，搜索时看不到命中位置）
 // 清空搜索后恢复默认：未完成展开、已完成折叠

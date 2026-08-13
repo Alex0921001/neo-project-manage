@@ -476,12 +476,12 @@ test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已
   assert.equal(hit1.confirmed, false, "应透传未确认态");
   assert.ok(hit1.desc.startsWith("风险批注："), "desc 应带风险批注前缀");
   assert.ok(hit1.desc.includes("风险任务"), "desc 应含挂载任务名");
-  assert.deepEqual(hit1.tasks, [{ id: t.id, name: t.name }], "tasks 应含挂载任务");
+  const anns1 = data.getTaskAnnotations(t.id);
+  assert.equal(anns1.length, 1, "应只有一条批注");
+  assert.deepEqual(hit1.tasks, [{ id: t.id, name: t.name, annotationId: anns1[0].id }], "tasks 应含挂载任务 + 批注 id（供定位高亮）");
 
   // 确认后 → high
-  const anns = data.getTaskAnnotations(t.id);
-  assert.equal(anns.length, 1, "应只有一条批注");
-  data.updateAnnotation(t.id, anns[0].id, { confirmed: true });
+  data.updateAnnotation(t.id, anns1[0].id, { confirmed: true });
   const s2 = data.summarizeProject(p.id);
   const hit2 = s2.risks.find((r) => r.kind === "risk");
   assert.equal(hit2.level, "high", "已确认应为 high");
