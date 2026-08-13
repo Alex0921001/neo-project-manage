@@ -45,7 +45,7 @@
       :mode="modal.mode"
       @mode-change="modal.mode = $event"
       @close="modal.show = false"
-      @changed="load"
+      @changed="onChanged"
       @jump-task="jumpTask"
     />
     <PlanCompareModal v-model:show="compareShow" :plans="comparePlans" />
@@ -119,6 +119,11 @@ function openCompare() {
 watch(selected, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
+}
+// 方案数据变更（增删改 / 转任务）：刷新方案列表 + 冒泡父级刷新项目数据（任务树等，转出的任务立即可见）
+function onChanged() {
+  load();
+  emit("changed");
 }
 
 defineExpose({ openCreate, load, openCompare });

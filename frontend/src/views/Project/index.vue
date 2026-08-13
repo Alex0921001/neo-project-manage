@@ -254,8 +254,9 @@ function onTabAction() {
   else if (tab.value === 'plans') planTabRef.value?.openCreate();
 }
 
-// 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
-function onTabCalendarSelectTask({ taskId }) {
+// 日历 tab / 方案转任务点击任务：切回任务 tab 并滚动定位（兼容字符串 taskId 与 { taskId } 两种 payload）
+function onTabCalendarSelectTask(payload) {
+  const taskId = typeof payload === "string" ? payload : payload?.taskId;
   if (!taskId) return;
   tab.value = "tasks";
   nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));

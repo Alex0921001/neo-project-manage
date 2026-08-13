@@ -169,13 +169,26 @@ function ask(msg, confirmText, action, payload) {
 }
 
 // ===== 加载 =====
+// 打开时初始化编辑字段：新建（无 planId）清空标题与内容，避免残留上次编辑值；编辑预填当前值
+function initEdit() {
+  if (!props.planId) {
+    editTitle.value = "";
+    editContent.value = "";
+  } else if (plan.value) {
+    editTitle.value = plan.value.title;
+    editContent.value = plan.value.content || "";
+  }
+}
+
 async function loadDetail() {
-  if (!props.show || props.mode !== "read" || !props.planId) return;
+  if (!props.show || !props.planId) return;
   const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`);
   if (res?.ok) {
     plan.value = res.data;
     comments.value = res.data.comments || [];
     statusVal.value = res.data.status || "草稿";
+    // 编辑模式直接打开（不经 read）时，加载完成后再预填
+    if (props.mode === "edit") initEdit();
   } else {
     toast(res?.error || "加载方案失败", "error");
   }
@@ -184,8 +197,7 @@ async function loadDetail() {
 // 进入编辑：预填当前值
 function enterEdit() {
   if (!plan.value) return;
-  editTitle.value = plan.value.title;
-  editContent.value = plan.value.content || "";
+  initEdit();
   emit("mode-change", "edit");
 }
 
@@ -300,12 +312,18 @@ async function doConfirm() {
   }
 }
 
-// 打开时加载详情；planId 变化刷新
+// 打开时：初始化编辑字段 + 加载详情；planId 变化刷新
 watch(() => props.show, (v) => {
-  if (v) loadDetail();
+  if (v) {
+    initEdit();
+    loadDetail();
+  }
 });
 watch(() => props.planId, () => {
-  if (props.show) loadDetail();
+  if (props.show) {
+    initEdit();
+    loadDetail();
+  }
 });
 </script>
 
