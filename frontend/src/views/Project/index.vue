@@ -56,6 +56,11 @@
             <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
+          <div v-if="tab === 'plans'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="planSearch" class="task-search-input" placeholder="搜索方案标题" @click.stop />
+            <button v-if="planSearch" class="task-search-clear" title="清空" @click="planSearch = ''">×</button>
+          </div>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -127,6 +132,7 @@
           v-if="tab === 'plans'"
           ref="planTabRef"
           :project-id="p?.id || ''"
+          :search-query="planSearch"
           @changed="loadProject"
           @jump-task="onTabCalendarSelectTask"
           @compare-count="compareCount = $event"
@@ -210,6 +216,7 @@ function toggleExpandAll() {
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
+const planSearch = ref("");
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];

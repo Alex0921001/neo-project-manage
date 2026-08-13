@@ -1,7 +1,7 @@
 /**
  * 方案管理：/api/projects/:projectId/plans/*
  *
- * GET    /api/projects/:projectId/plans                      方案列表（含评论数/转任务标记）
+ * GET    /api/projects/:projectId/plans                      方案列表（分页 limit/offset + 标题 keyword 搜索，含评论数/转任务标记）
  * POST   /api/projects/:projectId/plans                      新建方案
  * GET    /api/projects/:projectId/plans/:planId              方案详情（含评论）
  * PUT    /api/projects/:projectId/plans/:planId              编辑方案（标题/内容/状态）
@@ -13,7 +13,11 @@
 export function registerPlansRoutes(app, data) {
   app.get("/api/projects/:projectId/plans", (c) => {
     try {
-      return c.json({ ok: true, data: data.listPlans(c.req.param("projectId")) });
+      const q = c.req.query();
+      const limit = q.limit ? Math.min(Math.max(parseInt(q.limit) || 10, 1), 100) : undefined;
+      const offset = q.offset ? Math.max(parseInt(q.offset) || 0, 0) : 0;
+      const keyword = q.keyword ? String(q.keyword).trim() : undefined;
+      return c.json({ ok: true, data: data.listPlans(c.req.param("projectId"), { limit, offset, keyword }) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }

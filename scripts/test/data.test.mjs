@@ -740,10 +740,18 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   expectThrow(() => data.createPlan(proj.id, "  "), /不能为空/);
   expectThrow(() => data.createPlan(proj.id, "超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题"), /100/);
 
-  // 列表（含评论数）
+  // 列表（含评论数 / 分页 / 标题搜索）
   const list = data.listPlans(proj.id);
-  assert.equal(list.length, 1);
-  assert.equal(list[0].commentCount, 0);
+  assert.equal(list.total, 1);
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0].commentCount, 0);
+  // 搜索命中 / 未命中
+  assert.equal(data.listPlans(proj.id, { keyword: "技术选型" }).total, 1);
+  assert.equal(data.listPlans(proj.id, { keyword: "不存在的标题" }).total, 0);
+  // 分页：offset 越界返回空 items
+  const paged = data.listPlans(proj.id, { limit: 10, offset: 10 });
+  assert.equal(paged.total, 1);
+  assert.equal(paged.items.length, 0);
 
   // 更新标题 + 状态（4 态：草稿/进行中/已采纳/已废弃）
   const updated = data.updatePlan(proj.id, p1.id, { status: "进行中", title: "A 方案：技术选型 v2" });

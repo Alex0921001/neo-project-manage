@@ -22,19 +22,28 @@
       >
         <span
           class="plan-row-check"
-          :class="{ checked: selected.has(pl.id), disabled: selectedCount >= 2 && !selected.has(pl.id) }"
-          :title="selectedCount >= 2 && !selected.has(pl.id) ? '对比最多选 2 个' : '勾选用于对比'"
-          @click.stop="toggleSelect(pl.id)"
+          :class="{ checked: selectedMap.has(pl.id), disabled: selectedCount >= 2 && !selectedMap.has(pl.id) }"
+          :title="selectedCount >= 2 && !selectedMap.has(pl.id) ? '对比最多选 2 个' : '勾选用于对比'"
+          @click.stop="toggleSelect(pl)"
         >
-          <svg v-if="selected.has(pl.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg v-if="selectedMap.has(pl.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </span>
-        <span class="plan-row-title" :title="pl.title">{{ pl.title }}</span>
-        <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
-        <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
+        <span class="plan-row-title" :title="pl.title" v-html="highlight(pl.title, searchQuery)"></span>
         <span v-if="pl.taskName" class="plan-row-task" @click.stop="jumpTask(pl.taskId)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           已转任务
         </span>
+        <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
+        <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
+      </div>
+      <!-- 分页（每页 10 条） -->
+      <div v-if="total > 0" class="plan-pager">
+        <span class="plan-pager-count">共 {{ total }} 条</span>
+        <div class="plan-pager-btns">
+          <button class="plan-pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
+          <span class="plan-pager-info">{{ page }} / {{ totalPages }}</span>
+          <button class="plan-pager-btn" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页 ›</button>
+        </div>
       </div>
     </div>
 
@@ -57,33 +66,53 @@ import { ref, computed, watch } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
+import { highlight } from "../../../utils/highlight.js";
 import PlanModal from "./PlanModal.vue";
 import PlanCompareModal from "./PlanCompareModal.vue";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
+  searchQuery: { type: String, default: "" }, // 标题筛选关键字（index.vue 搜索框，后端筛选 + 高亮）
 });
 const emit = defineEmits(["changed", "jump-task"]);
 
+const PAGE_SIZE = 10;
 const plans = ref([]);
+const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
-const selected = ref(new Set());
+// 跨页勾选：id → 方案对象（分页翻页不清空，对比弹窗用完整数据）
+const selectedMap = ref(new Map());
 const modal = ref({ show: false, planId: null, mode: "read" });
 const compareShow = ref(false);
 
-const selectedCount = computed(() => selected.value.size);
-const comparePlans = computed(() => plans.value.filter((p) => selected.value.has(p.id)).slice(0, 2));
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+const selectedCount = computed(() => selectedMap.value.size);
+// 对比数据：从跨页 Map 取完整方案（不依赖当前页）
+const comparePlans = computed(() => [...selectedMap.value.values()].slice(0, 2));
 
-async function load() {
+async function load(p = page.value, keyword = props.searchQuery) {
   if (!props.projectId) return;
   loading.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/plans`);
+    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
+    if (keyword.trim()) params.set("keyword", keyword.trim());
+    const res = await api(`api/projects/${props.projectId}/plans?${params}`);
     if (res?.ok) {
-      plans.value = res.data;
-      // 清理已不存在的勾选
-      const ids = new Set(res.data.map((p) => p.id));
-      selected.value = new Set([...selected.value].filter((id) => ids.has(id)));
+      plans.value = res.data.items || [];
+      total.value = res.data.total || 0;
+      page.value = p;
+      // 同步当前页勾选方案的实时数据（跨页项保留不动）
+      const m = new Map(selectedMap.value);
+      for (const pl of plans.value) {
+        if (m.has(pl.id)) m.set(pl.id, { ...m.get(pl.id), ...pl });
+      }
+      selectedMap.value = m;
+      // 页码越界回退（如删除后总页数减少）
+      if (page.value > totalPages.value) {
+        page.value = totalPages.value;
+        load(page.value, keyword);
+      }
     } else {
       toast(res?.error || "加载方案失败", "error");
     }
@@ -92,16 +121,24 @@ async function load() {
   }
 }
 
-function toggleSelect(id) {
-  const next = new Set(selected.value);
-  if (next.has(id)) {
-    next.delete(id);
+function goPage(p) {
+  if (p < 1 || p > totalPages.value || p === page.value) return;
+  load(p);
+}
+
+// 搜索关键字变化：回到第 1 页重新查询（后端筛选）
+watch(() => props.searchQuery, () => load(1));
+
+function toggleSelect(pl) {
+  const m = new Map(selectedMap.value);
+  if (m.has(pl.id)) {
+    m.delete(pl.id);
   } else {
     // 已选满 2 个：其余 checkbox 置灰，点击静默忽略
-    if (next.size >= 2) return;
-    next.add(id);
+    if (m.size >= 2) return;
+    m.set(pl.id, pl);
   }
-  selected.value = next;
+  selectedMap.value = m;
 }
 
 function openDetail(pl) {
@@ -236,6 +273,52 @@ watch(() => props.projectId, () => load(), { immediate: true });
 .plan-list {
   display: flex;
   flex-direction: column;
+}
+/* 分页控件（方案列表底部，每页 10 条） */
+.plan-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px 0;
+}
+.plan-pager-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.plan-pager-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.plan-pager-btn {
+  padding: 4px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-pager-btn:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.plan-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.plan-pager-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
 }
 .plan-row {
   display: flex;
