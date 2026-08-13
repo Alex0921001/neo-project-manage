@@ -24,27 +24,28 @@
 
     <!-- Tab 区 -->
     <section class="tab-section">
-      <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: tab === 'tasks' }" @click="tab = 'tasks'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-          任务
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          文件
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'notes' }" @click="tab = 'notes'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          备注
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'plans' }" @click="tab = 'plans'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
-          方案
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'audit' }" @click="tab = 'audit'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          审计
-        </button>
+      <div class="tab-bar" @click="closeTabMenu">
+        <draggable
+          v-model="tabDragList"
+          item-key="key"
+          ghost-class="tab-ghost"
+          handle=".tab-btn"
+          :animation="150"
+          class="tab-bar-tabs"
+          @end="onTabDragEnd"
+        >
+          <template #item="{ element: key }">
+            <button
+              class="tab-btn"
+              :class="{ active: tab === key }"
+              @click="tab = key"
+              @contextmenu.prevent="onTabContextMenu($event)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
+              {{ defLabel(key) }}
+            </button>
+          </template>
+        </draggable>
         <div class="tab-bar-spacer"></div>
         <div class="tab-bar-right">
           <div v-if="tab === 'tasks'" class="task-search">
@@ -112,6 +113,22 @@
             前往日历 >
           </button>
         </div>
+        <!-- 右键菜单（teleport 到 body，点击空白关闭） -->
+        <teleport to="body">
+          <div v-if="tabMenuShow" class="tab-cxt-menu" :style="{ left: tabMenuPos.x + 'px', top: tabMenuPos.y + 'px' }" @click.stop>
+            <div class="tab-cxt-item" @click="tabMenuAction('settings')">Tab 设置…</div>
+            <div class="tab-cxt-item" @click="tabMenuAction('reset')">重置默认顺序</div>
+          </div>
+        </teleport>
+        <!-- Tab 设置弹窗 -->
+        <TabConfigModal
+          v-if="tabConfigShow"
+          :defs="TAB_DEFS"
+          :draft="tabCfgDraft"
+          @cancel="tabConfigShow = false"
+          @apply="tabCfgApply"
+          @reset="tabCfgReset"
+        />
       </div>
       <div class="tab-content">
         <TaskTab
@@ -165,6 +182,18 @@
           @jump-task="onTabCalendarSelectTask"
           @compare-count="compareCount = $event"
         />
+        <!-- 需求 tab（V2.1.3 需求管理） -->
+        <RequirementTab
+          v-if="tab === 'requirements'"
+          ref="requirementTabRef"
+          :project-id="p?.id || ''"
+          @changed="loadProject"
+        />
+        <!-- 知识 tab（占位：内容随知识沉淀方案填充） -->
+        <div v-if="tab === 'knowledge'" class="tab-placeholder">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <p>知识沉淀规划中，内容随知识沉淀方案（V2.2 候选）设计后填充</p>
+        </div>
       </div>
     </section>
 
@@ -216,10 +245,13 @@ import FileTab from "./components/FileTab.vue";
 import NoteTab from "./components/NoteTab.vue";
 import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
+import RequirementTab from "./components/RequirementTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
 import AnnotationManagerModal from "./components/AnnotationManagerModal.vue";
 import CalendarModal from "../../components/CalendarModal.vue";
+import draggable from "vuedraggable";
+import TabConfigModal from "./components/TabConfigModal.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -245,13 +277,126 @@ const fullBreadcrumb = computed(() => {
   return currentSetLabel.value ? `${currentSetLabel.value} - ${name}` : name;
 });
 
-// ===== Tab =====
+// ===== Tab（V2.1.3 配置化：顺序 + 显隐，全局/本项目两级配置） =====
 const tabKey = `neo-pm-tab-${props.projectId}`;
 const tab = ref(localStorage.getItem(tabKey) || "tasks");
 watch(tab, (v) => {
   try { localStorage.setItem(tabKey, v); } catch {}
   // 各 tab 均为 v-if 按需渲染：切回时组件重建，内部 watch(projectId, immediate) 自动拉取最新数据
 });
+
+// tab 定义：默认顺序即用户指定顺序 任务》需求》方案》文件》知识》备注》审计
+const TAB_DEFS = [
+  {
+    key: "tasks", label: "任务", svg: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/>',
+  },
+  {
+    key: "requirements", label: "需求", svg: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
+  },
+  {
+    key: "plans", label: "方案", svg: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>',
+  },
+  {
+    key: "files", label: "文件", svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  },
+  {
+    key: "knowledge", label: "知识", svg: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  },
+  {
+    key: "notes", label: "备注", svg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  },
+  {
+    key: "audit", label: "审计", svg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  },
+];
+const DEFAULT_TAB_ORDER = TAB_DEFS.map((t) => t.key);
+function defLabel(key) {
+  return TAB_DEFS.find((d) => d.key === key)?.label || key;
+}
+function defSvg(key) {
+  return TAB_DEFS.find((d) => d.key === key)?.svg || "";
+}
+const GLOBAL_TAB_KEY = "neo-pm-tab-config";
+const PROJECT_TAB_KEY = `neo-pm-tab-config-${props.projectId}`;
+
+// 读取配置：项目级 > 全局 > 默认
+function readTabConfig() {
+  for (const key of [PROJECT_TAB_KEY, GLOBAL_TAB_KEY]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const cfg = JSON.parse(raw);
+        if (Array.isArray(cfg.order)) return { ...cfg, scope: key === PROJECT_TAB_KEY ? "project" : "global" };
+      }
+    } catch { /* ignore */ }
+  }
+  return { order: [...DEFAULT_TAB_ORDER], hidden: [], scope: "default" };
+}
+const tabConfig = ref(readTabConfig());
+// 可见 tab（按配置顺序渲染）
+const tabList = computed(() =>
+  tabConfig.value.order.filter((k) => !(tabConfig.value.hidden || []).includes(k))
+);
+// 拖拽用可变数组（v-model 绑定），配置变化时同步
+const tabDragList = ref([]);
+watch(tabConfig, () => { tabDragList.value = tabList.value; }, { immediate: true });
+// 激活 tab 被配置隐藏时自动切到第一个可见（含初始化场景）
+watch(tabList, (list) => {
+  if (!list.includes(tab.value) && list.length) tab.value = list[0];
+}, { immediate: true });
+function persistTabConfig(order, hidden, scope) {
+  const cfg = { order: [...order], hidden: [...(hidden || [])] };
+  try { localStorage.setItem(scope === "project" ? PROJECT_TAB_KEY : GLOBAL_TAB_KEY, JSON.stringify(cfg)); } catch {}
+  tabConfig.value = { ...cfg, scope };
+  // 当前激活 tab 被隐藏时自动切到第一个可见
+  if (!tabList.value.includes(tab.value) && tabList.value.length) tab.value = tabList.value[0];
+}
+
+// ===== Tab 设置弹窗 =====
+const tabConfigShow = ref(false);
+const tabCfgDraft = ref(null); // { order, hidden }
+function openTabConfig() {
+  const cur = readTabConfig();
+  tabCfgDraft.value = { order: [...cur.order], hidden: [...(cur.hidden || [])] };
+  tabConfigShow.value = true;
+}
+function tabCfgApply(scope, draft) {
+  if (!draft) return;
+  // 至少保留 1 个可见
+  const visible = draft.order.filter((k) => !draft.hidden.includes(k));
+  if (!visible.length) return toast("至少保留 1 个可见 tab", "error");
+  persistTabConfig(draft.order, draft.hidden, scope);
+  tabConfigShow.value = false;
+  toast(scope === "project" ? "已应用到本项目" : "已应用到全部项目");
+}
+function tabCfgReset() {
+  if (!tabCfgDraft.value) return;
+  tabCfgDraft.value = { order: [...DEFAULT_TAB_ORDER], hidden: [] };
+}
+
+// ===== Tab 右键菜单 =====
+const tabMenuShow = ref(false);
+const tabMenuPos = ref({ x: 0, y: 0 });
+function onTabContextMenu(e) {
+  e.preventDefault();
+  tabMenuPos.value = { x: e.clientX, y: e.clientY };
+  tabMenuShow.value = true;
+}
+// 右键菜单项
+function tabMenuAction(action) {
+  tabMenuShow.value = false;
+  if (action === "settings") openTabConfig();
+  else if (action === "reset") persistTabConfig([...DEFAULT_TAB_ORDER], [], readTabConfig().scope === "project" ? "project" : "global");
+}
+// 点击空白处关闭菜单
+function closeTabMenu() { tabMenuShow.value = false; }
+
+// tab 条拖拽调序：直接应用并保存到全局配置（拖拽是快捷调序，弹窗负责显隐/精细调整）
+function onTabDragEnd() {
+  const order = [...tabDragList.value]; // tabDragList 已被 draggable 重排（v-model）
+  const cur = readTabConfig();
+  persistTabConfig(order, cur.hidden, "global");
+}
 
 // ===== 一键展开/收起 =====
 // null = 未操作（子任务按默认：未完成展开、已完成折叠）；true/false = 显式展开/收起
@@ -328,6 +473,7 @@ function onTabAction() {
   else if (tab.value === 'files') fileTabRef.value?.pickFile();
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
   else if (tab.value === 'plans') planTabRef.value?.openCreate();
+  else if (tab.value === 'requirements') requirementTabRef.value?.openCreate();
 }
 
 // 日历 tab / 方案转任务点击任务：切回任务 tab 并滚动定位（兼容字符串 taskId 与 { taskId } 两种 payload）
@@ -510,6 +656,16 @@ async function doConfirm() {
   flex-shrink: 0;
 }
 /* tab 风格对齐项目集 tabs：激活黑字加粗 + 淡灰背景 */
+.tab-bar-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.tab-ghost {
+  opacity: 0.4;
+  background: var(--bg-hover);
+  border-radius: var(--radius-sm);
+}
 .tab-btn {
   display: inline-flex;
   align-items: center;
@@ -553,6 +709,42 @@ async function doConfirm() {
 .tab-btn.active .tab-pill {
   background: var(--border);
   color: var(--text);
+}
+/* tab 右键菜单 + 占位 */
+.tab-cxt-menu {
+  position: fixed;
+  z-index: 4000;
+  min-width: 150px;
+  padding: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+}
+.tab-cxt-item {
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.tab-cxt-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.tab-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.tab-placeholder svg {
+  opacity: 0.5;
 }
 .tab-bar-spacer { flex: 1; }
 .tab-bar-right {
