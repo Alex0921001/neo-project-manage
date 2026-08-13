@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <div v-if="!target" class="annot-empty">
+    <div v-if="!target && !allMode" class="annot-empty">
       <span class="annot-empty-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </span>
@@ -44,6 +44,7 @@
             <!-- 头：最左=确认/激活按钮，右=删除（常驻） -->
             <div class="sticky-head">
               <div class="sticky-head-left">
+                <!-- 全部模式 / 已完成任务：确认按钮隐藏（已完成任务冻结，后端兜底） -->
                 <button
                   v-if="!targetDone"
                   class="sticky-icon-btn"
@@ -54,6 +55,7 @@
                   <el-icon v-if="!effectiveConfirmed(a)"><CircleCheck /></el-icon>
                   <el-icon v-else><RefreshLeft /></el-icon>
                 </button>
+                <span v-if="allMode" class="sticky-task-name" :title="a.taskName">@{{ a.taskName }}</span>
               </div>
               <div class="sticky-actions">
                 <button class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
@@ -122,8 +124,8 @@
         </div>
       </div>
 
-      <!-- 输入区：仅未完成态显示 -->
-      <div v-if="!targetDone" class="annot-compose">
+      <!-- 输入区：仅未完成态显示；全部模式隐藏新增入口 -->
+      <div v-if="!allMode && !targetDone" class="annot-compose">
         <div class="annot-compose-box">
           <textarea
             ref="inputRef"
@@ -202,6 +204,7 @@ const props = defineProps({
   tasks: Array,            // 项目下所有任务（用于取最新数据）
   embedded: Boolean,       // 嵌入大弹窗模式：隐藏头部按钮、高度自适应撑满
   highlightAnnId: { type: String, default: "" }, // 定位高亮目标批注（滚动 + 闪烁）
+  allMode: { type: Boolean, default: false }, // 全部任务模式：展示项目全部批注（隐藏新增入口）
 });
 const emit = defineEmits(["changed", "close"]);
 
@@ -296,7 +299,7 @@ async function saveInline(ann) {
   if (!content) return; // 空内容不保存，回退显示原文
   editingSaving.value = true;
   try {
-    const res = await api(buildUrl(ann.id), {
+    const res = await api(buildUrl(ann), {
       method: "PUT",
       body: JSON.stringify({ content, kind: kindOf(ann) }),
       silent: true,
@@ -318,7 +321,7 @@ function cancelInline() {
 // 类型下拉直接改（选择即保存）
 async function changeKind(ann, v) {
   if (kindOf(ann) === v) return;
-  const res = await api(buildUrl(ann.id), {
+  const res = await api(buildUrl(ann), {
     method: "PUT",
     body: JSON.stringify({ kind: v }),
     silent: true,
@@ -337,12 +340,27 @@ const targetDepth = computed(() => {
 });
 
 // 模板 v-if="target" / v-if="!target" 依赖此变量（fe94971 重构时曾误删，导致面板永远显示空状态）
-const target = computed(() => props.task || null);
+// 全部模式（allMode）下 target 为空：不走空态分支，直接展示全项目批注列表
+const target = computed(() => (props.allMode ? null : props.task || null));
 
-const targetLabel = computed(() => props.task?.name || "");
-const targetDone = computed(() => !!props.task?.done);
+const targetLabel = computed(() => (props.allMode ? "全部任务" : props.task?.name || ""));
+const targetDone = computed(() => (props.allMode ? false : !!props.task?.done));
+
+// 全部模式：递归收集项目所有任务（任意层级）的批注，带任务名/任务 id
+const allAnnotations = computed(() => {
+  const out = [];
+  const walk = (list) => {
+    for (const t of list || []) {
+      for (const a of t.annotations || []) out.push({ ...a, taskId: t.id, taskName: t.name });
+      walk(t.subtasks);
+    }
+  };
+  walk(props.tasks);
+  return out;
+});
 
 const annotations = computed(() => {
+  if (props.allMode) return allAnnotations.value;
   if (!props.task) return [];
   // 树形结构里：递归找到任意层级的 task（含子孙）拿它的 annotations
   function findAnns(tasks, id) {
@@ -392,8 +410,10 @@ function formatDate(iso) {
   return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildUrl(annId) {
-  return `api/projects/${props.projectId}/tasks/${props.task.id}/annotations/${annId}`;
+// 操作 URL：全部模式用批注自带 taskId（跨任务），单任务模式用当前任务
+function buildUrl(ann) {
+  const taskId = props.allMode ? ann.taskId : props.task.id;
+  return `api/projects/${props.projectId}/tasks/${taskId}/annotations/${ann.id}`;
 }
 
 // ===== S9：里程碑快捷按钮 =====
@@ -417,7 +437,7 @@ async function add() {
 }
 
 async function remove(ann) {
-  const res = await api(buildUrl(ann.id), { method: "DELETE", silent: true });
+  const res = await api(buildUrl(ann), { method: "DELETE", silent: true });
   if (res?.ok) emit("changed");
   else toast(res.error || "删除失败", "error");
 }
@@ -438,7 +458,7 @@ async function doRemove() {
 async function toggleConfirm(ann) {
   if (targetDone.value) return; // V2.1 规则：任务已完成便利贴冻结，不可切换确认状态
   const target = !effectiveConfirmed(ann);
-  const res = await api(buildUrl(ann.id), {
+  const res = await api(buildUrl(ann), {
     method: "PUT",
     body: JSON.stringify({ confirmed: target }),
     silent: true,
@@ -553,6 +573,18 @@ async function toggleConfirm(ann) {
   border-radius: var(--radius-sm);
   word-break: break-word;
   transition: background var(--duration-fast) var(--ease-out);
+}
+/* 全部模式：批注所属任务名标签（头部左侧，确认按钮旁边） */
+.sticky-task-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+  flex-shrink: 1;
+  min-width: 0;
 }
 /* 类型着色（V2.0）：色相对齐全局 status 变量，浅底保证深/浅主题均可见 */
 .sticky-kind-decision { background: oklch(0.95 0.09 255); }

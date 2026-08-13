@@ -81,6 +81,11 @@
             style="height: 31px"
             @click.stop
           />
+          <!-- 批注管理（展开按钮左侧）：打开大屏批注管理弹窗 -->
+          <button v-if="tab === 'tasks'" class="header-btn" @click="annotManageShow = true" title="批注管理">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            批注管理
+          </button>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -174,6 +179,14 @@
       @save="doEditProject"
     />
 
+    <!-- 批注管理大屏弹窗（任务 tab 右上角按钮打开） -->
+    <AnnotationManagerModal
+      v-model="annotManageShow"
+      :project-id="p?.id || ''"
+      :tasks="p?.tasks || []"
+      @changed="loadProject"
+    />
+
     <ConfirmModal
       :show="confirm.show"
       :message="confirm.message"
@@ -197,6 +210,7 @@ import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
+import AnnotationManagerModal from "./components/AnnotationManagerModal.vue";
 import CalendarWidget from "../../components/CalendarWidget.vue";
 
 const props = defineProps({ projectId: String });
@@ -241,6 +255,7 @@ function toggleExpandAll() {
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
+const annotManageShow = ref(false); // 批注管理大屏弹窗
 const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
 const planStatus = ref("全部");
