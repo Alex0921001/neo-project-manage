@@ -64,7 +64,7 @@
       :mode="modal.mode"
       :clone-plan="modal.clonePlan"
       @mode-change="modal.mode = $event"
-      @clone="(p) => (modal.value = { show: true, planId: null, mode: 'edit', clonePlan: p })"
+      @clone="onCloneFromDetail"
       @close="modal.show = false"
       @changed="onChanged"
       @jump-task="jumpTask"
@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
@@ -103,6 +103,16 @@ const plans = ref([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
+// 详情内克隆：先关闭详情弹窗，再打开预填充的新建编辑弹窗
+// （show 经历 false→true 完整链路，与右击克隆行为完全一致；同 tick 替换 show 会被 Vue 合并，弹窗不会重开）
+function onCloneFromDetail(p) {
+  if (!p) return;
+  modal.value = { ...modal.value, show: false };
+  nextTick(() => {
+    modal.value = { show: true, planId: null, mode: "edit", clonePlan: p };
+  });
+}
+
 // 跨页勾选：id → 方案对象（分页翻页不清空，对比弹窗用完整数据）
 const selectedMap = ref(new Map());
 const modal = ref({ show: false, planId: null, mode: "read", clonePlan: null });
