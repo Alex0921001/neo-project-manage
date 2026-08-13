@@ -13,7 +13,7 @@
       </div>
     </div>
 
-    <div v-if="!target" class="annot-empty">
+    <div v-if="!target && !allMode" class="annot-empty">
       <span class="annot-empty-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       </span>
@@ -21,7 +21,7 @@
     </div>
 
     <div v-else class="annot-body">
-      <!-- 类型筛选 chips：全部/备注/决策/风险/节点 -->
+      <!-- 类型筛选 chips：全部/备注/决策/风险/节点 + 关键字搜索（高亮与任务列表一致） -->
       <div class="annot-kind-filter">
         <button
           v-for="k in kindFilterOptions"
@@ -30,19 +30,27 @@
           :class="['kind-chip-' + k.value, { active: kindFilter === k.value }]"
           @click="kindFilter = k.value"
         >{{ k.label }}</button>
+        <!-- 关键字搜索（仅大屏弹窗 embedded 显示，小屏侧栏隐藏） -->
+        <div v-if="embedded" class="annot-search">
+          <svg class="annot-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input v-model="keyword" class="annot-search-input" placeholder="搜索批注" @click.stop />
+          <button v-if="keyword" class="annot-search-clear" title="清空" @click="keyword = ''">×</button>
+        </div>
       </div>
 
       <!-- 便利贴列表：点击内容即编辑（Windows 便利贴式），删除按钮常驻 -->
-      <div class="sticky-board">
+      <div class="sticky-board" ref="stickyBoardRef">
         <template v-if="filteredAnnotations.length">
           <div
             v-for="a in filteredAnnotations"
             :key="a.id"
+            :data-ann-id="a.id"
             :class="['sticky', 'sticky-kind-' + kindOf(a), { 'sticky-done': effectiveConfirmed(a), 'sticky-editing': editingAnnId === a.id }]"
           >
             <!-- 头：最左=确认/激活按钮，右=删除（常驻） -->
             <div class="sticky-head">
               <div class="sticky-head-left">
+                <!-- 全部模式 / 已完成任务：确认按钮隐藏（已完成任务冻结，后端兜底） -->
                 <button
                   v-if="!targetDone"
                   class="sticky-icon-btn"
@@ -53,6 +61,7 @@
                   <el-icon v-if="!effectiveConfirmed(a)"><CircleCheck /></el-icon>
                   <el-icon v-else><RefreshLeft /></el-icon>
                 </button>
+                <span v-if="allMode" class="sticky-task-name" :title="a.taskName">@{{ a.taskName }}</span>
               </div>
               <div class="sticky-actions">
                 <button class="sticky-icon-btn sticky-del" @click="askRemove(a)" title="删除">
@@ -78,7 +87,7 @@
               v-else
               class="sticky-content rich-view"
               :class="{ 'sticky-editable': !effectiveConfirmed(a) && !targetDone }"
-              v-html="formatDescription(a.content)"
+              v-html="highlightRichText(formatDescription(a.content), keyword)"
               :title="effectiveConfirmed(a) || targetDone ? '' : '点击编辑'"
               @click="!effectiveConfirmed(a) && !targetDone && startInline(a)"
             ></p>
@@ -121,8 +130,8 @@
         </div>
       </div>
 
-      <!-- 输入区：仅未完成态显示 -->
-      <div v-if="!targetDone" class="annot-compose">
+      <!-- 输入区：仅未完成态显示；全部模式隐藏新增入口 -->
+      <div v-if="!allMode && !targetDone" class="annot-compose">
         <div class="annot-compose-box">
           <textarea
             ref="inputRef"
@@ -194,12 +203,15 @@ import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import AnnotationManagerModal from "./AnnotationManagerModal.vue";
 import { formatDescription } from "../../../utils/text.js";
+import { highlightRichText } from "../../../utils/highlight.js";
 
 const props = defineProps({
   projectId: String,
   task: Object,           // 任意层级的任务对象（顶层/子/孙都走这一条）
   tasks: Array,            // 项目下所有任务（用于取最新数据）
   embedded: Boolean,       // 嵌入大弹窗模式：隐藏头部按钮、高度自适应撑满
+  highlightAnnId: { type: String, default: "" }, // 定位高亮目标批注（滚动 + 闪烁）
+  allMode: { type: Boolean, default: false }, // 全部任务模式：展示项目全部批注（隐藏新增入口）
 });
 const emit = defineEmits(["changed", "close"]);
 
@@ -221,9 +233,28 @@ const KIND_VALUES = KINDS.map(k => k.value);
 
 // 新建时选择的类型（切换任务后重置为 note）
 const inputKind = ref("note");
-// 面板筛选：all=全部
+// ===== 定位高亮：外部传入 highlightAnnId → 重置筛选 + 滚动到该批注 + 闪烁 =====
+const stickyBoardRef = ref(null);
+watch(
+  () => props.highlightAnnId,
+  async (id) => {
+    if (!id) return;
+    kindFilter.value = "all"; // 确保目标批注不被类型筛选过滤掉
+    await nextTick();
+    await nextTick(); // 筛选重置后再等一次渲染
+    const el = stickyBoardRef.value?.querySelector(`[data-ann-id="${id}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("sticky-flash");
+    setTimeout(() => el.classList.remove("sticky-flash"), 1600);
+  }
+);
+
+// ===== 类型筛选 chips：全部/备注/决策/风险/节点 =====
 const kindFilter = ref("all");
 const kindFilterOptions = [{ value: "all", label: "全部" }, ...KINDS];
+// 关键字搜索（内容匹配，高亮与任务列表一致）
+const keyword = ref("");
 
 // dropdown 命令 → 设置新建类型
 function onKindCommand(v) {
@@ -238,10 +269,13 @@ function kindLabel(k) {
   return KINDS.find(x => x.value === k)?.label || "备注";
 }
 
-// 按类型筛选后的列表
+// 按类型 + 关键字筛选后的列表
 const filteredAnnotations = computed(() => {
-  if (kindFilter.value === "all") return sortedAnnotations.value;
-  return sortedAnnotations.value.filter(a => kindOf(a) === kindFilter.value);
+  let list = sortedAnnotations.value;
+  if (kindFilter.value !== "all") list = list.filter((a) => kindOf(a) === kindFilter.value);
+  const kw = keyword.value.trim();
+  if (kw) list = list.filter((a) => String(a.content || "").toLowerCase().includes(kw.toLowerCase()));
+  return list;
 });
 
 // 内联编辑状态（Windows 便利贴式：点击内容就地编辑）
@@ -277,7 +311,7 @@ async function saveInline(ann) {
   if (!content) return; // 空内容不保存，回退显示原文
   editingSaving.value = true;
   try {
-    const res = await api(buildUrl(ann.id), {
+    const res = await api(buildUrl(ann), {
       method: "PUT",
       body: JSON.stringify({ content, kind: kindOf(ann) }),
       silent: true,
@@ -299,7 +333,7 @@ function cancelInline() {
 // 类型下拉直接改（选择即保存）
 async function changeKind(ann, v) {
   if (kindOf(ann) === v) return;
-  const res = await api(buildUrl(ann.id), {
+  const res = await api(buildUrl(ann), {
     method: "PUT",
     body: JSON.stringify({ kind: v }),
     silent: true,
@@ -318,12 +352,27 @@ const targetDepth = computed(() => {
 });
 
 // 模板 v-if="target" / v-if="!target" 依赖此变量（fe94971 重构时曾误删，导致面板永远显示空状态）
-const target = computed(() => props.task || null);
+// 全部模式（allMode）下 target 为空：不走空态分支，直接展示全项目批注列表
+const target = computed(() => (props.allMode ? null : props.task || null));
 
-const targetLabel = computed(() => props.task?.name || "");
-const targetDone = computed(() => !!props.task?.done);
+const targetLabel = computed(() => (props.allMode ? "全部任务" : props.task?.name || ""));
+const targetDone = computed(() => (props.allMode ? false : !!props.task?.done));
+
+// 全部模式：递归收集项目所有任务（任意层级）的批注，带任务名/任务 id
+const allAnnotations = computed(() => {
+  const out = [];
+  const walk = (list) => {
+    for (const t of list || []) {
+      for (const a of t.annotations || []) out.push({ ...a, taskId: t.id, taskName: t.name });
+      walk(t.subtasks);
+    }
+  };
+  walk(props.tasks);
+  return out;
+});
 
 const annotations = computed(() => {
+  if (props.allMode) return allAnnotations.value;
   if (!props.task) return [];
   // 树形结构里：递归找到任意层级的 task（含子孙）拿它的 annotations
   function findAnns(tasks, id) {
@@ -373,8 +422,10 @@ function formatDate(iso) {
   return `${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function buildUrl(annId) {
-  return `api/projects/${props.projectId}/tasks/${props.task.id}/annotations/${annId}`;
+// 操作 URL：全部模式用批注自带 taskId（跨任务），单任务模式用当前任务
+function buildUrl(ann) {
+  const taskId = props.allMode ? ann.taskId : props.task.id;
+  return `api/projects/${props.projectId}/tasks/${taskId}/annotations/${ann.id}`;
 }
 
 // ===== S9：里程碑快捷按钮 =====
@@ -398,7 +449,7 @@ async function add() {
 }
 
 async function remove(ann) {
-  const res = await api(buildUrl(ann.id), { method: "DELETE", silent: true });
+  const res = await api(buildUrl(ann), { method: "DELETE", silent: true });
   if (res?.ok) emit("changed");
   else toast(res.error || "删除失败", "error");
 }
@@ -419,7 +470,7 @@ async function doRemove() {
 async function toggleConfirm(ann) {
   if (targetDone.value) return; // V2.1 规则：任务已完成便利贴冻结，不可切换确认状态
   const target = !effectiveConfirmed(ann);
-  const res = await api(buildUrl(ann.id), {
+  const res = await api(buildUrl(ann), {
     method: "PUT",
     body: JSON.stringify({ confirmed: target }),
     silent: true,
@@ -535,12 +586,33 @@ async function toggleConfirm(ann) {
   word-break: break-word;
   transition: background var(--duration-fast) var(--ease-out);
 }
+/* 全部模式：批注所属任务名标签（头部左侧，确认按钮旁边） */
+.sticky-task-name {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+  flex-shrink: 1;
+  min-width: 0;
+}
 /* 类型着色（V2.0）：色相对齐全局 status 变量，浅底保证深/浅主题均可见 */
 .sticky-kind-decision { background: oklch(0.95 0.09 255); }
 .sticky-kind-risk { background: oklch(0.95 0.09 25); }
 .sticky-kind-milestone { background: oklch(0.95 0.09 75); }
 .sticky-done {
   background: var(--sticky-bg-confirmed);
+}
+/* 定位高亮：外部跳转（概览/里程碑）定位批注时闪烁（琥珀脉冲 3 次） */
+.sticky-flash {
+  animation: sticky-flash-pulse 0.5s ease-in-out 3;
+  box-shadow: 0 0 0 3px var(--accent-warm-hover);
+}
+@keyframes sticky-flash-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.22); }
 }
 /* 头：左=确认/激活按钮，右=编辑/删除工具栏 */
 .sticky-head {
@@ -657,6 +729,65 @@ async function toggleConfirm(ann) {
 .annot-kind-filter {
   display: flex; gap: 6px; flex-wrap: wrap;
   flex-shrink: 0;
+}
+/* 关键字搜索框（chips 右侧，风格对齐任务列表搜索） */
+.annot-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  min-width: 0;
+}
+.annot-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.annot-search-input {
+  width: 170px;
+  padding: 5px 24px 5px 26px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.annot-search-input:focus {
+  border-color: var(--border);
+}
+.annot-search-clear {
+  position: absolute;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.annot-search-clear:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+/* 关键字高亮：与任务列表 TaskCard 一致（浅琥珀底 + 深琥珀字） */
+.sticky-content :deep(.hl) {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .kind-chip {
   padding: 2px 10px;

@@ -22,6 +22,19 @@
           </button>
         </div>
         <div class="annot-mgr-tree-list">
+          <!-- 全部任务：显示项目全部批注（隐藏新增入口） -->
+          <div
+            class="tree-row annot-mgr-all"
+            :class="{ 'tree-row-selected': selectedTaskId === ALL_KEY }"
+            title="全部任务"
+            @click="selectedTaskId = ALL_KEY"
+          >
+            <span class="tree-arrow tree-arrow-hidden">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/></svg>
+            </span>
+            <span class="tree-name">全部任务</span>
+            <span v-if="allAnnCount > 0" class="tree-badge">{{ allAnnCount }}</span>
+          </div>
           <template v-if="tasks.length">
             <TaskTreeNode
               v-for="t in tasks"
@@ -39,13 +52,14 @@
       <button v-if="treeCollapsed" class="annot-mgr-unfold" title="展开任务树" @click="treeCollapsed = false">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-      <!-- 右：批注管理（内嵌便利贴面板） -->
+      <!-- 右：批注管理（内嵌便利贴面板；全部任务模式展示全项目批注） -->
       <div class="annot-mgr-panel">
         <AnnotationPanel
-          v-if="selectedTask"
+          v-if="selectedTask || allMode"
           :project-id="projectId"
           :task="selectedTask"
           :tasks="tasks"
+          :all-mode="allMode"
           embedded
           @changed="emit('changed')"
         />
@@ -72,9 +86,12 @@ const emit = defineEmits(["update:modelValue", "changed"]);
 const selectedTaskId = ref("");
 // 任务树整列折叠开关
 const treeCollapsed = ref(false);
+// 「全部任务」特殊选项 key：显示项目全部批注
+const ALL_KEY = "__all__";
 
 // 递归按 id 查找任务（任意层级）
 function findTaskInTree(tasks, id) {
+  if (id === ALL_KEY) return null; // 全部任务非真实任务
   for (const t of tasks || []) {
     if (t.id === id) return t;
     const sub = findTaskInTree(t.subtasks, id);
@@ -82,6 +99,21 @@ function findTaskInTree(tasks, id) {
   }
   return null;
 }
+
+// 全部模式：选中「全部任务」
+const allMode = computed(() => selectedTaskId.value === ALL_KEY);
+// 全部批注总数（任务树徽标）
+const allAnnCount = computed(() => {
+  let n = 0;
+  const walk = (list) => {
+    for (const t of list || []) {
+      n += (t.annotations || []).length;
+      walk(t.subtasks);
+    }
+  };
+  walk(props.tasks);
+  return n;
+});
 
 const selectedTask = computed(() => findTaskInTree(props.tasks, selectedTaskId.value));
 
@@ -195,6 +227,61 @@ watch(() => props.modelValue, (v) => {
   min-height: 0;
   overflow-y: auto;
   padding: 6px 0;
+}
+/* 「全部任务」选项：对齐 TaskTreeNode .tree-row 样式（scoped 隔离，需本地复刻） */
+.annot-mgr-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+  user-select: none;
+}
+.annot-mgr-all:hover {
+  background: var(--bg-hover);
+}
+.annot-mgr-all.tree-row-selected {
+  background: var(--accent-subtle);
+  border-left-color: var(--accent-warm);
+  font-weight: 600;
+}
+.annot-mgr-all .tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.annot-mgr-all .tree-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+.annot-mgr-all .tree-arrow svg {
+  width: 10px;
+  height: 10px;
+}
+.annot-mgr-all .tree-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-warm);
+  color: var(--bg-card);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
 }
 .annot-mgr-tree-empty {
   padding: 24px 12px;

@@ -59,7 +59,12 @@ import { api } from "../../../api.js";
 const props = defineProps({
   projectId: String,
   project: { type: Object, default: null }, // 项目详情（用于目标名反查兜底）
+  // 筛选状态（index.vue tab 栏右上角传入）：行为 + 时间范围
+  actionFilter: { type: String, default: "" },
+  dateFrom: { type: String, default: "" },
+  dateTo: { type: String, default: "" },
 });
+const emit = defineEmits(["actions-ready"]); // 行为下拉选项上报（后端返回项目全部行为去重）
 
 const PAGE_SIZE = 10; // 每页 10 条
 const logs = ref([]);
@@ -67,6 +72,12 @@ const total = ref(0);
 const loading = ref(false);
 const page = ref(1);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+
+// ===== 筛选状态：行为 + 时间范围（由父级 index.vue 管理，变化时刷新） =====
+watch(
+  () => [props.actionFilter, props.dateFrom, props.dateTo],
+  () => loadPage(1)
+);
 
 // ===== 字段名 / 值 翻译（英文数据结构 → 业务语言） =====
 const FIELD_LABEL = {
@@ -261,10 +272,17 @@ async function loadPage(p) {
   if (!props.projectId) return;
   loading.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/audit-logs?limit=${PAGE_SIZE}&offset=${(p - 1) * PAGE_SIZE}`, { silent: true });
+    // 筛选参数：行为（精确）+ 时间范围（dateFrom / dateTo），来自父级 tab 栏
+    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
+    if (props.actionFilter) params.set("action", props.actionFilter);
+    if (props.dateFrom) params.set("dateFrom", props.dateFrom);
+    if (props.dateTo) params.set("dateTo", props.dateTo);
+    const res = await api(`api/projects/${props.projectId}/audit-logs?${params}`, { silent: true });
     if (res?.ok) {
       logs.value = res.data.items || [];
       total.value = res.data.total || 0;
+      // 行为下拉选项上报父级（tab 栏下拉用）
+      if (Array.isArray(res.data.actions)) emit("actions-ready", res.data.actions);
       page.value = p;
     } else {
       logs.value = [];

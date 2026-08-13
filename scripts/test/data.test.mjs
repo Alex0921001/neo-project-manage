@@ -467,32 +467,39 @@ test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已
   const p = data.createProject({ name: "风险批注项目" });
   const t = data.createTask(p.id, { name: "风险任务" });
 
-  // 未确认 risk 批注 → medium
+  // 未确认 risk 批注 → medium（聚合为一条，明细在 tasks）
   data.createAnnotation(p.id, t.id, { content: "数据库性能隐患，需要尽快评估", kind: "risk" });
   const s1 = data.summarizeProject(p.id);
   const hit1 = s1.risks.find((r) => r.kind === "risk" && r.tasks?.[0]?.id === t.id);
-  assert.ok(hit1, "未确认 risk 批注应生成风险项");
+  assert.ok(hit1, "未确认 risk 批注应生成聚合风险项");
   assert.equal(hit1.level, "medium", "未确认应为 medium");
-  assert.equal(hit1.confirmed, false, "应透传未确认态");
-  assert.ok(hit1.desc.startsWith("风险批注："), "desc 应带风险批注前缀");
-  assert.ok(hit1.desc.includes("风险任务"), "desc 应含挂载任务名");
-  assert.deepEqual(hit1.tasks, [{ id: t.id, name: t.name }], "tasks 应含挂载任务");
+  assert.equal(hit1.desc, "1 条风险批注", "聚合 desc 应为「N 条风险批注」");
+  const anns1 = data.getTaskAnnotations(t.id);
+  assert.equal(anns1.length, 1, "应只有一条批注");
+  assert.deepEqual(
+    hit1.tasks,
+    [{ id: t.id, name: t.name, annotationId: anns1[0].id, content: "数据库性能隐患，需要尽快评估", confirmed: false }],
+    "tasks 明细应含挂载任务 + 批注 id + 内容 + 确认态（供气泡展示/定位）"
+  );
 
-  // 确认后 → high
-  const anns = data.getTaskAnnotations(t.id);
-  assert.equal(anns.length, 1, "应只有一条批注");
-  data.updateAnnotation(t.id, anns[0].id, { confirmed: true });
+  // 确认后 → high（聚合等级 = 存在已确认则取 confirmedLevel）
+  data.updateAnnotation(t.id, anns1[0].id, { confirmed: true });
   const s2 = data.summarizeProject(p.id);
   const hit2 = s2.risks.find((r) => r.kind === "risk");
   assert.equal(hit2.level, "high", "已确认应为 high");
-  assert.equal(hit2.confirmed, true, "应透传确认态");
+  assert.equal(hit2.tasks[0].confirmed, true, "tasks 明细应透传确认态");
 
-  // 排序保持 high → medium → low（批注风险项也遵守）
+  // 排序：类别优先（项目→任务→批注），类别内 high → medium → low
+  const CATEGORY_ORDER = { project: 0, task: 1, annotation: 2 };
   const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };
   for (let i = 1; i < s2.risks.length; i++) {
+    const prev = s2.risks[i - 1];
+    const cur = s2.risks[i];
+    const pc = CATEGORY_ORDER[prev.category] ?? 1;
+    const cc = CATEGORY_ORDER[cur.category] ?? 1;
     assert.ok(
-      LEVEL_ORDER[s2.risks[i - 1].level] <= LEVEL_ORDER[s2.risks[i].level],
-      `risks 应按 high→medium→low 排序（第 ${i} 项失序）`
+      pc < cc || (pc === cc && LEVEL_ORDER[prev.level] <= LEVEL_ORDER[cur.level]),
+      `risks 应按类别（项目→任务→批注）+ 等级排序（第 ${i} 项失序）`
     );
   }
 
@@ -740,10 +747,18 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   expectThrow(() => data.createPlan(proj.id, "  "), /不能为空/);
   expectThrow(() => data.createPlan(proj.id, "超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题超长标题"), /100/);
 
-  // 列表（含评论数）
+  // 列表（含评论数 / 分页 / 标题搜索）
   const list = data.listPlans(proj.id);
-  assert.equal(list.length, 1);
-  assert.equal(list[0].commentCount, 0);
+  assert.equal(list.total, 1);
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0].commentCount, 0);
+  // 搜索命中 / 未命中
+  assert.equal(data.listPlans(proj.id, { keyword: "技术选型" }).total, 1);
+  assert.equal(data.listPlans(proj.id, { keyword: "不存在的标题" }).total, 0);
+  // 分页：offset 越界返回空 items
+  const paged = data.listPlans(proj.id, { limit: 10, offset: 10 });
+  assert.equal(paged.total, 1);
+  assert.equal(paged.items.length, 0);
 
   // 更新标题 + 状态（4 态：草稿/进行中/已采纳/已废弃）
   const updated = data.updatePlan(proj.id, p1.id, { status: "进行中", title: "A 方案：技术选型 v2" });
@@ -775,15 +790,23 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   assert.equal(task.name, "A 方案：技术选型 v2");
   assert.ok(task.description.includes("富文本内容"), "任务描述应含方案内容");
 
+  // 状态业务校验（已采纳 + 已转任务 + 任务存在）：标题不可改、状态冻结、不可删
+  expectThrow(() => data.updatePlan(proj.id, p1.id, { title: "改标题" }), /草稿/);
+  expectThrow(() => data.updatePlan(proj.id, p1.id, { status: "草稿" }), /冻结/);
+  expectThrow(() => data.deletePlan(proj.id, p1.id), /草稿/);
+
   // 删评论
   data.deletePlanComment(proj.id, p1.id, c1.id);
   assert.equal(data.getPlan(proj.id, p1.id).comments.length, 0);
   expectThrow(() => data.deletePlanComment(proj.id, p1.id, c1.id), /不存在/);
 
-  // 删除方案（级联删评论；任务保留）
+  // 任务删除后：状态冻结解除，可回退流转；回退到草稿后可删（级联删评论）
+  data.deleteTask(proj.id, conv.taskId);
+  assert.equal(data.getPlan(proj.id, p1.id).taskExists, false);
+  data.updatePlan(proj.id, p1.id, { status: "草稿" }); // 悬空回退允许
+  assert.equal(data.getPlan(proj.id, p1.id).status, "草稿");
   data.deletePlan(proj.id, p1.id);
   expectThrow(() => data.getPlan(proj.id, p1.id), /不存在/);
-  assert.ok(data.getTaskById(conv.taskId), "转出的任务应保留");
 
   // 审计联动：6 种动作全部留痕
   const audit = data.listAuditLogs(proj.id, {});
@@ -791,4 +814,49 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   for (const act of ["创建方案", "更新方案", "方案评论", "方案转任务", "删除方案评论", "删除方案"]) {
     assert.ok(actions.includes(act), `审计应包含 ${act}`);
   }
+});
+
+
+// ===== 16. 项目级风险规则配置（V2.1） =====
+test("风险配置：默认合并 / 白名单校验 / summarize 按配置生效 / 审计", () => {
+  const pj = data.createProject({ name: "风险配置项目" });
+  const t = data.createTask(pj.id, { name: "任务A", endDate: "2020-01-01" }); // 长期延期
+  // 今天 + 5 天（默认 3 天窗口不命中，配 7 天后命中）
+  const nearDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toISOString().slice(0, 10);
+  })();
+  const t2 = data.createTask(pj.id, { name: "任务B", endDate: nearDate });
+
+  // 未配置时 = 默认值，延期规则默认触发（high）
+  const d1 = data.getRiskConfig(pj.id);
+  assert.equal(d1.rules.delayed.days, 0, "默认延期阈值 0 天");
+  assert.equal(d1.rules.nearDeadline.days, 3, "默认逼近窗口 3 天");
+  assert.equal(d1.rules.annotationBacklog.minCount, 3, "默认积压阈值 3");
+  const s1 = data.summarizeProject(pj.id);
+  assert.ok(s1.risks.some((r) => r.desc.includes("已延期")), "默认应触发延期风险");
+
+  // 关闭延期规则 + 改等级：延期不再出现，逼近截止等级自定义
+  const cfg = data.updateRiskConfig(pj.id, {
+    delayed: { enabled: false, days: 5, level: "low" },
+    nearDeadline: { enabled: true, days: 7, level: "low" },
+  });
+  assert.equal(cfg.rules.delayed.enabled, false, "应保存关闭态");
+  assert.equal(cfg.rules.delayed.days, 5, "应保存自定义阈值");
+  assert.equal(cfg.rules.nearDeadline.days, 7, "应保存逼近窗口");
+  const s2 = data.summarizeProject(pj.id);
+  assert.ok(!s2.risks.some((r) => r.desc.includes("已延期")), "关闭后不应再报延期");
+  const near = s2.risks.find((r) => r.desc.includes("天内到期"));
+  assert.ok(near, "7 天窗口应命中逼近截止");
+  assert.equal(near.level, "low", "逼近截止等级应可配");
+
+  // 非法字段/类型兜底为默认
+  const cfg2 = data.updateRiskConfig(pj.id, { delayed: { days: -3, level: "urgent" } });
+  assert.equal(cfg2.rules.delayed.days, 0, "负数阈值应回退默认");
+  assert.equal(cfg2.rules.delayed.level, "high", "非法等级应回退默认");
+
+  // 审计留痕
+  const audit = data.listAuditLogs(pj.id, {});
+  assert.ok(audit.items.some((a) => a.action === "更新风险配置"), "应留审计");
 });

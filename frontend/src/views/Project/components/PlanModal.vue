@@ -20,11 +20,15 @@
               size="small"
               style="width: 104px"
               @change="onStatusChange"
-              :disabled="statusSaving"
+              :disabled="statusSaving || !!plan?.taskExists"
+              :title="plan?.taskExists ? '已转任务且任务存在，状态已冻结' : ''"
             >
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
-            <!-- 操作按钮按状态显示：转任务仅已采纳；编辑仅草稿/进行中；删除仅草稿/已废弃 -->
+            <!-- 克隆：无权限控制，复制当前方案到新建编辑弹窗（保存即新建） -->
+            <button class="pm-icon-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
             <button
               v-if="plan?.status === '已采纳'"
               class="pm-btn pm-btn-primary"
@@ -86,6 +90,11 @@
       <div class="pm-edit">
         <div class="pm-edit-head">
           <input v-model="editTitle" class="pm-edit-title" placeholder="方案标题" maxlength="100" />
+          <button class="pm-import-btn" :disabled="importing" title="从文件导入（txt / md / docx）" @click="importFileInput?.click()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            {{ importing ? "解析中..." : "从文件导入" }}
+          </button>
+          <input ref="importFileInput" type="file" class="pm-import-file" accept=".txt,.md,.markdown,.docx" @change="onFileSelected" />
         </div>
         <div class="pm-edit-body">
           <component
@@ -120,7 +129,7 @@
 import { ref, computed, watch } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { api } from "../../../api.js";
+import { api, apiUpload } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
@@ -132,8 +141,9 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   planId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit
+  clonePlan: { type: Object, default: null }, // 克隆源：新建编辑态预填其标题 + 内容（无权限控制）
 });
-const emit = defineEmits(["close", "changed", "jump-task", "update:show"]);
+const emit = defineEmits(["close", "changed", "jump-task", "mode-change", "clone", "update:show"]);
 
 const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
@@ -148,6 +158,30 @@ const commentDraft = ref("");
 const editTitle = ref("");
 const editContent = ref("");
 const saving = ref(false);
+
+// ===== 从文件导入（txt / md / docx，仅新建/编辑态） =====
+const importFileInput = ref(null);
+const importing = ref(false);
+
+async function onFileSelected(e) {
+  const file = e.target.files?.[0];
+  e.target.value = ""; // 允许重复选择同一文件
+  if (!file) return;
+  importing.value = true;
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await apiUpload(`api/projects/${props.projectId}/plans/import`, fd);
+    if (!res?.ok) return toast(res?.error || "导入失败", "error");
+    if (res.data?.title) editTitle.value = res.data.title;
+    if (res.data?.content) editContent.value = res.data.content;
+    toast("已导入，可在下方编辑器中修正后保存");
+  } catch (err) {
+    toast(err?.message || "导入失败", "error");
+  } finally {
+    importing.value = false;
+  }
+}
 
 // 确认弹窗
 const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", payload: null });
@@ -169,13 +203,29 @@ function ask(msg, confirmText, action, payload) {
 }
 
 // ===== 加载 =====
+// 打开时初始化编辑字段：克隆源优先预填（无权限控制）；新建清空；编辑预填当前值
+function initEdit() {
+  if (props.clonePlan) {
+    editTitle.value = props.clonePlan.title;
+    editContent.value = props.clonePlan.content || "";
+  } else if (!props.planId) {
+    editTitle.value = "";
+    editContent.value = "";
+  } else if (plan.value) {
+    editTitle.value = plan.value.title;
+    editContent.value = plan.value.content || "";
+  }
+}
+
 async function loadDetail() {
-  if (!props.show || props.mode !== "read" || !props.planId) return;
+  if (!props.show || !props.planId) return;
   const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`);
   if (res?.ok) {
     plan.value = res.data;
     comments.value = res.data.comments || [];
     statusVal.value = res.data.status || "草稿";
+    // 编辑模式直接打开（不经 read）时，加载完成后再预填
+    if (props.mode === "edit") initEdit();
   } else {
     toast(res?.error || "加载方案失败", "error");
   }
@@ -184,8 +234,7 @@ async function loadDetail() {
 // 进入编辑：预填当前值
 function enterEdit() {
   if (!plan.value) return;
-  editTitle.value = plan.value.title;
-  editContent.value = plan.value.content || "";
+  initEdit();
   emit("mode-change", "edit");
 }
 
@@ -259,6 +308,39 @@ async function sendComment() {
   }
 }
 
+// 克隆：通知父级以当前方案为克隆源重开新建编辑态（planId 置空，保存走新建）
+function startClone() {
+  if (!plan.value) return;
+  emit("clone", plan.value);
+}
+
+// 复制方案：标题 + 内容（纯文本，去 HTML）；clipboard API 失败时降级 execCommand
+async function copyPlan() {
+  if (!plan.value) return;
+  const plain = String(plan.value.content || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = `${plan.value.title}${plain ? `\n\n${plain}` : ""}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("已复制标题 + 内容");
+  } catch {
+    // 降级：textarea + execCommand（非安全上下文 / iframe 未授权 clipboard）
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch { /* ignore */ }
+    document.body.removeChild(ta);
+    if (ok) toast("已复制标题 + 内容");
+    else toast("复制失败，请手动选择复制", "error");
+  }
+}
+
 function confirmDeleteComment(c) {
   ask(`删除这条评论？`, "删除", "delete-comment", c);
 }
@@ -300,13 +382,30 @@ async function doConfirm() {
   }
 }
 
-// 打开时加载详情；planId 变化刷新
+// 打开时：初始化编辑字段 + 加载详情；planId 变化刷新
 watch(() => props.show, (v) => {
-  if (v) loadDetail();
+  if (v) {
+    initEdit();
+    loadDetail();
+  }
 });
 watch(() => props.planId, () => {
-  if (props.show) loadDetail();
+  if (props.show) {
+    initEdit();
+    loadDetail();
+  }
 });
+// 克隆源变化兜底：详情内克隆（read→edit 切换、planId 同 tick 置空）时强制预填，与右击克隆效果对齐
+watch(
+  () => props.clonePlan,
+  (v) => {
+    if (v && props.show && props.mode === "edit") {
+      editTitle.value = v.title;
+      editContent.value = v.content || "";
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <style scoped>
@@ -544,6 +643,39 @@ watch(() => props.planId, () => {
   color: var(--text);
   outline: none;
   font-family: inherit;
+}
+.pm-edit-title:focus {
+  outline: 1px dashed var(--text-tertiary);
+  outline-offset: 2px;
+}
+/* 从文件导入按钮（标题右侧） */
+.pm-import-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  margin-left: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.pm-import-btn:hover {
+  color: var(--text);
+  border-color: var(--text-tertiary);
+  background: var(--bg-hover);
+}
+.pm-import-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pm-import-file {
+  display: none;
 }
 .pm-edit-body {
   flex: 1;

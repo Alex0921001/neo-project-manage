@@ -30,6 +30,13 @@ const TOOL_FILES = [
   "get-project-summaries", "summarize-project", "ask-project",
   // V2.0 成员管理
   "list-members", "create-member", "update-member", "delete-member",
+  // V2.1 方案 + 审计
+  "list-audit-logs", "create-plan", "update-plan", "delete-plan",
+  "list-plans", "get-plan", "add-plan-comment", "delete-plan-comment", "convert-plan-to-task",
+  // V2.1 备注三工具
+  "create-note", "update-note", "delete-note",
+  // V2.1 风险只读工具
+  "get-project-risks",
 ];
 const tools = {};
 before(async () => {
@@ -186,6 +193,13 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   assert.match(askTxt, /决策V2/);
   assert.match(askTxt, /备注V2/);
 
+  // get_project_risks（V2.1：只读风险，JSON 结构化，不触发存档）
+  const risksTxt = await run("get_project_risks", { projectId: projId });
+  const risksJson = JSON.parse(risksTxt);
+  assert.ok(Array.isArray(risksJson.risks), "risks 应为 JSON 数组");
+  assert.ok(risksJson.riskConfig?.delayed, "应返回当前项目风险配置（含 delayed 规则）");
+  assert.ok(risksJson.risks.some((r) => /延期|到期|风险批注/.test(r.desc)), "应含规则计算出的风险条目");
+
   // 会话关联
   const linkTxt = await run("link_project_session", { projectId: projId, sessionId: "sess-v2-test" });
   assert.match(linkTxt, /sess-v2-test/);
@@ -200,6 +214,14 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   // addFile 是 data 层，工具层用登记接口不存在，直接验证文件工具对已有文件（空项目）友好
   const filesTxt = await run("list_project_files", { projectId: projId });
   assert.match(filesTxt, /暂无|清单/);
+
+  // 备注 CRUD（V2.1 工具补齐）
+  const noteTxt = await run("create_note", { projectId: projId, content: "备注-测试内容" });
+  const noteId = firstId(noteTxt);
+  const upNote = await run("update_note", { projectId: projId, noteId, content: "备注-改后内容" });
+  assert.match(upNote, /已更新备注/);
+  const gotProj2 = await run("get_project", { id: projId });
+  assert.match(gotProj2, /备注-改后内容/);
 
   // 清理
   await run("delete_project", { id: projId });

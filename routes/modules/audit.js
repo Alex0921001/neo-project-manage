@@ -3,7 +3,7 @@
  */
 export function registerAuditRoutes(app, data) {
   // V2.1 审计追踪：按项目查审计日志（倒序分页，可选筛选）
-  // P1-1：limit/offset 仅接受正整数/非负整数，非法回退默认（50/0），避免 data 层抛错裸 500
+  // P1-1：limit/offset 仅接收正整数/非负整数，非法回退默认（50/0），避免 data 层抛错裸 500
   app.get("/api/projects/:projectId/audit-logs", (c) => {
     try {
       const rawLimit = Number(c.req.query("limit"));
@@ -13,7 +13,9 @@ export function registerAuditRoutes(app, data) {
       const action = c.req.query("action") || undefined;
       const targetType = c.req.query("targetType") || undefined;
       const keyword = c.req.query("keyword") || undefined;
-      const result = data.listAuditLogs(c.req.param("projectId"), { limit, offset, action, targetType, keyword });
+      const dateFrom = c.req.query("dateFrom") || undefined;
+      const dateTo = c.req.query("dateTo") || undefined;
+      const result = data.listAuditLogs(c.req.param("projectId"), { limit, offset, action, targetType, keyword, dateFrom, dateTo });
       return c.json({ ok: true, data: result });
     } catch (e) {
       // 项目不存在 → 404（与 GET /api/projects/:id 语义一致），其余错误 → 400

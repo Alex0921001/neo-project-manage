@@ -1,15 +1,19 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "list_audit_logs";
-export const description = "列出项目审计日志（按时间倒序，可筛选动作/关键词，分页）";
+export const description = "列出项目审计日志（按时间倒序，可筛选动作/目标类型/关键词/时间范围，分页）";
 export const parameters = {
   type: "object",
   required: ["projectId"],
   properties: {
     projectId: { type: "string", description: "项目 ID" },
     limit: { type: "integer", description: "条数上限（默认 50，最大 200）" },
+    offset: { type: "integer", description: "偏移量（默认 0，配合 limit 翻页）" },
     action: { type: "string", description: "按动作名精确筛选（如「更新任务」「删除批注」「归档项目」）" },
+    targetType: { type: "string", description: "按目标类型精确筛选（如 project / task / annotation / plan / note / member / project_set）" },
     keyword: { type: "string", description: "按动作/目标/变更内容关键词模糊筛选" },
+    dateFrom: { type: "string", description: "开始日期 YYYY-MM-DD（按 created_at 范围过滤）" },
+    dateTo: { type: "string", description: "结束日期 YYYY-MM-DD（按 created_at 范围过滤）" },
   },
 };
 
@@ -20,8 +24,12 @@ export async function execute(input, toolCtx) {
 
   const { items, total } = data.listAuditLogs(input.projectId, {
     limit: input.limit,
+    offset: input.offset,
     action: input.action,
+    targetType: input.targetType,
     keyword: input.keyword,
+    dateFrom: input.dateFrom,
+    dateTo: input.dateTo,
   });
 
   if (items.length === 0) {

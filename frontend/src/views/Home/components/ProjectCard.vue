@@ -18,11 +18,14 @@
         <div class="card-name" :title="project.name">{{ project.name }}</div>
       </div>
 
-      <!-- 第二行：时间（小字灰色） -->
+      <!-- 第二行：时间（小字灰色） + 项目集名称（右对齐，最多 10 字） -->
       <div class="card-date">
-        <span>{{ fmtDate(project.planStart) }}</span>
-        <span class="date-sep">→</span>
-        <span>{{ fmtDate(project.planEnd) }}</span>
+        <span class="card-date-range">
+          <span>{{ fmtDate(project.planStart) }}</span>
+          <span class="date-sep">→</span>
+          <span>{{ fmtDate(project.planEnd) }}</span>
+        </span>
+        <span v-if="setLabel" class="card-set" :title="setLabel">{{ shortSet(setLabel) }}</span>
       </div>
 
       <!-- 第三行：进度条 -->
@@ -32,19 +35,23 @@
         </div>
       </div>
 
-      <!-- 第四行：统计（任务 / 文件 / 备注） -->
+      <!-- 第四行：统计（任务 / 文件 / 备注 / 方案） -->
       <div class="card-stats">
-        <span class="stat-item">
+        <span class="stat-item" title="已完成/总任务数">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
           {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}
         </span>
-        <span class="stat-item">
+        <span class="stat-item" title="文件数">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
           {{ project.fileCount || 0 }}
         </span>
-        <span class="stat-item">
+        <span class="stat-item" title="备注数">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           {{ project.noteCount || 0 }}
+        </span>
+        <span class="stat-item" title="方案数">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          {{ project.planCount || 0 }}
         </span>
       </div>
 
@@ -185,6 +192,12 @@ function fmtDate(d) {
   const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
 }
+
+// ===== 项目集名称（最多 5 字直接截断，hover 显示全名） =====
+function shortSet(name) {
+  const s = String(name || "").trim();
+  return s.length > 5 ? s.slice(0, 5) : s;
+}
 </script>
 
 <style scoped>
@@ -305,15 +318,32 @@ function fmtDate(d) {
   min-width: 0;
 }
 
-/* 第二行：时间 */
+/* 第二行：时间（左） + 项目集名称（右）两端对齐 */
 .card-date {
   margin-top: 6px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 11.5px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
+}
+.card-date-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.card-set {
+  flex-shrink: 0;
+  max-width: 100px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
 }
 .date-sep {
   color: var(--text-tertiary);
@@ -347,7 +377,7 @@ function fmtDate(d) {
   margin-top: 14px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   font-size: 11.5px;
   color: var(--text-secondary);
 }

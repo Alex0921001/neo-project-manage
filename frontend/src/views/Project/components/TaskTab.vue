@@ -99,6 +99,7 @@
             :plan-end="planEnd"
             :tasks="tasks"
             @jump-task="(taskId) => scrollToTaskById(taskId)"
+            @jump-annotation="({ taskId, annotationId }) => scrollToAnnotation(taskId, annotationId)"
           />
         </div>
         <div v-if="!tasks.length" class="tasks-empty">
@@ -138,6 +139,7 @@
                   :search-query="searchQuery"
                   :project-id="projectId"
                   :expand-all="expandAll"
+                  :force-expand-ids="forceExpandIds"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
                   @subtask="startSubtask"
@@ -175,6 +177,7 @@
                   :search-query="searchQuery"
                   :project-id="projectId"
                   :expand-all="expandAll"
+                  :force-expand-ids="forceExpandIds"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
               @subtask="startSubtask"
@@ -232,6 +235,19 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 // ===== 当前选中的批注目标 =====
 const activeTaskId = ref("");
 const activeSubtaskId = ref("");
+// 定位跳转：目标批注 id（传给批注面板高亮闪烁）+ 强制展开的祖先链任务 id
+const highlightAnnId = ref("");
+const forceExpandIds = ref([]);
+
+// 递归找任务节点所在路径（顶层→目标，含自身），供祖先链强制展开
+function findTaskPath(tasks, targetId, trail = []) {
+  for (const t of tasks || []) {
+    if (t.id === targetId) return [...trail, t.id];
+    const hit = findTaskPath(t.subtasks, targetId, [...trail, t.id]);
+    if (hit) return hit;
+  }
+  return null;
+}
 
 // 递归查找任意层级的 task（按 id 匹配）
 function findTaskInTree(tasks, id) {
@@ -250,6 +266,23 @@ const activeTarget = computed(() => {
   if (!activeSubtaskId.value) return activeTask.value;
   return findTaskInTree(props.tasks, activeSubtaskId.value) || activeTask.value;
 });
+
+// 定位批注：展开祖先链 → 打开批注面板 → 滚动到任务 → 批注卡片闪烁（概览/里程碑点击批注入口）
+function scrollToAnnotation(taskId, annotationId) {
+  if (!taskId || !annotationId) return;
+  // 1. 祖先链强制展开（目标可能是折叠父任务的子任务）
+  const path = findTaskPath(props.tasks, taskId);
+  if (path) forceExpandIds.value = path;
+  // 2. 打开该任务的批注面板
+  activeTaskId.value = taskId;
+  activeSubtaskId.value = "";
+  // 3. 刷新数据（批注确认态归位）+ 滚动任务卡
+  emit("changed");
+  highlightAnnId.value = annotationId;
+  nextTick(() => scrollToTaskById(taskId));
+  // 4. 2 秒后清除高亮标记（避免下次打开面板重复闪烁）
+  setTimeout(() => { highlightAnnId.value = ""; }, 2500);
+}
 
 function onSelectAnnotation({ taskId, subtaskId }) {
   // 📌 / 📝 点击只展开便利贴面板，不负责关闭
@@ -861,7 +894,7 @@ const hasMilestones = computed(() => {
   return walk(props.tasks);
 });
 
-defineExpose({ openAdd, scrollToTaskById });</script>
+defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });</script>
 
 <style scoped>
 .area-section {

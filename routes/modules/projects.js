@@ -26,6 +26,28 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
+  // V2.1 项目级风险规则配置（齿轮弹窗 / Agent 工具读改写）
+  app.get("/api/projects/:id/risk-config", (c) => {
+    try {
+      const cfg = data.getRiskConfig(c.req.param("id"));
+      if (!cfg) return c.json({ ok: false, error: "项目不存在" }, 404);
+      return c.json({ ok: true, data: cfg });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:id/risk-config", async (c) => {
+    const body = await c.req.json();
+    try {
+      const cfg = data.updateRiskConfig(c.req.param("id"), body?.rules);
+      if (!cfg) return c.json({ ok: false, error: "项目不存在" }, 404);
+      return c.json({ ok: true, data: cfg });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // V2.0 S14：历史总结列表（data.getProjectSummaries 倒序取最近 N 条，供前端时间线）
   // P1-1：limit 仅接受正整数，非法（缺失/NaN/小数/负数）退回默认 10，避免 data 层抛错裸 500
   // P2-1：不再前置 getProject 全量查询，存在性由 data 层轻量 SELECT 检查并抛「项目不存在」

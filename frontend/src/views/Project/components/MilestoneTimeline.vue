@@ -96,7 +96,7 @@
           <span>里程碑批注{{ annPopover.anns.length > 1 ? `（${annPopover.anns.length} 条）` : '' }}</span>
         </div>
         <div class="milestone-ann-pop-list">
-          <div v-for="a in annPopover.anns" :key="a.id" class="milestone-ann-pop-card">
+          <div v-for="a in annPopover.anns" :key="a.id" class="milestone-ann-pop-card" title="点击定位到批注" @click="jumpAnn(a)">
             <div class="milestone-ann-pop-task">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
               <span class="milestone-ann-pop-taskname">{{ a.taskName }}</span>
@@ -121,7 +121,7 @@ const props = defineProps({
   // 完整任务树（任意层级），组件内部收集里程碑节点与 milestone 批注（控件自包含）
   tasks: { type: Array, default: () => [] },
 });
-const emit = defineEmits(["jump-task"]);
+const emit = defineEmits(["jump-task", "jump-annotation"]);
 
 // ===== 收集里程碑节点：isMilestone 任务，或挂有 milestone（节点）类型批注的任务 =====
 function collectMilestones(list, acc = []) {
@@ -431,6 +431,12 @@ function jump(taskId) {
   emit("jump-task", taskId);
 }
 
+// 点击里程碑批注卡片：定位到挂载任务并高亮该批注
+function jumpAnn(a) {
+  closeAllPopovers();
+  emit("jump-annotation", { taskId: a.taskId, annotationId: a.id });
+}
+
 function onDocClick() { closeAllPopovers(); }
 function onKey(e) {
   if (e.key === "Escape") closeAllPopovers();
@@ -725,6 +731,11 @@ function nextTickDraw() {
   background: oklch(0.95 0.09 75);
   box-shadow: var(--shadow-sm);
   border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: filter var(--duration-fast) var(--ease-out);
+}
+.milestone-ann-pop-card:hover {
+  filter: brightness(0.94);
 }
 .milestone-ann-pop-task {
   display: flex;

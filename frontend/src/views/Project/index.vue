@@ -20,7 +20,7 @@
     </div>
 
     <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->
-    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" @jump-task="(taskId) => onTabCalendarSelectTask({ taskId })" />
+    <ProjectOverview ref="overviewRef" :project-id="p?.id || ''" @jump-task="(taskId) => onTabCalendarSelectTask({ taskId })" @jump-annotation="onJumpAnnotation" />
 
     <!-- Tab 区 -->
     <section class="tab-section">
@@ -28,10 +28,6 @@
         <button class="tab-btn" :class="{ active: tab === 'tasks' }" @click="tab = 'tasks'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
           任务
-        </button>
-        <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          日历
         </button>
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -56,6 +52,36 @@
             <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
+          <div v-if="tab === 'plans'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="planSearch" class="task-search-input" placeholder="搜索方案标题" @click.stop />
+            <button v-if="planSearch" class="task-search-clear" title="清空" @click="planSearch = ''">×</button>
+          </div>
+          <el-select v-if="tab === 'plans'" v-model="planStatus" class="plan-status-select" size="small" @click.stop>
+            <el-option v-for="s in PLAN_STATUS_FILTERS" :key="s" :label="s" :value="s" />
+          </el-select>
+          <!-- 审计筛选：行为下拉 + 时间范围（daterange，与其他 tab 对齐右上角） -->
+          <el-select v-if="tab === 'audit'" v-model="auditAction" class="audit-filter-action" size="small" clearable placeholder="全部行为" @click.stop>
+            <el-option v-for="a in auditActions" :key="a" :label="a" :value="a" />
+          </el-select>
+          <el-date-picker
+            v-if="tab === 'audit'"
+            v-model="auditDateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            size="small"
+            class="audit-filter-range"
+            style="height: 31px"
+            @click.stop
+          />
+          <!-- 批注管理（展开按钮左侧）：打开大屏批注管理弹窗 -->
+          <button v-if="tab === 'tasks'" class="header-btn" @click="annotManageShow = true" title="批注管理">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            批注管理
+          </button>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -73,20 +99,14 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
+          <!-- 前往日历：统一弹窗（单项目任务日历），仅任务 tab 显示 -->
+          <button v-if="tab === 'tasks'" class="header-btn" @click="calShow = true" title="项目任务日历">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            前往日历 >
+          </button>
         </div>
       </div>
       <div class="tab-content">
-        <!-- 日历 tab：项目任务日历 -->
-        <div v-if="tab === 'calendar'" class="task-calendar-tab">
-          <CalendarWidget
-            :projects="p ? [p] : []"
-            :sets="allSets"
-            :compact="false"
-            task-mode
-            :project-id="p?.id || ''"
-            @select-task="onTabCalendarSelectTask"
-          />
-        </div>
         <TaskTab
           v-if="tab === 'tasks'"
           ref="taskTabRef"
@@ -122,11 +142,17 @@
           ref="auditTabRef"
           :project-id="p?.id || ''"
           :project="p"
+          :action-filter="auditAction"
+          :date-from="auditDateRange?.[0] || ''"
+          :date-to="auditDateRange?.[1] || ''"
+          @actions-ready="auditActions = $event"
         />
         <PlanTab
           v-if="tab === 'plans'"
           ref="planTabRef"
           :project-id="p?.id || ''"
+          :search-query="planSearch"
+          :status-query="planStatus"
           @changed="loadProject"
           @jump-task="onTabCalendarSelectTask"
           @compare-count="compareCount = $event"
@@ -141,6 +167,24 @@
       :sets="allSets"
       @close="showEditModal = false"
       @save="doEditProject"
+    />
+
+    <!-- 批注管理大屏弹窗（任务 tab 右上角按钮打开） -->
+    <AnnotationManagerModal
+      v-model="annotManageShow"
+      :project-id="p?.id || ''"
+      :tasks="p?.tasks || []"
+      @changed="loadProject"
+    />
+
+    <!-- 项目日历弹窗（tab 栏「前往日历 >」打开，单项目任务日历） -->
+    <CalendarModal
+      v-model="calShow"
+      :projects="p ? [p] : []"
+      :sets="allSets"
+      task-mode
+      :project-id="p?.id || ''"
+      @select-task="(payload) => { calShow = false; onTabCalendarSelectTask(payload) }"
     />
 
     <ConfirmModal
@@ -166,7 +210,8 @@ import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
-import CalendarWidget from "../../components/CalendarWidget.vue";
+import AnnotationManagerModal from "./components/AnnotationManagerModal.vue";
+import CalendarModal from "../../components/CalendarModal.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -210,6 +255,15 @@ function toggleExpandAll() {
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
+const annotManageShow = ref(false); // 批注管理大屏弹窗
+const calShow = ref(false); // 项目日历弹窗
+const planSearch = ref("");
+const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
+const planStatus = ref("全部");
+// 审计筛选：行为 + 时间范围（daterange，tab 栏右上角）
+const auditActions = ref([]);
+const auditAction = ref("");
+const auditDateRange = ref([]); // [开始, 结束] YYYY-MM-DD
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -254,11 +308,19 @@ function onTabAction() {
   else if (tab.value === 'plans') planTabRef.value?.openCreate();
 }
 
-// 日历 tab 点击任务：切回任务 tab 并滚动定位（与 App.vue 大日历一致）
-function onTabCalendarSelectTask({ taskId }) {
+// 日历 tab / 方案转任务点击任务：切回任务 tab 并滚动定位（兼容字符串 taskId 与 { taskId } 两种 payload）
+function onTabCalendarSelectTask(payload) {
+  const taskId = typeof payload === "string" ? payload : payload?.taskId;
   if (!taskId) return;
   tab.value = "tasks";
   nextTick(() => taskTabRef.value?.scrollToTaskById?.(taskId));
+}
+
+// 概览/里程碑点击批注：切任务 tab → 展开祖先链 → 打开批注面板 → 高亮闪烁
+function onJumpAnnotation({ taskId, annotationId }) {
+  if (!taskId || !annotationId) return;
+  tab.value = "tasks";
+  nextTick(() => taskTabRef.value?.scrollToAnnotation?.(taskId, annotationId));
 }
 
 // ===== Archive / Unarchive（与首页右键归档同一数据调用：update_project 的 archived 参数） =====
@@ -515,6 +577,39 @@ async function doConfirm() {
   position: relative;
   display: inline-flex;
   align-items: center;
+}
+/* 方案状态筛选下拉（tab 栏，对比按钮左侧），高度与两侧按钮对齐（约 31px） */
+.plan-status-select {
+  width: 104px;
+  flex-shrink: 0;
+}
+.plan-status-select :deep(.el-select__wrapper) {
+  min-height: 31px;
+  border-radius: var(--radius-sm);
+}
+/* 审计筛选（tab 栏右上角）：行为下拉 + 日期范围选择器 */
+.audit-filter-action {
+  width: 130px;
+  flex-shrink: 0;
+}
+.audit-filter-action :deep(.el-select__wrapper) {
+  min-height: 31px;
+  border-radius: var(--radius-sm);
+}
+.audit-filter-range {
+  width: 230px;
+  flex-shrink: 0;
+}
+.audit-filter-range :deep(.el-input__wrapper) {
+  height: 31px !important;
+  min-height: 31px !important;
+}
+.audit-filter-range :deep(.el-range-input) {
+  font-size: 12px;
+}
+.audit-filter-range :deep(.el-range-separator) {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 .task-search-icon {
   position: absolute;

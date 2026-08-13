@@ -62,7 +62,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popPending)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -95,7 +94,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popDelayed)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -124,15 +122,11 @@
                       <span class="ov-kpi-label">待确认</span>
                     </div>
                   </template>
-                  <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 个任务）</div>
+                  <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 条）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popAnnot)">
+                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, popAnnot)" :title="t.content || t.name">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
-                      <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                      </button>
+                      <span class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     </li>
                   </ul>
                 </el-popover>
@@ -161,7 +155,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popNoDate)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -179,7 +172,12 @@
 
           <!-- 列 2：风险 -->
           <div class="ov-col">
-            <div class="ov-label ov-label-danger">风险</div>
+            <div class="ov-label ov-label-danger">
+              风险
+              <button class="ov-gear" title="风险规则配置" @click="riskConfigShow = true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
+            </div>
             <div v-if="s.risks?.length" class="ov-risks">
               <el-popover
                 v-for="(r, i) in s.risks"
@@ -202,15 +200,19 @@
                     <template v-else>{{ r.desc }}</template>
                   </div>
                 </template>
-                <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
+                <div class="ov-pop-head">{{ r.kind === 'risk' ? '风险批注（' + r.tasks.length + '）' : '涉及任务（' + r.tasks.length + '）' }}</div>
                 <ul class="ov-pop-list">
-                  <li v-for="(t, ti) in r.tasks" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, riskPopRefs[i])">
+                  <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])" :title="t.annotationId ? t.content : t.name">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
-                    <span class="ov-pop-id">#{{ t.id }}</span>
-                    <span class="ov-pop-name">{{ t.name }}</span>
-                    <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                    </button>
+                    <!-- 批注条目：序号 + 内容截断 + 确认标记；任务条目：序号 + 名称 + 复制 -->
+                    <span v-if="t.annotationId" class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
+                    <template v-else>
+                      <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
+                    </template>
+                    <span v-if="t.annotationId" class="ov-pop-conf" :class="t.confirmed ? 'conf-yes' : 'conf-no'">{{ t.confirmed ? '已确认' : '待确认' }}</span>
                   </li>
                 </ul>
               </el-popover>
@@ -221,6 +223,9 @@
               <p>恭喜您！没有风险。</p>
             </div>
           </div>
+
+          <!-- 风险规则配置弹窗 -->
+          <RiskConfigModal v-model:show="riskConfigShow" :project-id="projectId" @saved="refresh" />
 
           <!-- 列 3：下一步 -->
           <div class="ov-col">
@@ -289,9 +294,10 @@
 import { ref, computed, watch } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import RiskConfigModal from "./RiskConfigModal.vue";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
-const emit = defineEmits(["jump-task"]);
+const emit = defineEmits(["jump-task", "jump-annotation"]);
 
 // KPI / 风险 popover 任务跳转：关闭浮层后通知父级定位 + 高亮
 const popPending = ref(null);
@@ -303,6 +309,12 @@ function jumpFromPop(taskId, popRef) {
   popRef?.hide();
   emit("jump-task", taskId);
 }
+// 批注跳转：关闭浮层后通知父级定位批注（任务定位 + 批注高亮闪烁）
+function jumpAnnFromPop(item, popRef) {
+  popRef?.hide();
+  if (item?.annotationId) emit("jump-annotation", { taskId: item.id, annotationId: item.annotationId });
+  else if (item?.id) emit("jump-task", item.id);
+}
 
 // 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
 const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/confetti.png");
@@ -310,6 +322,7 @@ const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/conf
 const expanded = ref(true); // 默认展开
 const loading = ref(false);
 const s = ref(null); // summary data
+const riskConfigShow = ref(false); // 风险规则配置弹窗
 
 // ===== 历史总结时间线（V2.0 S14）=====
 const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
@@ -412,14 +425,11 @@ const isEmpty = computed(() => {
 // KPI：任务总数（分母用 stats.total 全量，pending/completed 是截断展示版）
 const totalCount = computed(() => s.value?.stats?.total ?? 0);
 
-// 待确认批注关联的任务（去重，供 KPI popover 显示）
+// 待确认批注：逐条列出（含批注 id/内容/类型），点击定位到具体批注并高亮
 const pendingAnnotationTasks = computed(() => {
-  const seen = new Set();
   const out = [];
   for (const a of s.value?.pendingAnnotations || []) {
-    if (!a.taskId || seen.has(a.taskId)) continue;
-    seen.add(a.taskId);
-    out.push({ id: a.taskId, name: a.name || a.task });
+    out.push({ id: a.taskId, name: a.name, annotationId: a.annotationId, content: a.content, kind: a.kind });
   }
   return out;
 });
@@ -445,6 +455,15 @@ function copyText(text) {
 function copyTaskItem(t) {
   if (!t?.id) return;
   copyText(`使用项目管理插件工具搜索：【任务 id:${t.id}】 ${t.name || ""} 的具体内容。`);
+}
+
+// 批注内容短展示：去 HTML + 限 10 字（对齐用户规范「前 10 个字...」）
+function shortAnn(text) {
+  const t = String(text || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return t.length > 10 ? `${t.slice(0, 10)}...` : t || "（无内容）";
 }
 
 // 风险描述解析：把「2 个任务已延期（最长延期 5 天）」拆成 { num, text, note }
@@ -722,6 +741,8 @@ function riskParts(r) {  const desc = String(r?.desc || "");
 }
 
 .ov-label {
+  display: inline-flex;
+  align-items: center;
   font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
@@ -734,6 +755,26 @@ function riskParts(r) {  const desc = String(r?.desc || "");
 .ov-label-danger {
   color: var(--danger);
   border-left-color: var(--danger);
+}
+/* 风险标题旁齿轮（规则配置入口） */
+.ov-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.ov-gear:hover {
+  color: var(--text);
+  background: var(--bg-hover);
 }
 
 /* 风险：数字强调 + 描述 + 灰色注 */
@@ -1036,14 +1077,6 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   line-height: 1;
   border-radius: 3px;
 }
-.ov-pop-id {
-  flex-shrink: 0;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-}
 .ov-pop-name {
   flex: 1;
   min-width: 0;
@@ -1055,6 +1088,35 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+/* 批注条目（待确认/风险批注）：序号 + 内容单行截断 */
+.ov-pop-ann {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* 风险批注确认状态小标（聚合条目明细行） */
+.ov-pop-conf {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+.ov-pop-conf.conf-yes {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.ov-pop-conf.conf-no {
+  color: var(--accent-warm-hover);
+  background: var(--accent-warm-subtle);
 }
 .ov-pop-copy {
   flex-shrink: 0;

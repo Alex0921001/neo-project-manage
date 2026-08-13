@@ -14,19 +14,16 @@
       @back="goBack"
     />
 
-    <div v-show="view === 'calendar'" class="calendar-page">
-      <div class="calendar-head">
-        <button class="btn-back" @click="goHome" title="返回项目列表">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-        </button>
-        <span class="crumb-item crumb-root" @click="goHome">全部项目</span>
-        <span class="crumb-sep">/</span>
-        <span class="crumb-item crumb-current">项目日历</span>
-      </div>
-      <CalendarWidget :projects="allProjects" :sets="allSets" :compact="false" @select="openProject" @select-task="openTaskFromCalendar" />
-    </div>
-
     <div id="toast-container"></div>
+
+    <!-- 全项目日历弹窗（统一弹窗形式；列表页按钮 / 详情页入口共用） -->
+    <CalendarModal
+      v-model="calendarShow"
+      :projects="allProjects"
+      :sets="allSets"
+      @select="(id) => { calendarShow = false; openProject(id) }"
+      @select-task="(payload) => { calendarShow = false; openTaskFromCalendar(payload) }"
+    />
 
     <div
       v-if="versionInfo"
@@ -48,7 +45,7 @@ import { ref, watch, onMounted, nextTick } from "vue";
 import { api, reportHeight, getVersion } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
-import CalendarWidget from "./components/CalendarWidget.vue";
+import CalendarModal from "./components/CalendarModal.vue";
 
 const view = ref("home");
 const projectId = ref(null);
@@ -57,6 +54,7 @@ const allProjects = ref([]);
 const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
 const versionInfo = ref(null);
+const calendarShow = ref(false); // 全项目日历弹窗
 
 function formatTime(iso) {
   if (!iso) return "-";
@@ -86,11 +84,9 @@ function goHome() {
   nextTick(() => homeRef.value?.refresh?.());
 }
 
+// 列表页「前往日历」：改为弹窗（不再切独立路由视图）
 function goCalendar() {
-  view.value = "calendar";
-  projectId.value = null;
-  historyStack.value = [];
-  saveState();
+  calendarShow.value = true;
   loadAllProjects();
 }
 
@@ -122,9 +118,9 @@ function goBack() {
     projectId.value = null;
   }
   saveState();
-  if (view.value === "home" || view.value === "calendar") {
+  if (view.value === "home") {
     loadAllProjects();
-    if (view.value === "home") nextTick(() => homeRef.value?.refresh?.());
+    nextTick(() => homeRef.value?.refresh?.());
   }
 }
 
@@ -174,10 +170,15 @@ async function restoreState() {
         historyStack.value = [];
       }
     } catch { /* keep default */ }
-  } else if (["home", "calendar"].includes(state.view)) {
-    view.value = state.view;
+  } else if (state.view === "home") {
+    view.value = "home";
     projectId.value = null;
-    if (state.view === "home") nextTick(() => homeRef.value?.refresh?.());
+    nextTick(() => homeRef.value?.refresh?.());
+  }
+  // calendar 视图已改为弹窗：旧存档回退 home
+  if (view.value === "calendar") {
+    view.value = "home";
+    projectId.value = null;
   }
 }
 
@@ -382,7 +383,7 @@ input, textarea, select { font-family: inherit; }
 .version-badge .sep { color: var(--border); margin: 0 4px; }
 .version-badge .t { color: var(--text-tertiary); }
 
-/* === Calendar Page === */
+/* === Calendar Page（已改弹窗，样式保留无引用可删） === */
 .calendar-page {
   flex: 1; display: flex; flex-direction: column;
   padding: 24px 20px; overflow-y: auto;

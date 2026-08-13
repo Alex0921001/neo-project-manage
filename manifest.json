@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "neo-project-manage",
   "name": "项目管理",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "项目与任务管理工具。支持 Agent 读取项目数据、创建任务。",
   "minAppVersion": "0.159.0",
   "trust": "full-access",
@@ -52,6 +52,7 @@
       "./tools/get-project-summaries.js",
       "./tools/summarize-project.js",
       "./tools/ask-project.js",
+      "./tools/get-project-risks.js",
       "./tools/list-members.js",
       "./tools/create-member.js",
       "./tools/update-member.js",
@@ -64,7 +65,10 @@
       "./tools/get-plan.js",
       "./tools/add-plan-comment.js",
       "./tools/delete-plan-comment.js",
-      "./tools/convert-plan-to-task.js"
+      "./tools/convert-plan-to-task.js",
+      "./tools/create-note.js",
+      "./tools/update-note.js",
+      "./tools/delete-note.js"
     ]
   },
   "dev": {

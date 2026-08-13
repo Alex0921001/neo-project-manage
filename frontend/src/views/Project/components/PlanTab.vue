@@ -17,25 +17,44 @@
         v-for="pl in plans"
         :key="pl.id"
         class="plan-row"
-        :class="{ 'plan-row-selected': selected.has(pl.id) }"
+        :class="{ 'plan-row-selected': selectedMap.has(pl.id) }"
         @click="openDetail(pl)"
+        @contextmenu.prevent="openCtx($event, pl)"
       >
         <span
           class="plan-row-check"
-          :class="{ checked: selected.has(pl.id), disabled: selectedCount >= 2 && !selected.has(pl.id) }"
-          :title="selectedCount >= 2 && !selected.has(pl.id) ? '对比最多选 2 个' : '勾选用于对比'"
-          @click.stop="toggleSelect(pl.id)"
+          :class="{ checked: selectedMap.has(pl.id), disabled: selectedCount >= 2 && !selectedMap.has(pl.id) }"
+          :title="selectedCount >= 2 && !selectedMap.has(pl.id) ? '对比最多选 2 个' : '勾选用于对比'"
+          @click.stop="toggleSelect(pl)"
         >
-          <svg v-if="selected.has(pl.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg v-if="selectedMap.has(pl.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </span>
-        <span class="plan-row-title" :title="pl.title">{{ pl.title }}</span>
-        <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
-        <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
+        <span class="plan-row-title" :title="pl.title" v-html="highlight(pl.title, searchQuery)"></span>
         <span v-if="pl.taskName" class="plan-row-task" @click.stop="jumpTask(pl.taskId)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
           已转任务
         </span>
+        <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
+        <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
       </div>
+      <!-- 分页（每页 10 条） -->
+      <div v-if="total > 0" class="plan-pager">
+        <span class="plan-pager-count">共 {{ total }} 条</span>
+        <div class="plan-pager-btns">
+          <button class="plan-pager-btn" :disabled="page <= 1" @click="goPage(page - 1)">‹ 上一页</button>
+          <span class="plan-pager-info">{{ page }} / {{ totalPages }}</span>
+          <button class="plan-pager-btn" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页 ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右键菜单（fixed 定位，随鼠标；打开/克隆/编辑/删除/转任务，状态规则与详情一致，克隆无限制） -->
+    <div v-if="ctx.show" class="plan-ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
+      <div class="plan-ctx-item" @click="ctxOpen">打开</div>
+      <div class="plan-ctx-item" @click="ctxClone">克隆</div>
+      <div v-if="canEdit" class="plan-ctx-item" @click="ctxEdit">编辑</div>
+      <div v-if="canDel" class="plan-ctx-item plan-ctx-danger" @click="ctxDel">删除</div>
+      <div v-if="canConvert" class="plan-ctx-item" @click="ctxConvert">转任务</div>
     </div>
 
     <PlanModal
@@ -43,47 +62,149 @@
       :project-id="projectId"
       :plan-id="modal.planId"
       :mode="modal.mode"
+      :clone-plan="modal.clonePlan"
       @mode-change="modal.mode = $event"
+      @clone="onCloneFromDetail"
       @close="modal.show = false"
-      @changed="load"
+      @changed="onChanged"
       @jump-task="jumpTask"
     />
     <PlanCompareModal v-model:show="compareShow" :plans="comparePlans" />
+
+    <ConfirmModal
+      :show="confirm.show"
+      :message="confirm.message"
+      :confirm-text="confirm.confirmText"
+      @close="confirm.show = false"
+      @confirm="doCtxConfirm"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
+import { highlight } from "../../../utils/highlight.js";
 import PlanModal from "./PlanModal.vue";
 import PlanCompareModal from "./PlanCompareModal.vue";
+import ConfirmModal from "../../../components/ConfirmModal.vue";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
+  searchQuery: { type: String, default: "" }, // 标题筛选关键字（index.vue 搜索框，后端筛选 + 高亮）
+  statusQuery: { type: String, default: "全部" }, // 状态筛选（index.vue 下拉，后端精确匹配）
 });
 const emit = defineEmits(["changed", "jump-task"]);
 
+const PAGE_SIZE = 10;
 const plans = ref([]);
+const total = ref(0);
+const page = ref(1);
 const loading = ref(false);
-const selected = ref(new Set());
-const modal = ref({ show: false, planId: null, mode: "read" });
+// 详情内克隆：先关闭详情弹窗，再打开预填充的新建编辑弹窗
+// （show 经历 false→true 完整链路，与右击克隆行为完全一致；同 tick 替换 show 会被 Vue 合并，弹窗不会重开）
+function onCloneFromDetail(p) {
+  if (!p) return;
+  modal.value = { ...modal.value, show: false };
+  nextTick(() => {
+    modal.value = { show: true, planId: null, mode: "edit", clonePlan: p };
+  });
+}
+
+// 跨页勾选：id → 方案对象（分页翻页不清空，对比弹窗用完整数据）
+const selectedMap = ref(new Map());
+const modal = ref({ show: false, planId: null, mode: "read", clonePlan: null });
 const compareShow = ref(false);
 
-const selectedCount = computed(() => selected.value.size);
-const comparePlans = computed(() => plans.value.filter((p) => selected.value.has(p.id)).slice(0, 2));
+// ===== 右键菜单：打开 / 克隆 / 编辑 / 删除 / 转任务 =====
+const ctx = reactive({ show: false, x: 0, y: 0, plan: null });
+const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", plan: null });
+const canEdit = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "进行中"));
+const canDel = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "已废弃"));
+const canConvert = computed(() => ctx.plan && ctx.plan.status === "已采纳" && !ctx.plan.taskId);
 
-async function load() {
+function openCtx(e, pl) {
+  ctx.plan = pl;
+  ctx.x = Math.min(e.clientX, window.innerWidth - 140);
+  ctx.y = Math.min(e.clientY, window.innerHeight - 200);
+  ctx.show = true;
+}
+function closeCtx() {
+  ctx.show = false;
+}
+function ctxOpen() {
+  closeCtx();
+  openDetail(ctx.plan);
+}
+// 克隆：无权限控制，把当前方案标题 + 内容预填到新建编辑弹窗（保存即新建）
+function ctxClone() {
+  closeCtx();
+  modal.value = { show: true, planId: null, mode: "edit", clonePlan: ctx.plan };
+}
+function ctxEdit() {
+  closeCtx();
+  modal.value = { show: true, planId: ctx.plan.id, mode: "edit", clonePlan: null };
+}
+function ctxDel() {
+  closeCtx();
+  confirm.value = { show: true, message: `确认删除方案「${ctx.plan.title}」？评论将一并删除，转出的任务不受影响。`, confirmText: "删除方案", action: "delete", plan: ctx.plan };
+}
+function ctxConvert() {
+  closeCtx();
+  confirm.value = { show: true, message: `将方案「${ctx.plan.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, confirmText: "转任务", action: "convert", plan: ctx.plan };
+}
+async function doCtxConfirm() {
+  confirm.value.show = false;
+  const { action, plan } = confirm.value;
+  if (!plan) return;
+  if (action === "delete") {
+    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}`, { method: "DELETE" });
+    if (res?.ok) {
+      toast("已删除方案");
+      onChanged();
+    } else toast(res?.error || "删除失败", "error");
+  } else if (action === "convert") {
+    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}/convert`, { method: "POST" });
+    if (res?.ok) {
+      toast("已转为任务");
+      onChanged();
+    } else toast(res?.error || "转任务失败", "error");
+  }
+}
+// 全局点击关闭右键菜单
+onMounted(() => window.addEventListener("click", closeCtx));
+onBeforeUnmount(() => window.removeEventListener("click", closeCtx));
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+const selectedCount = computed(() => selectedMap.value.size);
+// 对比数据：从跨页 Map 取完整方案（不依赖当前页）
+const comparePlans = computed(() => [...selectedMap.value.values()].slice(0, 2));
+
+async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
   loading.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/plans`);
+    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
+    if (keyword.trim()) params.set("keyword", keyword.trim());
+    if (status && status !== "全部") params.set("status", status);
+    const res = await api(`api/projects/${props.projectId}/plans?${params}`);
     if (res?.ok) {
-      plans.value = res.data;
-      // 清理已不存在的勾选
-      const ids = new Set(res.data.map((p) => p.id));
-      selected.value = new Set([...selected.value].filter((id) => ids.has(id)));
+      plans.value = res.data.items || [];
+      total.value = res.data.total || 0;
+      page.value = p;
+      // 同步当前页勾选方案的实时数据（跨页项保留不动）
+      const m = new Map(selectedMap.value);
+      for (const pl of plans.value) {
+        if (m.has(pl.id)) m.set(pl.id, { ...m.get(pl.id), ...pl });
+      }
+      selectedMap.value = m;
+      // 页码越界回退（如删除后总页数减少）
+      if (page.value > totalPages.value) {
+        page.value = totalPages.value;
+        load(page.value, keyword, status);
+      }
     } else {
       toast(res?.error || "加载方案失败", "error");
     }
@@ -92,16 +213,25 @@ async function load() {
   }
 }
 
-function toggleSelect(id) {
-  const next = new Set(selected.value);
-  if (next.has(id)) {
-    next.delete(id);
+function goPage(p) {
+  if (p < 1 || p > totalPages.value || p === page.value) return;
+  load(p);
+}
+
+// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
+watch(() => props.searchQuery, () => load(1));
+watch(() => props.statusQuery, () => load(1));
+
+function toggleSelect(pl) {
+  const m = new Map(selectedMap.value);
+  if (m.has(pl.id)) {
+    m.delete(pl.id);
   } else {
     // 已选满 2 个：其余 checkbox 置灰，点击静默忽略
-    if (next.size >= 2) return;
-    next.add(id);
+    if (m.size >= 2) return;
+    m.set(pl.id, pl);
   }
-  selected.value = next;
+  selectedMap.value = m;
 }
 
 function openDetail(pl) {
@@ -116,9 +246,14 @@ function openCompare() {
 }
 
 // 勾选数上报父级（右上角「对比选中」按钮联动 disabled / 计数）
-watch(selected, () => emit("compare-count", selectedCount.value));
+watch(selectedMap, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
+}
+// 方案数据变更（增删改 / 转任务）：刷新方案列表 + 冒泡父级刷新项目数据（任务树等，转出的任务立即可见）
+function onChanged() {
+  load();
+  emit("changed");
 }
 
 defineExpose({ openCreate, load, openCompare });
@@ -232,6 +367,52 @@ watch(() => props.projectId, () => load(), { immediate: true });
   display: flex;
   flex-direction: column;
 }
+/* 分页控件（方案列表底部，每页 10 条） */
+.plan-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px 0;
+}
+.plan-pager-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.plan-pager-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.plan-pager-btn {
+  padding: 4px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-pager-btn:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.plan-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.plan-pager-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: center;
+}
 .plan-row {
   display: flex;
   align-items: center;
@@ -276,6 +457,48 @@ watch(() => props.projectId, () => load(), { immediate: true });
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 搜索关键字高亮：与任务列表 TaskCard 一致（浅琥珀底 + 深琥珀字） */
+.plan-row-title :deep(.hl),
+.plan-row-title .hl {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+/* 右键菜单（fixed 跟随鼠标） */
+.plan-ctx {
+  position: fixed;
+  z-index: 2100;
+  min-width: 110px;
+  padding: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+}
+.plan-ctx-item {
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.plan-ctx-danger {
+  color: var(--status-delay-text);
+}
+.plan-ctx-danger:hover {
+  background: var(--status-delay-bg);
+  color: var(--status-delay-text);
 }
 .plan-row-meta {
   width: 56px;
