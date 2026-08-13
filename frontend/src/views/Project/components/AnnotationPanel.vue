@@ -30,7 +30,8 @@
           :class="['kind-chip-' + k.value, { active: kindFilter === k.value }]"
           @click="kindFilter = k.value"
         >{{ k.label }}</button>
-        <div class="annot-search">
+        <!-- 关键字搜索（仅大屏弹窗 embedded 显示，小屏侧栏隐藏） -->
+        <div v-if="embedded" class="annot-search">
           <svg class="annot-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input v-model="keyword" class="annot-search-input" placeholder="搜索批注" @click.stop />
           <button v-if="keyword" class="annot-search-clear" title="清空" @click="keyword = ''">×</button>
