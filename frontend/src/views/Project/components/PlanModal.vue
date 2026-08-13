@@ -90,6 +90,11 @@
       <div class="pm-edit">
         <div class="pm-edit-head">
           <input v-model="editTitle" class="pm-edit-title" placeholder="方案标题" maxlength="100" />
+          <button class="pm-import-btn" :disabled="importing" title="从文件导入（txt / md / docx）" @click="importFileInput?.click()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            {{ importing ? "解析中..." : "从文件导入" }}
+          </button>
+          <input ref="importFileInput" type="file" class="pm-import-file" accept=".txt,.md,.markdown,.docx" @change="onFileSelected" />
         </div>
         <div class="pm-edit-body">
           <component
@@ -124,7 +129,7 @@
 import { ref, computed, watch } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { api } from "../../../api.js";
+import { api, apiUpload } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
@@ -153,6 +158,30 @@ const commentDraft = ref("");
 const editTitle = ref("");
 const editContent = ref("");
 const saving = ref(false);
+
+// ===== 从文件导入（txt / md / docx，仅新建/编辑态） =====
+const importFileInput = ref(null);
+const importing = ref(false);
+
+async function onFileSelected(e) {
+  const file = e.target.files?.[0];
+  e.target.value = ""; // 允许重复选择同一文件
+  if (!file) return;
+  importing.value = true;
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await apiUpload(`api/projects/${props.projectId}/plans/import`, fd);
+    if (!res?.ok) return toast(res?.error || "导入失败", "error");
+    if (res.data?.title) editTitle.value = res.data.title;
+    if (res.data?.content) editContent.value = res.data.content;
+    toast("已导入，可在下方编辑器中修正后保存");
+  } catch (err) {
+    toast(err?.message || "导入失败", "error");
+  } finally {
+    importing.value = false;
+  }
+}
 
 // 确认弹窗
 const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", payload: null });
@@ -614,6 +643,39 @@ watch(
   color: var(--text);
   outline: none;
   font-family: inherit;
+}
+.pm-edit-title:focus {
+  outline: 1px dashed var(--text-tertiary);
+  outline-offset: 2px;
+}
+/* 从文件导入按钮（标题右侧） */
+.pm-import-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  margin-left: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.pm-import-btn:hover {
+  color: var(--text);
+  border-color: var(--text-tertiary);
+  background: var(--bg-hover);
+}
+.pm-import-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pm-import-file {
+  display: none;
 }
 .pm-edit-body {
   flex: 1;

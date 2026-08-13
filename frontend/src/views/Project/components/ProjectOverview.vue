@@ -172,7 +172,12 @@
 
           <!-- 列 2：风险 -->
           <div class="ov-col">
-            <div class="ov-label ov-label-danger">风险</div>
+            <div class="ov-label ov-label-danger">
+              风险
+              <button class="ov-gear" title="风险规则配置" @click="riskConfigShow = true">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </button>
+            </div>
             <div v-if="s.risks?.length" class="ov-risks">
               <el-popover
                 v-for="(r, i) in s.risks"
@@ -195,11 +200,11 @@
                     <template v-else>{{ r.desc }}</template>
                   </div>
                 </template>
-                <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
+                <div class="ov-pop-head">{{ r.kind === 'risk' ? '风险批注（' + r.tasks.length + '）' : '涉及任务（' + r.tasks.length + '）' }}</div>
                 <ul class="ov-pop-list">
                   <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])" :title="t.annotationId ? t.content : t.name">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
-                    <!-- 批注条目：序号 + 内容截断；任务条目：序号 + 名称 + 复制 -->
+                    <!-- 批注条目：序号 + 内容截断 + 确认标记；任务条目：序号 + 名称 + 复制 -->
                     <span v-if="t.annotationId" class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     <template v-else>
                       <span class="ov-pop-name">{{ t.name }}</span>
@@ -207,6 +212,7 @@
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
                     </template>
+                    <span v-if="t.annotationId" class="ov-pop-conf" :class="t.confirmed ? 'conf-yes' : 'conf-no'">{{ t.confirmed ? '已确认' : '待确认' }}</span>
                   </li>
                 </ul>
               </el-popover>
@@ -217,6 +223,9 @@
               <p>恭喜您！没有风险。</p>
             </div>
           </div>
+
+          <!-- 风险规则配置弹窗 -->
+          <RiskConfigModal v-model:show="riskConfigShow" :project-id="projectId" @saved="refresh" />
 
           <!-- 列 3：下一步 -->
           <div class="ov-col">
@@ -285,6 +294,7 @@
 import { ref, computed, watch } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import RiskConfigModal from "./RiskConfigModal.vue";
 
 const props = defineProps({ projectId: { type: String, default: "" } });
 const emit = defineEmits(["jump-task", "jump-annotation"]);
@@ -312,6 +322,7 @@ const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/conf
 const expanded = ref(true); // 默认展开
 const loading = ref(false);
 const s = ref(null); // summary data
+const riskConfigShow = ref(false); // 风险规则配置弹窗
 
 // ===== 历史总结时间线（V2.0 S14）=====
 const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
@@ -743,6 +754,27 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   color: var(--danger);
   border-left-color: var(--danger);
 }
+/* 风险标题旁齿轮（规则配置入口） */
+.ov-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  vertical-align: middle;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+.ov-gear:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
 
 /* 风险：数字强调 + 描述 + 灰色注 */
 .ov-risks {
@@ -1066,6 +1098,24 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* 风险批注确认状态小标（聚合条目明细行） */
+.ov-pop-conf {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+.ov-pop-conf.conf-yes {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.ov-pop-conf.conf-no {
+  color: var(--accent-warm-hover);
+  background: var(--accent-warm-subtle);
 }
 .ov-pop-copy {
   flex-shrink: 0;

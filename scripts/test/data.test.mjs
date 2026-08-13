@@ -467,25 +467,27 @@ test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已
   const p = data.createProject({ name: "风险批注项目" });
   const t = data.createTask(p.id, { name: "风险任务" });
 
-  // 未确认 risk 批注 → medium
+  // 未确认 risk 批注 → medium（聚合为一条，明细在 tasks）
   data.createAnnotation(p.id, t.id, { content: "数据库性能隐患，需要尽快评估", kind: "risk" });
   const s1 = data.summarizeProject(p.id);
   const hit1 = s1.risks.find((r) => r.kind === "risk" && r.tasks?.[0]?.id === t.id);
-  assert.ok(hit1, "未确认 risk 批注应生成风险项");
+  assert.ok(hit1, "未确认 risk 批注应生成聚合风险项");
   assert.equal(hit1.level, "medium", "未确认应为 medium");
-  assert.equal(hit1.confirmed, false, "应透传未确认态");
-  assert.ok(hit1.desc.startsWith("风险批注："), "desc 应带风险批注前缀");
-  assert.ok(hit1.desc.includes("风险任务"), "desc 应含挂载任务名");
+  assert.equal(hit1.desc, "1 条风险批注", "聚合 desc 应为「N 条风险批注」");
   const anns1 = data.getTaskAnnotations(t.id);
   assert.equal(anns1.length, 1, "应只有一条批注");
-  assert.deepEqual(hit1.tasks, [{ id: t.id, name: t.name, annotationId: anns1[0].id }], "tasks 应含挂载任务 + 批注 id（供定位高亮）");
+  assert.deepEqual(
+    hit1.tasks,
+    [{ id: t.id, name: t.name, annotationId: anns1[0].id, content: "数据库性能隐患，需要尽快评估", confirmed: false }],
+    "tasks 明细应含挂载任务 + 批注 id + 内容 + 确认态（供气泡展示/定位）"
+  );
 
-  // 确认后 → high
+  // 确认后 → high（聚合等级 = 存在已确认则取 confirmedLevel）
   data.updateAnnotation(t.id, anns1[0].id, { confirmed: true });
   const s2 = data.summarizeProject(p.id);
   const hit2 = s2.risks.find((r) => r.kind === "risk");
   assert.equal(hit2.level, "high", "已确认应为 high");
-  assert.equal(hit2.confirmed, true, "应透传确认态");
+  assert.equal(hit2.tasks[0].confirmed, true, "tasks 明细应透传确认态");
 
   // 排序保持 high → medium → low（批注风险项也遵守）
   const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };
@@ -807,4 +809,49 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   for (const act of ["创建方案", "更新方案", "方案评论", "方案转任务", "删除方案评论", "删除方案"]) {
     assert.ok(actions.includes(act), `审计应包含 ${act}`);
   }
+});
+
+
+// ===== 16. 项目级风险规则配置（V2.1） =====
+test("风险配置：默认合并 / 白名单校验 / summarize 按配置生效 / 审计", () => {
+  const pj = data.createProject({ name: "风险配置项目" });
+  const t = data.createTask(pj.id, { name: "任务A", endDate: "2020-01-01" }); // 长期延期
+  // 今天 + 5 天（默认 3 天窗口不命中，配 7 天后命中）
+  const nearDate = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 5);
+    return d.toISOString().slice(0, 10);
+  })();
+  const t2 = data.createTask(pj.id, { name: "任务B", endDate: nearDate });
+
+  // 未配置时 = 默认值，延期规则默认触发（high）
+  const d1 = data.getRiskConfig(pj.id);
+  assert.equal(d1.rules.delayed.days, 0, "默认延期阈值 0 天");
+  assert.equal(d1.rules.nearDeadline.days, 3, "默认逼近窗口 3 天");
+  assert.equal(d1.rules.annotationBacklog.minCount, 3, "默认积压阈值 3");
+  const s1 = data.summarizeProject(pj.id);
+  assert.ok(s1.risks.some((r) => r.desc.includes("已延期")), "默认应触发延期风险");
+
+  // 关闭延期规则 + 改等级：延期不再出现，逼近截止等级自定义
+  const cfg = data.updateRiskConfig(pj.id, {
+    delayed: { enabled: false, days: 5, level: "low" },
+    nearDeadline: { enabled: true, days: 7, level: "low" },
+  });
+  assert.equal(cfg.rules.delayed.enabled, false, "应保存关闭态");
+  assert.equal(cfg.rules.delayed.days, 5, "应保存自定义阈值");
+  assert.equal(cfg.rules.nearDeadline.days, 7, "应保存逼近窗口");
+  const s2 = data.summarizeProject(pj.id);
+  assert.ok(!s2.risks.some((r) => r.desc.includes("已延期")), "关闭后不应再报延期");
+  const near = s2.risks.find((r) => r.desc.includes("天内到期"));
+  assert.ok(near, "7 天窗口应命中逼近截止");
+  assert.equal(near.level, "low", "逼近截止等级应可配");
+
+  // 非法字段/类型兜底为默认
+  const cfg2 = data.updateRiskConfig(pj.id, { delayed: { days: -3, level: "urgent" } });
+  assert.equal(cfg2.rules.delayed.days, 0, "负数阈值应回退默认");
+  assert.equal(cfg2.rules.delayed.level, "high", "非法等级应回退默认");
+
+  // 审计留痕
+  const audit = data.listAuditLogs(pj.id, {});
+  assert.ok(audit.items.some((a) => a.action === "更新风险配置"), "应留审计");
 });
