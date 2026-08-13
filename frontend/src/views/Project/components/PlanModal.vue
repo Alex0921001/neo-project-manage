@@ -43,7 +43,19 @@
             </button>
           </div>
         </div>
-        <div class="pm-grid">
+        <div class="pm-grid" :class="{ 'pm-grid-folded': commentsCollapsed }">
+          <!-- 评论折叠切换按钮（V2.1.3）：展开态显示 >（收起），折叠态显示 <（展开） -->
+          <button
+            class="pm-comments-toggle"
+            :class="{ folded: commentsCollapsed }"
+            :title="commentsCollapsed ? '展开评论' : '收起评论'"
+            @click="commentsCollapsed = !commentsCollapsed"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path v-if="!commentsCollapsed" d="M15 18l-6-6 6-6"></path>
+              <path v-else d="M9 18l6-6-6-6"></path>
+            </svg>
+          </button>
           <!-- 左 7：方案内容（富文本只读渲染） -->
           <div class="pm-content">
             <div
@@ -58,9 +70,18 @@
               <span class="pm-task-name" @click="emit('jump-task', plan.taskId)">▸ {{ plan.taskName }}</span>
             </div>
             <div v-if="plan?.taskExists === false" class="pm-task-gone">已转任务（原任务已删除）</div>
+            <!-- V2.1.3 需求管理：方案反向展示满足的需求 -->
+            <div v-if="plan?.requirements?.length" class="pm-reqs">
+              <div class="pm-reqs-title">满足的需求（{{ plan.requirements.length }}）</div>
+              <div v-for="r in plan.requirements" :key="r.id" class="pm-req-item">
+                <span class="pm-req-dot" :class="`dot-${r.status}`"></span>
+                <span class="pm-req-name">{{ r.name }}</span>
+                <span class="pm-req-status">{{ r.status }}</span>
+              </div>
+            </div>
           </div>
           <!-- 右 3：评论（任何状态可评论） -->
-          <div class="pm-comments">
+          <div class="pm-comments" v-show="!commentsCollapsed">
             <div class="pm-comments-title">评论</div>
             <div class="pm-comment-list">
               <div v-if="comments.length === 0" class="pm-comments-empty">暂无评论</div>
@@ -153,6 +174,7 @@ const comments = ref([]);
 const statusVal = ref("草稿");
 const statusSaving = ref(false);
 const commentDraft = ref("");
+const commentsCollapsed = ref(false); // V2.1.3 评论折叠（默认展开）
 
 // 编辑态（状态默认草稿，创建后由阅读模式头部切换，编辑弹窗不设状态）
 const editTitle = ref("");
@@ -416,6 +438,33 @@ watch(
   height: 100%;
   min-height: 0;
   padding: 0 16px 16px;
+  position: relative; /* V2.1.3 评论折叠按钮定位基准 */
+}
+/* V2.1.3 评论折叠：右上角圆形切换按钮 */
+.pm-comments-toggle {
+  position: absolute;
+  top: 48px;
+  right: 6px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.pm-comments-toggle:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.pm-comments-toggle.folded {
+  right: 12px;
 }
 .pm-edit-head {
   display: flex;
@@ -502,6 +551,13 @@ watch(
   flex: 1;
   min-height: 0;
 }
+/* V2.1.3 评论折叠：评论栏隐藏时内容区占满 */
+.pm-grid-folded {
+  grid-template-columns: 1fr;
+}
+.pm-grid-folded .pm-content {
+  border-right: none;
+}
 .pm-content {
   min-width: 0;
   overflow-y: auto;
@@ -547,6 +603,47 @@ watch(
   margin-top: 14px;
   font-size: 12px;
   color: var(--text-tertiary);
+}
+/* V2.1.3 满足的需求（方案反向展示） */
+.pm-reqs {
+  margin-top: 14px;
+  border-top: 0.5px solid var(--border);
+  padding-top: 10px;
+}
+.pm-reqs-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+.pm-req-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 12px;
+}
+.pm-req-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pm-req-dot.dot-待处理 { background: var(--text-tertiary); }
+.pm-req-dot.dot-已完成 { background: #2ea043; }
+.pm-req-dot.dot-已取消 { background: var(--border); }
+.pm-req-name {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pm-req-status {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 .pm-comments {
   min-width: 0;

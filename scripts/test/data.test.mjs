@@ -860,3 +860,62 @@ test("风险配置：默认合并 / 白名单校验 / summarize 按配置生效 
   const audit = data.listAuditLogs(pj.id, {});
   assert.ok(audit.items.some((a) => a.action === "更新风险配置"), "应留审计");
 });
+
+test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + 审计", () => {
+  const pj = data.createProject({ name: "需求测试" });
+  const planA = data.createPlan(pj.id, "方案A");
+  const planB = data.createPlan(pj.id, "方案B");
+
+  // 创建（带关联）
+  const r1 = data.createRequirement(pj.id, { name: "需求一", description: "<p>d</p>", priority: "P1", planIds: [planA.id, planB.id] });
+  assert.equal(r1.status, "待处理");
+  assert.equal(r1.priority, "P1");
+  assert.equal(r1.plans.length, 2);
+  assert.deepEqual(r1.planIds.sort(), [planA.id, planB.id].sort());
+
+  // 列表：总数 + planCount + planIds
+  const list = data.listRequirements(pj.id, {});
+  assert.equal(list.total, 1);
+  assert.equal(list.items[0].planCount, 2);
+  assert.deepEqual(list.items[0].planIds.sort(), [planA.id, planB.id].sort());
+
+  // 筛选：keyword / status
+  assert.equal(data.listRequirements(pj.id, { keyword: "需求一" }).total, 1);
+  assert.equal(data.listRequirements(pj.id, { keyword: "不存在" }).total, 0);
+  assert.equal(data.listRequirements(pj.id, { status: "已完成" }).total, 0);
+
+  // 编辑（待处理可改）
+  const r2 = data.updateRequirement(pj.id, r1.id, { name: "需求一改", planIds: [planA.id] });
+  assert.equal(r2.name, "需求一改");
+  assert.equal(r2.plans.length, 1);
+
+  // 状态流转：待处理 → 已完成
+  const r3 = data.updateRequirementStatus(pj.id, r1.id, "已完成");
+  assert.equal(r3.status, "已完成");
+
+  // 已完成冻结：不可编辑、不可再流转
+  assert.throws(() => data.updateRequirement(pj.id, r1.id, { name: "x" }), /不可修改/);
+  assert.throws(() => data.updateRequirementStatus(pj.id, r1.id, "已取消"), /不可再变更/);
+
+  // 关联/解除
+  data.linkRequirementPlans(pj.id, r1.id, [planB.id]);
+  assert.equal(data.getRequirement(pj.id, r1.id).plans.length, 2);
+  data.unlinkRequirementPlans(pj.id, r1.id, [planB.id]);
+  assert.equal(data.getRequirement(pj.id, r1.id).plans.length, 1);
+
+  // 方案反向展示
+  const pA = data.getPlan(pj.id, planA.id);
+  assert.equal(pA.requirements.length, 1);
+  assert.equal(pA.requirements[0].name, "需求一改");
+
+  // 无效状态
+  assert.throws(() => data.updateRequirementStatus(pj.id, r1.id, "进行中"), /无效需求状态/);
+
+  // 删除 + 级联清关联 + 审计
+  data.deleteRequirement(pj.id, r1.id);
+  assert.equal(data.listRequirements(pj.id, {}).total, 0);
+  assert.throws(() => data.getRequirement(pj.id, r1.id), /不存在/);
+  const audit = data.listAuditLogs(pj.id, {});
+  const actions = new Set(audit.items.map((a) => a.action));
+  ["创建需求", "更新需求", "更新需求状态", "关联方案", "解除方案关联", "删除需求"].forEach((a) => assert.ok(actions.has(a), `应有审计动作 ${a}`));
+});
