@@ -741,6 +741,8 @@ function riskParts(r) {  const desc = String(r?.desc || "");
 }
 
 .ov-label {
+  display: inline-flex;
+  align-items: center;
   font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
@@ -768,7 +770,6 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   background: none;
   color: var(--text-tertiary);
   cursor: pointer;
-  vertical-align: middle;
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .ov-gear:hover {
