@@ -62,7 +62,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popPending)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -95,7 +94,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popDelayed)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -157,7 +155,6 @@
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popNoDate)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -202,10 +199,9 @@
                 <ul class="ov-pop-list">
                   <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])" :title="t.annotationId ? t.content : t.name">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
-                    <!-- 批注条目：序号 + 内容截断；任务条目：序号 + #id + 名称 + 复制 -->
+                    <!-- 批注条目：序号 + 内容截断；任务条目：序号 + 名称 + 复制 -->
                     <span v-if="t.annotationId" class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     <template v-else>
-                      <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
                       <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -1047,14 +1043,6 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   font-variant-numeric: tabular-nums;
   line-height: 1;
   border-radius: 3px;
-}
-.ov-pop-id {
-  flex-shrink: 0;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
 }
 .ov-pop-name {
   flex: 1;
