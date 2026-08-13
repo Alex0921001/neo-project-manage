@@ -29,10 +29,6 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
           任务
         </button>
-        <button class="tab-btn" :class="{ active: tab === 'calendar' }" @click="tab = 'calendar'">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          日历
-        </button>
         <button class="tab-btn" :class="{ active: tab === 'files' }" @click="tab = 'files'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           文件
@@ -103,20 +99,14 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
           </button>
+          <!-- 前往日历：统一弹窗（单项目任务日历） -->
+          <button class="header-btn" @click="calShow = true" title="项目任务日历">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            前往日历 >
+          </button>
         </div>
       </div>
       <div class="tab-content">
-        <!-- 日历 tab：项目任务日历 -->
-        <div v-if="tab === 'calendar'" class="task-calendar-tab">
-          <CalendarWidget
-            :projects="p ? [p] : []"
-            :sets="allSets"
-            :compact="false"
-            task-mode
-            :project-id="p?.id || ''"
-            @select-task="onTabCalendarSelectTask"
-          />
-        </div>
         <TaskTab
           v-if="tab === 'tasks'"
           ref="taskTabRef"
@@ -187,6 +177,16 @@
       @changed="loadProject"
     />
 
+    <!-- 项目日历弹窗（tab 栏「前往日历 >」打开，单项目任务日历） -->
+    <CalendarModal
+      v-model="calShow"
+      :projects="p ? [p] : []"
+      :sets="allSets"
+      task-mode
+      :project-id="p?.id || ''"
+      @select-task="onTabCalendarSelectTask"
+    />
+
     <ConfirmModal
       :show="confirm.show"
       :message="confirm.message"
@@ -211,7 +211,7 @@ import PlanTab from "./components/PlanTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
 import AnnotationManagerModal from "./components/AnnotationManagerModal.vue";
-import CalendarWidget from "../../components/CalendarWidget.vue";
+import CalendarModal from "../../components/CalendarModal.vue";
 
 const props = defineProps({ projectId: String });
 const emit = defineEmits(["back"]);
@@ -256,6 +256,7 @@ function toggleExpandAll() {
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
 const annotManageShow = ref(false); // 批注管理大屏弹窗
+const calShow = ref(false); // 项目日历弹窗
 const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
 const planStatus = ref("全部");
