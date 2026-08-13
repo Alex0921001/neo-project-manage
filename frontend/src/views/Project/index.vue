@@ -80,7 +80,6 @@
             class="audit-filter-range"
             @click.stop
           />
-          <button v-if="tab === 'audit' && hasAuditFilter" class="audit-filter-clear" @click="clearAuditFilters">清空</button>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -248,11 +247,6 @@ const planStatus = ref("全部");
 const auditActions = ref([]);
 const auditAction = ref("");
 const auditDateRange = ref([]); // [开始, 结束] YYYY-MM-DD
-const hasAuditFilter = computed(() => !!auditAction.value || auditDateRange.value?.length > 0);
-function clearAuditFilters() {
-  auditAction.value = "";
-  auditDateRange.value = [];
-}
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -582,28 +576,16 @@ async function doConfirm() {
   width: 230px;
   flex-shrink: 0;
 }
+.audit-filter-range :deep(.el-input__wrapper) {
+  min-height: 31px;
+  border-radius: var(--radius-sm);
+}
 .audit-filter-range :deep(.el-range-input) {
   font-size: 12px;
 }
 .audit-filter-range :deep(.el-range-separator) {
   font-size: 12px;
   color: var(--text-tertiary);
-}
-.audit-filter-clear {
-  padding: 5px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.audit-filter-clear:hover {
-  border-color: var(--border);
-  color: var(--text);
 }
 .task-search-icon {
   position: absolute;
