@@ -55,6 +55,7 @@
             </template>
           </div>
         </div>
+      </div>
       </template>
 
       <div class="rc-footer">
