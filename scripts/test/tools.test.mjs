@@ -37,6 +37,8 @@ const TOOL_FILES = [
   "create-note", "update-note", "delete-note",
   // V2.1 风险只读工具
   "get-project-risks",
+  // V2.1.2 工具类
+  "list-project-risks", "import-plan-file", "confirm-annotations", "register-project-file",
 ];
 const tools = {};
 before(async () => {
@@ -223,7 +225,58 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   const gotProj2 = await run("get_project", { id: projId });
   assert.match(gotProj2, /备注-改后内容/);
 
+  // ===== V2.1.2 工具类 =====
+  // get_project view=summary：轻量模式应省略批注明细
+  const sumViewTxt = await run("get_project", { id: projId, view: "summary" });
+  assert.match(sumViewTxt, /任务/);
+  assert.ok(!sumViewTxt.includes("批注 ("), "summary 模式不应含批注明细");
+
+  // list_tasks nearDeadlineDays：任务 endDate 2026-01-01 已过期，不在近截止窗口内
+  const nearTxt = await run("list_tasks", { projectId: projId, nearDeadlineDays: 7 });
+  assert.match(nearTxt, /暂无任务/, "过期任务不应命中近截止窗口");
+
+  // list_project_risks：跨项目汇总 JSON
+  const lprTxt = await run("list_project_risks", { projectSetId: setId });
+  const lprJson = JSON.parse(lprTxt);
+  assert.ok(lprJson.summary?.projectCount >= 1, "应返回项目数统计");
+  assert.ok(Array.isArray(lprJson.projects), "projects 应为数组");
+
+  // register_project_file：登记临时文件
+  const regFile = path.join(tmpDir, "register-test.txt");
+  fs.writeFileSync(regFile, "hello register");
+  const regTxt = await run("register_project_file", { projectId: projId, filePath: regFile });
+  assert.match(regTxt, /已登记文件/);
+  const regId = firstId(regTxt);
+  assert.ok(regId, "应返回文件 ID");
+
+  // confirm_annotations：先造未确认批注，批量确认后完成前置校验放行
+  const t5 = await run("create_task", { projectId: projId, name: "待确认任务" });
+  const t5Id = firstId(t5);
+  const a1 = await run("create_annotation", { projectId: projId, taskId: t5Id, content: "待确认A", kind: "note" });
+  const a1Id = firstId(a1);
+  const a2 = await run("create_annotation", { projectId: projId, taskId: t5Id, content: "待确认B", kind: "note" });
+  const a2Id = firstId(a2);
+  const cfTxt = await run("confirm_annotations", { projectId: projId, ids: [a1Id, a2Id] });
+  assert.match(cfTxt, /已批量确认 2 条批注/);
+  // 确认后任务可完成（完成前置校验通过）
+  await run("update_task", { projectId: projId, id: t5Id, done: true });
+  // 已完成任务冻结：再确认其批注应报错（无未确认则不报，此处验证范围为空时幂等）
+  const cf2Txt = await run("confirm_annotations", { projectId: projId, taskId: t5Id });
+  assert.match(cf2Txt, /0 条批注/);
+
+  // import_plan_file：解析 md 预览（autoCreate=false）
+  const mdFile = path.join(tmpDir, "plan-demo.md");
+  fs.writeFileSync(mdFile, "# 标题\n\n正文内容。", "utf8");
+  const impTxt = await run("import_plan_file", { projectId: projId, filePath: mdFile });
+  const impJson = JSON.parse(impTxt);
+  assert.equal(impJson.title, "plan-demo", "标题应为文件名去扩展名");
+  assert.ok(impJson.content.includes("<h1>标题</h1>"), "md 应解析为 HTML");
+  // autoCreate=true 直接建方案
+  const imp2Txt = await run("import_plan_file", { projectId: projId, filePath: mdFile, autoCreate: true });
+  assert.match(imp2Txt, /已从文件创建方案/);
+
   // 清理
+  await run("delete_task", { projectId: projId, id: t5Id }); // 已完成任务需先删（项目删除限制）
   await run("delete_project", { id: projId });
   await run("delete_project_set", { id: setId });
 });

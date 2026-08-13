@@ -1,12 +1,13 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_project";
-export const description = "获取项目详情（含任务树/批注/文件/备注，覆盖归档、会话、项目集等全字段）";
+export const description = "获取项目详情（含任务树/批注/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
 export const parameters = {
   type: "object",
   required: ["id"],
   properties: {
     id: { type: "string", description: "项目 ID" },
+    view: { type: "string", enum: ["summary"], description: "view=summary 轻量模式：仅项目头 + 任务名/状态/日期（可选）" },
   },
 };
 
@@ -14,6 +15,7 @@ export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const project = data.getProject(input.id);
   if (!project) throw new Error(`项目 ${input.id} 不存在`);
+  const isSummary = input.view === "summary";
 
   // 项目集名映射（标注归属）
   const setIdToName = new Map(data.listProjectSets().map((s) => [s.id, s.name]));
@@ -31,12 +33,17 @@ export async function execute(input, toolCtx) {
     `关联会话: ${project.sessionIds?.length ? `${project.sessionIds.length} 个 [${project.sessionIds.join(", ")}]` : "无"}`,
   ];
 
-  // 任务树（递归渲染：父任务 + 子任务缩进 + 批注/文件引用）
+  // 任务树（递归渲染：父任务 + 子任务缩进 + 批注/文件引用；summary 模式仅名称/状态/日期）
   lines.push(`--- 任务 (${countTasks(project.tasks)}) ---`);
   if (!project.tasks?.length) {
     lines.push("  （无）");
   } else {
-    for (const t of project.tasks) renderTask(lines, t, 1);
+    for (const t of project.tasks) renderTask(lines, t, 1, isSummary);
+  }
+
+  // summary 模式：跳过文件/备注明细，到此为止
+  if (isSummary) {
+    return { content: [{ type: "text", text: lines.join("\n") }] };
   }
 
   lines.push(`--- 文件资产 (${project.files?.length || 0}) ---`);
@@ -64,8 +71,8 @@ export async function execute(input, toolCtx) {
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
 
-/** 递归渲染任务树（含批注/文件引用/子任务缩进） */
-function renderTask(lines, t, depth) {
+/** 递归渲染任务树（含批注/文件引用/子任务缩进；summary 模式仅名称/状态/日期） */
+function renderTask(lines, t, depth, isSummary = false) {
   const indent = "  ".repeat(depth);
   const statusIcon = t.done ? "✅" : "⬜";
   const dateText = [t.startDate, t.endDate].filter(Boolean).join(" ~ ");
@@ -76,6 +83,14 @@ function renderTask(lines, t, depth) {
   if (t.assignees?.length) parts.push(` [成员: ${t.assignees.join("、")}]`);
   if (dateText) parts.push(` [日期: ${dateText}]`);
   lines.push(parts.join(""));
+
+  // summary 模式：不展开批注/文件明细，仅继续递归子任务
+  if (isSummary) {
+    if (t.subtasks?.length) {
+      for (const s of t.subtasks) renderTask(lines, s, depth + 1, true);
+    }
+    return;
+  }
 
   // 批注
   if (t.annotations?.length) {

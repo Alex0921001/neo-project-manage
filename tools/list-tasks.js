@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "list_tasks";
-export const description = "列出项目下的任务（可按状态 / 负责人 / 关键字 / 日期范围筛选，关键字命中任务名、描述与批注内容）";
+export const description = "列出项目下的任务（可按状态 / 负责人 / 关键字 / 日期范围 / 近截止天数筛选，关键字命中任务名、描述与批注内容）";
 export const parameters = {
   type: "object",
   required: ["projectId"],
@@ -11,6 +11,7 @@ export const parameters = {
     assignee: { type: "string", description: "筛选负责人（成员名，空=全部；匹配任务 assignees 数组元素）" },
     keyword: { type: "string", description: "按任务名 / 描述 / 批注内容模糊搜索（可选）" },
     dateRange: { type: "string", enum: ["withDates"], description: "日期范围筛选：withDates=仅返回有开始/结束日期的任务（用于日历数据源）" },
+    nearDeadlineDays: { type: "integer", minimum: 0, description: "近截止快捷筛选：未完成且截止日期在 N 天内（含今天）的任务（可选）" },
   },
 };
 
@@ -21,6 +22,7 @@ export async function execute(input, toolCtx) {
     assignee: input.assignee || "",
     keyword: input.keyword || "",
     dateRange: input.dateRange || "",
+    nearDeadlineDays: input.nearDeadlineDays,
   });
   if (tasks.length === 0) {
     return { content: [{ type: "text", text: "暂无任务" }] };
