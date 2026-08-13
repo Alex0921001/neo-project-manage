@@ -78,7 +78,7 @@
             value-format="YYYY-MM-DD"
             size="small"
             class="audit-filter-range"
-            style="--el-input-height: 31px"
+            style="height: 31px"
             @click.stop
           />
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
