@@ -577,6 +577,10 @@ async function doConfirm() {
   width: 230px;
   flex-shrink: 0;
 }
+.audit-filter-range :deep(.el-input__wrapper) {
+  height: 31px !important;
+  min-height: 31px !important;
+}
 .audit-filter-range :deep(.el-range-input) {
   font-size: 12px;
 }
