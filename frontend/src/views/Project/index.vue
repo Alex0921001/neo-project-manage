@@ -221,7 +221,7 @@ function toggleExpandAll() {
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
 const taskSearch = ref("");
 const planSearch = ref("");
-const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃"];
+const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
 const planStatus = ref("全部");
 
 const filteredTasks = computed(() => {
@@ -530,13 +530,14 @@ async function doConfirm() {
   display: inline-flex;
   align-items: center;
 }
-/* 方案状态筛选下拉（tab 栏，对比按钮左侧） */
+/* 方案状态筛选下拉（tab 栏，对比按钮左侧），高度与两侧按钮对齐（约 31px） */
 .plan-status-select {
-  width: 96px;
+  width: 104px;
   flex-shrink: 0;
 }
 .plan-status-select :deep(.el-select__wrapper) {
-  min-height: 26px;
+  min-height: 31px;
+  border-radius: var(--radius-sm);
 }
 .task-search-icon {
   position: absolute;

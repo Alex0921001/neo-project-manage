@@ -10,7 +10,7 @@ export const parameters = {
     limit: { type: "integer", description: "每页条数（默认 10，最大 100）" },
     offset: { type: "integer", description: "偏移量（默认 0）" },
     keyword: { type: "string", description: "按标题模糊搜索" },
-    status: { type: "string", description: "按状态筛选：草稿 / 进行中 / 已采纳 / 已废弃" },
+    status: { type: "string", description: "按状态筛选：草稿 / 进行中 / 已采纳 / 已废弃 / 已转任务" },
   },
 };
 
