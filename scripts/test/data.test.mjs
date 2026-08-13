@@ -783,15 +783,23 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   assert.equal(task.name, "A 方案：技术选型 v2");
   assert.ok(task.description.includes("富文本内容"), "任务描述应含方案内容");
 
+  // 状态业务校验（已采纳 + 已转任务 + 任务存在）：标题不可改、状态冻结、不可删
+  expectThrow(() => data.updatePlan(proj.id, p1.id, { title: "改标题" }), /草稿/);
+  expectThrow(() => data.updatePlan(proj.id, p1.id, { status: "草稿" }), /冻结/);
+  expectThrow(() => data.deletePlan(proj.id, p1.id), /草稿/);
+
   // 删评论
   data.deletePlanComment(proj.id, p1.id, c1.id);
   assert.equal(data.getPlan(proj.id, p1.id).comments.length, 0);
   expectThrow(() => data.deletePlanComment(proj.id, p1.id, c1.id), /不存在/);
 
-  // 删除方案（级联删评论；任务保留）
+  // 任务删除后：状态冻结解除，可回退流转；回退到草稿后可删（级联删评论）
+  data.deleteTask(proj.id, conv.taskId);
+  assert.equal(data.getPlan(proj.id, p1.id).taskExists, false);
+  data.updatePlan(proj.id, p1.id, { status: "草稿" }); // 悬空回退允许
+  assert.equal(data.getPlan(proj.id, p1.id).status, "草稿");
   data.deletePlan(proj.id, p1.id);
   expectThrow(() => data.getPlan(proj.id, p1.id), /不存在/);
-  assert.ok(data.getTaskById(conv.taskId), "转出的任务应保留");
 
   // 审计联动：6 种动作全部留痕
   const audit = data.listAuditLogs(proj.id, {});

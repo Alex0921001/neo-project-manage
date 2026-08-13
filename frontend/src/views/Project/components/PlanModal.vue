@@ -20,7 +20,8 @@
               size="small"
               style="width: 104px"
               @change="onStatusChange"
-              :disabled="statusSaving"
+              :disabled="statusSaving || !!plan?.taskExists"
+              :title="plan?.taskExists ? '已转任务且任务存在，状态已冻结' : ''"
             >
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
