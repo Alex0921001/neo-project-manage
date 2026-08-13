@@ -35,6 +35,8 @@ const TOOL_FILES = [
   "list-plans", "get-plan", "add-plan-comment", "delete-plan-comment", "convert-plan-to-task",
   // V2.1 备注三工具
   "create-note", "update-note", "delete-note",
+  // V2.1 风险只读工具
+  "get-project-risks",
 ];
 const tools = {};
 before(async () => {
@@ -190,6 +192,13 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   const askTxt = await run("ask_project", { projectId: projId, scope: "all" });
   assert.match(askTxt, /决策V2/);
   assert.match(askTxt, /备注V2/);
+
+  // get_project_risks（V2.1：只读风险，JSON 结构化，不触发存档）
+  const risksTxt = await run("get_project_risks", { projectId: projId });
+  const risksJson = JSON.parse(risksTxt);
+  assert.ok(Array.isArray(risksJson.risks), "risks 应为 JSON 数组");
+  assert.ok(risksJson.riskConfig?.delayed, "应返回当前项目风险配置（含 delayed 规则）");
+  assert.ok(risksJson.risks.some((r) => /延期|到期|风险批注/.test(r.desc)), "应含规则计算出的风险条目");
 
   // 会话关联
   const linkTxt = await run("link_project_session", { projectId: projId, sessionId: "sess-v2-test" });

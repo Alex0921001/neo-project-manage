@@ -52,6 +52,7 @@
       "./tools/get-project-summaries.js",
       "./tools/summarize-project.js",
       "./tools/ask-project.js",
+      "./tools/get-project-risks.js",
       "./tools/list-members.js",
       "./tools/create-member.js",
       "./tools/update-member.js",
