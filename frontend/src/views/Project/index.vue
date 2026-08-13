@@ -82,17 +82,13 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             批注管理
           </button>
-          <!-- 任务排序（展开按钮左侧）：默认（可拖拽）/ 等级 / 开始时间 -->
-          <div v-if="tab === 'tasks'" class="sort-group" :title="sortTip">
-            <button
-              v-for="opt in sortOptions"
-              :key="opt.value"
-              class="sort-btn"
-              :class="{ active: taskSort === opt.value }"
-              :title="opt.tip"
-              @click="taskSort = opt.value"
-            >{{ opt.label }}</button>
-          </div>
+          <!-- 任务排序（展开按钮左侧）：下拉选择 默认 / 时间 / 等级 -->
+          <el-select v-if="tab === 'tasks'" v-model="taskSort" size="small" class="sort-select" :title="sortTip">
+            <el-option v-for="opt in sortOptions" :key="opt.value" :label="opt.label" :value="opt.value">
+              <span class="sort-opt-label">{{ opt.label }}</span>
+              <span class="sort-opt-tip">{{ opt.tip }}</span>
+            </el-option>
+          </el-select>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -268,13 +264,14 @@ function toggleExpandAll() {
 // 拖拽仅默认排序可用；等级/时间排序时子任务与子子任务同样按规则排序（TaskTab sortTree 递归）
 const taskSort = ref("default");
 const sortOptions = [
-  { value: "default", label: "默认", tip: "默认排序（可拖拽调整顺序）" },
-  { value: "priority", label: "等级", tip: "按等级排序（P0→P5，拖拽已禁用）" },
-  { value: "startDate", label: "时间", tip: "按开始时间排序（无日期排最后，拖拽已禁用）" },
+  { value: "default", label: "默认排序", tip: "可拖拽调整顺序" },
+  { value: "startDate", label: "时间排序", tip: "按开始时间，无日期排最后" },
+  { value: "priority", label: "等级排序", tip: "P0 → P5" },
 ];
 const sortTip = computed(() => {
   const opt = sortOptions.find((o) => o.value === taskSort.value);
-  return (opt?.tip || "") + "；任务与子任务均按此规则排序";
+  if (taskSort.value === "default") return "默认排序：可拖拽调整顺序；任务与子任务均按当前规则排序";
+  return `${opt?.label}：${opt?.tip}（拖拽已禁用）；任务与子任务均按此规则排序`;
 });
 
 // ===== 任务筛选 =====
@@ -564,36 +561,19 @@ async function doConfirm() {
   gap: 8px;
   padding-right: 6px;
 }
-/* 任务排序分段按钮（V2.1.2） */
-.sort-group {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  background: var(--bg-card);
+/* 任务排序下拉（V2.1.2，对齐 tab-bar 高度） */
+.sort-select {
+  width: 96px;
 }
-.sort-btn {
-  height: 27px;
-  padding: 0 10px;
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+.sort-select :deep(.el-select__wrapper) {
+  min-height: 27px;
+  box-shadow: 0 0 0 1px var(--border-light) inset;
 }
-.sort-btn + .sort-btn {
-  border-left: 1px solid var(--border-light);
-}
-.sort-btn:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-.sort-btn.active {
-  background: var(--accent);
-  color: var(--bg-card);
-  font-weight: 600;
+.sort-opt-tip {
+  float: right;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-left: 10px;
 }
 .header-btn {
   display: inline-flex;
