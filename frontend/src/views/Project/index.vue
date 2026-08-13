@@ -561,13 +561,14 @@ async function doConfirm() {
   gap: 8px;
   padding-right: 6px;
 }
-/* 任务排序下拉（V2.1.2，对齐 tab-bar 高度） */
+/* 任务排序下拉（V2.1.2，对齐 tab-bar 31px 高度，与方案/审计筛选下拉一致） */
 .sort-select {
-  width: 96px;
+  width: 100px;
+  flex-shrink: 0;
 }
 .sort-select :deep(.el-select__wrapper) {
-  min-height: 27px;
-  box-shadow: 0 0 0 1px var(--border-light) inset;
+  min-height: 31px;
+  border-radius: var(--radius-sm);
 }
 .sort-opt-tip {
   float: right;
