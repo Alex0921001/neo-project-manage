@@ -21,8 +21,8 @@
       v-model="calendarShow"
       :projects="allProjects"
       :sets="allSets"
-      @select="openProject"
-      @select-task="openTaskFromCalendar"
+      @select="(id) => { calendarShow = false; openProject(id) }"
+      @select-task="(payload) => { calendarShow = false; openTaskFromCalendar(payload) }"
     />
 
     <div

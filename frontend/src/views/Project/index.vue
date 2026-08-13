@@ -184,7 +184,7 @@
       :sets="allSets"
       task-mode
       :project-id="p?.id || ''"
-      @select-task="onTabCalendarSelectTask"
+      @select-task="(payload) => { calShow = false; onTabCalendarSelectTask(payload) }"
     />
 
     <ConfirmModal

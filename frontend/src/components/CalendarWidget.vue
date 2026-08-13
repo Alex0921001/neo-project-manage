@@ -198,8 +198,8 @@ const fcOptions = computed(() => ({
   initialView: "dayGridMonth",
   locale: zhCn,
   // 高度：compact（侧边小日历）用 auto 贴合月历自然高度，避免格子被容器强行拉伸；
-  // 非 compact（日历 tab / 大日历页）固定 600
-  height: props.compact ? "auto" : 600,
+  // 非 compact（弹窗内）用 100% 填满容器（flex 布局随弹窗伸缩自适应）
+  height: props.compact ? "auto" : "100%",
   dayMaxEvents: props.compact ? 1 : 3,
   headerToolbar: false,
   editable: false,
