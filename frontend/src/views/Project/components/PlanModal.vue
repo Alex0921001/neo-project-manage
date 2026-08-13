@@ -25,6 +25,9 @@
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
             <!-- 操作按钮按状态显示：转任务仅已采纳；编辑仅草稿/进行中；删除仅草稿/已废弃 -->
+            <button class="pm-icon-btn" title="复制方案（标题 + 内容）" @click="copyPlan">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
             <button
               v-if="plan?.status === '已采纳'"
               class="pm-btn pm-btn-primary"
@@ -132,6 +135,7 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   planId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit
+  clonePlan: { type: Object, default: null }, // 克隆源：新建编辑态预填其标题 + 内容（无权限控制）
 });
 const emit = defineEmits(["close", "changed", "jump-task", "update:show"]);
 
@@ -169,9 +173,12 @@ function ask(msg, confirmText, action, payload) {
 }
 
 // ===== 加载 =====
-// 打开时初始化编辑字段：新建（无 planId）清空标题与内容，避免残留上次编辑值；编辑预填当前值
+// 打开时初始化编辑字段：克隆源优先预填（无权限控制）；新建清空；编辑预填当前值
 function initEdit() {
-  if (!props.planId) {
+  if (props.clonePlan) {
+    editTitle.value = props.clonePlan.title;
+    editContent.value = props.clonePlan.content || "";
+  } else if (!props.planId) {
     editTitle.value = "";
     editContent.value = "";
   } else if (plan.value) {
@@ -268,6 +275,22 @@ async function sendComment() {
     emit("changed");
   } else {
     toast(res?.error || "评论失败", "error");
+  }
+}
+
+// 复制方案：标题 + 内容（纯文本，去 HTML）
+async function copyPlan() {
+  if (!plan.value) return;
+  const plain = String(plan.value.content || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const text = `${plan.value.title}${plain ? `\n\n${plain}` : ""}`;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("已复制标题 + 内容");
+  } catch {
+    toast("复制失败，请手动选择复制", "error");
   }
 }
 

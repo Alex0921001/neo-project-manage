@@ -19,6 +19,7 @@
         class="plan-row"
         :class="{ 'plan-row-selected': selectedMap.has(pl.id) }"
         @click="openDetail(pl)"
+        @contextmenu.prevent="openCtx($event, pl)"
       >
         <span
           class="plan-row-check"
@@ -47,28 +48,47 @@
       </div>
     </div>
 
+    <!-- 右键菜单（fixed 定位，随鼠标；打开/克隆/编辑/删除/转任务，状态规则与详情一致，克隆无限制） -->
+    <div v-if="ctx.show" class="plan-ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
+      <div class="plan-ctx-item" @click="ctxOpen">打开</div>
+      <div class="plan-ctx-item" @click="ctxClone">克隆</div>
+      <div v-if="canEdit" class="plan-ctx-item" @click="ctxEdit">编辑</div>
+      <div v-if="canDel" class="plan-ctx-item plan-ctx-danger" @click="ctxDel">删除</div>
+      <div v-if="canConvert" class="plan-ctx-item" @click="ctxConvert">转任务</div>
+    </div>
+
     <PlanModal
       v-model:show="modal.show"
       :project-id="projectId"
       :plan-id="modal.planId"
       :mode="modal.mode"
+      :clone-plan="modal.clonePlan"
       @mode-change="modal.mode = $event"
       @close="modal.show = false"
       @changed="onChanged"
       @jump-task="jumpTask"
     />
     <PlanCompareModal v-model:show="compareShow" :plans="comparePlans" />
+
+    <ConfirmModal
+      :show="confirm.show"
+      :message="confirm.message"
+      :confirm-text="confirm.confirmText"
+      @close="confirm.show = false"
+      @confirm="doCtxConfirm"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
 import { highlight } from "../../../utils/highlight.js";
 import PlanModal from "./PlanModal.vue";
 import PlanCompareModal from "./PlanCompareModal.vue";
+import ConfirmModal from "../../../components/ConfirmModal.vue";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
@@ -84,8 +104,67 @@ const page = ref(1);
 const loading = ref(false);
 // 跨页勾选：id → 方案对象（分页翻页不清空，对比弹窗用完整数据）
 const selectedMap = ref(new Map());
-const modal = ref({ show: false, planId: null, mode: "read" });
+const modal = ref({ show: false, planId: null, mode: "read", clonePlan: null });
 const compareShow = ref(false);
+
+// ===== 右键菜单：打开 / 克隆 / 编辑 / 删除 / 转任务 =====
+const ctx = reactive({ show: false, x: 0, y: 0, plan: null });
+const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", plan: null });
+const canEdit = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "进行中"));
+const canDel = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "已废弃"));
+const canConvert = computed(() => ctx.plan && ctx.plan.status === "已采纳" && !ctx.plan.taskId);
+
+function openCtx(e, pl) {
+  ctx.plan = pl;
+  ctx.x = Math.min(e.clientX, window.innerWidth - 140);
+  ctx.y = Math.min(e.clientY, window.innerHeight - 200);
+  ctx.show = true;
+}
+function closeCtx() {
+  ctx.show = false;
+}
+function ctxOpen() {
+  closeCtx();
+  openDetail(ctx.plan);
+}
+// 克隆：无权限控制，把当前方案标题 + 内容预填到新建编辑弹窗（保存即新建）
+function ctxClone() {
+  closeCtx();
+  modal.value = { show: true, planId: null, mode: "edit", clonePlan: ctx.plan };
+}
+function ctxEdit() {
+  closeCtx();
+  modal.value = { show: true, planId: ctx.plan.id, mode: "edit", clonePlan: null };
+}
+function ctxDel() {
+  closeCtx();
+  confirm.value = { show: true, message: `确认删除方案「${ctx.plan.title}」？评论将一并删除，转出的任务不受影响。`, confirmText: "删除方案", action: "delete", plan: ctx.plan };
+}
+function ctxConvert() {
+  closeCtx();
+  confirm.value = { show: true, message: `将方案「${ctx.plan.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, confirmText: "转任务", action: "convert", plan: ctx.plan };
+}
+async function doCtxConfirm() {
+  confirm.value.show = false;
+  const { action, plan } = confirm.value;
+  if (!plan) return;
+  if (action === "delete") {
+    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}`, { method: "DELETE" });
+    if (res?.ok) {
+      toast("已删除方案");
+      onChanged();
+    } else toast(res?.error || "删除失败", "error");
+  } else if (action === "convert") {
+    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}/convert`, { method: "POST" });
+    if (res?.ok) {
+      toast("已转为任务");
+      onChanged();
+    } else toast(res?.error || "转任务失败", "error");
+  }
+}
+// 全局点击关闭右键菜单
+onMounted(() => window.addEventListener("click", closeCtx));
+onBeforeUnmount(() => window.removeEventListener("click", closeCtx));
 
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 const selectedCount = computed(() => selectedMap.value.size);
@@ -378,6 +457,37 @@ watch(() => props.projectId, () => load(), { immediate: true });
   border-radius: 3px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+/* 右键菜单（fixed 跟随鼠标） */
+.plan-ctx {
+  position: fixed;
+  z-index: 2100;
+  min-width: 110px;
+  padding: 4px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+}
+.plan-ctx-item {
+  padding: 6px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-ctx-item:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.plan-ctx-danger {
+  color: var(--status-delay-text);
+}
+.plan-ctx-danger:hover {
+  background: var(--status-delay-bg);
+  color: var(--status-delay-text);
 }
 .plan-row-meta {
   width: 56px;
