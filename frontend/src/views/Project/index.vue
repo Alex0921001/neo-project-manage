@@ -569,6 +569,12 @@ async function doConfirm() {
 .sort-select :deep(.el-select__wrapper) {
   min-height: 31px;
   border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sort-select :deep(.el-select__selected-item) {
+  font-size: 12px;
+  font-weight: 600;
 }
 .sort-opt-tip {
   float: right;
