@@ -207,6 +207,8 @@ function init() {
 watch(() => props.show, (v) => { if (v) init(); });
 // 弹窗已开时点击列表其他需求：id 变化重新加载（对齐方案弹窗的切换行为）
 watch(() => props.requirementId, () => { if (props.show) init(); });
+// 模式变化（如详情开着时右键「编辑」同一行）：强制重初始化，切到编辑态
+watch(() => props.mode, () => { if (props.show) init(); });
 
 // ===== 保存（新建 / 编辑） =====
 async function save() {
@@ -225,25 +227,11 @@ async function save() {
   if (!res?.ok) return toast(res?.error || "保存失败", "error");
   toast(isEdit ? "已更新需求" : "已创建需求");
   emit("changed");
-  // 新建：id 由本次返回确定，内部推进后回阅读模式
-  if (!isEdit && res.data?.id) currentId.value = res.data.id;
-  mode.value = "read";
-  req.value = res.data;
-  form.value = {
-    name: res.data.name,
-    description: res.data.description || "",
-    priority: res.data.priority || "P3",
-    planIds: [...(res.data.planIds || [])],
-  };
+  emit("close"); // 对齐方案：编辑保存后关闭弹窗
 }
 
 function cancelEdit() {
-  if (currentId.value) {
-    mode.value = "read";
-    loadDetail();
-  } else {
-    emit("close"); // 新建取消直接关闭
-  }
+  emit("close"); // 对齐方案：编辑取消直接关闭（新建/编辑一致）
 }
 
 // ===== 删除 =====
