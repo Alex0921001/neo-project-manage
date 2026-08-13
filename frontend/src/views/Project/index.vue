@@ -77,11 +77,22 @@
             style="height: 31px"
             @click.stop
           />
-          <!-- 批注管理（展开按钮左侧）：打开大屏批注管理弹窗 -->
+          <!-- 批注管理（排序按钮右侧）：打开大屏批注管理弹窗 -->
           <button v-if="tab === 'tasks'" class="header-btn" @click="annotManageShow = true" title="批注管理">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             批注管理
           </button>
+          <!-- 任务排序（展开按钮左侧）：默认（可拖拽）/ 等级 / 开始时间 -->
+          <div v-if="tab === 'tasks'" class="sort-group" :title="sortTip">
+            <button
+              v-for="opt in sortOptions"
+              :key="opt.value"
+              class="sort-btn"
+              :class="{ active: taskSort === opt.value }"
+              :title="opt.tip"
+              @click="taskSort = opt.value"
+            >{{ opt.label }}</button>
+          </div>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -118,6 +129,7 @@
           :plan-end="p?.planEnd || ''"
           :search-query="taskSearch"
           :expand-all="expandAll"
+          :sort-mode="taskSort"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -251,6 +263,19 @@ const expandAll = ref(null);
 function toggleExpandAll() {
   expandAll.value = !expandAll.value;
 }
+
+// ===== 任务排序（V2.1.2）：默认（可拖拽）/ 等级 / 开始时间 =====
+// 拖拽仅默认排序可用；等级/时间排序时子任务与子子任务同样按规则排序（TaskTab sortTree 递归）
+const taskSort = ref("default");
+const sortOptions = [
+  { value: "default", label: "默认", tip: "默认排序（可拖拽调整顺序）" },
+  { value: "priority", label: "等级", tip: "按等级排序（P0→P5，拖拽已禁用）" },
+  { value: "startDate", label: "时间", tip: "按开始时间排序（无日期排最后，拖拽已禁用）" },
+];
+const sortTip = computed(() => {
+  const opt = sortOptions.find((o) => o.value === taskSort.value);
+  return (opt?.tip || "") + "；任务与子任务均按此规则排序";
+});
 
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
@@ -538,6 +563,37 @@ async function doConfirm() {
   align-items: center;
   gap: 8px;
   padding-right: 6px;
+}
+/* 任务排序分段按钮（V2.1.2） */
+.sort-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+.sort-btn {
+  height: 27px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.sort-btn + .sort-btn {
+  border-left: 1px solid var(--border-light);
+}
+.sort-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.sort-btn.active {
+  background: var(--accent);
+  color: var(--bg-card);
+  font-weight: 600;
 }
 .header-btn {
   display: inline-flex;
