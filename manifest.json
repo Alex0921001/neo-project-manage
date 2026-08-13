@@ -64,7 +64,10 @@
       "./tools/get-plan.js",
       "./tools/add-plan-comment.js",
       "./tools/delete-plan-comment.js",
-      "./tools/convert-plan-to-task.js"
+      "./tools/convert-plan-to-task.js",
+      "./tools/create-note.js",
+      "./tools/update-note.js",
+      "./tools/delete-note.js"
     ]
   },
   "dev": {
