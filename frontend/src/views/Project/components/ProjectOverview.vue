@@ -126,10 +126,9 @@
                   </template>
                   <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 条）</div>
                   <ul class="ov-pop-list">
-                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, popAnnot)">
+                    <li v-for="(t, i) in pendingAnnotationTasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, popAnnot)" :title="t.content || t.name">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
-                      <span class="ov-pop-ann">{{ t.content || t.name }}</span>
-                      <span class="ov-pop-id">@{{ t.name }}</span>
+                      <span class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     </li>
                   </ul>
                 </el-popover>
@@ -201,12 +200,16 @@
                 </template>
                 <div class="ov-pop-head">涉及任务（{{ r.tasks.length }}）</div>
                 <ul class="ov-pop-list">
-                  <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])">
+                  <li v-for="(t, ti) in r.tasks" :key="t.annotationId || t.id" class="ov-pop-item" @click="jumpAnnFromPop(t, riskPopRefs[i])" :title="t.annotationId ? t.content : t.name">
                     <span class="ov-pop-idx">{{ ti + 1 }}</span>
-                    <span v-if="t.annotationId" class="ov-pop-ann">{{ t.content || t.name }}</span>
+                    <!-- 批注条目：序号 + 内容截断；任务条目：序号 + #id + 名称 + 复制 -->
+                    <span v-if="t.annotationId" class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     <template v-else>
                       <span class="ov-pop-id">#{{ t.id }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
+                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                      </button>
                     </template>
                   </li>
                 </ul>
@@ -445,6 +448,15 @@ function copyText(text) {
 function copyTaskItem(t) {
   if (!t?.id) return;
   copyText(`使用项目管理插件工具搜索：【任务 id:${t.id}】 ${t.name || ""} 的具体内容。`);
+}
+
+// 批注内容短展示：去 HTML + 限 10 字（对齐用户规范「前 10 个字...」）
+function shortAnn(text) {
+  const t = String(text || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return t.length > 10 ? `${t.slice(0, 10)}...` : t || "（无内容）";
 }
 
 // 风险描述解析：把「2 个任务已延期（最长延期 5 天）」拆成 { num, text, note }
@@ -1056,18 +1068,16 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-/* 批注条目（待确认/风险批注）：内容 + 任务名标注 */
+/* 批注条目（待确认/风险批注）：序号 + 内容单行截断 */
 .ov-pop-ann {
   flex: 1;
   min-width: 0;
   font-size: 12.5px;
   color: var(--text);
   line-height: 1.5;
-  word-break: break-word;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ov-pop-copy {
   flex-shrink: 0;

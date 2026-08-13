@@ -744,13 +744,13 @@ async function toggleConfirm(ann) {
   pointer-events: none;
 }
 .annot-search-input {
-  width: 120px;
-  padding: 3px 22px 3px 24px;
+  width: 170px;
+  padding: 5px 24px 5px 26px;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text);
-  font-size: 12px;
+  font-size: 12.5px;
   font-family: inherit;
   outline: none;
   transition: border-color var(--duration-fast) var(--ease-out);
