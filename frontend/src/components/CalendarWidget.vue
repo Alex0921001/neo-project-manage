@@ -1,5 +1,5 @@
 <template>
-  <div :class="['cal-widget', { 'cal-compact': compact }]">
+  <div ref="rootEl" :class="['cal-widget', { 'cal-compact': compact }]">
     <!-- 自定义 header：筛选（独立页）+ 时间控制器，同一行 -->
     <div class="cal-header">
       <div v-if="!compact" class="cal-filter">
@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onErrorCaptured, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount, onErrorCaptured, nextTick } from "vue";
 import FullCalendar from "@fullcalendar/vue3";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -51,6 +51,8 @@ onErrorCaptured((err, instance, info) => {
 });
 
 const calendarRef = ref(null);
+const rootEl = ref(null); // 容器根节点：观察尺寸变化驱动 FullCalendar 重算
+let resizeObserver = null;
 const currentTitle = ref("");
 const calFilter = ref("undone");
 const filterOptions = [
@@ -92,6 +94,17 @@ onMounted(() => {
       });
     });
   }
+  // 弹窗/面板拖动缩放不触发 window resize，用 ResizeObserver 驱动单元格自适应
+  if (rootEl.value && typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      try { calendarRef.value?.getApi()?.updateSize(); } catch (e) { console.error("[CalendarWidget] updateSize 失败:", e); }
+    });
+    resizeObserver.observe(rootEl.value);
+  }
+});
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
 });
 // 监听 ref 本身（此前误写成 props.calFilter，源恒 undefined 永不触发）
 watch(calFilter, () => {
