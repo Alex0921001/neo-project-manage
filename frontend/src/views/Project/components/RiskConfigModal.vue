@@ -14,7 +14,8 @@
       <div v-if="loading" class="rc-loading">加载中...</div>
 
       <template v-else-if="rules">
-        <div v-for="item in ruleList" :key="item.key" class="rc-row">
+        <div class="rc-list">
+          <div v-for="item in ruleList" :key="item.key" class="rc-row">
           <div class="rc-row-main">
             <label class="rc-switch">
               <input type="checkbox" v-model="item.rule.enabled" />
@@ -226,6 +227,20 @@ watch(
   gap: 10px;
   overflow: hidden;
 }
+.rc-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.rc-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; /* footer 固定底部，内容区滚动 */
+}
 .rc-tip {
   font-size: 12px;
   color: var(--text-tertiary);
@@ -237,10 +252,6 @@ watch(
   text-align: center;
   color: var(--text-tertiary);
   font-size: 13px;
-}
-.rc-list {
-  flex: 1;
-  overflow-y: auto;
 }
 .rc-row {
   display: flex;
