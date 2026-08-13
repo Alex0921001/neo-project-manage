@@ -189,6 +189,7 @@ const props = defineProps({
   expandAll: { type: Boolean, default: null },
   forceExpandIds: { type: Array, default: () => [] }, // 定位跳转：命中任务 id 强制展开（祖先链）
   depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
+  dragDisabled: { type: Boolean, default: false }, // V2.1.2 非默认排序时禁用拖拽（隐藏把手）
 });
 const emit = defineEmits([
   "mark-task-done",
@@ -233,7 +234,8 @@ watch(() => props.searchQuery, (q) => {
 });
 
 // 仅顶层卡片（depth 0）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表（嵌套 draggable 不稳）
-const draggable_drag = computed(() => props.depth < 1);
+// V2.1.2：非默认排序（dragDisabled）时同样禁用
+const draggable_drag = computed(() => props.depth < 1 && !props.dragDisabled);
 
 const annotList = computed(() => props.task.annotations || []);
 const annotTotal = computed(() => annotList.value.length);

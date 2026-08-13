@@ -77,11 +77,18 @@
             style="height: 31px"
             @click.stop
           />
-          <!-- 批注管理（展开按钮左侧）：打开大屏批注管理弹窗 -->
+          <!-- 批注管理（排序按钮右侧）：打开大屏批注管理弹窗 -->
           <button v-if="tab === 'tasks'" class="header-btn" @click="annotManageShow = true" title="批注管理">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             批注管理
           </button>
+          <!-- 任务排序（展开按钮左侧）：下拉选择 默认 / 时间 / 等级 -->
+          <el-select v-if="tab === 'tasks'" v-model="taskSort" size="small" class="sort-select" :title="sortTip">
+            <el-option v-for="opt in sortOptions" :key="opt.value" :label="opt.label" :value="opt.value">
+              <span class="sort-opt-label">{{ opt.label }}</span>
+              <span class="sort-opt-tip">{{ opt.tip }}</span>
+            </el-option>
+          </el-select>
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline v-if="expandAll" points="7 11 12 6 17 11"></polyline>
@@ -118,6 +125,7 @@
           :plan-end="p?.planEnd || ''"
           :search-query="taskSearch"
           :expand-all="expandAll"
+          :sort-mode="taskSort"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -251,6 +259,20 @@ const expandAll = ref(null);
 function toggleExpandAll() {
   expandAll.value = !expandAll.value;
 }
+
+// ===== 任务排序（V2.1.2）：默认（可拖拽）/ 等级 / 开始时间 =====
+// 拖拽仅默认排序可用；等级/时间排序时子任务与子子任务同样按规则排序（TaskTab sortTree 递归）
+const taskSort = ref("default");
+const sortOptions = [
+  { value: "default", label: "默认排序", tip: "可拖拽调整顺序" },
+  { value: "startDate", label: "时间排序", tip: "按开始时间，无日期排最后" },
+  { value: "priority", label: "等级排序", tip: "P0 → P5" },
+];
+const sortTip = computed(() => {
+  const opt = sortOptions.find((o) => o.value === taskSort.value);
+  if (taskSort.value === "default") return "默认排序：可拖拽调整顺序；任务与子任务均按当前规则排序";
+  return `${opt?.label}：${opt?.tip}（拖拽已禁用）；任务与子任务均按此规则排序`;
+});
 
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
@@ -538,6 +560,27 @@ async function doConfirm() {
   align-items: center;
   gap: 8px;
   padding-right: 6px;
+}
+/* 任务排序下拉（V2.1.2，对齐 tab-bar 31px 高度，与方案/审计筛选下拉一致） */
+.sort-select {
+  width: 100px;
+  flex-shrink: 0;
+}
+.sort-select :deep(.el-select__wrapper) {
+  min-height: 31px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+}
+.sort-select :deep(.el-select__selected-item) {
+  font-size: 12px;
+  font-weight: 600;
+}
+.sort-opt-tip {
+  float: right;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-left: 10px;
 }
 .header-btn {
   display: inline-flex;

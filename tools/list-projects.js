@@ -36,7 +36,7 @@ export async function execute(input, toolCtx) {
         ? ` [项目集: ${setIdToName.get(p.projectSetId)}]`
         : "";
     // 风格对齐 list_tasks：图标 名称 — 描述 [状态] [成员] [计划] [统计] [项目集] [创建] [ID]
-    return `${statusIcon} ${p.name}${archivedMark}${descPart} [状态: ${displayStatus}]${membersText}${planText} [任务: ${p.taskCount}（未完成 ${p.incompleteTaskCount}）] [文件: ${p.fileCount}] [备注: ${p.noteCount}]${setText} [创建: ${p.createdAt}] [ID: ${p.id}]`;
+    return `${statusIcon} ${p.name}${archivedMark}${descPart} [状态: ${displayStatus}]${membersText}${planText} [任务: ${p.taskCount}（未完成 ${p.incompleteTaskCount}）] [文件: ${p.fileCount}] [备注: ${p.noteCount}] [方案: ${p.planCount ?? 0}]${setText} [创建: ${p.createdAt}] [ID: ${p.id}]`;
   });
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }

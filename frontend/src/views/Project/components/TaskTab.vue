@@ -128,7 +128,7 @@
               drag-class="task-drag"
               animation="200"
               group="tasks"
-              :disabled="!!searchQuery"
+              :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
               @end="onTopDragEnd"
             >
@@ -140,6 +140,7 @@
                   :project-id="projectId"
                   :expand-all="expandAll"
                   :force-expand-ids="forceExpandIds"
+                  :drag-disabled="sortMode !== 'default' || !!searchQuery"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
                   @subtask="startSubtask"
@@ -166,7 +167,7 @@
               chosen-class="task-chosen"
               drag-class="task-drag"
               animation="200"
-              :disabled="!!searchQuery"
+              :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
               @end="onTopDragEnd"
             >
@@ -178,6 +179,7 @@
                   :project-id="projectId"
                   :expand-all="expandAll"
                   :force-expand-ids="forceExpandIds"
+                  :drag-disabled="sortMode !== 'default' || !!searchQuery"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
               @subtask="startSubtask"
@@ -229,6 +231,8 @@ const props = defineProps({
   planEnd: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   expandAll: { type: Boolean, default: null },
+  // V2.1.2 任务排序：default=默认（拖拽序）/ priority=等级 / startDate=开始时间
+  sortMode: { type: String, default: "default" },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
@@ -413,6 +417,29 @@ onUnmounted(() => {
   stopTaskWatcher();
 });
 
+// ===== 任务排序（V2.1.2）：default 保持拖拽序；priority/startDate 递归排序（不改原对象） =====
+function sortTree(tasks, mode) {
+  if (mode === "default") return tasks;
+  const arr = (tasks || []).map((t) => ({ ...t, subtasks: t.subtasks ? [...t.subtasks] : [] }));
+  if (mode === "priority") {
+    arr.sort((a, b) => {
+      const pa = a.priority || "P3";
+      const pb = b.priority || "P3";
+      if (pa !== pb) return pa < pb ? -1 : 1; // P0 < P1 < ... < P5
+      return 0;
+    });
+  } else if (mode === "startDate") {
+    arr.sort((a, b) => {
+      const sa = a.startDate || "9999-12-31"; // 无开始时间排最后
+      const sb = b.startDate || "9999-12-31";
+      if (sa !== sb) return sa < sb ? -1 : 1;
+      return 0;
+    });
+  }
+  for (const t of arr) t.subtasks = sortTree(t.subtasks, mode);
+  return arr;
+}
+
 // ===== 任务分组：未完成 / 已完成，组内按数组顺序（拖拽后保持） =====
 
 // localTasks：与 props.tasks 镜像，拖拽时修改这里
@@ -515,19 +542,21 @@ function filterTaskForSearch(t, qLower) {
   return { ...t, subtasks: filteredSubs };
 }
 const searchLower = computed(() => props.searchQuery.trim().toLowerCase());
-const displayedUndoneTasks = computed(() =>
-  searchLower.value
-    ? undoneTasks.value.map(t => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
-    : undoneTasks.value
-);
-const displayedDoneTasks = computed(() =>
-  searchLower.value
-    ? doneTasks.value.map(t => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
-    : doneTasks.value
-);
-// draggable 绑定列表：搜索态渲染过滤结果（拖拽已禁用，安全）；非搜索态用可变数组支持拖拽排序
-const dragUndoneList = computed(() => (searchLower.value ? displayedUndoneTasks.value : undoneArr.value));
-const dragDoneList = computed(() => (searchLower.value ? displayedDoneTasks.value : doneArr.value));
+const displayedUndoneTasks = computed(() => {
+  const base = searchLower.value
+    ? undoneTasks.value.map((t) => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
+    : undoneTasks.value;
+  return sortTree(base, props.sortMode);
+});
+const displayedDoneTasks = computed(() => {
+  const base = searchLower.value
+    ? doneTasks.value.map((t) => filterTaskForSearch(t, searchLower.value)).filter(Boolean)
+    : doneTasks.value;
+  return sortTree(base, props.sortMode);
+});
+// draggable 绑定列表：默认排序（可变数组支持拖拽）/ 搜索或非默认排序（禁用拖拽，渲染排序结果）
+const dragUndoneList = computed(() => (props.sortMode !== "default" || searchLower.value ? displayedUndoneTasks.value : undoneArr.value));
+const dragDoneList = computed(() => (props.sortMode !== "default" || searchLower.value ? displayedDoneTasks.value : doneArr.value));
 
 // 弹窗表单状态
 const dialogShow = ref(false);
@@ -770,19 +799,25 @@ function scrollToTask(taskId) {
 
 /**
  * 按任务 id 定位任意层级任务（顶层 / 子任务 / 孙任务），日历跳转使用
+ * V2.1.2 修复：目标在内层且祖先未展开（DOM 未渲染）时，先强制展开祖先链再滚动
  * TaskCard 所有层级都有 data-task-id 与 data-connector-id="task-{id}"
  */
 function scrollToTaskById(taskId) {
+  if (!taskId) return;
   const root = layoutRef.value;
-  if (!root) return;
-  const el =
-    root.querySelector(`[data-task-id="${taskId}"]`) ||
-    root.querySelector(`[data-connector-id="task-${taskId}"]`);
-  if (!el) return;
-  // 目标可能是子任务卡片：展开其所在层级（父卡片已展开才在 DOM 中）
-  el.scrollIntoView({ behavior: "smooth", block: "center" });
-  el.classList.add("task-card-flash");
-  setTimeout(() => el.classList.remove("task-card-flash"), 1500);
+  // 1. 祖先链强制展开（目标可能是折叠父任务的子任务/孙任务，DOM 未渲染）
+  const path = findTaskPath(props.tasks, taskId);
+  if (path) forceExpandIds.value = path;
+  // 2. 等 DOM 更新后滚动 + 闪烁（双 nextTick：forceExpandIds 的 watch 展开 + 子任务渲染各占一轮）
+  nextTick(() => nextTick(() => {
+    const el =
+      root.querySelector(`[data-task-id="${taskId}"]`) ||
+      root.querySelector(`[data-connector-id="task-${taskId}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("task-card-flash");
+    setTimeout(() => el.classList.remove("task-card-flash"), 1500);
+  }));
 }
 function scrollToSubtask(subtaskId) {
   const root = layoutRef.value;
