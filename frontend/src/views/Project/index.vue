@@ -78,6 +78,7 @@
             value-format="YYYY-MM-DD"
             size="small"
             class="audit-filter-range"
+            style="--el-input-height: 31px"
             @click.stop
           />
           <button v-if="tab === 'tasks'" class="header-btn" @click="toggleExpandAll" title="展开或收起全部任务">
@@ -575,10 +576,6 @@ async function doConfirm() {
 .audit-filter-range {
   width: 230px;
   flex-shrink: 0;
-}
-.audit-filter-range :deep(.el-input__wrapper) {
-  min-height: 31px;
-  border-radius: var(--radius-sm);
 }
 .audit-filter-range :deep(.el-range-input) {
   font-size: 12px;
