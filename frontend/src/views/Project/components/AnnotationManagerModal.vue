@@ -228,6 +228,61 @@ watch(() => props.modelValue, (v) => {
   overflow-y: auto;
   padding: 6px 0;
 }
+/* 「全部任务」选项：对齐 TaskTreeNode .tree-row 样式（scoped 隔离，需本地复刻） */
+.annot-mgr-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out);
+  user-select: none;
+}
+.annot-mgr-all:hover {
+  background: var(--bg-hover);
+}
+.annot-mgr-all.tree-row-selected {
+  background: var(--accent-subtle);
+  border-left-color: var(--accent-warm);
+  font-weight: 600;
+}
+.annot-mgr-all .tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.annot-mgr-all .tree-arrow {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+.annot-mgr-all .tree-arrow svg {
+  width: 10px;
+  height: 10px;
+}
+.annot-mgr-all .tree-badge {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent-warm);
+  color: var(--bg-card);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
 .annot-mgr-tree-empty {
   padding: 24px 12px;
   text-align: center;

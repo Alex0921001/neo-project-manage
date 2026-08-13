@@ -21,7 +21,7 @@
     </div>
 
     <div v-else class="annot-body">
-      <!-- 类型筛选 chips：全部/备注/决策/风险/节点 -->
+      <!-- 类型筛选 chips：全部/备注/决策/风险/节点 + 关键字搜索（高亮与任务列表一致） -->
       <div class="annot-kind-filter">
         <button
           v-for="k in kindFilterOptions"
@@ -30,6 +30,11 @@
           :class="['kind-chip-' + k.value, { active: kindFilter === k.value }]"
           @click="kindFilter = k.value"
         >{{ k.label }}</button>
+        <div class="annot-search">
+          <svg class="annot-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input v-model="keyword" class="annot-search-input" placeholder="搜索批注" @click.stop />
+          <button v-if="keyword" class="annot-search-clear" title="清空" @click="keyword = ''">×</button>
+        </div>
       </div>
 
       <!-- 便利贴列表：点击内容即编辑（Windows 便利贴式），删除按钮常驻 -->
@@ -81,7 +86,7 @@
               v-else
               class="sticky-content rich-view"
               :class="{ 'sticky-editable': !effectiveConfirmed(a) && !targetDone }"
-              v-html="formatDescription(a.content)"
+              v-html="highlightRichText(formatDescription(a.content), keyword)"
               :title="effectiveConfirmed(a) || targetDone ? '' : '点击编辑'"
               @click="!effectiveConfirmed(a) && !targetDone && startInline(a)"
             ></p>
@@ -197,6 +202,7 @@ import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import AnnotationManagerModal from "./AnnotationManagerModal.vue";
 import { formatDescription } from "../../../utils/text.js";
+import { highlightRichText } from "../../../utils/highlight.js";
 
 const props = defineProps({
   projectId: String,
@@ -246,6 +252,8 @@ watch(
 // ===== 类型筛选 chips：全部/备注/决策/风险/节点 =====
 const kindFilter = ref("all");
 const kindFilterOptions = [{ value: "all", label: "全部" }, ...KINDS];
+// 关键字搜索（内容匹配，高亮与任务列表一致）
+const keyword = ref("");
 
 // dropdown 命令 → 设置新建类型
 function onKindCommand(v) {
@@ -260,10 +268,13 @@ function kindLabel(k) {
   return KINDS.find(x => x.value === k)?.label || "备注";
 }
 
-// 按类型筛选后的列表
+// 按类型 + 关键字筛选后的列表
 const filteredAnnotations = computed(() => {
-  if (kindFilter.value === "all") return sortedAnnotations.value;
-  return sortedAnnotations.value.filter(a => kindOf(a) === kindFilter.value);
+  let list = sortedAnnotations.value;
+  if (kindFilter.value !== "all") list = list.filter((a) => kindOf(a) === kindFilter.value);
+  const kw = keyword.value.trim();
+  if (kw) list = list.filter((a) => String(a.content || "").toLowerCase().includes(kw.toLowerCase()));
+  return list;
 });
 
 // 内联编辑状态（Windows 便利贴式：点击内容就地编辑）
@@ -717,6 +728,65 @@ async function toggleConfirm(ann) {
 .annot-kind-filter {
   display: flex; gap: 6px; flex-wrap: wrap;
   flex-shrink: 0;
+}
+/* 关键字搜索框（chips 右侧，风格对齐任务列表搜索） */
+.annot-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  min-width: 0;
+}
+.annot-search-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.annot-search-input {
+  width: 120px;
+  padding: 3px 22px 3px 24px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.annot-search-input:focus {
+  border-color: var(--border);
+}
+.annot-search-clear {
+  position: absolute;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.annot-search-clear:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+/* 关键字高亮：与任务列表 TaskCard 一致（浅琥珀底 + 深琥珀字） */
+.sticky-content :deep(.hl) {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-weight: 700;
+  padding: 0 2px;
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .kind-chip {
   padding: 2px 10px;
