@@ -15,7 +15,9 @@
 
       <template v-else-if="rules">
         <div class="rc-list">
-          <div v-for="item in ruleList" :key="item.key" class="rc-row">
+          <template v-for="group in groupedRules" :key="group.label">
+            <div class="rc-group">{{ group.label }}</div>
+            <div v-for="item in group.items" :key="item.key" class="rc-row">
           <div class="rc-row-main">
             <label class="rc-switch">
               <input type="checkbox" v-model="item.rule.enabled" />
@@ -55,6 +57,7 @@
             </template>
           </div>
         </div>
+        </template>
       </div>
       </template>
 
@@ -88,32 +91,38 @@ const saving = ref(false);
 const rules = ref(null); // { delayed: {...}, ... }（存储结构）
 
 // 规则元信息：名称 / 描述 / 数字参数 / 等级参数
+// 展示顺序 = 项目风险 → 任务风险 → 批注风险（与风险条目排序一致）
 const RULE_META = {
+  projectOverdue: {
+    category: "project",
+    name: "项目逾期",
+    desc: "项目已超过计划结束日期",
+    nums: [],
+    levels: [{ field: "level", label: "等级" }],
+  },
+  projectStagnant: {
+    category: "project",
+    name: "项目停滞",
+    desc: "状态「进行中」但无未完成任务",
+    nums: [],
+    levels: [{ field: "level", label: "等级" }],
+  },
   delayed: {
+    category: "task",
     name: "任务延期",
     desc: "截止日期早于今天 N 天以上且未完成",
     nums: [{ field: "days", label: "阈值(天)", min: 0, max: 365 }],
     levels: [{ field: "level", label: "等级" }],
   },
   nearDeadline: {
+    category: "task",
     name: "逼近截止",
     desc: "N 天内到期（含今天）且未完成",
     nums: [{ field: "days", label: "窗口(天)", min: 0, max: 90 }],
     levels: [{ field: "level", label: "等级" }],
   },
-  annotationBacklog: {
-    name: "待确认批注积压",
-    desc: "待确认批注 ≥ N 条时提示",
-    nums: [{ field: "minCount", label: "数量", min: 1, max: 50 }],
-    levels: [{ field: "level", label: "等级" }],
-  },
-  projectOverdue: {
-    name: "项目逾期",
-    desc: "项目已超过计划结束日期",
-    nums: [],
-    levels: [{ field: "level", label: "等级" }],
-  },
   noDateTasks: {
+    category: "task",
     name: "任务缺日期",
     desc: "任务数 ≥ N 且缺日期任务占比 ≥ M%",
     nums: [
@@ -122,13 +131,15 @@ const RULE_META = {
     ],
     levels: [{ field: "level", label: "等级" }],
   },
-  projectStagnant: {
-    name: "项目停滞",
-    desc: "状态「进行中」但无未完成任务",
-    nums: [],
+  annotationBacklog: {
+    category: "annotation",
+    name: "待确认批注积压",
+    desc: "待确认批注 ≥ N 条时提示",
+    nums: [{ field: "minCount", label: "数量", min: 1, max: 50 }],
     levels: [{ field: "level", label: "等级" }],
   },
   riskAnnotation: {
+    category: "annotation",
     name: "风险批注聚合",
     desc: "存在风险批注时聚合为一条提示",
     nums: [],
@@ -139,18 +150,28 @@ const RULE_META = {
   },
 };
 
-// 展示列表（含 ratioPct 百分比映射）
-const ruleList = computed(() => {
+// 分组：项目风险 → 任务风险 → 批注风险（与 RULE_META 声明顺序一致）
+const GROUP_LABELS = [
+  { key: "project", label: "项目风险" },
+  { key: "task", label: "任务风险" },
+  { key: "annotation", label: "批注风险" },
+];
+const groupedRules = computed(() => {
   if (!rules.value) return [];
-  return Object.entries(RULE_META).map(([key, meta]) => {
-    const rule = rules.value[key] || {};
-    return {
-      key,
-      ...meta,
-      rule,
-      nums: meta.nums.map((n) => (n.field === "ratioPct" ? { ...n, field: "ratio" } : n)),
-    };
-  });
+  return GROUP_LABELS.map((g) => ({
+    label: g.label,
+    items: Object.entries(RULE_META)
+      .filter(([, meta]) => meta.category === g.key)
+      .map(([key, meta]) => {
+        const rule = rules.value[key] || {};
+        return {
+          key,
+          ...meta,
+          rule,
+          nums: meta.nums.map((n) => (n.field === "ratioPct" ? { ...n, field: "ratio" } : n)),
+        };
+      }),
+  }));
 });
 
 async function load() {
@@ -233,6 +254,17 @@ watch(
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
+}
+/* 类别分组标题（项目风险 / 任务风险 / 批注风险） */
+.rc-group {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.12em;
+  padding: 10px 2px 6px;
+}
+.rc-group:first-child {
+  padding-top: 0;
 }
 .rc-footer {
   display: flex;

@@ -489,12 +489,17 @@ test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已
   assert.equal(hit2.level, "high", "已确认应为 high");
   assert.equal(hit2.tasks[0].confirmed, true, "tasks 明细应透传确认态");
 
-  // 排序保持 high → medium → low（批注风险项也遵守）
+  // 排序：类别优先（项目→任务→批注），类别内 high → medium → low
+  const CATEGORY_ORDER = { project: 0, task: 1, annotation: 2 };
   const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };
   for (let i = 1; i < s2.risks.length; i++) {
+    const prev = s2.risks[i - 1];
+    const cur = s2.risks[i];
+    const pc = CATEGORY_ORDER[prev.category] ?? 1;
+    const cc = CATEGORY_ORDER[cur.category] ?? 1;
     assert.ok(
-      LEVEL_ORDER[s2.risks[i - 1].level] <= LEVEL_ORDER[s2.risks[i].level],
-      `risks 应按 high→medium→low 排序（第 ${i} 项失序）`
+      pc < cc || (pc === cc && LEVEL_ORDER[prev.level] <= LEVEL_ORDER[cur.level]),
+      `risks 应按类别（项目→任务→批注）+ 等级排序（第 ${i} 项失序）`
     );
   }
 
