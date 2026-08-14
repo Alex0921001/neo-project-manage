@@ -41,19 +41,29 @@ const DEBUG = IS_DEV_SLOT || process.env.NODE_ENV === "development" || String(pr
 
 let cachedJs = null;
 let cachedCss = null;
+let cachedJsMtime = 0;
+let cachedCssMtime = 0;
 
 /**
  * 读取 Vite 构建产物并缓存（内联到 HTML，不依赖静态路由 — P0-2 真问题修复）
  * 显式匹配 ^index-.*\.(js|css)$：即使产物目录混入其他文件也不取错
+ * 非 DEBUG 也按 mtime 失效：重新构建后刷新页面即生效，无需重启 Hana（迭代友好）
  */
 function loadAssets() {
   const assets = fs.readdirSync(ASSETS_DIR);
   const jsFile = assets.find((f) => /^index-.*\.js$/.test(f));
   const cssFile = assets.find((f) => /^index-.*\.css$/.test(f));
-  if (DEBUG || !cachedJs) {
-    if (jsFile) cachedJs = fs.readFileSync(path.join(ASSETS_DIR, jsFile), "utf-8");
-    if (cssFile) cachedCss = fs.readFileSync(path.join(ASSETS_DIR, cssFile), "utf-8");
-  }
+  const jsPath = jsFile ? path.join(ASSETS_DIR, jsFile) : null;
+  const cssPath = cssFile ? path.join(ASSETS_DIR, cssFile) : null;
+  let jsMtime = 0;
+  let cssMtime = 0;
+  try {
+    if (jsPath) jsMtime = fs.statSync(jsPath).mtimeMs;
+    if (cssPath) cssMtime = fs.statSync(cssPath).mtimeMs;
+  } catch (e) { /* 文件暂不可读则走重建 */ }
+  if (!DEBUG && cachedJs && cachedCss && cachedJsMtime === jsMtime && cachedCssMtime === cssMtime) return;
+  if (jsPath) { cachedJs = fs.readFileSync(jsPath, "utf-8"); cachedJsMtime = jsMtime; }
+  if (cssPath) { cachedCss = fs.readFileSync(cssPath, "utf-8"); cachedCssMtime = cssMtime; }
 }
 
 function buildHtml(pluginId, hanaCss, theme) {

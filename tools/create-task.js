@@ -18,6 +18,12 @@ export const parameters = {
 };
 
 export async function execute(input, toolCtx) {
+  // 未知参数拦截：防 AI 传 schema 外参数被静默忽略（如 done 不生效）
+  const allowed = Object.keys(parameters.properties);
+  const unknown = Object.keys(input || {}).filter((k) => !allowed.includes(k));
+  if (unknown.length) {
+    throw new Error(`未知参数: ${unknown.join(", ")}。支持参数: ${allowed.join(", ")}`);
+  }
   const data = createDataAccess(toolCtx.dataDir);
   const task = data.createTask(input.projectId, {
     name: input.name,

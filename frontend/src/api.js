@@ -18,6 +18,13 @@ function apiUrl(path) {
 }
 
 const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
+// 直连模式：URL 带 token 时自动附加到所有请求（宿主 iframe 内无 token 参数，不生效）
+const urlToken = new URLSearchParams(window.location.search).get("token");
+function withToken(url) {
+  if (!urlToken) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}token=${encodeURIComponent(urlToken)}`;
+}
 
 // Hana 平台注入的 iframe API（自动处理凭据）。优先使用，回退手动 session header
 const hanaApi = (typeof window !== "undefined" && window.hana?.api) || null;
@@ -51,7 +58,7 @@ export async function api(path, opts = {}) {
     if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), opts);
     const headers = { "Content-Type": "application/json", ...opts.headers };
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
-    const res = await fetch(apiUrl(path), { ...opts, headers });
+    const res = await fetch(withToken(apiUrl(path)), { ...opts, headers });
     const data = await res.json();
     // v1.3.1：拦截后端业务错误（ok=false），统一弹 ElMessage；调用方传 silent:true 跳过
     // 重复 toast 由 toast.js 内部 600ms 内容去重保护，不会刷屏
@@ -75,7 +82,7 @@ export async function apiUpload(path, formData) {
     if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), { method: "POST", body: formData });
     const headers = {};
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
-    const res = await fetch(apiUrl(path), { method: "POST", body: formData, headers });
+    const res = await fetch(withToken(apiUrl(path)), { method: "POST", body: formData, headers });
     return await res.json();
   } catch (err) {
     console.error("上传失败:", path, err);
