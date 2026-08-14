@@ -24,7 +24,7 @@
 
     <!-- Tab 区 -->
     <section class="tab-section">
-      <div class="tab-bar" @click="closeTabMenu">
+      <div ref="tabBarRef" class="tab-bar" :class="{ compact: barCompact, mini: barMini }" @click="closeTabMenu">
         <draggable
           v-model="tabDragList"
           item-key="key"
@@ -42,7 +42,7 @@
               @contextmenu.prevent="onTabContextMenu($event)"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
-              {{ defLabel(key) }}
+              <span class="tab-label">{{ defLabel(key) }}</span>
             </button>
           </template>
         </draggable>
@@ -252,7 +252,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
@@ -411,6 +411,21 @@ function onTabDragEnd() {
   const cur = readTabConfig();
   persistTabConfig(order, cur.hidden, "global");
 }
+
+// tab 条宽度自适应：视口缩小时先收右侧按钮（mini），更窄再隐藏 tab 文字（compact）
+const tabBarRef = ref(null);
+const barCompact = ref(false);
+const barMini = ref(false);
+let barObs = null;
+onMounted(() => {
+  barObs = new ResizeObserver((entries) => {
+    const w = entries[0]?.contentRect?.width || 0;
+    barMini.value = w < 1100; // 先减按钮：右侧仅留新建
+    barCompact.value = w < 800; // 后减文字：tab 只留图标
+  });
+  if (tabBarRef.value) barObs.observe(tabBarRef.value);
+});
+onUnmounted(() => { barObs?.disconnect(); });
 
 // ===== 一键展开/收起 =====
 // null = 未操作（子任务按默认：未完成展开、已完成折叠）；true/false = 显式展开/收起
@@ -715,6 +730,7 @@ async function doConfirm() {
   letter-spacing: 0.02em;
   margin: 6px 2px;
   user-select: none;
+  white-space: nowrap; /* 防止宽度不足时中文标签竖排 */
   transition: background var(--duration-fast) var(--ease-out),
               color var(--duration-fast) var(--ease-out);
 }
@@ -790,6 +806,12 @@ async function doConfirm() {
   gap: 8px;
   padding-right: 6px;
 }
+/* 窄视口：tab 只留图标（文字隐藏） */
+.tab-bar.compact .tab-label { display: none; }
+.tab-bar.compact .tab-btn { padding: 7px 9px; }
+/* 更窄：右侧仅保留新建按钮，其余工具/搜索隐藏 */
+.tab-bar.mini .tab-bar-right > :not(.header-btn-primary) { display: none; }
+.tab-bar.mini .tab-bar-tabs { flex: 1; min-width: 0; }
 /* 任务排序下拉（V2.1.2，对齐 tab-bar 31px 高度，与方案/审计筛选下拉一致） */
 .sort-select {
   width: 100px;
