@@ -87,7 +87,7 @@
                   <template #reference>
                     <div class="ov-kpi ov-kpi-click kpi-alert">
                       <span class="ov-kpi-num">{{ s.delayed.length }}</span>
-                      <span class="ov-kpi-label">延期</span>
+                      <span class="ov-kpi-label">延期任务</span>
                     </div>
                   </template>
                   <div class="ov-pop-head">延期任务（{{ s.delayed.length }}）</div>
@@ -103,7 +103,7 @@
                 </el-popover>
                 <div v-else class="ov-kpi kpi-alert">
                   <span class="ov-kpi-num">{{ s.delayed?.length ?? 0 }}</span>
-                  <span class="ov-kpi-label">延期</span>
+                  <span class="ov-kpi-label">延期任务</span>
                 </div>
 
                 <!-- 待确认：琥珀色（关联任务去重显示） -->
@@ -119,7 +119,7 @@
                   <template #reference>
                     <div class="ov-kpi ov-kpi-click kpi-warn">
                       <span class="ov-kpi-num">{{ s.pendingAnnotations?.length ?? 0 }}</span>
-                      <span class="ov-kpi-label">待确认</span>
+                      <span class="ov-kpi-label">待确认批注</span>
                     </div>
                   </template>
                   <div class="ov-pop-head">待确认批注（{{ pendingAnnotationTasks.length }} 条）</div>
@@ -132,7 +132,7 @@
                 </el-popover>
                 <div v-else class="ov-kpi kpi-warn">
                   <span class="ov-kpi-num">{{ s.pendingAnnotations?.length ?? 0 }}</span>
-                  <span class="ov-kpi-label">待确认</span>
+                  <span class="ov-kpi-label">待确认批注</span>
                 </div>
 
                 <!-- 缺日期：点击弹任务列表 -->
@@ -148,10 +148,10 @@
                   <template #reference>
                     <div class="ov-kpi ov-kpi-click">
                       <span class="ov-kpi-num">{{ s.noDateTaskItems.length }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
-                      <span class="ov-kpi-label">缺日期</span>
+                      <span class="ov-kpi-label">缺少日期</span>
                     </div>
                   </template>
-                  <div class="ov-pop-head">缺日期任务（{{ s.noDateTaskItems.length }}）</div>
+                  <div class="ov-pop-head">缺少日期任务（{{ s.noDateTaskItems.length }}）</div>
                   <ul class="ov-pop-list">
                     <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popNoDate)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
@@ -164,7 +164,7 @@
                 </el-popover>
                 <div v-else class="ov-kpi">
                   <span class="ov-kpi-num">{{ s.noDateTaskItems?.length ?? 0 }}<span class="ov-kpi-sub">/{{ totalCount }}</span></span>
-                  <span class="ov-kpi-label">缺日期</span>
+                  <span class="ov-kpi-label">缺少日期</span>
                 </div>
               </div>
             </div>

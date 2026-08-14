@@ -574,7 +574,7 @@ async function doConfirm() {
       res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE", silent: true });
     }
   } else if (action === "delete-folder") {
-    // 删除文件夹：内容提升语义（数据和子文件夹提升到父级），不删任何文件
+    // 删除文件夹：真删除（递归删子孙夹 + 其下文件登记；磁盘文件不动，V2.1.4 精修拍板）
     res = await api(`api/projects/${props.projectId}/folders/${payload}`, { method: "DELETE", silent: true });
   } else if (action === "delete-note") {
     res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE", silent: true });
@@ -585,7 +585,7 @@ async function doConfirm() {
   }
   if (res?.ok) {
     if (action === "archive-project") toast("已归档");
-    else toast("已删除");
+    else if (action !== "delete-folder") toast("已删除"); // 文件夹删除成功静默（V2.1.4 精修）
     if (action === "delete-project") { emit("back"); return; }
     loadProject();
   }

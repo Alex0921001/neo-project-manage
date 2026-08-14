@@ -138,16 +138,6 @@ const RULE_META = {
     nums: [{ field: "minCount", label: "数量", min: 1, max: 50 }],
     levels: [{ field: "level", label: "等级" }],
   },
-  riskAnnotation: {
-    category: "annotation",
-    name: "风险批注聚合",
-    desc: "存在风险批注时聚合为一条提示",
-    nums: [],
-    levels: [
-      { field: "unconfirmedLevel", label: "未确认" },
-      { field: "confirmedLevel", label: "已确认" },
-    ],
-  },
 };
 
 // 分组：项目风险 → 任务风险 → 批注风险（与 RULE_META 声明顺序一致）

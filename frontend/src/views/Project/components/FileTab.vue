@@ -36,103 +36,119 @@
       </template>
     </el-dialog>
 
-    <!-- 新建/重命名文件夹弹窗 -->
-    <el-dialog
-      v-model="folderDialog.show"
-      :title="folderDialog.mode === 'rename' ? '重命名文件夹' : '新建文件夹'"
-      width="400px"
-      :close-on-click-modal="false"
-      append-to-body
-    >
-      <el-form label-position="top" @submit.prevent="folderDialogOk">
-        <el-form-item :label="folderDialog.mode === 'rename' ? '新名称' : '文件夹名称'">
-          <el-input
-            v-model="folderDialog.name"
-            placeholder="输入名称（同级内不能重名）"
-            maxlength="50"
-            @keyup.enter="folderDialogOk"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="folderDialog.show = false">取消</el-button>
-        <el-button class="btn-save" @click="folderDialogOk">确定</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 搜索框已移至 tab 栏「新建」左侧（index.vue 联动 setSearch） -->
 
-    <!-- 主体：左树右网格 -->
+    <!-- 主体：左树右网格（分割线可拖，树宽 160~480 限制） -->
     <div class="ft-body">
-      <aside class="ft-sidebar">
-        <div class="ft-tree">
-          <!-- V2.1.4：去掉「全部文件」选项，默认根目录 -->
+      <aside class="ft-sidebar" :style="{ width: treeWidth + 'px' }">
+        <div class="ft-tree" @dragover.prevent="onTreeDragOver" @drop.prevent="onRootDrop">
+          <!-- 根目录：可展开/收起的顶层容器（展开显示根级文件夹，缩进在其下）；悬停 drop 显示琥珀高亮 -->
           <div
             class="ft-tree-fixed"
-            :class="{ active: selectedFolder === 'root' }"
+            :class="{ active: selectedFolder === 'root', 'drop-hover': rootDropHover }"
             @click="selectFolder('root')"
-            @dragover.prevent
-            @drop.prevent="moveDragFilesTo(null)"
+            @contextmenu.prevent="openRootMenu($event)"
+            @dragover.prevent="onTreeDragOver"
+            @dragleave="rootDropHover = false"
+            @drop.prevent.stop="onRootDrop"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <span>根目录</span>
+            <span class="ft-tree-arrow" :class="{ open: rootExpanded }" @click.stop="rootExpanded = !rootExpanded">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+            </span>
+            <svg class="ft-tree-folder-ic" width="13" height="13" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <span>根目录</span><span v-if="folderFileCounts.total" class="ft-tree-count">({{ folderFileCounts.total }})</span>
           </div>
-          <FolderNode
-            v-for="node in folders"
-            :key="node.id"
-            :node="node"
-            :depth="0"
-            :selected-id="selectedFolder === 'root' ? '' : selectedFolder"
-            @select="selectFolder"
-            @menu="openFolderMenu"
-            @drop-file="moveDragFilesTo"
-          />
-          <div v-if="!folders.length" class="ft-tree-empty">暂无文件夹</div>
+          <template v-if="rootExpanded">
+            <FolderNode
+              v-for="node in folders"
+              :key="node.id"
+              :node="node"
+              :depth="1"
+              :selected-id="selectedFolder === 'root' ? '' : selectedFolder"
+              :expanded-ids="expandedIds"
+              :editing-id="editingFolder.id"
+              :editing-value="editingFolder.name"
+              :new-parent-id="newFolder.parentId"
+              :new-value="newFolder.name"
+              :drag-folder-id="dragFolderId"
+              :file-counts="folderFileCounts"
+              @select="selectFolder"
+              @menu="openFolderMenu"
+              @drop="onDropAt"
+              @dragstart-folder="onFolderDragStart"
+              @toggle="toggleFolder"
+              @update:editing-value="editingFolder.name = $event"
+              @commit-edit="commitEdit"
+              @cancel-edit="cancelEdit"
+              @update:new-value="newFolder.name = $event"
+              @commit-new="commitNew"
+              @cancel-new="cancelNew"
+            />
+            <!-- 根级新建输入行：对齐根级文件夹缩进（depth 1） -->
+            <div v-if="newFolder.parentId === 'root'" class="ft-new-row" @click.stop>
+              <span class="ft-new-pad"></span>
+              <svg class="ft-tree-folder-ic" width="13" height="13" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <input
+                ref="rootNewInput"
+                class="ft-edit-input"
+                :value="newFolder.name"
+                placeholder="新建文件夹"
+                @input="newFolder.name = $event.target.value"
+                @keyup.enter.stop="commitNew"
+                @keyup.esc.stop="cancelNew"
+                @blur="commitNew"
+              />
+            </div>
+          </template>
         </div>
       </aside>
 
-      <div class="ft-main" @click.self="selected = []" @contextmenu.prevent="openRootMenu($event)">
+      <div
+        class="ft-divider"
+        @mousedown="startResize"
+        @dblclick="treeWidth = 300"
+      ></div>
+
+      <div class="ft-main" @mousedown="onGridMouseDown" @click.self="selected = []" @contextmenu.prevent="openRootMenu($event)">
         <div class="ft-view-head">
-          <span v-if="selected.length" class="ft-selected-info">已选 {{ selected.length }} 项（Delete 删除）</span>
+          <span v-if="selected.length" class="ft-selected-info">已选 {{ selected.length }} 项</span>
         </div>
 
-        <div class="fg-grid">
+        <div class="fg-grid" ref="gridRef">
+          <!-- Windows 风格卡片：图标 + 文件名；点击琥珀高亮；hover 三点信息；双击默认程序打开 -->
           <div
             v-for="(f, idx) in visibleFiles"
             :key="f.id"
             class="fg-card"
             :class="{ selected: isSelected(f.id) }"
+            :data-id="f.id"
             draggable="true"
-            :title="f.path || f.name"
             @click="onCardClick(f, idx, $event)"
+            @mousedown="onCardMouseDown"
             @dblclick="openFile(f)"
             @contextmenu.stop.prevent="openFileMenu(f, $event)"
-            @dragstart="onDragStart(f)"
+            @dragstart="onCardDragStart(f, $event)"
+            @mouseenter="showHover(f, $event)"
+            @mouseleave="hideHover"
           >
-            <div class="fg-icon" v-text="iconShort(f.name)"></div>
-            <div class="fg-name" :title="f.name">{{ f.name }}</div>
-            <div class="fg-meta">
-              <span v-if="fileExt(f)" class="fg-ext">{{ fileExt(f) }}</span>
-              <span v-if="f.size != null" class="fg-date">{{ formatSize(f.size) }}</span>
-            </div>
-            <div class="fg-foot">
-              <span v-if="showFolderLabel && f.folderId" class="fg-folder" :title="folderNameOf(f.folderId)">{{ folderNameOf(f.folderId) }}</span>
-              <span v-if="f.uploadedAt" class="fg-date">{{ f.uploadedAt }}</span>
-            </div>
+            <img v-if="iconUrl(f)" class="fg-icon-img" :src="iconUrl(f)" alt="" draggable="false" />
+            <span v-else class="fg-icon" v-text="iconShort(f.name)"></span>
+            <div class="fg-name">{{ f.name }}</div>
             <div v-if="f.pathExists === false" class="fg-missing" title="登记路径已失效，文件可能被移动或删除">路径失效</div>
-            <span v-if="isSelected(f.id)" class="fg-check">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-            </span>
-            <button class="fg-del" title="删除登记" @click.stop="askDeleteFiles([f.id])">✕</button>
+            <!-- 搜索态下展示文件夹归属 -->
+            <div v-if="showFolderLabel && f.folderId" class="fg-folder" :title="folderNameOf(f.folderId)">{{ folderNameOf(f.folderId) }}</div>
           </div>
+          <!-- 鼠标框选选区 -->
+          <div v-if="marquee.show" class="fg-marquee" :style="marqueeStyle"></div>
         </div>
-        <div v-if="!visibleFiles.length" class="files-empty">
-          <div class="files-empty-deco">
-            <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
-          </div>
-          <p class="files-empty-title">{{ emptyTitle }}</p>
-          <p class="files-empty-sub">{{ emptySub }}</p>
-          <button v-if="!search" class="files-empty-add" @click="openAdd">登记文件</button>
+        <el-empty v-if="!visibleFiles.length" description="暂无文件" :image-size="90" />
+
+        <!-- hover 气泡（fixed 跟随鼠标，脱离外层滚动裁剪；名称前 10 字符） -->
+        <div v-if="hover.show" class="fg-hover-tip" :style="{ left: hover.x + 'px', top: hover.y + 'px' }">
+          <div class="fhi-row"><span class="fhi-label">名称</span><span class="fhi-val">{{ short10(hover.file?.name) }}</span></div>
+          <div class="fhi-row"><span class="fhi-label">类型</span><span class="fhi-val">{{ fileType(hover.file) }}</span></div>
+          <div class="fhi-row"><span class="fhi-label">大小</span><span class="fhi-val">{{ formatSize(hover.file?.size) }}</span></div>
+          <div class="fhi-row"><span class="fhi-label">登记时间</span><span class="fhi-val">{{ fmtTime(hover.file?.uploadedAt) }}</span></div>
         </div>
       </div>
     </div>
@@ -142,7 +158,7 @@
       <template v-if="menu.type === 'folder'">
         <div v-if="!menu.folder" class="ctx-item" @click.stop="menuNewRoot">新建文件夹</div>
         <div v-if="menu.folder" class="ctx-item" @click.stop="menuNewChild">新建子文件夹</div>
-        <div v-if="menu.folder" class="ctx-item" @click.stop="menuRename">重命名</div>
+        <div v-if="menu.folder" class="ctx-item" @click.stop="menuRename">编辑</div>
         <div v-if="menu.folder" class="ctx-item danger" @click.stop="menuDeleteFolder">删除</div>
       </template>
       <template v-else>
@@ -155,8 +171,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
-import { api } from "../../../api.js";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import FolderNode from "./FolderNode.vue";
 
@@ -170,6 +186,55 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 // ===== 视图状态 =====
 const search = ref("");
 const selectedFolder = ref("root"); // 'root' 根目录 | folderId 具体文件夹（V2.1.4 去掉「全部文件」）
+/* 左侧空白视为根目录目标：悬停高亮根目录项（drop 后清除） */
+const rootDropHover = ref(false);
+function onTreeDragOver(e) {
+  rootDropHover.value = true;
+  e.stopPropagation();
+}
+function onRootDrop() {
+  rootDropHover.value = false;
+  onDropAt(""); // 左侧空白 / 根目录项 = 移动到根目录
+}
+/** 全局 dragend：无论拖到哪（文件夹/空白/自身/浏览器外部），结束都清理拖拽状态，避免禁用样式残留 */
+function onGlobalDragEnd() {
+  dragFolderId.value = "";
+  dragIds.value = [];
+  rootDropHover.value = false;
+}
+/* 左树宽度：默认 300，可拖 200~450，双击分割线复位 */
+const treeWidth = ref(300);
+const MIN_TREE = 200;
+const MAX_TREE = 450;
+let resizeStart = null;
+function startResize(e) {
+  if (e.button !== 0) return;
+  e.preventDefault(); // 阻止文本选择等默认行为干扰拖拽
+  resizeStart = { x: e.clientX, w: treeWidth.value };
+  window.addEventListener("mousemove", onResize);
+  window.addEventListener("mouseup", endResize);
+  document.body.style.userSelect = "none";
+}
+function onResize(e) {
+  if (!resizeStart) return;
+  treeWidth.value = Math.min(MAX_TREE, Math.max(MIN_TREE, resizeStart.w + (e.clientX - resizeStart.x)));
+}
+function endResize() {
+  if (!resizeStart) return;
+  resizeStart = null;
+  window.removeEventListener("mousemove", onResize);
+  window.removeEventListener("mouseup", endResize);
+  document.body.style.userSelect = "";
+}
+/** 文件夹 id → 直接文件数（只统计自己夹内文件，不含子孙夹）+ 根目录 = 未归类文件数 */
+const folderFileCounts = computed(() => {
+  const counts = {};
+  for (const f of props.files || []) {
+    if (f.folderId) counts[f.folderId] = (counts[f.folderId] || 0) + 1;
+  }
+  counts.total = (props.files || []).filter((f) => !f.folderId).length;
+  return counts;
+});
 const selected = ref([]); // 选中的文件 id
 const anchorIndex = ref(-1); // shift 连选锚点
 const dragIds = ref([]); // 拖拽中的文件 id 集
@@ -179,9 +244,6 @@ const dialogShow = ref(false);
 const picking = ref(false);
 const adding = ref(false);
 const pending = ref([]);
-
-// ===== 文件夹弹窗 =====
-const folderDialog = ref({ show: false, mode: "create", parentId: "", id: "", name: "" });
 
 // ===== 右键菜单 =====
 const menu = ref({ show: false, x: 0, y: 0, type: "file", folder: null, file: null });
@@ -203,15 +265,6 @@ const folderMap = computed(() => {
 function folderNameOf(id) {
   return folderMap.value.get(id) || "";
 }
-
-const emptyTitle = computed(() => {
-  if (search.value.trim()) return "未找到匹配文件";
-  return "此目录暂无文件";
-});
-const emptySub = computed(() => {
-  if (search.value.trim()) return "换个关键词试试，或清空搜索查看全部文件";
-  return "可将文件拖拽到左侧文件夹中归类";
-});
 
 /** 当前视图下应显示的文件（搜索时全局匹配，忽略文件夹过滤） */
 const visibleFiles = computed(() => {
@@ -262,6 +315,112 @@ function onCardClick(f, idx, ev) {
   anchorIndex.value = idx;
 }
 
+// ===== 鼠标框选（Windows 风格 marquee）=====
+const gridRef = ref(null);
+const marquee = ref({ show: false, x1: 0, y1: 0, x2: 0, y2: 0 });
+const marqueeActive = ref(false);
+// hover 气泡（fixed 跟随鼠标，1000ms 延迟；位置由全局 mousemove 驱动，保证任意移动都跟随）
+const hover = ref({ show: false, x: 0, y: 0, file: null });
+let hoverTimer = null;
+let hoverPos = { x: 0, y: 0 };
+function showHover(f, e) {
+  clearTimeout(hoverTimer);
+  hoverPos = { x: e.clientX + 14, y: e.clientY + 14 };
+  hover.value = { ...hover.value, show: false };
+  hoverTimer = setTimeout(() => {
+    hover.value = { show: true, x: hoverPos.x, y: hoverPos.y, file: f };
+  }, 1000);
+}
+function onDocMouseMove(e) {
+  hoverPos = { x: e.clientX + 14, y: e.clientY + 14 };
+  if (hover.value.show) {
+    hover.value.x = hoverPos.x;
+    hover.value.y = hoverPos.y;
+  }
+}
+function hideHover() {
+  clearTimeout(hoverTimer);
+  hover.value = { show: false, x: 0, y: 0, file: null };
+}
+/** 前 10 个字符（用户规范：文本短展示取前 10 字） */
+function short10(s) {
+  const t = String(s ?? "");
+  return t.length > 10 ? `${t.slice(0, 10)}…` : t;
+}
+const marqueeStyle = computed(() => {
+  const m = marquee.value;
+  if (!m.show) return {};
+  const rect = gridRef.value?.getBoundingClientRect();
+  const ox = rect?.left || 0;
+  const oy = rect?.top || 0;
+  const left = Math.min(m.x1, m.x2) - ox;
+  const top = Math.min(m.y1, m.y2) - oy;
+  return { left: `${left}px`, top: `${top}px`, width: `${Math.abs(m.x2 - m.x1)}px`, height: `${Math.abs(m.y2 - m.y1)}px` };
+});
+
+function onGridMouseDown(e) {
+  if (e.button !== 0) return;
+  if (e.target.closest?.(".fg-card")) return; // 卡片上不启动框选（点选在 click；拖动见 onCardDragStart）
+  startMarquee(e);
+}
+/** 启动框选矩形（含清空旧选中逻辑） */
+function startMarquee(e) {
+  marqueeActive.value = true;
+  marquee.value = { show: true, x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY };
+  if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    selected.value = [];
+    anchorIndex.value = -1;
+  }
+}
+/** 卡片 mousedown：记录起始坐标（供 dragstart 时启动框选） */
+let marqueePending = null;
+function onCardMouseDown(e) {
+  if (e.button !== 0) return;
+  marqueePending = { x: e.clientX, y: e.clientY };
+}
+/** 卡片 dragstart：未选中的卡片上拖动 = 框选；已选中的卡片上拖动 = 拖拽转移（保留） */
+function onCardDragStart(f, e) {
+  if (!selected.value.includes(f.id)) {
+    e.preventDefault(); // 取消 HTML5 文件拖拽，转为框选
+    if (marqueePending) {
+      marqueeActive.value = true;
+      marquee.value = { show: true, x1: marqueePending.x, y1: marqueePending.y, x2: marqueePending.x, y2: marqueePending.y };
+      if (!(e.shiftKey || e.ctrlKey || e.metaKey)) { selected.value = []; anchorIndex.value = -1; }
+    }
+    return;
+  }
+  onDragStart(f);
+}
+function onGridMouseMove(e) {
+  if (!marqueeActive.value) return;
+  marquee.value = { ...marquee.value, x2: e.clientX, y2: e.clientY };
+}
+function onGridMouseUp(e) {
+  if (!marqueeActive.value) return;
+  marqueeActive.value = false;
+  const m = marquee.value;
+  marquee.value = { ...m, show: false };
+  const l = Math.min(m.x1, m.x2);
+  const t = Math.min(m.y1, m.y2);
+  const r = l + Math.abs(m.x2 - m.x1);
+  const b = t + Math.abs(m.y2 - m.y1);
+  const ids = [];
+  for (const card of gridRef.value?.querySelectorAll(".fg-card") || []) {
+    const cr = card.getBoundingClientRect();
+    if (cr.left <= r && cr.right >= l && cr.top <= b && cr.bottom >= t) {
+      const id = card.dataset.id;
+      if (id) ids.push(id);
+    }
+  }
+  if (!ids.length) return;
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    selected.value = [...new Set([...selected.value, ...ids])];
+  } else {
+    selected.value = ids;
+  }
+  anchorIndex.value = -1;
+}
+
 /** Delete 键批量删除（input 聚焦时忽略） */
 function onKeydown(ev) {
   if (ev.key !== "Delete") return;
@@ -283,28 +442,151 @@ function askDeleteFiles(ids) {
   });
 }
 
-// ===== 文件夹操作 =====
+// ===== 文件夹选择 =====
 function selectFolder(id) {
   selectedFolder.value = id;
   selected.value = [];
   anchorIndex.value = -1;
 }
 
-function openNewRootFolder() {
-  folderDialog.value = { show: true, mode: "create", parentId: "", id: "", name: "" };
+// ===== 文件夹行内编辑 / 新建（V2.1.4 精修：替代原弹窗，原处 input 编辑） =====
+const rootExpanded = ref(true); // 根目录容器展开/收起
+const expandedIds = ref(new Set()); // 展开的文件夹 id 集合（父级管理，初始全部展开）
+const editingFolder = ref({ id: "", name: "" }); // 行内编辑中：仅 id 命中节点显示 input
+const newFolder = ref({ parentId: "", name: "" }); // 新建输入行：parentId 为 "root"（根级）或具体文件夹 id
+const rootNewInput = ref(null);
+const dragFolderId = ref(""); // 拖拽中的文件夹 id（与文件拖拽 dragIds 区分）
+
+function toggleFolder(id) {
+  const s = new Set(expandedIds.value);
+  if (s.has(id)) s.delete(id);
+  else s.add(id);
+  expandedIds.value = s;
 }
 
-/** 文件区空白右键：根层新建文件夹（folder=null） */
+/** 同级文件夹名集合（父级下所有子夹名；parentId 空 = 根级） */
+function siblingNames(parentId) {
+  const names = new Set();
+  const walk = (nodes) => {
+    for (const n of nodes || []) {
+      const pid = n.parentId || "";
+      if (pid === (parentId || "")) names.add(n.name);
+      walk(n.children);
+    }
+  };
+  walk(props.folders);
+  return names;
+}
+
+/** 新文件夹默认名：重名自动「新建文件夹（1）（2）…」 */
+function defaultNewName(parentId) {
+  const names = siblingNames(parentId);
+  let base = "新建文件夹";
+  if (!names.has(base)) return base;
+  let i = 1;
+  while (names.has(`${base}（${i}）`)) i++;
+  return `${base}（${i}）`;
+}
+
+// —— 右键入口（弹窗改行内） ——
+function menuNewRoot() {
+  closeMenu();
+  startNewRoot();
+}
+function menuNewChild() {
+  const f = menu.value.folder;
+  closeMenu();
+  if (f) startNewChild(f.id);
+}
+function menuRename() {
+  const f = menu.value.folder;
+  closeMenu();
+  if (f) startRename(f.id, f.name);
+}
+
+/** 行内新建：基于当前高亮（selectedFolder），根目录 → 根级，否则该文件夹下 */
+function startNewRoot() {
+  if (newFolder.value.parentId) return; // 已在新建中
+  const parentId = selectedFolder.value === "root" ? "root" : selectedFolder.value;
+  // 目标为具体文件夹时确保其展开（输入行在子级尾部）
+  if (parentId !== "root") {
+    const s = new Set(expandedIds.value);
+    s.add(parentId);
+    expandedIds.value = s;
+  }
+  newFolder.value = { parentId, name: defaultNewName(parentId) };
+  cancelEdit();
+  nextTick(() => {
+    if (parentId === "root") rootNewInput.value?.focus();
+  });
+}
+function startNewChild(parentId) {
+  selectFolder(parentId);
+  startNewRoot();
+}
+
+function startRename(id, name) {
+  cancelNew();
+  editingFolder.value = { id, name };
+}
+
+function cancelEdit() {
+  editingFolder.value = { id: "", name: "" };
+}
+function cancelNew() {
+  newFolder.value = { parentId: "", name: "" };
+}
+
+/** 行内编辑保存：同级重名检查（前端预检 + 后端兑底） */
+async function commitEdit() {
+  const { id, name } = editingFolder.value;
+  if (!id) return;
+  const val = name.trim();
+  if (!val) { toast("名称不能为空", "error"); return; }
+  // 查找该文件夹父级，检查同级重名（排除自身）
+  let parentId = "";
+  const findP = (nodes, target, parent) => {
+    for (const n of nodes || []) {
+      if (n.id === target) { parentId = n.parentId || ""; return true; }
+      if (findP(n.children, target, n.id)) return true;
+    }
+    return false;
+  };
+  findP(props.folders, id, "");
+  const names = siblingNames(parentId);
+  names.delete(name); // 排除自身旧名
+  if (names.has(val)) { toast(`同级已存在「${val}」，不能重名`, "error"); return; }
+  cancelEdit();
+  const res = await api(`api/projects/${props.projectId}/folders/${id}`, {
+    method: "PUT", body: JSON.stringify({ name: val }), silent: true,
+  });
+  if (res?.ok) { emit("changed"); }
+  else toast(res?.error || "保存失败", "error");
+}
+
+/** 行内新建保存：同级重名检查 */
+async function commitNew() {
+  const { parentId, name } = newFolder.value;
+  if (!parentId) return;
+  const val = name.trim();
+  if (!val) { toast("名称不能为空", "error"); return; }
+  const pid = parentId === "root" ? "" : parentId;
+  if (siblingNames(pid).has(val)) { toast(`同级已存在「${val}」，不能重名`, "error"); return; }
+  cancelNew();
+  const res = await api(`api/projects/${props.projectId}/folders`, {
+    method: "POST", body: JSON.stringify({ name: val, parentId: pid }), silent: true,
+  });
+  if (res?.ok) { emit("changed"); }
+  else toast(res?.error || "创建失败", "error");
+}
+
+/** 文件区空白右键：根层新建文件夹（folder=null，仅显示「新建文件夹」） */
 function openRootMenu(e) {
   if (menu.value.show) closeMenu();
   menu.value = {
     show: true, x: e.clientX, y: e.clientY, type: "folder",
     folder: null, file: null,
   };
-}
-function menuNewRoot() {
-  closeMenu();
-  openNewRootFolder();
 }
 
 function openFolderMenu({ folder, event }) {
@@ -314,46 +596,92 @@ function openFolderMenu({ folder, event }) {
   };
 }
 
-function menuNewChild() {
-  const f = menu.value.folder;
-  closeMenu();
-  folderDialog.value = { show: true, mode: "create", parentId: f.id, id: "", name: "" };
-}
-
-function menuRename() {
-  const f = menu.value.folder;
-  closeMenu();
-  folderDialog.value = { show: true, mode: "rename", parentId: "", id: f.id, name: f.name };
-}
-
+// ===== 删除文件夹（真删除：文件夹 + 其下 n 个文件登记一起删；磁盘文件不动） =====
 function menuDeleteFolder() {
   const f = menu.value.folder;
   closeMenu();
+  if (!f) return;
+  const n = countFolderFiles(f.id);
   emit("confirm-ask", {
-    message: `确认删除文件夹「${f.name}」？其下文件和子文件夹将提升到上级目录，不会删除任何文件。`,
+    message: n > 0
+      ? `是否删除文件夹「${f.name}」及下面的 ${n} 个文件？此操作不可恢复。`
+      : `确认删除文件夹「${f.name}」？此操作不可恢复。`,
     action: "delete-folder",
     payload: f.id,
-    confirmText: "删除文件夹",
+    confirmText: "删除",
   });
 }
 
-async function folderDialogOk() {
-  const d = folderDialog.value;
-  const name = d.name.trim();
-  if (!name) { toast("请输入文件夹名称", "error"); return; }
-  if (d.mode === "create") {
-    const res = await api(`api/projects/${props.projectId}/folders`, {
-      method: "POST", body: JSON.stringify({ name, parentId: d.parentId || "" }), silent: true,
-    });
-    if (res?.ok) { toast(`已创建文件夹「${name}」`); folderDialog.value.show = false; emit("changed"); }
-    else toast(res?.error || "创建失败", "error");
+/** 递归统计文件夹内（含子孙夹）的文件登记数 */
+function countFolderFiles(folderId) {
+  const ids = [folderId];
+  const walk = (nodes) => {
+    for (const n of nodes || []) {
+      if (n.id === folderId) { collectFolderIds(n); break; }
+      walk(n.children);
+    }
+  };
+  const collectFolderIds = (n) => {
+    for (const c of n.children || []) { ids.push(c.id); collectFolderIds(c); }
+  };
+  walk(props.folders);
+  return props.files.filter((f) => f.folderId && ids.includes(f.folderId)).length;
+}
+
+// ===== 文件夹拖拽（只能拖到文件夹/根目录成为其子级；文件拖拽保留） =====
+function onFolderDragStart(id) {
+  dragFolderId.value = id;
+  selected.value = [];
+}
+
+function onDropAt(payload) {
+  // 兼容两种调用：FolderNode 传 { targetId } 对象；根目录固定项传 '' 字符串
+  const targetId = typeof payload === "string" ? payload : (payload?.targetId ?? "");
+  if (dragFolderId.value) {
+    moveDragFolderTo(targetId);
   } else {
-    const res = await api(`api/projects/${props.projectId}/folders/${d.id}`, {
-      method: "PUT", body: JSON.stringify({ name }), silent: true,
-    });
-    if (res?.ok) { toast("已重命名"); folderDialog.value.show = false; emit("changed"); }
-    else toast(res?.error || "重命名失败", "error");
+    moveDragFilesTo(targetId || null);
   }
+}
+
+async function moveDragFolderTo(targetId) {
+  const id = dragFolderId.value;
+  dragFolderId.value = "";
+  if (!id) return;
+  // 防御：入参强制字符串（历史 bug：FolderNode drop 曾传对象导致 SQL 绑定报错）
+  const tid = String(targetId ?? "");
+  if (id === tid) { toast("不能移动到自身", "error"); return; }
+  // 防环：targetId 的祖先链若包含源 id（源是 target 的祖先），则源不能成为 target 的子级
+  const chain = ancestorsOf(props.folders, tid);
+  if (chain && chain.includes(id)) { toast("不能移动到自己的子文件夹中", "error"); return; }
+  // 拖到当前父级 = 无意义操作，直接忽略（不发请求）
+  const curParent = parentIdOf(props.folders, id);
+  if (tid === (curParent || "")) return;
+  const res = await api(`api/projects/${props.projectId}/folders/${id}`, {
+    method: "PUT", body: JSON.stringify({ parentId: tid }), silent: true,
+  });
+  if (res?.ok) { emit("changed"); }
+  else toast(res?.error || "移动失败", "error");
+}
+
+/** 递归找 targetId 的祖先链（含自身）；不在树中返回 null */
+function ancestorsOf(nodes, targetId, chain = []) {
+  for (const n of nodes || []) {
+    if (n.id === targetId) return [...chain, n.id];
+    const r = ancestorsOf(n.children, targetId, [...chain, n.id]);
+    if (r) return r;
+  }
+  return null;
+}
+
+/** 递归找节点父级 id（根级返回 ""） */
+function parentIdOf(nodes, id) {
+  for (const n of nodes || []) {
+    if (n.id === id) return n.parentId || "";
+    const r = parentIdOf(n.children, id);
+    if (r !== null) return r;
+  }
+  return null;
 }
 
 // ===== 文件操作 =====
@@ -460,7 +788,13 @@ async function menuCopyPath() {
 function menuDeleteFile() {
   const f = menu.value.file;
   closeMenu();
-  if (f) askDeleteFiles([f.id]);
+  if (!f) return;
+  // Windows 行为：右击选中集内的文件 → 批量删除整个选中集；否则单删
+  if (selected.value.includes(f.id) && selected.value.length > 1) {
+    askDeleteFiles([...selected.value]);
+  } else {
+    askDeleteFiles([f.id]);
+  }
 }
 
 // ===== 拖拽移动 =====
@@ -493,6 +827,46 @@ function closeMenu() {
 }
 
 // ===== 图标 / 格式化（沿用现有映射） =====
+// 扩展名 → icons 目录图标文件（后端 /icons/:file 静态服务；未知扩展回退文字缩写）
+const EXT_ICON = {
+  docx: "DOCX", doc: "DOCX", xlsx: "XLSX", xls: "XLSX", pptx: "PPTX", ppt: "PPTX",
+  pdf: "PDF", txt: "TXT", md: "MD", json: "JSON", js: "JS", css: "CSS",
+  html: "HTML", htm: "HTML", xml: "XML", csv: "CSV", yaml: "YAML", yml: "YAML",
+  toml: "TOML", sql: "SQL", sqlite: "SQLITE", db: "DB", zip: "ZIP", rar: "RAR",
+  "7z": "a-7Z", jpg: "JPG", jpeg: "JPG", png: "PNG", gif: "GIF", svg: "SVG",
+  webp: "WEBP", avif: "AVIF", tiff: "TIFF", raw: "RAW", bmp: "PNG",
+  mp4: "MP4", mov: "MOV", avi: "AVI", mkv: "MKV", mp3: "MP3", wav: "WAV",
+  flac: "FLAC", ogg: "OGG", epub: "EPUB", mobi: "MOBI", azw3: "AZW3",
+  psd: "PSD", ai: "AI", fig: "FIG", sketch: "SKETCH", iso: "ISO", jar: "JAR",
+  apk: "APK", ipa: "IPA", wasm: "WASM", srt: "SRT", vtt: "VTT", tex: "TEX",
+  ipynb: "IPYNB", hdf5: "HDF5", parquet: "PARQUET", odt: "ODT", ods: "ODS",
+  odp: "ODP", dwg: "DWG", dxf: "DXF", stl: "STL", step: "STEP", obj: "OBJ",
+  fbx: "FBX", blend: "BLEND", dae: "DAE", glb: "GLB", cdr: "CDR", msi: "MSI",
+  deb: "DEB", rpm: "RPM", appx: "APPX", cab: "CAB", chm: "CHM", djv: "DJVU",
+  heic: "HEIC", indd: "INDD", ts: "JS", tsx: "JS", vue: "HTML",
+};
+
+function iconUrl(f) {
+  const ext = (f.name || "").split(".").pop()?.toLowerCase();
+  const icon = ext ? EXT_ICON[ext] : null;
+  if (!icon) return "";
+  return resolveAssetUrl(`/api/plugins/neo-project-manage/icons/${icon}.png`);
+}
+
+function fileType(f) {
+  if (f.pathExists === false) return "路径失效";
+  const ext = (f.name || "").split(".").pop()?.toLowerCase();
+  if (!ext) return "未知类型";
+  return `${ext.toUpperCase()} 文件`;
+}
+
+function fmtTime(iso) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 function iconShort(name) {
   const ext = (name || "").split(".").pop()?.toLowerCase();
   const map = { doc: "doc", docx: "doc", xls: "xls", xlsx: "xls", ppt: "ppt", pptx: "ppt", jpg: "img", jpeg: "img", png: "img", gif: "img", webp: "img", svg: "img", mp4: "vid", mov: "vid", avi: "vid", mkv: "vid", mp3: "aud", wav: "aud", flac: "aud", zip: "zip", rar: "rar", "7z": "7z", csv: "csv", js: "js", css: "css", html: "htm", xml: "xml", json: "jn", yaml: "yml", toml: "tml" };
@@ -519,8 +893,37 @@ function fileExt(f) {
 }
 
 // ===== 生命周期 =====
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
+// 初始展开所有文件夹（树首次渲染全展开）
+onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
+  document.addEventListener("mousemove", onGridMouseMove);
+  document.addEventListener("mouseup", onGridMouseUp);
+  document.addEventListener("mousemove", onDocMouseMove);
+  window.addEventListener("dragend", onGlobalDragEnd);
+  const s = new Set();
+  const walk = (nodes) => { for (const n of nodes || []) { s.add(n.id); walk(n.children); } };
+  walk(props.folders);
+  expandedIds.value = s;
+});
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onKeydown);
+  document.removeEventListener("mousemove", onGridMouseMove);
+  document.removeEventListener("mouseup", onGridMouseUp);
+  document.removeEventListener("mousemove", onDocMouseMove);
+  window.removeEventListener("dragend", onGlobalDragEnd);
+  endResize();
+});
+
+// folders 数据更新后，新文件夹自动加入展开集合
+watch(
+  () => props.folders,
+  (nodes) => {
+    const s = new Set(expandedIds.value);
+    const walk = (n2) => { for (const n of n2 || []) { s.add(n.id); walk(n.children); } };
+    walk(nodes);
+    expandedIds.value = s;
+  }
+);
 
 defineExpose({ openAdd, pickFile, setSearch });
 
@@ -535,15 +938,31 @@ function setSearch(v) {
 
 /* 工具栏 */
 .ft-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-/* 主体布局：左右等高，中间分割线（V2.1.4 去边框包裹） */
-.ft-body { display: flex; align-items: stretch; }
+/* 主体布局：左右等高填满剩余高度，中间分割线（V2.1.4 精修：左树独立滚动、不依赖右高） */
+.ft-body {
+  display: flex;
+  align-items: stretch;
+  height: calc(100vh - 340px);
+  min-height: 360px;
+}
 .ft-sidebar {
-  width: 200px; flex-shrink: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--border-light);
   padding-right: 14px;
-  overflow-y: auto;
+  overflow: hidden;
+  min-width: 0;
 }
-.ft-tree { display: flex; flex-direction: column; gap: 1px; }
+/* 分割线热区：无任何颜色与加粗，仅 hover 变鼠标指针（col-resize）；骑跨边框两侧便于抓取 */
+.ft-divider {
+  flex-shrink: 0;
+  width: 12px;
+  margin-left: -6px;
+  cursor: col-resize;
+  background: transparent;
+}
+.ft-tree { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; padding-right: 4px; }
 .ft-tree-fixed {
   display: flex; align-items: center; gap: 6px;
   height: 28px; padding: 0 8px; border-radius: var(--radius-sm);
@@ -551,74 +970,129 @@ function setSearch(v) {
   user-select: none; white-space: nowrap;
   transition: background var(--duration-fast) var(--ease-out);
 }
+.ft-tree-count { font-size: 11px; color: var(--text-tertiary); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.ft-tree-fixed.active .ft-tree-count { color: var(--text-tertiary); }
 .ft-tree-fixed:hover { background: var(--bg-hover); color: var(--text); }
+.ft-tree-fixed.drop-hover { background: var(--accent-warm); color: #fff; } /* 放置到根目录悬停高亮（与文件夹 drop-hover 一致） */
 .ft-tree-fixed.active { background: var(--bg-hover); color: var(--text); font-weight: 600; }
-.ft-tree-empty { padding: 10px 8px; font-size: 12px; color: var(--text-tertiary); }
+.ft-tree-fixed > svg.ft-tree-folder-ic { color: var(--accent-warm); } /* 根目录实心文件夹图标：奶油填充 + 琥珀描边 */
+.ft-tree-arrow {
+  width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.ft-tree-arrow svg { transition: transform var(--duration-fast) var(--ease-out); }
+.ft-tree-arrow.open svg { transform: rotate(90deg); }
+/* 根级新建输入行（对齐 FolderNode depth 1 缩进：22px 内边距 + 箭头占位） */
+.ft-new-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding-left: 22px;
+  padding-right: 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  cursor: default;
+}
+.ft-new-pad { width: 12px; flex-shrink: 0; }
+.ft-edit-input {
+  flex: 1;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--accent-warm);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg-card);
+  outline: none;
+}
 
 /* 主区 */
-.ft-main { flex: 1; min-width: 0; padding-left: 14px; }
+.ft-main { flex: 1; min-width: 0; padding-left: 14px; overflow-y: auto; min-height: 0; }
 .ft-view-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 18px; }
 .ft-selected-info { font-size: 12px; color: var(--accent); flex-shrink: 0; }
 
-/* 文件网格 */
+/* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息） */
 .fg-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
+  gap: 8px;
+  padding: 8px;
+  user-select: none;
 }
 .fg-card {
   position: relative;
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 14px 14px 10px;
-  border: 1px solid var(--border-light); border-radius: var(--radius-md);
-  background: var(--bg-card); cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 14px 8px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
-.fg-card:hover { border-color: var(--border); }
+.fg-card:hover { background: var(--bg-hover); }
 .fg-card.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-  background: var(--bg-hover);
+  background: var(--accent-warm-subtle);
+  border-radius: 0; /* 直角虚线边框 */
+  outline: 1px dashed var(--accent-warm);
+  outline-offset: -1px;
 }
+.fg-icon-img { width: 44px; height: 44px; object-fit: contain; pointer-events: none; }
 .fg-icon {
-  width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 6px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
-  background: var(--bg-hover); letter-spacing: 0.2px;
+  width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--text-secondary);
+  letter-spacing: 0.2px; user-select: none;
 }
 .fg-name {
-  font-size: 13px; font-weight: 500; color: var(--text);
+  max-width: 100%;
+  font-size: 12px; font-weight: 500; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.fg-meta { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.fg-ext { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
-.fg-foot { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.fg-card.selected .fg-name { color: var(--accent-warm-hover); font-weight: 600; }
+/* hover 气泡（fixed 跟随鼠标，白底细边框，1000ms 延迟显示） */
+.fg-hover-tip {
+  position: fixed;
+  z-index: 4000;
+  min-width: 180px;
+  max-width: 240px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.fhi-row { display: flex; gap: 12px; align-items: baseline; padding: 2px 0; }
+.fhi-label { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
+.fhi-val { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
 .fg-folder {
   max-width: 90px; font-size: 12px; color: var(--accent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.fg-date { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
 .fg-missing {
-  position: absolute; top: 8px; right: 8px;
+  position: absolute; top: 6px; right: 6px;
   font-size: 10px; line-height: 1; padding: 3px 6px;
   border-radius: var(--radius-sm);
   background: var(--danger); color: #fff;
   opacity: 0.9;
 }
-.fg-check {
-  position: absolute; top: 8px; left: 8px;
-  width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 50%; background: var(--accent); color: #fff;
+/* 鼠标框选选区（淡琥珀半透明 + 琥珀边框） */
+.fg-marquee {
+  position: absolute;
+  z-index: 10;
+  background: oklch(0.95 0.03 75 / 0.45);
+  border: 1px solid var(--accent-warm);
+  pointer-events: none;
 }
-.fg-del {
-  position: absolute; top: 8px; right: 8px;
-  width: 20px; height: 20px; border: none; border-radius: 4px; background: transparent;
-  cursor: pointer; font-size: 12px; line-height: 1; color: var(--text-tertiary);
-  display: flex; align-items: center; justify-content: center; opacity: 0;
-  transition: all var(--duration-fast) var(--ease-out);
-}
-.fg-card:hover .fg-del { opacity: 0.6; }
-.fg-del:hover { opacity: 1 !important; background: var(--bg-hover); color: var(--danger); }
-.fg-card .fg-missing + .fg-del { display: none; } /* 路径失效角标与删除按钮重叠时隐藏按钮 */
 
 /* 右键菜单 */
 .ctx-menu {
@@ -637,30 +1111,8 @@ function setSearch(v) {
 .ctx-item.danger { color: var(--danger); }
 .ctx-item.danger:hover { background: var(--danger); color: #fff; }
 
-/* 空态 */
-.files-empty {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 40px 20px; text-align: center;
-  color: var(--text-tertiary);
-  border: 1px solid var(--border-light); border-radius: var(--radius-md);
-  background: var(--bg-card); gap: 6px;
-}
-.files-empty-deco {
-  width: 64px; height: 64px; border-radius: 50%;
-  background: var(--bg-hover); display: inline-flex;
-  align-items: center; justify-content: center;
-  color: var(--text-tertiary); margin-bottom: 6px;
-}
-.files-empty-title { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
-.files-empty-sub { margin: 0; font-size: 12px; color: var(--text-tertiary); }
-.files-empty-add {
-  margin-top: 14px; padding: 8px 20px; font-size: 13px; font-weight: 600;
-  border: 1px solid var(--text); border-radius: var(--radius-md);
-  background: var(--text); color: #fff; cursor: pointer; font-family: inherit;
-  transition: all var(--duration-fast) var(--ease-out);
-  box-shadow: var(--shadow-sm);
-}
-.files-empty-add:hover { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: var(--shadow-md); }
+/* 空态（el-empty 纯文案） */
+
 
 .pick-hint { flex-basis: 100%; margin-top: 8px; font-size: 12px; color: var(--text-tertiary); }
 .pending-list { display: flex; flex-direction: column; gap: 4px; width: 100%; max-height: 200px; overflow-y: auto; }

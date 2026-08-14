@@ -1,4 +1,4 @@
-/**
+﻿/**
  * neo-project-manage 数据层回归测试（node:test）
  *
  * 用法：node --test scripts/test/
@@ -461,57 +461,6 @@ test("总结：保存/查询/50KB 上限 + 风险规则触发", () => {
   assert.equal(sa.nextSteps.length, 0, "已归档项目 nextSteps 应为空");
   assert.equal(sa.project.archived, true, "archived 标记应透传");
 });
-
-// ===== 13b. risk 批注纳入风险统计（V2.1 3.2） =====
-test("风险：risk 批注纳入 summarize 风险列表（未确认 medium / 已确认 high / 无则不产生）", () => {
-  const p = data.createProject({ name: "风险批注项目" });
-  const t = data.createTask(p.id, { name: "风险任务" });
-
-  // 未确认 risk 批注 → medium（聚合为一条，明细在 tasks）
-  data.createAnnotation(p.id, t.id, { content: "数据库性能隐患，需要尽快评估", kind: "risk" });
-  const s1 = data.summarizeProject(p.id);
-  const hit1 = s1.risks.find((r) => r.kind === "risk" && r.tasks?.[0]?.id === t.id);
-  assert.ok(hit1, "未确认 risk 批注应生成聚合风险项");
-  assert.equal(hit1.level, "medium", "未确认应为 medium");
-  assert.equal(hit1.desc, "1 条风险批注", "聚合 desc 应为「N 条风险批注」");
-  const anns1 = data.getTaskAnnotations(t.id);
-  assert.equal(anns1.length, 1, "应只有一条批注");
-  assert.deepEqual(
-    hit1.tasks,
-    [{ id: t.id, name: t.name, annotationId: anns1[0].id, content: "数据库性能隐患，需要尽快评估", confirmed: false }],
-    "tasks 明细应含挂载任务 + 批注 id + 内容 + 确认态（供气泡展示/定位）"
-  );
-
-  // 确认后 → high（聚合等级 = 存在已确认则取 confirmedLevel）
-  data.updateAnnotation(t.id, anns1[0].id, { confirmed: true });
-  const s2 = data.summarizeProject(p.id);
-  const hit2 = s2.risks.find((r) => r.kind === "risk");
-  assert.equal(hit2.level, "high", "已确认应为 high");
-  assert.equal(hit2.tasks[0].confirmed, true, "tasks 明细应透传确认态");
-
-  // 排序：类别优先（项目→任务→批注），类别内 high → medium → low
-  const CATEGORY_ORDER = { project: 0, task: 1, annotation: 2 };
-  const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };
-  for (let i = 1; i < s2.risks.length; i++) {
-    const prev = s2.risks[i - 1];
-    const cur = s2.risks[i];
-    const pc = CATEGORY_ORDER[prev.category] ?? 1;
-    const cc = CATEGORY_ORDER[cur.category] ?? 1;
-    assert.ok(
-      pc < cc || (pc === cc && LEVEL_ORDER[prev.level] <= LEVEL_ORDER[cur.level]),
-      `risks 应按类别（项目→任务→批注）+ 等级排序（第 ${i} 项失序）`
-    );
-  }
-
-  // 无 risk 批注的项目不受影响
-  const p2 = data.createProject({ name: "无风险批注项目" });
-  const t2 = data.createTask(p2.id, { name: "普通任务" });
-  data.createAnnotation(p2.id, t2.id, { content: "普通备注" });
-  const s3 = data.summarizeProject(p2.id);
-  assert.ok(!s3.risks.some((r) => r.kind === "risk"), "无 risk 批注不应产生批注风险项");
-});
-
-// ===== 14. askProject（V2.0） =====
 test("askProject：scope 齐全 / decisions 过滤 / all 四段", () => {
   const p = data.createProject({ name: "ask项目" });
   const t = data.createTask(p.id, { name: "任务" });
@@ -1013,8 +962,8 @@ test("文件夹：换父级防环（自身/子孙）+ 正常移动", () => {
   assert.equal(moved2.parentId, null);
 });
 
-test("文件夹：删除提升语义（子文件+子文件夹提升到父级，不删文件不丢结构）", () => {
-  const p = data.createProject({ name: "删除提升项目" });
+test("文件夹：删除真删除语义（递归删子孙夹 + 其下文件登记，磁盘文件不动）", () => {
+  const p = data.createProject({ name: "真删除项目" });
   const real = path.join(tmpDir, "folder-test.txt");
   fs.writeFileSync(real, "hello");
   // 结构：A/B/C 三层
@@ -1028,23 +977,25 @@ test("文件夹：删除提升语义（子文件+子文件夹提升到父级，�
   const fC = data.addFile(p.id, real, undefined, c.id);
   assert.equal(fA.folderId, a.id);
 
-  // 删除 C：C 下文件提升到 B，B 仍存在
-  data.deleteFolder(p.id, c.id);
+  // 删除 C：仅 C 自身 + C 下 1 文件被删，B/A/根文件不动
+  const r1 = data.deleteFolder(p.id, c.id);
+  assert.equal(r1.deletedFolders, 1, "C 自身 1 个文件夹");
+  assert.equal(r1.deletedFiles, 1, "C 下 1 个文件登记");
   assert.equal(data.getFolder(p.id, c.id), null);
-  assert.equal(data.getFile(p.id, fC.id).folderId, b.id, "C 下文件应提升到 B");
+  assert.equal(data.getFile(p.id, fC.id), null, "C 下文件登记已删");
   assert.equal(data.getFile(p.id, fB.id).folderId, b.id, "B 下文件不动");
 
-  // 删除 A：A 下文件提升到根；B（含其下文件）整体提升到根，fB 仍属 B
-  data.deleteFolder(p.id, a.id);
+  // 删除 A：递归删 A+B 两个夹 + A/B 下 2 个文件；根文件保留
+  const r2 = data.deleteFolder(p.id, a.id);
+  assert.equal(r2.deletedFolders, 2, "A + B 共 2 个文件夹");
+  assert.equal(r2.deletedFiles, 2, "A/B 下共 2 个文件登记");
   assert.equal(data.getFolder(p.id, a.id), null);
-  assert.equal(data.getFile(p.id, fA.id).folderId, null, "A 下文件应提升到根");
-  assert.equal(data.getFile(p.id, fB.id).folderId, b.id, "B 下文件不动（B 提升到根，文件仍属 B）");
-  const tree = data.listFolders(p.id);
-  assert.equal(tree.length, 1);
-  assert.equal(tree[0].id, b.id, "B 应提升为根级文件夹");
-  assert.equal(tree[0].children.length, 0, "C 已删，B 无子夹");
-  // 所有文件都在（不级联删文件）
-  assert.equal(data.listFiles(p.id).length, 4);
+  assert.equal(data.getFolder(p.id, b.id), null);
+  assert.equal(data.getFile(p.id, fA.id), null);
+  assert.equal(data.getFile(p.id, fB.id), null);
+  assert.equal(data.getFile(p.id, fRoot.id).folderId, null, "根目录文件不动");
+  assert.equal(data.listFolders(p.id).length, 0, "树已清空");
+  assert.equal(data.listFiles(p.id).length, 1, "仅剩根目录文件");
   // 删除不存在的文件夹
   expectThrow(() => data.deleteFolder(p.id, "nope"), /不存在/);
 });
