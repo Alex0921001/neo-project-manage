@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、任务日历、自动总结与风险识别的完整闭环。
 
-> 当前版本：**V2.1.5**（文件系统精修：框选/拖拽防环/分割线可拖/持久化 + 工具 65 + 桌面拖入登记 + 右键打开文件夹）
+> 当前版本：**V2.1.6**
 
 ## 快速使用
 
@@ -172,19 +172,3 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
 - **测试**：`node scripts/test/data.test.mjs`（数据层）+ `node scripts/test/tools.test.mjs`（工具层）+ `node scripts/test/plan-import.test.mjs`（文件解析）
-
-## 版本历史
-
-| 版本 | 日期 | 要点 |
-| --- | --- | --- |
-| V2.1.4 | 2026-08-13 | 文件系统重构（file_folders 多层嵌套 + files.folder_id + 删除提升语义 + 拖拽防环 + 名称搜索 + 文件夹 3 工具 + read_project_file docx/pdf 文本提取，工具 59→63）· FileTab 左树右网格 · 需求页样式对齐 PlanTab/TaskTab（工具栏上移父级 + 修复新建按钮 + 徽标/空态/分页统一）|
-| V2.1.3 | 2026-08-13 | tab 栏配置化（7 tab 数据化 + 拖拽调序 + 右键设置 + 全局/项目双配置）· 需求管理（三态流转 + 方案双向挂载，工具 51→59）· 方案评论折叠 · 知识 tab 占位 |
-| V2.1.2 | 2026-08-13 | 工具类补齐至 51（confirm_annotations / register_project_file / import_plan_file / list_project_risks）· 查询输出增强（planCount / nearDeadlineDays / view=summary）· 任务排序三模式（默认可拖拽 / 时间 / 等级，递归子任务，非默认禁用拖拽）· 内层任务定位修复（祖先链强制展开）|
-| V2.1.1 | 2026-08-13 | 方案管理全量落地 + 文件导入（txt/md/docx）· 日历统一弹窗 · 风险规则配置化（项目级）· 风险批注聚合 + 类别排序 · get_project_risks 工具 · 审计筛选 · 备注三工具 · 批注定位高亮/全部任务/关键字搜索 · 项目卡片方案数 + 项目集名（工具 47）|
-| V2.1.0 | 2026-08-12 | 收藏置顶 · 任务等级 P0~P5 · 功能速查弹窗（右下角 ?）· 成员管理 · 任务里程碑 + 步骤条 · 批注消费（milestone 标签 / risk 纳入总结）· 审计追踪（分页 + 中文翻译）· 便利贴互斥规则（schema v7）|
-| V2.0.0 | 2026-08-11 | 批注类型化（决策/风险/节点）· 文件资产化 · 会话关联 · 自动总结 + 风险识别 · 概览面板 · 历史时间线 · 批注管理大屏 · 已取消状态 + 项目归档（schema v6）· 后续精修：KPI 半透明/hover 淡化、nextSteps 状态分支、查询工具字段补齐、list_annotations 项目级查询 |
-| V1.3.1 | 2026-08-10 | 项目集拖拽排序持久化 · 嵌套任务状态同步 · 子任务日期范围 · 错误提示拦截（ElMessage）· 卡片精修 |
-| V1.3.0 | 2026-08-09 | 便利贴式项目卡片 · 项目集顶部 tabs · 详情页改造 · 任务日历 tab |
-| V1.2.0 | 2026-08-07 | 任务成员 + 起止时间 · 任务日历 · 富文本（base64 内联图片）· Element Plus 弹窗 |
-| V1.0.1 | 2026-08-02 | 批量批注工具/路由 · list_tasks/list_projects keyword 搜索 |
-| V1.0.0 | - | 初始版本：完整 CRUD + SQLite 存储 |
