@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、任务日历、自动总结与风险识别的完整闭环。
 
-> 当前版本：**V2.1.4**（文件系统重构：多层文件夹 + 63 工具 + read_project_file 提取 · 需求页样式对齐）
+> 当前版本：**V2.1.5**（文件系统精修：框选/拖拽防环/分割线可拖/持久化 + 工具 65 + 桌面拖入登记 + 右键打开文件夹）
 
 ## 快速使用
 
@@ -34,7 +34,7 @@
 8. create_plan { projectId, title, content } → 创建方案
 ```
 
-## 工具清单（47 个）
+## 工具清单（65 个）
 
 ### 创建
 
@@ -47,7 +47,8 @@
 | `create_annotation` | 给任务加便利贴（kind: note/decision/risk/milestone）|
 | `create_annotations` | 批量创建便利贴（最多 50 个）|
 | `create_member` | 创建成员（全局成员表，name 唯一）|
-| `create_plan` | 创建方案（标题 + 富文本内容）|
+| `create_plan` | 创建方案（标题 + 富文本内容 + 可选关联需求）|
+| `create_requirement` | 创建需求（名称/简述/优先级/关联方案）|
 | `create_note` | 添加项目备注 |
 
 ### 更新
@@ -59,7 +60,9 @@
 | `update_task` | 编辑任务（改名/成员/日期/等级/里程碑/标记完成）|
 | `update_annotation` | 编辑便利贴内容 / 类型 / 确认状态 |
 | `update_member` | 成员改名 |
-| `update_plan` | 编辑方案（标题/内容/状态，含业务校验）|
+| `update_plan` | 编辑方案（标题/内容/状态/关联需求，含业务校验）|
+| `update_requirement` | 编辑需求（仅待处理：名称/简述/优先级/关联方案）|
+| `update_requirement_status` | 需求三态流转（待处理/已完成/已取消，自由互转）|
 | `update_note` | 编辑项目备注 |
 
 ### 删除
@@ -73,6 +76,9 @@
 | `delete_member` | 删除成员 |
 | `delete_plan` | 删除方案（仅草稿/已废弃，级联删评论）|
 | `delete_plan_comment` | 删除方案评论 |
+| `delete_requirement` | 删除需求（已完成禁止删除，级联清关联）|
+| `delete_project_file` | 删除文件登记（不影响磁盘文件）|
+| `delete_project_folder` | 删除文件夹（真删除：递归删子孙夹+文件登记，磁盘不碰）|
 | `delete_note` | 删除项目备注 |
 
 ### 查询
@@ -85,17 +91,24 @@
 | `list_tasks` | 任务列表（status/assignee/keyword/dateRange 筛选）|
 | `get_task` | 按 ID 全局查任务（含父任务/批注类型/子任务）|
 | `list_annotations` | 便利贴列表（**taskId 单任务 或 projectId 项目级**，可 kind/keyword 筛选）|
-| `list_project_files` | 项目文件资产清单（含路径/大小/摘要/索引）|
+| `list_project_files` | 项目文件资产清单（folderId/name 筛选，含大小/摘要/索引）|
 | `get_project_file` | 单个文件详情 |
+| `register_project_file` | 登记文件资产（可选 folderId 指定目录）|
+| `move_project_file` | 移动文件登记到文件夹（空=根目录）|
+| `read_project_file` | 读取文件内容（txt 直读/docx 提取/pdf 文本/图片报错）|
+| `create_project_folder` / `update_project_folder` | 新建/编辑文件夹（改名+换父级，防环+同级重名）|
 | `list_project_sessions` | 关联会话列表 |
 | `get_project_summaries` | 项目历史总结（最近 N 条）|
 | `summarize_project` | 项目自动总结（完成度/风险/下一步，触发存档）|
 | `get_project_risks` | 只读 7 条规则计算后的风险 JSON（附配置，不存档）|
+| `list_project_risks` | 跨项目风险汇总（按项目集范围）|
 | `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/all）|
 | `list_members` | 成员列表（all-known 模式聚合历史人名，带 isHistoric）|
 | `list_audit_logs` | 审计日志（项目级，limit/offset/dateFrom/dateTo/targetType 筛选）|
-| `list_plans` | 方案列表（分页/标题关键字/状态筛选）|
+| `list_plans` | 方案列表（分页/id 精确/标题关键字/状态筛选）|
 | `get_plan` | 方案详情（含评论）|
+| `list_requirements` | 需求列表（分页/状态/关键字/id 筛选）|
+| `get_requirement` | 需求详情（含关联方案明细）|
 
 ### 会话关联 / 方案扩展
 
@@ -105,6 +118,9 @@
 | `unlink_project_session` | 解除会话关联 |
 | `add_plan_comment` | 给方案加评论 |
 | `convert_plan_to_task` | 已采纳方案一键转任务（任务名=方案标题，内容=方案内容）|
+| `link_requirement_plans` / `unlink_requirement_plans` | 需求↔方案关联 / 解除 |
+| `confirm_annotations` | 批量确认便利贴（ids/taskId/项目三范围）|
+| `import_plan_file` | 导入 txt/md/docx 成方案（预览或 autoCreate）|
 
 ## 关键用法示例
 

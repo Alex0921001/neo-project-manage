@@ -203,6 +203,12 @@ export default function registerPluginUiRoutes(app, ctx) {
           }
         });
       });
+      return c.json(result);
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // 打开文件所在文件夹（资源管理器定位选中该文件）：explorer /select, 路径
   app.get("/api/open-folder", (c) => {
     try {

@@ -1,20 +1,23 @@
 # 项目管理 · 功能速查
 
-项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产（多级文件夹）、方案管理、需求管理、分析总结与会话关联。人工端在「项目管理」页面操作，Agent 端通过 63 个工具读写数据，两侧数据实时互通。
+项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产（多级文件夹）、方案管理、需求管理、分析总结与会话关联。人工端在「项目管理」页面操作，Agent 端通过 65 个工具读写数据，两侧数据实时互通。
 
 ---
 
-## v2.1.4 当前版本
+## v2.1.5 当前版本
 
 ### 本次新增
 
 | 能力 | 说明 |
 | --- | --- |
-| 文件系统重构 | `file_folders` 表多层嵌套（parent_id 自引用）+ `files.folder_id`；左侧文件夹树 + 右侧网格视图；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除（内容提升，不级联删）；文件名称搜索 + 文件夹过滤；Ctrl/Shift 多选 + Delete 批量删除；路径失效角标；工具 59→63 |
-| 新工具 ×4 | `create_project_folder` / `update_project_folder`（改名+换父级）/ `delete_project_folder`（内容提升）/ `read_project_file`（txt 直读、docx 提取、pdf FlateDecode 文本提取、图片/未登记报错） |
-| 需求页样式对齐 | 需求 tab 工具栏统一上移至 index.vue（搜索/筛选复用 `.task-search`/`.plan-status-select`）；列表行/空态/分页/弹窗对齐 PlanTab；优先级徽标复制 TaskCard 染色；搜索命中高亮；修复右上角「新建」按钮（defineExpose） |
+| 文件系统精修 | 拖拽防环（自身/子孙禁用 + not-allowed + 三层拦截）；左侧空白=根目录目标 + 根目录放置琥珀高亮（互斥防闪烁）；分割线可拖（200~450，双击复位，宽度全局持久化）；文件夹名右侧文件计数（只统计自己夹内）；hover 气泡（1000ms 延迟 + 白底 + 名称前 10 字 + fixed 跟随）；树节点放大（行高 32/图标 16/文字 15-16）；卡片 104px 直角；移动成功静默；右键收敛到左侧树；当前文件夹项目级持久化 |
+| 框选重构 | AABB 相交检测 + 容器相对坐标 + 实时碰撞（移动中即时高亮）+ 边界 clamp（右区可视范围）；交互分层：空白=框选 / 文件=拖拽 / 单击点选 / 空白单击清空；click 抑制防覆盖；移出视图自动清除选中 |
+| 工具对齐至 65 | 三模块（需求/方案/文件）23 工具核对修复：`create_plan`/`update_plan` 补 requirementIds；`register_project_file` 补 folderId；新增 `move_project_file`/`delete_project_file`；`delete_project_folder` 语义同步为真删除；list_plans limit 收敛；路由补 id 解析；get_project_file 轻量化 |
+| 桌面拖入文件登记 | Electron `File.path` 能力：从桌面拖文件到文件区松手即登记到当前选中文件夹（批量）；内部拖拽优先不冲突；悬停琥珀遮罩提示；左树拖入暂不支持（静默） |
+| 右键打开文件夹 | `GET /api/open-folder`（explorer /select 定位文件）；文件右键菜单新增「打开文件夹」 |
+| 方案/需求字号 | PlanTab / RequirementTab 全部文字 +2px |
 
-### Agent 工具（63 个）
+### Agent 工具（65 个）
 
 | 类别 | 工具 | 说明 |
 | --- | --- | --- |
@@ -23,7 +26,7 @@
 | 任务 | `create_task` `create_tasks` `update_task` `delete_task` `delete_tasks` `get_task` `list_tasks` | 树形任务增删改查；list 支持 `nearDeadlineDays` 临近截止筛选 |
 | 批注 | `create_annotation` `create_annotations` `update_annotation` `delete_annotation` `delete_annotations` `list_annotations` `confirm_annotations` | 批注增删改查 + 批量确认（三范围） |
 | 风险 | `get_project_risks` `list_project_risks` | 项目风险（读侧）与跨项目风险汇总 |
-| 文件 | `list_project_files` `get_project_file` `register_project_file` `create_project_folder` `update_project_folder` `delete_project_folder` `read_project_file` | 项目文件资产清单 / 详情 / 登记；多级文件夹管理（建/改/删，删除提升）；文件内容提取（txt/docx/pdf） |
+| 文件 | `list_project_files` `get_project_file` `register_project_file` `move_project_file` `delete_project_file` `create_project_folder` `update_project_folder` `delete_project_folder` `read_project_file` | 文件资产清单/详情/登记/移动/删除；多级文件夹管理（建/改/删，删除真删除=递归删子孙夹+文件登记，磁盘不碰）；文件内容提取（txt/docx/pdf）；register 支持 folderId 指定目录 |
 | 成员 | `list_members` `create_member` `update_member` `delete_member` | 全局成员管理 |
 | 会话 | `link_project_session` `list_project_sessions` `unlink_project_session` | 项目与会话双向关联 |
 | 总结 | `summarize_project` `ask_project` `get_project_summaries` | 项目总结 / 问答 / 历史总结 |
@@ -39,7 +42,7 @@
 | 项目集 | 分组管理、拖拽排序、右键菜单增删改；集下还有项目时禁止删除 |
 | 项目 | 增删改查；成员、起止日期、状态流转（待开始 / 进行中 / 已完成 / 已取消）；归档与恢复；收藏置顶 |
 | 树形任务 | 父子孙多级结构，删除父任务**级联删除**子孙；批量创建（≤50 条，中途失败整体回滚）；编辑支持改父任务；等级 P0~P5；里程碑旗帜标记；三种排序模式（默认可拖拽 / 时间 / 等级） |
-| 多级文件夹 | file_folders 无限层级树 + 文件归属；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除内容提升；文件夹与文件名称搜索；Ctrl/Shift 多选 + Delete 批量删除 |
+| 多级文件夹 | file_folders 无限层级树 + 文件归属；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除真删除（递归删子孙夹+夹内文件登记，磁盘不碰）；拖拽防环禁用提示；左侧空白=根目录；框选（AABB 实时碰撞）+ Ctrl/Shift 多选 + Delete 批量删除；分割线可拖 + 文件夹/树宽持久化；桌面拖入文件登记；右键打开文件夹 |
 | 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论；一键转任务；文件导入（txt/md/docx）；反向展示满足的需求 |
 | 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；筛选/搜索/分页 |
 | tab 栏 | 7 tab 数据驱动 + 拖拽调序 + 右键设置；项目级 > 全局级 > 默认顺序 |
@@ -53,13 +56,27 @@
 | 能力 | 说明 |
 | --- | --- |
 | 自动总结 | 任务/批注/备注多维汇总，含进度、风险、待确认、延期、下一步建议；数据实时生成 |
-| 风险识别 | 7 条规则（项目无起止日期、任务延期/临近截止/无日期/无负责人、批注无确认等），可**项目级配置**开关/阈值/等级，批注风险**聚合展示** + 类别排序 |
+| 风险识别 | 7 条规则（项目无起止日期、任务延期/临近截止/无日期/无负责人、批注无确认等），可**项目级配置**开关/阈值/等级，待确认批注积压 + 类别排序 |
 | 风险汇总 | `list_project_risks` 跨项目风险汇总（按项目集范围），概览视图直接展示 |
 | 历史时间线 | 按时间倒序回看历史总结，可筛选类型、点击查看全文 |
 
 ### 会话关联
 
 项目可与 Hana 会话双向关联：Agent 在处理某个项目时把会话挂到项目下，会话上下文随项目沉淀；支持关联、查询、解除，重复关联自动去重，sessionId 有格式与长度校验。
+
+---
+
+## v2.1.4 历史能力
+
+v2.1.4 建立的能力（v2.1.5 持续沿用）：
+
+### 本次新增
+
+| 能力 | 说明 |
+| --- | --- |
+| 文件系统重构 | `file_folders` 表多层嵌套（parent_id 自引用）+ `files.folder_id`；左侧文件夹树 + 右侧网格视图；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除（当时为内容提升，V2.1.5 起改为真删除）；文件名称搜索 + 文件夹过滤；Ctrl/Shift 多选 + Delete 批量删除；路径失效角标；工具 59→63 |
+| 新工具 ×4 | `create_project_folder` / `update_project_folder`（改名+换父级）/ `delete_project_folder`（当时为内容提升，V2.1.5 起真删除）/ `read_project_file`（txt 直读、docx 提取、pdf FlateDecode 文本提取、图片/未登记报错） |
+| 需求页样式对齐 | 需求 tab 工具栏统一上移至 index.vue（搜索/筛选复用 `.task-search`/`.plan-status-select`）；列表行/空态/分页/弹窗对齐 PlanTab；优先级徽标复制 TaskCard 染色；搜索命中高亮；修复右上角「新建」按钮（defineExpose） |
 
 ---
 
