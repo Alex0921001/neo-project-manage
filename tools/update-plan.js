@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_plan";
-export const description = "编辑方案（标题/内容/状态，传哪个改哪个；状态：草稿/进行中/已采纳/已废弃）";
+export const description = "编辑方案（标题/内容/状态/关联需求，传哪个改哪个；状态：草稿/进行中/已采纳/已废弃；requirementIds 全量替换关联）";
 export const parameters = {
   type: "object",
   required: ["projectId", "planId"],
@@ -11,6 +11,7 @@ export const parameters = {
     title: { type: "string", description: "方案标题（最长 100 字）" },
     content: { type: "string", description: "方案内容（富文本 HTML）" },
     status: { type: "string", enum: ["草稿", "进行中", "已采纳", "已废弃"], description: "方案状态" },
+    requirementIds: { type: "array", items: { type: "string" }, description: "关联的需求 ID 列表（传则全量替换；空数组=清空关联）" },
   },
 };
 
@@ -20,6 +21,7 @@ export async function execute(input, toolCtx) {
     title: input.title,
     content: input.content,
     status: input.status,
+    requirementIds: input.requirementIds,
   });
   return { content: [{ type: "text", text: `已更新方案「${plan.title}」[ID: ${plan.id}]（${plan.status}）` }] };
 }

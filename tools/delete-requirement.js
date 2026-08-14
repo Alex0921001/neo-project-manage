@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "delete_requirement";
-export const description = "删除需求（级联清除其与方案的关联）";
+export const description = "删除需求（级联清除其与方案的关联；注意：已完成的需求禁止删除）";
 export const parameters = {
   type: "object",
   required: ["projectId", "requirementId"],

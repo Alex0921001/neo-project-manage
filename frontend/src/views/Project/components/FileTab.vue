@@ -110,7 +110,17 @@
         @dblclick="treeWidth = 300"
       ></div>
 
-      <div class="ft-main" ref="gridContainerRef" @mousedown="onGridMouseDown" @click="onMainClick">
+      <div
+        class="ft-main"
+        :class="{ 'external-drop-hover': externalDropHover }"
+        ref="gridContainerRef"
+        @mousedown="onGridMouseDown"
+        @click="onMainClick"
+        @dragenter="onExternalDragEnter"
+        @dragleave="onExternalDragLeave"
+        @dragover="onExternalDragOver"
+        @drop.prevent.stop="onExternalDrop"
+      >
         <div class="fg-grid" ref="gridRef">
           <!-- Windows 风格卡片：图标 + 文件名；点击琥珀高亮；hover 三点信息；双击默认程序打开 -->
           <div
@@ -159,6 +169,7 @@
       </template>
       <template v-else>
         <div class="ctx-item" @click.stop="menuOpenFile">打开</div>
+        <div class="ctx-item" @click.stop="menuOpenFolder">打开文件夹</div>
         <div class="ctx-item" @click.stop="menuCopyPath">复制路径</div>
         <div class="ctx-item danger" @click.stop="menuDeleteFile">删除</div>
       </template>
@@ -186,6 +197,8 @@ watch(selectedFolder, (v) => localStorage.setItem(`neo-pm-file-folder-${props.pr
 /* 左侧空白视为根目录目标：悬停高亮根目录项（drop 后清除） */
 const rootDropHover = ref(false);
 function onTreeDragOver(e) {
+  // 外部文件拖入左树：暂不支持登记，不点亮 drop 目标高亮（静默无操作；prevent 由模板 .prevent 承担，不会打开文件）
+  if (e.dataTransfer?.files?.length) { e.stopPropagation(); return; }
   rootDropHover.value = true;
   e.stopPropagation();
 }
@@ -203,6 +216,8 @@ function onGlobalDragEnd() {
   dragFolderId.value = "";
   dragIds.value = [];
   rootDropHover.value = false;
+  externalDropDepth = 0;
+  externalDropHover.value = false;
 }
 /* 左树宽度：默认 300，可拖 200~450，双击分割线复位；宽度全局持久化 */
 const MIN_TREE = 200;
@@ -500,6 +515,9 @@ const editingFolder = ref({ id: "", name: "" }); // 行内编辑中：仅 id 命
 const newFolder = ref({ parentId: "", name: "" }); // 新建输入行：parentId 为 "root"（根级）或具体文件夹 id
 const rootNewInput = ref(null);
 const dragFolderId = ref(""); // 拖拽中的文件夹 id（与文件拖拽 dragIds 区分）
+// 外部文件拖入登记状态：悬停右区时琥珀遮罩提示（仅外部文件触发，内部拖拽不影响）
+const externalDropHover = ref(false);
+let externalDropDepth = 0; // dragenter/dragleave 嵌套计数（子元素进出防闪烁）
 
 function toggleFolder(id) {
   const s = new Set(expandedIds.value);
@@ -807,6 +825,15 @@ function menuOpenFile() {
   if (f) openFile(f);
 }
 
+/** 右键「打开文件夹」：资源管理器定位到文件所在文件夹 */
+async function menuOpenFolder() {
+  const f = menu.value.file;
+  closeMenu();
+  if (!f?.path) { toast("无文件路径", "error"); return; }
+  const res = await api(`api/open-folder?path=${encodeURIComponent(f.path)}`, { silent: true });
+  if (!res?.ok) toast(res?.error || "打开文件夹失败", "error");
+}
+
 async function menuCopyPath() {
   const f = menu.value.file;
   closeMenu();
@@ -838,6 +865,55 @@ function menuDeleteFile() {
     askDeleteFiles([...selected.value]);
   } else {
     askDeleteFiles([f.id]);
+  }
+}
+
+// ===== 外部文件拖入登记（桌面拖文件 → 按路径登记资产；内部拖拽优先走既有逻辑） =====
+/** 外部文件进入右区：点亮琥珀提示（内部 HTML5 拖拽 dataTransfer 无 files，不触发） */
+function onExternalDragEnter(e) {
+  if (!e.dataTransfer?.files?.length) return;
+  externalDropDepth += 1;
+  externalDropHover.value = true;
+}
+/** 离开右区/移出窗口：计数归零熄灭；子元素间移动不清（relatedTarget 仍在内部） */
+function onExternalDragLeave(e) {
+  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+  externalDropDepth = 0;
+  externalDropHover.value = false;
+}
+/** 仅外部文件放行 drop（preventDefault 才允许松手落点）；内部拖拽保持浏览器默认（禁止光标，与现状一致） */
+function onExternalDragOver(e) {
+  if (e.dataTransfer?.files?.length) e.preventDefault();
+}
+/** 右区松手：内部拖拽（dragIds/dragFolderId）优先让位既有逻辑；外部文件批量登记 */
+function onExternalDrop(e) {
+  externalDropDepth = 0;
+  externalDropHover.value = false;
+  if (dragIds.value.length || dragFolderId.value) return; // 内部拖拽：既有逻辑（拖到文件夹/根目录）
+  const files = e.dataTransfer?.files;
+  if (!files?.length) return;
+  registerDroppedFiles(files);
+}
+/** 批量登记拖入文件：目标 = 当前选中文件夹（root → null）；成功静默，失败才提示 */
+async function registerDroppedFiles(files) {
+  const list = [...files];
+  for (const f of list) {
+    if (!f.path || !String(f.path).trim()) {
+      toast("拖入文件需在桌面端使用，无法获取文件路径", "error");
+      return; // 无 File.path（非 Electron 环境）：中止，不做上传降级
+    }
+  }
+  const folderId = selectedFolder.value !== "root" ? selectedFolder.value : null;
+  const results = await Promise.all(
+    list.map((f) => api(`api/projects/${props.projectId}/files`, {
+      method: "POST", body: JSON.stringify({ path: f.path, folderId }), silent: true,
+    }))
+  );
+  const okCount = results.filter((r) => r?.ok).length;
+  if (okCount) {
+    emit("changed"); // 成功静默（与移动/文件夹操作一致）
+  } else {
+    toast(results[0]?.error || "登记失败", "error");
   }
 }
 
@@ -1061,6 +1137,24 @@ function setSearch(v) {
 
 /* 主区 */
 .ft-main { flex: 1; min-width: 0; padding-left: 14px; overflow-y: auto; min-height: 0; position: relative; /* 框选选区 absolute 参考系（整个右区可视区） */ }
+/* 外部文件拖入悬停：琥珀遮罩 + 虚线边框 + 提示文案（inset 内收避开滚动条；pointer-events none 不干扰拖放） */
+.ft-main.external-drop-hover::after {
+  content: "释放以登记文件";
+  position: absolute;
+  inset: 6px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--accent-warm-hover);
+  background: oklch(0.95 0.04 75 / 0.55);
+  border: 2px dashed var(--accent-warm);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
 
 /* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息） */
 .fg-grid {

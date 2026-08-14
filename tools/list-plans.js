@@ -17,10 +17,13 @@ export const parameters = {
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
+  // 边界收敛：limit 默认 10、clamp 1~100；offset 非负（与 REST 接口一致）
+  const safeLimit = input.limit === undefined ? 10 : Math.min(Math.max(parseInt(input.limit) || 10, 1), 100);
+  const safeOffset = Math.max(parseInt(input.offset) || 0, 0);
   const { total, items } = data.listPlans(input.projectId, {
     id: input.id || undefined,
-    limit: input.limit,
-    offset: input.offset,
+    limit: safeLimit,
+    offset: safeOffset,
     keyword: input.keyword?.trim() || undefined,
     status: input.status || undefined,
   });
@@ -32,6 +35,6 @@ export async function execute(input, toolCtx) {
     if (p.taskName) parts.push(`已转任务: ${p.taskName} [${p.taskId}]`);
     return parts.join(" · ");
   });
-  const head = `共 ${total} 条方案${input.limit ? `，本页 ${items.length} 条` : ""}`;
+  const head = `共 ${total} 条方案，本页 ${items.length} 条`;
   return { content: [{ type: "text", text: [head, ...lines].join("\n") }] };
 }

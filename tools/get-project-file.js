@@ -13,11 +13,7 @@ export const parameters = {
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const project = data.getProject(input.projectId);
-  if (!project) throw new Error(`项目 ${input.projectId} 不存在`);
-
-  const file = (project.files || []).find((f) => f.id === input.fileId);
-  if (!file) throw new Error(`项目「${project.name}」中不存在文件 ${input.fileId}`);
+  const file = data.getFile(input.projectId, input.fileId);
 
   const lines = [
     `📄 ${file.name}`,

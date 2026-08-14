@@ -18,7 +18,8 @@ export function registerRequirementsRoutes(app, data) {
       const offset = q.offset ? Math.max(parseInt(q.offset) || 0, 0) : 0;
       const status = q.status ? String(q.status).trim() : undefined;
       const keyword = q.keyword ? String(q.keyword).trim() : undefined;
-      return c.json({ ok: true, data: data.listRequirements(c.req.param("projectId"), { limit, offset, status, keyword }) });
+      const id = q.id ? String(q.id).trim() : undefined;
+      return c.json({ ok: true, data: data.listRequirements(c.req.param("projectId"), { limit, offset, status, keyword, id }) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }

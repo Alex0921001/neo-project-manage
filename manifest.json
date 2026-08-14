@@ -57,6 +57,8 @@
       "./tools/import-plan-file.js",
       "./tools/confirm-annotations.js",
       "./tools/register-project-file.js",
+      "./tools/move-project-file.js",
+      "./tools/delete-project-file.js",
       "./tools/read-project-file.js",
       "./tools/create-project-folder.js",
       "./tools/update-project-folder.js",

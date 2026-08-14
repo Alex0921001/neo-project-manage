@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "convert_plan_to_task";
-export const description = "一键转任务：方案标题→任务名、方案内容→任务描述（当前项目下创建，默认 P3 不分配成员/日期）；已转过的方案不能重复转换";
+export const description = "一键转任务：方案标题→任务名、方案内容→任务描述（仅已采纳状态可转；当前项目下创建，默认 P3 不分配成员/日期）；已转过的方案不能重复转换";
 export const parameters = {
   type: "object",
   required: ["projectId", "planId"],

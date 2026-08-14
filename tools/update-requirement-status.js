@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_requirement_status";
-export const description = "需求状态流转：待处理 → 已完成 / 已取消（已完成或已取消的状态不可再变更）";
+export const description = "需求状态流转（三态自由切换：待处理 / 已完成 / 已取消，任何状态间可互转；已完成/已取消后名称、简述、优先级、关联方案不可再编辑）";
 export const parameters = {
   type: "object",
   required: ["projectId", "requirementId", "status"],

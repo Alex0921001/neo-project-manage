@@ -203,7 +203,17 @@ export default function registerPluginUiRoutes(app, ctx) {
           }
         });
       });
-      return c.json(result);
+  // 打开文件所在文件夹（资源管理器定位选中该文件）：explorer /select, 路径
+  app.get("/api/open-folder", (c) => {
+    try {
+      const filePath = c.req.query("path");
+      if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
+      if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
+      // execFile 不经 shell：含空格的路径由 Node 自动加引号，explorer 解析 /select,<path>
+      execFile("explorer.exe", [`/select,${filePath}`], (err) => {
+        if (err) ctx.log.warn(`[open-folder] 打开失败: ${err.message}`);
+      });
+      return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }

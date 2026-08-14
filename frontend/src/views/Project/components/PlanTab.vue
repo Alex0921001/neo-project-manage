@@ -309,7 +309,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   background: transparent;
   color: var(--text-secondary);
   padding: 5px 12px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
@@ -331,7 +331,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
 }
 .plan-empty {
   color: var(--text-tertiary);
-  font-size: 13px;
+  font-size: 15px;
   text-align: center;
   padding: 36px 0;
 }
@@ -362,19 +362,19 @@ watch(() => props.projectId, () => load(), { immediate: true });
 }
 .plans-empty-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 .plans-empty-sub {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 .plans-add.plans-add-large {
   margin-top: 14px;
   padding: 8px 20px;
-  font-size: 13px;
+  font-size: 15px;
 }
 .plans-add {
   display: inline-flex;
@@ -385,7 +385,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   color: var(--bg-card);
   border: 1px solid var(--text);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -409,7 +409,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   padding: 10px 12px 0;
 }
 .plan-pager-count {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -424,7 +424,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -440,7 +440,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   cursor: default;
 }
 .plan-pager-info {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   min-width: 48px;
@@ -484,7 +484,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
 .plan-row-title {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text);
   overflow: hidden;
@@ -516,7 +516,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
 .plan-ctx-item {
   padding: 6px 12px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -536,7 +536,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
 .plan-row-meta {
   width: 56px;
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 .plan-row-copy {
@@ -561,7 +561,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--status-done-text);
   flex-shrink: 0;
@@ -575,7 +575,7 @@ watch(() => props.projectId, () => load(), { immediate: true });
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
   flex-shrink: 0;

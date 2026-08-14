@@ -270,13 +270,13 @@ defineExpose({ openCreate, load });
 }
 .reqs-empty-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 .reqs-empty-sub {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 .reqs-add {
@@ -288,7 +288,7 @@ defineExpose({ openCreate, load });
   color: var(--bg-card);
   border: 1px solid var(--text);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
@@ -302,7 +302,7 @@ defineExpose({ openCreate, load });
 .reqs-add.reqs-add-large {
   margin-top: 14px;
   padding: 8px 20px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* ===== 列表（对齐方案列表行：细分隔线 + hover 底色） ===== */
@@ -326,7 +326,7 @@ defineExpose({ openCreate, load });
 .req-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text);
   overflow: hidden;
@@ -351,7 +351,7 @@ defineExpose({ openCreate, load });
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   border-radius: 6px;
   flex-shrink: 0;
@@ -384,7 +384,7 @@ defineExpose({ openCreate, load });
   justify-content: center;
   flex-shrink: 0;
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.5;
   letter-spacing: 0.03em;
@@ -401,7 +401,7 @@ defineExpose({ openCreate, load });
 /* 已完成/已取消：徽标与待处理一致（V2.1.4 去掉降透明） */
 .req-meta {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -420,7 +420,7 @@ defineExpose({ openCreate, load });
 .req-ctx-item {
   padding: 6px 12px;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
@@ -447,7 +447,7 @@ defineExpose({ openCreate, load });
   padding: 10px 12px 0;
 }
 .req-pager-count {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -462,7 +462,7 @@ defineExpose({ openCreate, load });
   border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
@@ -478,7 +478,7 @@ defineExpose({ openCreate, load });
   cursor: default;
 }
 .req-pager-info {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   min-width: 48px;

@@ -2,7 +2,7 @@
  * 项目文件 + 文件夹 CRUD：/api/projects/:projectId/files/* 与 /api/projects/:projectId/folders/*
  *
  * 文件夹（V2.1.4 文件系统重构）：多层嵌套（parent_id 自引用），NULL=根目录；
- * 删除走「内容提升」语义（文件和子文件夹提升到父级，不级联删除、不丢结构）。
+ * 删除走「真删除」语义（递归删子孙夹 + 级联删夹内文件登记，磁盘文件不碰，用户拍板）。
  */
 export function registerFilesRoutes(app, data) {
   // ===== 文件夹 =====
@@ -39,7 +39,7 @@ export function registerFilesRoutes(app, data) {
     }
   });
 
-  /** 删除文件夹（内容提升：文件和子文件夹提升到被删夹的父级，不删任何文件） */
+  /** 删除文件夹（真删除：递归删除子孙夹 + 级联删除夹内文件登记，磁盘文件不碰） */
   app.delete("/api/projects/:projectId/folders/:folderId", (c) => {
     try {
       data.deleteFolder(c.req.param("projectId"), c.req.param("folderId"));
@@ -61,6 +61,15 @@ export function registerFilesRoutes(app, data) {
       const name = c.req.query("name") || undefined;
       const files = data.listFiles(c.req.param("projectId"), { folderId, name });
       return c.json({ ok: true, data: files });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  /** 文件详情（单文件；供 get_project_file / REST 调用方） */
+  app.get("/api/projects/:projectId/files/:fileId", (c) => {
+    try {
+      return c.json({ ok: true, data: data.getFile(c.req.param("projectId"), c.req.param("fileId")) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }
