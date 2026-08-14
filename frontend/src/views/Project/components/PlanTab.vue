@@ -36,6 +36,9 @@
         </span>
         <span :class="['plan-st', `plan-st-${planStatusKey(pl.status)}`]">{{ pl.status }}</span>
         <span class="plan-row-meta">评论 {{ pl.commentCount }}</span>
+        <button class="plan-row-copy" title="复制搜索语句" @click.stop="copyPlan(pl)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
       </div>
       <!-- 分页（每页 10 条，超过一页才显示） -->
       <div v-if="total > PAGE_SIZE" class="plan-pager">
@@ -51,6 +54,7 @@
     <!-- 右键菜单（fixed 定位，随鼠标；打开/克隆/编辑/删除/转任务，状态规则与详情一致，克隆无限制） -->
     <div v-if="ctx.show" class="plan-ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <div class="plan-ctx-item" @click="ctxOpen">打开</div>
+      <div class="plan-ctx-item" @click="ctxCopyId">复制 Id</div>
       <div class="plan-ctx-item" @click="ctxClone">克隆</div>
       <div v-if="canEdit" class="plan-ctx-item" @click="ctxEdit">编辑</div>
       <div v-if="canDel" class="plan-ctx-item plan-ctx-danger" @click="ctxDel">删除</div>
@@ -133,6 +137,35 @@ function openCtx(e, pl) {
 }
 function closeCtx() {
   ctx.show = false;
+}
+
+// ===== 复制（对齐项目卡片/任务条目：textarea + execCommand） =====
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+function copyPlan(pl) {
+  if (!pl?.id) return;
+  copyText(`使用项目管理插件工具搜索：【方案 id:${pl.id}】 【${pl.title || ""}】 的具体内容。`);
+}
+function ctxCopyId() {
+  if (!ctx.plan?.id) return;
+  const p = ctx.plan;
+  closeCtx();
+  copyPlan(p);
 }
 function ctxOpen() {
   closeCtx();
@@ -505,6 +538,24 @@ watch(() => props.projectId, () => load(), { immediate: true });
   flex-shrink: 0;
   font-size: 12px;
   color: var(--text-tertiary);
+}
+.plan-row-copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-row-copy:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .plan-row-task {
   display: inline-flex;

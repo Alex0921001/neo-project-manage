@@ -400,7 +400,9 @@ defineExpose({ loadDetail });
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px 16px 0;
+  padding: 14px 16px 12px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 12px;
   flex-shrink: 0;
 }
 .rq-edit-title {
@@ -414,6 +416,10 @@ defineExpose({ loadDetail });
   color: var(--text);
   font-family: inherit;
   padding: 4px 2px;
+}
+.rq-edit-title:focus {
+  outline: 1px dashed var(--text-tertiary);
+  outline-offset: 2px;
 }
 .rq-edit-title::placeholder { color: var(--text-tertiary); }
 /* 富文本：上下左右撑满剩余空间（选择器对齐 RichEditor 真实类名 .rich-editor / .rich-content） */

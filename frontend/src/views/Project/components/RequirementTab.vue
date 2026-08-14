@@ -39,6 +39,9 @@
         <span class="req-meta">关联 {{ r.planCount }}</span>
         <span class="priority-badge" :class="`priority-${(r.priority || 'P3').toLowerCase()}`">{{ r.priority || 'P3' }}</span>
         <span class="req-st" :class="`req-st-${statusKey(r.status)}`">{{ r.status }}</span>
+        <button class="req-row-copy" title="复制搜索语句" @click.stop="copyReq(r)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
       </div>
       <!-- 分页（超过一页才显示） -->
       <div v-if="total > pageSize" class="req-pager">
@@ -54,6 +57,7 @@
     <!-- 右键菜单（fixed 定位，随鼠标；打开 / 编辑 / 删除，编辑仅待处理） -->
     <div v-if="ctx.show" class="req-ctx" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }" @click.stop>
       <div class="req-ctx-item" @click="ctxOpen">打开</div>
+      <div class="req-ctx-item" @click="ctxCopyId">复制 Id</div>
       <div v-if="ctxCanEdit" class="req-ctx-item" @click="ctxEdit">编辑</div>
       <div v-if="ctx.req?.status !== '已完成'" class="req-ctx-item req-ctx-danger" @click="ctxDel">删除</div>
     </div>
@@ -157,6 +161,35 @@ function openCtx(e, r) {
 }
 function closeCtx() {
   ctx.show = false;
+}
+
+// ===== 复制（对齐项目卡片/任务条目：textarea + execCommand） =====
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+function copyReq(r) {
+  if (!r?.id) return;
+  copyText(`使用项目管理插件工具搜索：【需求 id:${r.id}】 【${r.name || ""}】 的具体内容。`);
+}
+function ctxCopyId() {
+  if (!ctx.req?.id) return;
+  const r = ctx.req;
+  closeCtx();
+  copyReq(r);
 }
 function ctxOpen() {
   closeCtx();
@@ -326,6 +359,24 @@ defineExpose({ openCreate, load });
 .req-st-todo { color: var(--status-todo-text); background: oklch(0.95 0.03 75); }
 .req-st-done { color: var(--status-done-text); background: oklch(0.95 0.04 162); }
 .req-st-cancel { color: var(--status-cancel-text); background: oklch(0.94 0.005 80); }
+.req-row-copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.req-row-copy:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 /* 优先级徽标（对齐任务卡 .priority-badge：色值完全一致） */
 .priority-badge {
   display: inline-flex;

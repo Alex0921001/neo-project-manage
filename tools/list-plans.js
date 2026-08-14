@@ -7,6 +7,7 @@ export const parameters = {
   required: ["projectId"],
   properties: {
     projectId: { type: "string", description: "项目 ID" },
+    id: { type: "string", description: "精确查找：方案 ID（填则仅返回该方案）" },
     limit: { type: "integer", description: "每页条数（默认 10，最大 100）" },
     offset: { type: "integer", description: "偏移量（默认 0）" },
     keyword: { type: "string", description: "按标题模糊搜索" },
@@ -17,6 +18,7 @@ export const parameters = {
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const { total, items } = data.listPlans(input.projectId, {
+    id: input.id || undefined,
     limit: input.limit,
     offset: input.offset,
     keyword: input.keyword?.trim() || undefined,

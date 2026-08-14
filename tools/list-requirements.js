@@ -7,6 +7,7 @@ export const parameters = {
   required: ["projectId"],
   properties: {
     projectId: { type: "string", description: "项目 ID" },
+    id: { type: "string", description: "精确查找：需求 ID（填则仅返回该需求）" },
     limit: { type: "integer", description: "每页条数（默认 50，最大 100）" },
     offset: { type: "integer", description: "偏移量（默认 0）" },
     status: { type: "string", description: "按状态筛选：待处理 / 已完成 / 已取消" },
@@ -17,6 +18,7 @@ export const parameters = {
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const { total, items } = data.listRequirements(input.projectId, {
+    id: input.id || undefined,
     limit: input.limit,
     offset: input.offset,
     status: input.status || undefined,

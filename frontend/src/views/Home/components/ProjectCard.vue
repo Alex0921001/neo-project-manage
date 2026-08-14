@@ -157,7 +157,7 @@ function copyText(text) {
 }
 function copyProject() {
   if (!props.project) return;
-  copyText(`使用项目管理插件工具搜索：【项目 id:${props.project.id}】 ${props.project.name || ""} 的具体内容。`);
+  copyText(`使用项目管理插件工具搜索：【项目 id:${props.project.id}】 【${props.project.name || ""}】 的具体内容。`);
 }
 
 // ===== 状态 =====

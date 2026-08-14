@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="overview-card" :class="{ 'ov-collapsed': !expanded }">
     <!-- 头部：左右两个平级标题块（项目概览 | 历史总结） -->
     <div class="ov-cols-head">
@@ -63,7 +63,7 @@
                     <li v-for="(t, i) in s.pendingTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popPending)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                      <button class="ov-pop-copy" title="复制搜索语句" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
                     </li>
@@ -95,7 +95,7 @@
                     <li v-for="(t, i) in s.delayed" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popDelayed)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                      <button class="ov-pop-copy" title="复制搜索语句" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
                     </li>
@@ -156,7 +156,7 @@
                     <li v-for="(t, i) in s.noDateTaskItems" :key="t.id" class="ov-pop-item" @click="jumpFromPop(t.id, popNoDate)">
                       <span class="ov-pop-idx">{{ i + 1 }}</span>
                       <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                      <button class="ov-pop-copy" title="复制搜索语句" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
                     </li>
@@ -208,7 +208,7 @@
                     <span v-if="t.annotationId" class="ov-pop-ann">{{ shortAnn(t.content) }}</span>
                     <template v-else>
                       <span class="ov-pop-name">{{ t.name }}</span>
-                      <button class="ov-pop-copy" title="复制" @click="copyTaskItem(t)">
+                      <button class="ov-pop-copy" title="复制搜索语句" @click="copyTaskItem(t)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                       </button>
                     </template>
@@ -454,7 +454,7 @@ function copyText(text) {
 }
 function copyTaskItem(t) {
   if (!t?.id) return;
-  copyText(`使用项目管理插件工具搜索：【任务 id:${t.id}】 ${t.name || ""} 的具体内容。`);
+  copyText(`使用项目管理插件工具搜索：【任务 id:${t.id}】 【${t.name || ""}】 的具体内容。`);
 }
 
 // 批注内容短展示：去 HTML + 限 10 字（对齐用户规范「前 10 个字...」）

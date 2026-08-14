@@ -26,9 +26,7 @@
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
             <!-- 克隆：无权限控制，复制当前方案到新建编辑弹窗（保存即新建） -->
-            <button class="pm-icon-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            </button>
+            <button class="pm-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">克隆</button>
             <button
               v-if="plan?.status === '已采纳'"
               class="pm-btn pm-btn-primary"
