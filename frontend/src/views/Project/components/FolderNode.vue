@@ -15,7 +15,7 @@
       <span class="fn-arrow" :class="{ open: isExpanded, leaf: !hasChildren }" @click.stop="$emit('toggle', node.id)">
         <svg v-if="hasChildren" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
       </span>
-      <svg class="fn-folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <svg class="fn-folder-icon" width="16" height="16" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       <!-- 行内编辑：原处 input 替换名称（回车/失焦保存，Esc 取消） -->
       <input
         v-if="isEditing"
@@ -50,6 +50,7 @@
         @menu="$emit('menu', $event)"
         @drop="$emit('drop', $event)"
         @dragstart-folder="$emit('dragstart-folder', $event)"
+        @drop-hover="$emit('drop-hover')"
         @toggle="$emit('toggle', $event)"
         @update:editing-value="$emit('update:editing-value', $event)"
         @commit-edit="$emit('commit-edit')"
@@ -66,7 +67,7 @@
         @click.stop
       >
         <span class="fn-arrow"></span>
-        <svg class="fn-folder-icon" width="14" height="14" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <svg class="fn-folder-icon" width="16" height="16" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <input
           ref="newInput"
           class="fn-edit-input"
@@ -106,6 +107,7 @@ const props = defineProps({
 });
 const emit = defineEmits([
   "select", "menu", "drop", "dragstart-folder", "toggle",
+  "drop-hover",
   "update:editing-value", "commit-edit", "cancel-edit",
   "update:new-value", "commit-new", "cancel-new",
 ]);
@@ -158,6 +160,7 @@ function onDragOver(e) {
   e.stopPropagation(); // 阻止冒泡到左侧空白（空白=根目录目标）
   if (canDrop.value) {
     dropHover.value = true;
+    emit("drop-hover"); // 通知父级：子文件夹优先，根目录放置高亮让位（互斥）
   } else {
     // 禁用放置：明确拒绝 dropEffect，避免浏览器默认光标误导
     try { e.dataTransfer.dropEffect = "none"; } catch { /* ignore */ }
@@ -176,13 +179,13 @@ function onDrop(e) {
 .fn-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
+  gap: 6px;
+  height: 32px;
   padding-right: 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 15px;
   user-select: none;
   white-space: nowrap;
   overflow: hidden;
@@ -196,8 +199,8 @@ function onDrop(e) {
 .fn-row[draggable="true"] { cursor: grab; }
 .fn-row[draggable="true"]:active { cursor: grabbing; }
 .fn-arrow {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -214,12 +217,12 @@ function onDrop(e) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text);
 }
 .fn-count {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-tertiary);
   margin-left: 4px;
   font-variant-numeric: tabular-nums;

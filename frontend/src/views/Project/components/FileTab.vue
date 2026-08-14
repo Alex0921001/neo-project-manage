@@ -41,7 +41,7 @@
     <!-- 主体：左树右网格（分割线可拖，树宽 160~480 限制） -->
     <div class="ft-body">
       <aside class="ft-sidebar" :style="{ width: treeWidth + 'px' }">
-        <div class="ft-tree" @dragover.prevent="onTreeDragOver" @drop.prevent="onRootDrop">
+        <div class="ft-tree" @dragover.prevent="onTreeDragOver" @dragleave="onTreeDragLeave" @drop.prevent="onRootDrop">
           <!-- 根目录：可展开/收起的顶层容器（展开显示根级文件夹，缩进在其下）；悬停 drop 显示琥珀高亮 -->
           <div
             class="ft-tree-fixed"
@@ -49,13 +49,13 @@
             @click="selectFolder('root')"
             @contextmenu.prevent="openRootMenu($event)"
             @dragover.prevent="onTreeDragOver"
-            @dragleave="rootDropHover = false"
+            @dragleave="onTreeDragLeave"
             @drop.prevent.stop="onRootDrop"
           >
             <span class="ft-tree-arrow" :class="{ open: rootExpanded }" @click.stop="rootExpanded = !rootExpanded">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
             </span>
-            <svg class="ft-tree-folder-ic" width="13" height="13" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            <svg class="ft-tree-folder-ic" width="16" height="16" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
             <span>根目录</span><span v-if="folderFileCounts.total" class="ft-tree-count">({{ folderFileCounts.total }})</span>
           </div>
           <template v-if="rootExpanded">
@@ -70,8 +70,9 @@
               :editing-value="editingFolder.name"
               :new-parent-id="newFolder.parentId"
               :new-value="newFolder.name"
-              :drag-folder-id="dragFolderId"
+              @drag-folder-id="dragFolderId"
               :file-counts="folderFileCounts"
+              @drop-hover="rootDropHover = false"
               @select="selectFolder"
               @menu="openFolderMenu"
               @drop="onDropAt"
@@ -87,7 +88,7 @@
             <!-- 根级新建输入行：对齐根级文件夹缩进（depth 1） -->
             <div v-if="newFolder.parentId === 'root'" class="ft-new-row" @click.stop>
               <span class="ft-new-pad"></span>
-              <svg class="ft-tree-folder-ic" width="13" height="13" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <svg class="ft-tree-folder-ic" width="16" height="16" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
               <input
                 ref="rootNewInput"
                 class="ft-edit-input"
@@ -109,11 +110,7 @@
         @dblclick="treeWidth = 300"
       ></div>
 
-      <div class="ft-main" @mousedown="onGridMouseDown" @click.self="selected = []" @contextmenu.prevent="openRootMenu($event)">
-        <div class="ft-view-head">
-          <span v-if="selected.length" class="ft-selected-info">已选 {{ selected.length }} 项</span>
-        </div>
-
+      <div class="ft-main" ref="gridContainerRef" @mousedown="onGridMouseDown" @click="onMainClick">
         <div class="fg-grid" ref="gridRef">
           <!-- Windows 风格卡片：图标 + 文件名；点击琥珀高亮；hover 三点信息；双击默认程序打开 -->
           <div
@@ -124,10 +121,9 @@
             :data-id="f.id"
             draggable="true"
             @click="onCardClick(f, idx, $event)"
-            @mousedown="onCardMouseDown"
             @dblclick="openFile(f)"
             @contextmenu.stop.prevent="openFileMenu(f, $event)"
-            @dragstart="onCardDragStart(f, $event)"
+            @dragstart="onDragStart(f)"
             @mouseenter="showHover(f, $event)"
             @mouseleave="hideHover"
           >
@@ -138,7 +134,7 @@
             <!-- 搜索态下展示文件夹归属 -->
             <div v-if="showFolderLabel && f.folderId" class="fg-folder" :title="folderNameOf(f.folderId)">{{ folderNameOf(f.folderId) }}</div>
           </div>
-          <!-- 鼠标框选选区 -->
+          <!-- 鼠标框选选区（absolute 于 ft-main 内，边界=整个右区可视区） -->
           <div v-if="marquee.show" class="fg-marquee" :style="marqueeStyle"></div>
         </div>
         <el-empty v-if="!visibleFiles.length" description="暂无文件" :image-size="90" />
@@ -185,12 +181,18 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 
 // ===== 视图状态 =====
 const search = ref("");
-const selectedFolder = ref("root"); // 'root' 根目录 | folderId 具体文件夹（V2.1.4 去掉「全部文件」）
+const selectedFolder = ref(localStorage.getItem(`neo-pm-file-folder-${props.projectId}`) || "root"); // 'root' 根目录 | folderId 具体文件夹（持久化恢复）
+watch(selectedFolder, (v) => localStorage.setItem(`neo-pm-file-folder-${props.projectId}`, v));
 /* 左侧空白视为根目录目标：悬停高亮根目录项（drop 后清除） */
 const rootDropHover = ref(false);
 function onTreeDragOver(e) {
   rootDropHover.value = true;
   e.stopPropagation();
+}
+/** 离开根目录/左侧树时清高亮；子元素间移动（relatedTarget 仍在内部）不清，避免悬停闪烁 */
+function onTreeDragLeave(e) {
+  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
+  rootDropHover.value = false;
 }
 function onRootDrop() {
   rootDropHover.value = false;
@@ -202,10 +204,12 @@ function onGlobalDragEnd() {
   dragIds.value = [];
   rootDropHover.value = false;
 }
-/* 左树宽度：默认 300，可拖 200~450，双击分割线复位 */
-const treeWidth = ref(300);
+/* 左树宽度：默认 300，可拖 200~450，双击分割线复位；宽度全局持久化 */
 const MIN_TREE = 200;
 const MAX_TREE = 450;
+const savedW = Number(localStorage.getItem("neo-pm-file-tree-width")) || 0;
+const treeWidth = ref(savedW ? Math.min(MAX_TREE, Math.max(MIN_TREE, savedW)) : 300);
+watch(treeWidth, (v) => localStorage.setItem("neo-pm-file-tree-width", String(v)));
 let resizeStart = null;
 function startResize(e) {
   if (e.button !== 0) return;
@@ -234,6 +238,15 @@ const folderFileCounts = computed(() => {
   }
   counts.total = (props.files || []).filter((f) => !f.folderId).length;
   return counts;
+});
+/* 文件夹数据加载完成后校验持久化的文件夹仍存在（被删则回根目录） */
+watch(() => props.folders, (nodes) => {
+  if (!nodes.length || selectedFolder.value === "root") return;
+  const found = (() => {
+    const walk = (list) => list.some((n) => n.id === selectedFolder.value || walk(n.children || []));
+    return walk(nodes);
+  })();
+  if (!found) selectedFolder.value = "root";
 });
 const selected = ref([]); // 选中的文件 id
 const anchorIndex = ref(-1); // shift 连选锚点
@@ -279,6 +292,11 @@ const visibleFiles = computed(() => {
   }
   return list;
 });
+/** 当前视图变化时清理选中：移出视图的文件自动从选中集移除（如拖拽转移/切换文件夹/删除后） */
+watch(visibleFiles, (list) => {
+  const ids = new Set(list.map((f) => f.id));
+  selected.value = selected.value.filter((id) => ids.has(id));
+});
 
 /** 是否需要展示文件夹归属标签（仅搜索视图下显示） */
 const showFolderLabel = computed(() => !!search.value.trim());
@@ -297,6 +315,7 @@ function isSelected(id) {
 }
 
 function onCardClick(f, idx, ev) {
+  if (suppressClick) { suppressClick = false; return; } // 框选结束的 click 忽略
   if (ev.shiftKey && anchorIndex.value >= 0) {
     const a = Math.min(anchorIndex.value, idx);
     const b = Math.max(anchorIndex.value, idx);
@@ -315,10 +334,12 @@ function onCardClick(f, idx, ev) {
   anchorIndex.value = idx;
 }
 
-// ===== 鼠标框选（Windows 风格 marquee）=====
+// ===== 鼠标框选（Windows 风格 marquee，右区容器相对坐标 + 实时碰撞检测）=====
 const gridRef = ref(null);
+const gridContainerRef = ref(null); // ft-main（整个右区可视区：框选边界与参考系）
 const marquee = ref({ show: false, x1: 0, y1: 0, x2: 0, y2: 0 });
 const marqueeActive = ref(false);
+const marqueeCtrl = ref(false); // 本次框选是否追加模式（Ctrl/Cmd）
 // hover 气泡（fixed 跟随鼠标，1000ms 延迟；位置由全局 mousemove 驱动，保证任意移动都跟随）
 const hover = ref({ show: false, x: 0, y: 0, file: null });
 let hoverTimer = null;
@@ -350,75 +371,98 @@ function short10(s) {
 const marqueeStyle = computed(() => {
   const m = marquee.value;
   if (!m.show) return {};
-  const rect = gridRef.value?.getBoundingClientRect();
-  const ox = rect?.left || 0;
-  const oy = rect?.top || 0;
-  const left = Math.min(m.x1, m.x2) - ox;
-  const top = Math.min(m.y1, m.y2) - oy;
-  return { left: `${left}px`, top: `${top}px`, width: `${Math.abs(m.x2 - m.x1)}px`, height: `${Math.abs(m.y2 - m.y1)}px` };
+  // marquee 坐标已是容器相对（fg-grid），直接使用
+  return {
+    left: `${Math.min(m.x1, m.x2)}px`,
+    top: `${Math.min(m.y1, m.y2)}px`,
+    width: `${Math.abs(m.x2 - m.x1)}px`,
+    height: `${Math.abs(m.y2 - m.y1)}px`,
+  };
 });
-
+/** 鼠标位置转右区容器相对坐标：clamp 到 ft-main 边界内（标题区已无内容，上边界放开到右区顶部） */
+function gridPoint(e) {
+  const cont = gridContainerRef.value?.getBoundingClientRect();
+  const w = cont?.width || 0;
+  const h = cont?.height || 0;
+  return {
+    x: Math.max(0, Math.min(w, e.clientX - (cont?.left || 0))),
+    y: Math.max(0, Math.min(h, e.clientY - (cont?.top || 0))),
+  };
+}
+/** 取框选矩形（容器相对坐标） */
+function getSelectionRect() {
+  const m = marquee.value;
+  return {
+    left: Math.min(m.x1, m.x2),
+    top: Math.min(m.y1, m.y2),
+    right: Math.max(m.x1, m.x2),
+    bottom: Math.max(m.y1, m.y2),
+  };
+}
+/** 实时碰撞检测：矩形与卡片任意相交即选中（追加模式只增不减）；卡片相对右区容器同坐标系 */
+function checkIntersection() {
+  const box = getSelectionRect();
+  const cont = gridContainerRef.value;
+  if (!cont) return;
+  const gr = cont.getBoundingClientRect();
+  const hits = [];
+  for (const card of cont.querySelectorAll(".fg-card")) {
+    const cr = card.getBoundingClientRect();
+    // 卡片矩形转换为容器相对坐标，与选框（容器相对）同坐标系
+    const rel = {
+      left: cr.left - gr.left,
+      top: cr.top - gr.top,
+      right: cr.right - gr.left,
+      bottom: cr.bottom - gr.top,
+    };
+    // AABB 相交：只要任意一点在选框内即选中
+    if (!(rel.right < box.left || rel.left > box.right || rel.bottom < box.top || rel.top > box.bottom)) {
+      const id = card.dataset.id;
+      if (id) hits.push(id);
+    }
+  }
+  if (marqueeCtrl.value) {
+    const cur = new Set(selected.value);
+    for (const id of hits) cur.add(id);
+    selected.value = [...cur];
+  } else {
+    selected.value = hits;
+  }
+}
+/** 启动框选矩形（容器相对起点；ctrl=追加模式） */
+function startMarquee(x1, y1, ctrl) {
+  marqueeActive.value = true;
+  marquee.value = { show: true, x1, y1, x2: x1, y2: y1 };
+  marqueeCtrl.value = ctrl;
+  if (!ctrl) { selected.value = []; anchorIndex.value = -1; }
+}
 function onGridMouseDown(e) {
   if (e.button !== 0) return;
-  if (e.target.closest?.(".fg-card")) return; // 卡片上不启动框选（点选在 click；拖动见 onCardDragStart）
-  startMarquee(e);
-}
-/** 启动框选矩形（含清空旧选中逻辑） */
-function startMarquee(e) {
-  marqueeActive.value = true;
-  marquee.value = { show: true, x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY };
-  if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
-    selected.value = [];
-    anchorIndex.value = -1;
-  }
-}
-/** 卡片 mousedown：记录起始坐标（供 dragstart 时启动框选） */
-let marqueePending = null;
-function onCardMouseDown(e) {
-  if (e.button !== 0) return;
-  marqueePending = { x: e.clientX, y: e.clientY };
-}
-/** 卡片 dragstart：未选中的卡片上拖动 = 框选；已选中的卡片上拖动 = 拖拽转移（保留） */
-function onCardDragStart(f, e) {
-  if (!selected.value.includes(f.id)) {
-    e.preventDefault(); // 取消 HTML5 文件拖拽，转为框选
-    if (marqueePending) {
-      marqueeActive.value = true;
-      marquee.value = { show: true, x1: marqueePending.x, y1: marqueePending.y, x2: marqueePending.x, y2: marqueePending.y };
-      if (!(e.shiftKey || e.ctrlKey || e.metaKey)) { selected.value = []; anchorIndex.value = -1; }
-    }
-    return;
-  }
-  onDragStart(f);
+  if (e.target.closest?.(".fg-card")) return; // 文件上：点击/拖拽行为，不启动框选
+  // 空白按下：立即启动框选（容器相对坐标）
+  const p = gridPoint(e);
+  startMarquee(p.x, p.y, !!(e.ctrlKey || e.metaKey));
 }
 function onGridMouseMove(e) {
   if (!marqueeActive.value) return;
-  marquee.value = { ...marquee.value, x2: e.clientX, y2: e.clientY };
+  const p = gridPoint(e);
+  marquee.value = { ...marquee.value, x2: p.x, y2: p.y };
+  checkIntersection(); // 移动中实时碰撞检测，选中即时反馈
 }
 function onGridMouseUp(e) {
   if (!marqueeActive.value) return;
   marqueeActive.value = false;
-  const m = marquee.value;
-  marquee.value = { ...m, show: false };
-  const l = Math.min(m.x1, m.x2);
-  const t = Math.min(m.y1, m.y2);
-  const r = l + Math.abs(m.x2 - m.x1);
-  const b = t + Math.abs(m.y2 - m.y1);
-  const ids = [];
-  for (const card of gridRef.value?.querySelectorAll(".fg-card") || []) {
-    const cr = card.getBoundingClientRect();
-    if (cr.left <= r && cr.right >= l && cr.top <= b && cr.bottom >= t) {
-      const id = card.dataset.id;
-      if (id) ids.push(id);
-    }
-  }
-  if (!ids.length) return;
-  if (e.shiftKey || e.ctrlKey || e.metaKey) {
-    selected.value = [...new Set([...selected.value, ...ids])];
-  } else {
-    selected.value = ids;
-  }
+  marquee.value = { ...marquee.value, show: false };
   anchorIndex.value = -1;
+  suppressClick = true; // 框选结束：抑制随后的 click（避免单击逻辑覆盖框选结果）
+}
+/** 框选结束后 mouseup 落点触发的 click 抑制标志（新一轮 mousedown 时复位） */
+let suppressClick = false;
+/** 右区任意空白单击清空选中（卡片内点击交给 onCardClick；框选结束的 click 同样抑制） */
+function onMainClick(e) {
+  if (suppressClick) { suppressClick = false; return; }
+  if (e.target.closest?.(".fg-card")) return; // 卡片上的点击不处理（点选逻辑在 onCardClick）
+  selected.value = [];
 }
 
 /** Delete 键批量删除（input 聚焦时忽略） */
@@ -814,7 +858,7 @@ async function moveDragFilesTo(target) {
   );
   const ok = results.filter((r) => r?.ok).length;
   if (ok) {
-    toast(ok === ids.length ? `已移动 ${ok} 个文件` : `移动成功 ${ok}/${ids.length}`, ok === ids.length ? "success" : "warn");
+    // 移动成功静默（与文件夹操作一致：成功不提示，失败才提示）
     emit("changed");
   } else {
     toast("移动失败", "error");
@@ -965,16 +1009,16 @@ function setSearch(v) {
 .ft-tree { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; padding-right: 4px; }
 .ft-tree-fixed {
   display: flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 8px; border-radius: var(--radius-sm);
-  cursor: pointer; color: var(--text-secondary); font-size: 13px;
+  height: 32px; padding: 0 8px; border-radius: var(--radius-sm);
+  cursor: pointer; color: var(--text-secondary); font-size: 16px;
   user-select: none; white-space: nowrap;
   transition: background var(--duration-fast) var(--ease-out);
 }
-.ft-tree-count { font-size: 11px; color: var(--text-tertiary); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.ft-tree-count { font-size: 12px; color: var(--text-tertiary); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .ft-tree-fixed.active .ft-tree-count { color: var(--text-tertiary); }
 .ft-tree-fixed:hover { background: var(--bg-hover); color: var(--text); }
-.ft-tree-fixed.drop-hover { background: var(--accent-warm); color: #fff; } /* 放置到根目录悬停高亮（与文件夹 drop-hover 一致） */
 .ft-tree-fixed.active { background: var(--bg-hover); color: var(--text); font-weight: 600; }
+.ft-tree-fixed.drop-hover { background: var(--accent-warm); color: #fff; } /* 放置到根目录悬停高亮；置于 active 之后保证优先（active+drop 同时存在时琥珀胜） */
 .ft-tree-fixed > svg.ft-tree-folder-ic { color: var(--accent-warm); } /* 根目录实心文件夹图标：奶油填充 + 琥珀描边 */
 .ft-tree-arrow {
   width: 12px;
@@ -1016,15 +1060,13 @@ function setSearch(v) {
 }
 
 /* 主区 */
-.ft-main { flex: 1; min-width: 0; padding-left: 14px; overflow-y: auto; min-height: 0; }
-.ft-view-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; min-height: 18px; }
-.ft-selected-info { font-size: 12px; color: var(--accent); flex-shrink: 0; }
+.ft-main { flex: 1; min-width: 0; padding-left: 14px; overflow-y: auto; min-height: 0; position: relative; /* 框选选区 absolute 参考系（整个右区可视区） */ }
 
 /* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息） */
 .fg-grid {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   gap: 8px;
   padding: 8px;
   user-select: none;
@@ -1034,14 +1076,13 @@ function setSearch(v) {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   padding: 14px 8px 10px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: 0; /* 直角卡片（与选中态虚线框一致，复古中式无圆角） */
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
 }
 .fg-card:hover { background: var(--bg-hover); }
 .fg-card.selected {
   background: var(--accent-warm-subtle);
-  border-radius: 0; /* 直角虚线边框 */
   outline: 1px dashed var(--accent-warm);
   outline-offset: -1px;
 }
