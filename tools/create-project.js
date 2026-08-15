@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "create_project";
-export const description = "创建项目";
+export const description = "创建项目（名称/描述/成员/计划起止/状态/归属项目集）；返回新建项目 ID";
 export const parameters = {
   type: "object",
   required: ["name"],

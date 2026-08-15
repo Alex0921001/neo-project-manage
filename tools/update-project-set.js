@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_project_set";
-export const description = "编辑项目集名称";
+export const description = "编辑项目集名称（重命名项目集，ID 不变）";
 export const parameters = {
   type: "object",
   required: ["id", "name"],

@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "delete_plan_comment";
-export const description = "删除方案评论";
+export const description = "删除方案评论（方案评论列表中的一条，需传入 projectId 与评论 ID）";
 export const parameters = {
   type: "object",
   required: ["projectId", "planId", "commentId"],
