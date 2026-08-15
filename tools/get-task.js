@@ -18,7 +18,7 @@ export async function execute(input, toolCtx) {
   const lines = [
     `${task.done ? "✅" : "⬜"} ${task.name} [ID: ${task.id}]`,
     task.description ? `描述: ${task.description}` : "描述: -",
-    `状态: ${task.done ? "已完成" : "未完成"}`,
+    `状态: ${task.done ? "已完成" : "未完成"}${task.doneAt ? `（完成于 ${formatTime(task.doneAt)}）` : ""}`,
     task.assignees?.length ? `成员: ${task.assignees.join("、")}` : null,
     task.startDate || task.endDate
       ? `起止日期: ${task.startDate || "—"} ~ ${task.endDate || "—"}`
@@ -44,6 +44,24 @@ export async function execute(input, toolCtx) {
       lines.push(`  ${a.confirmed ? "✅" : "🟡"} ${contentText}${kindText}${confirmText} [ID: ${a.id}]`);
     }
   }
+  if (task.fileRefs?.length) {
+    lines.push(`--- 关联文件 (${task.fileRefs.length}) ---`);
+    for (const f of task.fileRefs) {
+      lines.push(`  📎 ${f.name} [ID: ${f.id}]${f.ext ? ` [类型: ${f.ext}]` : ""}`);
+    }
+  }
+  if (task.planRefs?.length) {
+    lines.push(`--- 关联方案 (${task.planRefs.length}) ---`);
+    for (const p of task.planRefs) {
+      lines.push(`  📋 ${p.title} [ID: ${p.id}] [状态: ${p.status}]`);
+    }
+  }
 
   return { content: [{ type: "text", text: lines.join("\n") }] };
+}
+
+/** ISO 时间 → 本地可读（YYYY-MM-DD HH:mm） */
+function formatTime(iso) {
+  const s = String(iso || "");
+  return s.length >= 16 ? `${s.slice(0, 10)} ${s.slice(11, 16)}` : s;
 }

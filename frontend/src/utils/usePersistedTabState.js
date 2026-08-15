@@ -20,8 +20,10 @@ export const STATE_VERSION = "v1";
  * @param {() => string} getKey 存储键尾段生成函数（读取响应式值以支持切换项目）
  * @param {object} defaults 默认值（同时充当结构白名单）
  * @param {number} debounceMs 防抖写延迟
+ * @param {{skipRestore?: string[]}} opts skipRestore：恢复存档时跳过的键（保持默认值，也不写回存档）——用于高频临时筛选条件（如状态下拉），避免初始化带入旧筛选导致列表看起来"没数据"
  */
-export function usePersistedTabState(getKey, defaults, debounceMs = 300) {
+export function usePersistedTabState(getKey, defaults, debounceMs = 300, opts = {}) {
+  const skipRestore = opts.skipRestore || [];
   const state = reactive({ ...defaults });
   let stopWatch = null;
   let timer = null;
@@ -52,7 +54,7 @@ export function usePersistedTabState(getKey, defaults, debounceMs = 300) {
     stopWatch?.(); // 暂停监听，避免恢复赋值触发写回
     for (const k of Object.keys(defaults)) state[k] = defaults[k];
     for (const k of Object.keys(defaults)) {
-      if (saved[k] !== undefined) state[k] = saved[k];
+      if (saved[k] !== undefined && !skipRestore.includes(k)) state[k] = saved[k];
     }
     stopWatch = watch(state, schedule);
   }

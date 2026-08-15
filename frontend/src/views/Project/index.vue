@@ -452,8 +452,9 @@ const sortOptions = [
 // ===== R13 五 tab 筛选/排序状态持久化（composable：读写在 localStorage，防抖 300ms） =====
 // 键 neo-pm-ui-state-{version}-{projectId}-{tab}；projectId 变化自动重绑恢复，切换项目互不串状态
 const tasksState = usePersistedTabState(() => `${props.projectId}-tasks`, { search: "", sort: "default" });
-const requirementsState = usePersistedTabState(() => `${props.projectId}-requirements`, { search: "", status: "全部", sort: "default" });
-const plansState = usePersistedTabState(() => `${props.projectId}-plans`, { search: "", status: "全部" });
+// status 不持久化（skipRestore）：状态下拉是高频临时筛选，初始化强制「全部」，避免带入上次筛选导致列表看起来"没数据"；搜索词/排序仍持久化
+const requirementsState = usePersistedTabState(() => `${props.projectId}-requirements`, { search: "", status: "全部", sort: "default" }, 300, { skipRestore: ["status"] });
+const plansState = usePersistedTabState(() => `${props.projectId}-plans`, { search: "", status: "全部" }, 300, { skipRestore: ["status"] });
 const filesState = usePersistedTabState(() => `${props.projectId}-files`, { search: "" });
 const auditState = usePersistedTabState(() => `${props.projectId}-audit`, { action: "", dateRange: [] });
 const { search: taskSearch, sort: taskSort } = toRefs(tasksState);

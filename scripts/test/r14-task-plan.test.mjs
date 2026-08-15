@@ -42,6 +42,7 @@ function expectThrow(fn, pattern) {
 test("R14-1：createTask planIds 写 task_plans，getTaskById / getProject / getPlan 双侧读回", () => {
   const proj = data.createProject({ name: "R14-项目" });
   const plan = data.createPlan(proj.id, "关联方案", "<p>x</p>");
+  data.updatePlan(proj.id, plan.id, { status: "已采纳" }); // 任务只能关联已采纳的方案
   const task = data.createTask(proj.id, { name: "关联任务", planIds: [plan.id] });
 
   // 任务侧 planRefs（含方案标题）
@@ -88,6 +89,8 @@ test("R14-3：updateTask planIds 全量替换", () => {
   const proj = data.createProject({ name: "R14-更新项目" });
   const p1 = data.createPlan(proj.id, "方案1", "");
   const p2 = data.createPlan(proj.id, "方案2", "");
+  data.updatePlan(proj.id, p1.id, { status: "已采纳" });
+  data.updatePlan(proj.id, p2.id, { status: "已采纳" });
   const task = data.createTask(proj.id, { name: "任务", planIds: [p1.id] });
 
   data.updateTask(proj.id, task.id, { planIds: [p2.id] });
@@ -137,6 +140,7 @@ test("R14-5：convertPlanToTask 同步写 task_plans 双向关联（tasks/task_p
 test("R14-6：deleteTask 清 task_plans 无残留", () => {
   const proj = data.createProject({ name: "R14-删任务项目" });
   const plan = data.createPlan(proj.id, "方案", "");
+  data.updatePlan(proj.id, plan.id, { status: "已采纳" });
   const task = data.createTask(proj.id, { name: "任务", planIds: [plan.id] });
   assert.equal(data._db.prepare("SELECT COUNT(*) c FROM task_plans WHERE task_id = ?").get(task.id).c, 1);
 

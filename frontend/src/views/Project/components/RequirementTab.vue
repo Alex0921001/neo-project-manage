@@ -26,9 +26,9 @@
       <div class="reqs-empty-deco">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
       </div>
-      <p class="reqs-empty-title">还没有需求</p>
-      <p class="reqs-empty-sub">记录需求，明确项目要做的事</p>
-      <button class="reqs-add reqs-add-large" @click="openCreate">
+      <p class="reqs-empty-title">{{ isFiltered ? '没有匹配的需求' : '还没有需求' }}</p>
+      <p class="reqs-empty-sub">{{ isFiltered ? '换个关键词或清除筛选试试' : '记录需求，明确项目要做的事' }}</p>
+      <button v-if="!isFiltered" class="reqs-add reqs-add-large" @click="openCreate">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>添加第一个需求</span>
       </button>
@@ -107,6 +107,8 @@ const page = ref(1);
 const pageSize = 10;
 const loading = ref(false);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+// V2.2：区分「搜索/筛选无结果」与「真无数据」的空态（有筛选条件时展示搜索空态，不误报无需求）
+const isFiltered = computed(() => !!props.searchQuery || props.statusQuery !== "全部");
 
 let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
 async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery, sort = props.sortQuery) {
@@ -141,19 +143,20 @@ function goPage(p) {
   load(p);
 }
 
+// ===== 详情/编辑弹窗（对齐方案：点击列表行预览，编辑/删除在弹窗内） =====
+// 注意：modal 状态必须在下方 immediate watch 之前声明（immediate 同步执行 closeModal/load，靠后声明会 TDZ 报错）
+const modalShow = ref(false);
+const modalMode = ref("read"); // read | edit
+const modalId = ref(null); // null = 新建
+// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+const editingFromDetail = ref(false);
+
 // 筛选 / 排序 / 搜索 / 项目切换：任何列表重载都关弹窗（PM 口径），再重新拉取
 watch(() => props.searchQuery, () => { closeModal(); load(1); });
 watch(() => props.statusQuery, () => { closeModal(); load(1); });
 watch(() => props.sortQuery, () => { closeModal(); load(1); });
 // projectId 就绪/变化：关弹窗（避免切项目残留 A 详情）+ 重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
 watch(() => props.projectId, () => { closeModal(); load(); }, { immediate: true });
-
-// ===== 详情/编辑弹窗（对齐方案：点击列表行预览，编辑/删除在弹窗内） =====
-const modalShow = ref(false);
-const modalMode = ref("read"); // read | edit
-const modalId = ref(null); // null = 新建
-// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
-const editingFromDetail = ref(false);
 
 // 关弹窗并清空当前项（列表重载 / 项目切换统一走这里，避免导航基准残留）
 function closeModal() {
@@ -185,9 +188,9 @@ function openDetail(r, globalIdx) {
 // ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
 const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
 const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
-// 首/末条边界：首条不显示上一条，末条不显示下一条（仅查看已有项时）
-const canPrev = computed(() => modalShow.value && !!modalId.value && detailGlobalIndex.value > 0);
-const canNext = computed(() => modalShow.value && !!modalId.value && detailGlobalIndex.value < total.value - 1);
+// 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
+const canPrev = computed(() => modalShow.value && !!modalId.value);
+const canNext = computed(() => modalShow.value && !!modalId.value);
 
 function onNavigate(delta) {
   // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
@@ -257,7 +260,8 @@ function reopenDetail(id) {
 }
 async function doNavigate(delta) {
   const target = detailGlobalIndex.value + delta;
-  if (target < 0 || target >= total.value) return;
+  if (target < 0) { toast("到顶了！", "warn"); return; }
+  if (target >= total.value) { toast("到底了！", "warn"); return; }
   const targetPage = Math.floor(target / pageSize) + 1;
   const inPage = target % pageSize;
   if (targetPage !== page.value) await load(targetPage); // 跨页补拉，load 更新 list/page

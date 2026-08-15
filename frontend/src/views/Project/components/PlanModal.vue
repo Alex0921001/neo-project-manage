@@ -14,13 +14,15 @@
     <template v-if="mode === 'read'">
       <div class="pm-read">
         <div class="pm-head">
-          <button v-if="canPrev" class="pm-nav-btn" title="上一条" @click="emit('prev')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
+          <div class="pm-head-nav">
+            <button v-if="canPrev" class="pm-nav-btn" title="上一条" @click="emit('prev')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button v-if="canNext" class="pm-nav-btn" title="下一条" @click="emit('next')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
           <span class="pm-head-title">{{ plan?.title || "方案" }}</span>
-          <button v-if="canNext" class="pm-nav-btn" title="下一条" @click="emit('next')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
           <div class="pm-head-ops">
             <el-select
               v-model="statusVal"
@@ -115,13 +117,7 @@
     <template v-else>
       <div class="pm-edit">
         <div class="pm-edit-head">
-          <button v-if="canPrev" class="pm-nav-btn" title="上一条" @click="emit('prev')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
           <input v-model="editTitle" class="pm-edit-title" placeholder="方案标题" maxlength="100" />
-          <button v-if="canNext" class="pm-nav-btn" title="下一条" @click="emit('next')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
           <button class="pm-import-btn" :disabled="importing" title="从文件导入（txt / md / docx）" @click="importFileInput?.click()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             {{ importing ? "解析中..." : "从文件导入" }}
@@ -136,11 +132,12 @@
             placeholder="方案内容：记录背景、方案要点、优劣对比……"
           />
         </div>
-        <!-- V2.2 R14 方案侧关联任务（树形多选，父子不联动） -->
-        <div class="pm-edit-tasks">
-          <el-tree-select
-            v-model="editTaskIds"
-            :data="taskTree"
+        <!-- V2.2 R14：关联任务 + 关联需求并排一行（五五开） -->
+        <div class="pm-edit-assoc">
+          <div class="pm-edit-tasks">
+            <el-tree-select
+              v-model="editTaskIds"
+              :data="taskTree"
             multiple
             check-strictly
             filterable
@@ -152,11 +149,10 @@
             style="width: 100%"
             :placeholder="taskTree.length ? '关联任务（多选，父子不联动）' : '项目暂无任务'"
           />
-        </div>
-        <!-- V2.1.4 方案侧关联需求（多选，样式对齐需求弹窗的关联方案下拉） -->
-        <div class="pm-edit-plans">
-          <el-select
-            v-model="editRequirementIds"
+          </div>
+          <div class="pm-edit-plans">
+            <el-select
+              v-model="editRequirementIds"
             multiple
             filterable
             size="small"
@@ -165,6 +161,7 @@
           >
             <el-option v-for="r in requirements" :key="r.id" :label="r.name" :value="r.id" />
           </el-select>
+          </div>
         </div>
         <div class="pm-edit-footer">
           <button class="pm-btn" @click="cancelEdit">取消</button>
@@ -576,19 +573,32 @@ watch(() => props.mode, (m) => {
   margin-bottom: 12px;
 }
 .pm-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px 12px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+/* 导航按钮：工具栏最左侧，键间呼吸间距 */
+.pm-head-nav {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 2px 12px;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .pm-head-title {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 55%;
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -913,26 +923,25 @@ watch(() => props.mode, (m) => {
   min-height: 0;
   max-height: none;
 }
-/* V2.1.4 方案编辑态关联需求：与富文本留呼吸间距，下拉加高 */
-.pm-edit-plans {
-  padding: 10px 0 12px;
+/* V2.2 编辑态关联需求+关联任务：并排一行五五开，四周留呼吸间距 */
+.pm-edit-assoc {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0 4px;
   flex-shrink: 0;
 }
-.pm-edit-plans :deep(.el-select__wrapper) {
+.pm-edit-assoc .pm-edit-tasks,
+.pm-edit-assoc .pm-edit-plans {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.pm-edit-assoc :deep(.el-select__wrapper),
+.pm-edit-assoc :deep(.el-tree-select__wrapper) {
   min-height: 38px;
 }
-.pm-edit-plans :deep(.el-select__selection) {
-  min-height: 34px;
-}
-/* V2.2 R14 方案编辑态关联任务：与关联需求同布局（el-tree-select 复用 el-select 结构） */
-.pm-edit-tasks {
-  padding: 0 0 12px;
-  flex-shrink: 0;
-}
-.pm-edit-tasks :deep(.el-select__wrapper) {
-  min-height: 38px;
-}
-.pm-edit-tasks :deep(.el-select__selection) {
+.pm-edit-assoc :deep(.el-select__selection),
+.pm-edit-assoc :deep(.el-tree-select__selection) {
   min-height: 34px;
 }
 .pm-edit-footer {

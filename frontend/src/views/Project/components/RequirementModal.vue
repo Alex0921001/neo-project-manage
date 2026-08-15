@@ -13,13 +13,15 @@
     <template v-if="mode === 'read'">
       <div class="rq-read">
         <div class="rq-head">
-          <button v-if="canPrev" class="rq-nav-btn" title="上一条" @click="emit('prev')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
+          <div class="rq-head-nav">
+            <button v-if="canPrev" class="rq-nav-btn" title="上一条" @click="emit('prev')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button v-if="canNext" class="rq-nav-btn" title="下一条" @click="emit('next')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
           <span class="rq-head-title">{{ req?.name || "需求" }}</span>
-          <button v-if="canNext" class="rq-nav-btn" title="下一条" @click="emit('next')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
           <div class="rq-head-ops">
             <!-- 状态下拉：三态自由切换（对齐方案弹窗） -->
             <el-select
@@ -69,13 +71,7 @@
     <template v-else>
       <div class="rq-edit">
         <div class="rq-edit-head">
-          <button v-if="canPrev" class="rq-nav-btn" title="上一条" @click="emit('prev')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
           <input v-model="form.name" class="rq-edit-title" placeholder="需求名称" maxlength="50" />
-          <button v-if="canNext" class="rq-nav-btn" title="下一条" @click="emit('next')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
           <el-select v-model="form.priority" size="small" style="width: 80px">
             <el-option v-for="p in PRIORITY_OPTIONS" :key="p" :label="p" :value="p" />
           </el-select>
@@ -297,6 +293,7 @@ defineExpose({ loadDetail });
   min-height: 0;
 }
 .rq-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -305,12 +302,22 @@ defineExpose({ loadDetail });
   border-bottom: 0.5px solid var(--border-light);
   flex-shrink: 0;
 }
+/* 导航按钮：工具栏最左侧，键间呼吸间距 */
+.rq-head-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .rq-head-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 55%;
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.4;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

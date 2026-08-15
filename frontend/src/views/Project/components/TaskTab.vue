@@ -64,7 +64,7 @@
               collapse-tags-tooltip
               popper-class="task-plan-popper"
               style="width: 100%"
-              :placeholder="plans.length ? '请选择关联方案（可搜索）' : '项目暂无方案'"
+              :placeholder="plans.length ? '请选择关联方案' : '项目暂无已采纳方案'"
             >
               <el-option v-for="pl in plans" :key="pl.id" :label="pl.title" :value="pl.id" />
             </el-select>
@@ -73,6 +73,7 @@
             <el-select
               v-model="form.fileRefs"
               multiple
+              filterable
               :disabled="!files || !files.length"
               :placeholder="(files && files.length) ? '请选择关联文件' : '项目暂无文件，请先到文件页上传'"
               collapse-tags
@@ -127,96 +128,6 @@
       </svg>
 
       <div class="task-tab-list">
-        <!-- 多选批量工具条（V2.2 R7）：进入多选后复选框 + 批量操作 -->
-        <div v-if="tasks.length" class="batch-bar">
-          <template v-if="!multiSelectMode">
-            <button class="batch-btn" @click="enterMultiSelect" title="进入多选模式批量操作">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/></svg>
-              多选
-            </button>
-          </template>
-          <template v-else>
-            <el-checkbox class="batch-all" :model-value="allSelected" @change="toggleSelectAll">全选当前页</el-checkbox>
-            <span class="batch-count">已选 {{ selectedIds.size }} 项</span>
-            <span class="batch-spacer"></span>
-            <button class="batch-btn" :disabled="!selectedIds.size" @click="openBatch('done')">批量完成</button>
-            <button class="batch-btn" :disabled="!selectedIds.size" @click="openBatch('members')">批量改成员</button>
-            <button class="batch-btn" :disabled="!selectedIds.size" @click="openBatch('priority')">批量改优先级</button>
-            <button class="batch-btn" :disabled="!selectedIds.size" @click="openBatch('annot')">批量加批注</button>
-            <button class="batch-btn batch-btn-plain" @click="exitMultiSelect">退出多选</button>
-          </template>
-        </div>
-
-        <!-- 批量操作弹窗 -->
-        <el-dialog
-          v-model="batchDoneShow"
-          title="批量完成"
-          width="420px"
-          append-to-body
-          :close-on-click-modal="false"
-        >
-          <p class="batch-tip">将把选中的 <b>{{ selectedIds.size }}</b> 个任务标记为完成。含未确认便利贴的任务会单独失败，不影响其余任务。</p>
-          <template #footer>
-            <el-button @click="batchDoneShow = false">取消</el-button>
-            <el-button class="btn-save" :loading="batchSaving" @click="runBatchDone">确认完成</el-button>
-          </template>
-        </el-dialog>
-
-        <el-dialog
-          v-model="batchMembersShow"
-          title="批量改成员"
-          width="420px"
-          append-to-body
-          :close-on-click-modal="false"
-        >
-          <p class="batch-tip">将修改 <b>{{ selectedIds.size }}</b> 个任务的成员：</p>
-          <MemberSelect v-model="batchMembers" :restrict-to="members" placeholder="未分配" clearable />
-          <template #footer>
-            <el-button @click="batchMembersShow = false">取消</el-button>
-            <el-button class="btn-save" :loading="batchSaving" @click="runBatchMembers">确认修改</el-button>
-          </template>
-        </el-dialog>
-
-        <el-dialog
-          v-model="batchPriorityShow"
-          title="批量改优先级"
-          width="420px"
-          append-to-body
-          :close-on-click-modal="false"
-        >
-          <p class="batch-tip">将修改 <b>{{ selectedIds.size }}</b> 个任务的优先级：</p>
-          <el-select v-model="batchPriority" style="width: 100%">
-            <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
-          </el-select>
-          <template #footer>
-            <el-button @click="batchPriorityShow = false">取消</el-button>
-            <el-button class="btn-save" :loading="batchSaving" @click="runBatchPriority">确认修改</el-button>
-          </template>
-        </el-dialog>
-
-        <el-dialog
-          v-model="batchAnnotShow"
-          title="批量加批注"
-          width="520px"
-          append-to-body
-          :close-on-click-modal="false"
-        >
-          <p class="batch-tip">将为 <b>{{ selectedIds.size }}</b> 个任务各加一条相同批注（已完成任务会失败）：</p>
-          <div class="batch-annot-row">
-            <el-select v-model="batchAnnotKind" class="batch-annot-kind">
-              <el-option label="备注" value="note" />
-              <el-option label="决策" value="decision" />
-              <el-option label="风险" value="risk" />
-              <el-option label="节点" value="milestone" />
-            </el-select>
-            <el-input v-model="batchAnnotContent" type="textarea" :rows="3" placeholder="批注内容" />
-          </div>
-          <template #footer>
-            <el-button @click="batchAnnotShow = false">取消</el-button>
-            <el-button class="btn-save" :loading="batchSaving" @click="runBatchAnnot">确认添加</el-button>
-          </template>
-        </el-dialog>
-
         <!-- 里程碑步骤图：有里程碑节点才渲染（避免空容器显示灰色条） -->
         <div v-if="hasMilestones" class="task-tab-milestone-area">
           <MilestoneTimeline
@@ -266,9 +177,6 @@
                   :expand-all="expandAll"
                   :force-expand-ids="forceExpandIds"
                   :drag-disabled="sortMode !== 'default' || !!searchQuery"
-                  :selectable="multiSelectMode"
-                  :selected="selectedIds.has(t.id)"
-                  @toggle-select="toggleSelect"
                   @mark-task-done="markTaskDone"
                   @edit="startEdit"
                   @subtask="startSubtask"
@@ -310,9 +218,6 @@
                   :force-expand-ids="forceExpandIds"
                   :drag-disabled="sortMode !== 'default' || !!searchQuery"
                   @mark-task-done="markTaskDone"
-                  :selectable="multiSelectMode"
-                  :selected="selectedIds.has(t.id)"
-                  @toggle-select="toggleSelect"
                   @edit="startEdit"
               @subtask="startSubtask"
               @toggle-milestone="toggleMilestone"
@@ -707,7 +612,7 @@ const plans = ref([]);
 async function loadPlans() {
   if (!props.projectId) return;
   const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
-  if (res?.ok) plans.value = res.data.items || [];
+  if (res?.ok) plans.value = (res.data.items || []).filter((p) => p.status === "已采纳"); // V2.2：仅已采纳方案可挂载
 }
 // 打开任务表单弹窗时预加载方案选项（关联方案多选数据源）
 watch(dialogShow, (v) => { if (v) loadPlans(); });
@@ -1097,113 +1002,7 @@ const hasMilestones = computed(() => {
 });
 
 defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });
-
-// ===== 多选批量操作（V2.2 R7）=====
-const multiSelectMode = ref(false);
-const selectedIds = reactive(new Set());
-
-function enterMultiSelect() {
-  multiSelectMode.value = true;
-  selectedIds.clear();
-}
-function exitMultiSelect() {
-  multiSelectMode.value = false;
-  selectedIds.clear();
-  batchDoneShow.value = false;
-  batchMembersShow.value = false;
-  batchPriorityShow.value = false;
-  batchAnnotShow.value = false;
-}
-function toggleSelect(id) {
-  if (selectedIds.has(id)) selectedIds.delete(id);
-  else selectedIds.add(id);
-}
-
-// 当前页 = 展示中的全部顶层任务（未完成 + 已完成组）
-const displayedTopIds = computed(() => [...displayedUndoneTasks.value, ...displayedDoneTasks.value].map((t) => t.id));
-const allSelected = computed(() => displayedTopIds.value.length > 0 && displayedTopIds.value.every((id) => selectedIds.has(id)));
-function toggleSelectAll() {
-  if (allSelected.value) displayedTopIds.value.forEach((id) => selectedIds.delete(id));
-  else displayedTopIds.value.forEach((id) => selectedIds.add(id));
-}
-
-const selectedTaskIds = computed(() => Array.from(selectedIds));
-
-// 批量弹窗状态
-const batchDoneShow = ref(false);
-const batchMembersShow = ref(false);
-const batchPriorityShow = ref(false);
-const batchAnnotShow = ref(false);
-const batchSaving = ref(false);
-const batchMembers = ref([]);
-const batchPriority = ref("P3");
-const batchAnnotContent = ref("");
-const batchAnnotKind = ref("note");
-
-function openBatch(kind) {
-  if (!selectedIds.size) return;
-  batchDoneShow.value = kind === "done";
-  batchMembersShow.value = kind === "members";
-  batchPriorityShow.value = kind === "priority";
-  batchAnnotShow.value = kind === "annot";
-}
-
-async function runBatchTasks(payloadField) {
-  batchSaving.value = true;
-  try {
-    const tasks = selectedTaskIds.value.map((id) => ({ id, ...payloadField }));
-    const res = await api(`api/projects/${props.projectId}/tasks/batch-update`, {
-      method: "POST", body: JSON.stringify({ tasks }), silent: true,
-    });
-    if (res?.ok) {
-      const { success = [], failed = [] } = res.data || {};
-      if (failed.length) {
-        const reasons = failed.slice(0, 3).map((f) => f.error).join("；");
-        toast(`成功 ${success.length}、失败 ${failed.length}${reasons ? `：${reasons}` : ""}`, "warn");
-      } else {
-        toast(`已批量更新 ${success.length} 项`);
-      }
-      exitMultiSelect();
-      emit("changed");
-    } else {
-      toast(res?.error || "批量更新失败", "error");
-    }
-  } finally {
-    batchSaving.value = false;
-  }
-}
-
-function runBatchDone() { runBatchTasks({ done: true }); }
-function runBatchMembers() { runBatchTasks({ assignees: batchMembers.value }); }
-function runBatchPriority() { runBatchTasks({ priority: batchPriority.value }); }
-
-async function runBatchAnnot() {
-  const content = String(batchAnnotContent.value || "").trim();
-  if (!content) { toast("请输入批注内容", "error"); return; }
-  batchSaving.value = true;
-  try {
-    const success = [];
-    const failed = [];
-    for (const id of selectedTaskIds.value) {
-      const res = await api(`api/projects/${props.projectId}/tasks/${id}/annotations`, {
-        method: "POST", body: JSON.stringify({ content, kind: batchAnnotKind.value }), silent: true,
-      });
-      if (res?.ok) success.push(id);
-      else failed.push({ id, error: res?.error || "创建失败" });
-    }
-    if (failed.length) {
-      const reasons = failed.slice(0, 3).map((f) => f.error).join("；");
-      toast(`成功 ${success.length}、失败 ${failed.length}${reasons ? `：${reasons}` : ""}`, "warn");
-    } else {
-      toast(`已为 ${success.length} 个任务添加批注`);
-    }
-    batchAnnotContent.value = "";
-    exitMultiSelect();
-    emit("changed");
-  } finally {
-    batchSaving.value = false;
-  }
-}</script>
+</script>
 
 <style scoped>
 .area-section {
@@ -1211,96 +1010,19 @@ async function runBatchAnnot() {
   margin-bottom: 24px;
 }
 
-/* ===== 多选批量工具条（V2.2 R7） ===== */
-.batch-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  margin-bottom: 14px;
-  background: var(--bg);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-}
-.batch-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  transition: all var(--duration-fast) var(--ease-out);
-  font-family: inherit;
-}
-.batch-btn:hover:not(:disabled) {
-  border-color: var(--border);
-  background: var(--bg);
-  color: var(--text);
-}
-.batch-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.batch-btn-plain {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-tertiary);
-}
-.batch-btn-plain:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.batch-all {
-  margin: 0 4px 0 2px;
-}
-.batch-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--accent-warm-hover);
-  font-variant-numeric: tabular-nums;
-}
-.batch-spacer {
-  flex: 1;
-}
-.batch-tip {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-.batch-annot-row {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.batch-annot-kind {
-  width: 140px;
-}
-
 /* 任务弹窗：body 内边距加大（H） */
 .task-dialog-el :deep(.el-dialog__body) {
   padding: 24px;
 }
 
-/* 任务弹窗：同行多列 */
+/* 任务弹窗：同行多列（第 2/3 行五五开） */
 .task-form-row {
   display: flex;
   gap: 14px;
-  flex-wrap: wrap;
 }
 .task-form-row .el-form-item {
   flex: 1;
   min-width: 0;
-}
-/* 起止日期占更多宽度（daterange 有最小输入宽度），优先级/成员均分剩余 */
-.task-form-row .el-form-item:first-child {
-  flex: 1.5;
-  min-width: 280px;
 }
 
 .task-tab-layout {

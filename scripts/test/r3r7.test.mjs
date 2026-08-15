@@ -181,7 +181,7 @@ test("R3-3：generateReport 完成项按 done_at 落在范围（非创建时间�
   assert.match(rep.markdown, /R3-周报项目/);
   assert.match(rep.markdown, /范围内任务/);
   assert.ok(!rep.markdown.includes("范围外任务"), "范围外完成任务不应出现在完成项");
-  assert.match(rep.markdown, /负责人：李四/, "完成项应含责任人");
+  assert.match(rep.markdown, /\| 范围内任务 \| 李四 \|/, "完成项表格应含责任人");
   assert.equal(rep.range.label, "自定义");
   assert.equal(rep.range.start, "2026-08-08");
   assert.equal(rep.range.end, "2026-08-12");

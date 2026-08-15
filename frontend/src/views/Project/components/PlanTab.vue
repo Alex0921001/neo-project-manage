@@ -319,9 +319,9 @@ function openCompare() {
 // ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
 const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
 const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
-// 首/末条边界：首条不显示上一条，末条不显示下一条（仅查看已有项时）
-const canPrev = computed(() => modal.value.show && !!modal.value.planId && detailGlobalIndex.value > 0);
-const canNext = computed(() => modal.value.show && !!modal.value.planId && detailGlobalIndex.value < total.value - 1);
+// 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
+const canPrev = computed(() => modal.value.show && !!modal.value.planId);
+const canNext = computed(() => modal.value.show && !!modal.value.planId);
 
 function onNavigate(delta) {
   // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
@@ -340,7 +340,8 @@ function onNavigate(delta) {
 }
 async function doNavigate(delta) {
   const target = detailGlobalIndex.value + delta;
-  if (target < 0 || target >= total.value) return;
+  if (target < 0) { toast("到顶了！", "warn"); return; }
+  if (target >= total.value) { toast("到底了！", "warn"); return; }
   const targetPage = Math.floor(target / PAGE_SIZE) + 1;
   const inPage = target % PAGE_SIZE;
   if (targetPage !== page.value) await load(targetPage); // 跨页补拉，load 更新 plans/page

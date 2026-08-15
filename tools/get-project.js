@@ -34,11 +34,12 @@ export async function execute(input, toolCtx) {
   ];
 
   // 任务树（递归渲染：父任务 + 子任务缩进 + 批注/文件引用；summary 模式仅名称/状态/日期）
+  const filesById = new Map((project.files || []).map((f) => [f.id, f]));
   lines.push(`--- 任务 (${countTasks(project.tasks)}) ---`);
   if (!project.tasks?.length) {
     lines.push("  （无）");
   } else {
-    for (const t of project.tasks) renderTask(lines, t, 1, isSummary);
+    for (const t of project.tasks) renderTask(lines, t, 1, isSummary, filesById);
   }
 
   // summary 模式：跳过文件/备注明细，到此为止
@@ -72,7 +73,7 @@ export async function execute(input, toolCtx) {
 }
 
 /** 递归渲染任务树（含批注/文件引用/子任务缩进；summary 模式仅名称/状态/日期） */
-function renderTask(lines, t, depth, isSummary = false) {
+function renderTask(lines, t, depth, isSummary = false, filesById = new Map()) {
   const indent = "  ".repeat(depth);
   const statusIcon = t.done ? "✅" : "⬜";
   const dateText = [t.startDate, t.endDate].filter(Boolean).join(" ~ ");
@@ -87,7 +88,7 @@ function renderTask(lines, t, depth, isSummary = false) {
   // summary 模式：不展开批注/文件明细，仅继续递归子任务
   if (isSummary) {
     if (t.subtasks?.length) {
-      for (const s of t.subtasks) renderTask(lines, s, depth + 1, true);
+      for (const s of t.subtasks) renderTask(lines, s, depth + 1, true, filesById);
     }
     return;
   }
@@ -101,16 +102,17 @@ function renderTask(lines, t, depth, isSummary = false) {
       lines.push(`${indent}    ${short(plain(a.content), 50)}${kindText}${confirmText} [ID: ${a.id}]`);
     }
   }
-  // 文件引用
+  // 文件引用（fileRefs 为 id 数组，映射到项目文件资产显示名称；文件已删时回退显示 id）
   if (t.fileRefs?.length) {
     lines.push(`${indent}  📎 文件 (${t.fileRefs.length}):`);
-    for (const f of t.fileRefs) {
-      lines.push(`${indent}    ${f.name || f.id} [ID: ${f.id}]`);
+    for (const fid of t.fileRefs) {
+      const f = filesById.get(fid);
+      lines.push(`${indent}    ${f ? f.name : fid} [ID: ${fid}]`);
     }
   }
   // 子任务
   if (t.subtasks?.length) {
-    for (const s of t.subtasks) renderTask(lines, s, depth + 1);
+    for (const s of t.subtasks) renderTask(lines, s, depth + 1, false, filesById);
   }
 }
 
