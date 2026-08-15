@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、任务日历、自动总结、风险识别与周报生成的完整闭环。
 
-> 当前版本：**V2.2.0**（效率型升级：需求管理 / 方案关联 / 一键周报 / 批量操作 / 工具层一致性 / 页面持久化）
+> 当前版本：**V2.3.0**（通知协同 + 全文检索：消息中心 / 全局搜索 / 项目详情完整数据 / 状态筛选持久化 / 风险口径收窄）
 
 ## 快速使用
 
@@ -15,9 +15,11 @@
 5. **方案管理**：新建/克隆/编辑方案，支持评论、一键转任务、状态流转（草稿→进行中→已采纳/已废弃）、双向关联需求与任务；可从文件导入（txt / md / docx）快速成稿
 6. **一键周报**：概览页「一键生成周报/阶段总结」，按本周/上周/近 7 天/自定义范围生成 Markdown（完成项/进行中/风险/下周建议）
 7. **详情弹窗**：需求/方案/任务详情右上导航（上一条/下一条），点击列表行预览、编辑/删除在弹窗内
-8. **页面持久化**：tab 顺序与显隐、搜索词、排序方式自动记忆；需求/方案状态筛选不持久化（默认全部）
-9. **日历弹窗**：列表页「前往日历」（全项目）与详情页任务 tab「前往日历 >」（单项目）均为弹窗，可拖动缩放
-10. **风险规则配置**：概览页「风险」标题旁齿轮，6 条规则按项目级配置开关 / 阈值 / 等级
+8. **页面持久化**：tab 顺序与显隐、搜索词、排序方式自动记忆；需求/方案状态筛选同样持久化（刷新恢复上次筛选）
+9. **消息中心**：项目集条右上角铃铛 + 未读角标；弹窗左列表（20 条/页滚动加载）右详情；到期提醒（提前 N 天可配置）与风险提醒（仅非归档 + 进行中/待开始项目的中高级风险）**聚合消息**（同类每日一条不轰炸）；搜索高亮 / 右键删除 / 一键已读 / 提醒配置（提前天数 + 开关）
+10. **全文检索**：三入口（项目内放大镜 / 项目集条放大镜 / Ctrl+F）；FTS5 中文检索（3 字以上 trigram，1~2 字模糊匹配）；结果按类型分组（项目/任务/批注/方案/需求/备注/文件）卡片展示，命中词琥珀高亮，点击跳转原文；首次建索引有动效提示
+11. **日历弹窗**：列表页「前往日历」（全项目）与详情页任务 tab「前往日历 >」（单项目）均为弹窗，可拖动缩放
+12. **风险规则配置**：概览页「风险」标题旁齿轮，6 条规则按项目级配置开关 / 阈值 / 等级；跨项目风险汇总仅统计非归档 + 进行中/待开始项目，仅中高级别
 11. 项目可 ⭐ 收藏置顶；任务可设等级（P0~P5）；成员统一管理（⚙ 人员管理）；任务可标里程碑（旗帜）自动汇聚步骤条
 12. 审计追踪：所有写操作留痕（时间/行为/目标/变更内容），支持行为与时间范围筛选
 13. 项目可归档（非进行中）或标记已取消；已归档项目可在「已归档」分组查看/恢复
@@ -35,9 +37,11 @@
 6. ask_project { projectId, scope }          → 问答编排（summary/risks/decisions/timeline/files）
 7. create_task / create_annotation ...       → 落地新任务/便利贴
 8. create_plan { projectId, title, content } → 创建方案
+9. search_all { keyword } → 全局/项目内全文检索（分组结果 + 命中片段）
+10. list_messages { } / get_message_config { } → 消息中心 / 提醒配置
 ```
 
-## 工具清单（68 个）
+## 工具清单（75 个）
 
 ### 创建
 
@@ -115,6 +119,13 @@
 | `get_plan` | 方案详情（含评论）|
 | `list_requirements` | 需求列表（分页/状态/关键字/id 筛选）|
 | `get_requirement` | 需求详情（含关联方案明细）|
+| `list_messages` | 消息列表（20 条/页分页，先扫描生成再返回；type/projectId 过滤）|
+| `get_message_unread_count` | 未读消息计数 |
+| `get_message_config` | 提醒配置（提前天数/到期开关/风险开关）|
+| `update_message_config` | 修改提醒配置（deadlineDays 1~14、deadlineEnabled、riskEnabled）|
+| `search_all` | **全文检索**（keyword/projectId 限定/type 过滤/limit；3 字以上 FTS5，1~2 字 LIKE 兜底；返回分组结果 + snippet 命中片段 + fullIndexed 状态）|
+| `delete_message` | 删除消息 |
+| `mark_message_read` | 标记消息已读（ids 数组，≤50）|
 
 ### 会话关联 / 方案扩展
 
@@ -172,6 +183,13 @@ list_tasks { "projectId": "xxx", "keyword": "登录" }
 update_task { "projectId": "xxx", "id": "任务ID", "isMilestone": true }
 update_task { "projectId": "xxx", "id": "任务ID", "done": true }
 
+// 全文检索（全局；项目内搜加 projectId）
+search_all { "keyword": "知识库" }
+
+// 消息中心 / 提醒配置
+list_messages { "limit": 20 }
+update_message_config { "deadlineDays": 7, "riskEnabled": true }
+
 // 审计追踪（时间范围筛选）
 list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-08-31" }
 ```
@@ -186,16 +204,20 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 
 > **周报口径**：完成项按完成时间（done_at）落在区间内（老数据无 done_at 不统计）；进行中=当前全部未完成任务（快照）；风险/建议沿用 6 条风险规则。
 
+> **消息提醒口径**：到期提醒 = 未完成任务 endDate 在「今天 ~ 今天+N 天」（N=配置提前天数，默认 3），同类每日聚合一条；风险提醒 = 仅**非归档 + 进行中/待开始**项目，且仅**中高级别**风险，每日聚合一条；历史消息保留，删除仅手动。
+
+> **风险统计口径**：`list_project_risks` 仅统计非归档 + 进行中/待开始项目，仅中高级别风险（low 不入列不计数）。
+
 ## 数据存储
 
 - SQLite（better-sqlite3，原生绑定 vendor 在 `lib/vendor/`），WAL 模式 + 外键级联
 - 位置：`ctx.dataDir/projects.sqlite`（卸载插件不删数据）
-- schema 版本 **10**，启动自动幂等迁移（老数据兼容）+ 悬空引用自愈（plans.task_id / requirement_plans / task_plans）
-- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / schema_meta
+- schema 版本 **12**，启动自动幂等迁移（老数据兼容）+ 悬空引用自愈（plans.task_id / requirement_plans / task_plans）
+- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / messages / fts_entries / fts_dirty / fts_meta / settings / schema_meta
 
 ## 开发指南
 
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
-- **测试**：`node --test scripts/test/*.test.mjs`（66 项：数据层/工具层/方案导入/任务方案关联）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`
+- **测试**：`node --test scripts/test/*.test.mjs`（99 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`
