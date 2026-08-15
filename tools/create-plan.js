@@ -10,11 +10,12 @@ export const parameters = {
     title: { type: "string", description: "方案标题（最长 100 字）" },
     content: { type: "string", description: "方案内容（富文本 HTML，可空）" },
     requirementIds: { type: "array", items: { type: "string" }, description: "关联的需求 ID 列表（可选，自动去重）" },
+    taskIds: { type: "array", items: { type: "string" }, description: "关联的任务 ID 列表（可选，自动去重，须属于本项目）" },
   },
 };
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const plan = data.createPlan(input.projectId, input.title, input.content, input.requirementIds);
+  const plan = data.createPlan(input.projectId, input.title, input.content, input.requirementIds, input.taskIds);
   return { content: [{ type: "text", text: `已创建方案「${plan.title}」[ID: ${plan.id}]（${plan.status}）` }] };
 }

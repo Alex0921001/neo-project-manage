@@ -70,6 +70,11 @@
           <el-select v-if="tab === 'requirements'" v-model="requirementStatus" class="plan-status-select" size="small" @click.stop>
             <el-option v-for="s in REQUIREMENT_STATUS_FILTERS" :key="s" :label="s" :value="s" />
           </el-select>
+          <!-- 需求排序（R12）：默认排序 / 等级排序，切换即时刷新 -->
+          <el-select v-if="tab === 'requirements'" v-model="requirementSort" class="sort-select" size="small" @click.stop title="需求排序">
+            <el-option label="默认排序" value="default" />
+            <el-option label="等级排序" value="priority" />
+          </el-select>
           <!-- 审计筛选：行为下拉 + 时间范围（daterange，与其他 tab 对齐右上角） -->
           <el-select v-if="tab === 'audit'" v-model="auditAction" class="audit-filter-action" size="small" clearable placeholder="全部行为" @click.stop>
             <el-option v-for="a in auditActions" :key="a" :label="a" :value="a" />
@@ -185,7 +190,7 @@
           :action-filter="auditAction"
           :date-from="auditDateRange?.[0] || ''"
           :date-to="auditDateRange?.[1] || ''"
-          @actions-ready="auditActions = $event"
+          @actions-ready="onAuditActionsReady"
         />
         <PlanTab
           v-if="tab === 'plans'"
@@ -204,6 +209,7 @@
           :project-id="p?.id || ''"
           :search-query="requirementSearch"
           :status-query="requirementStatus"
+          :sort-query="requirementSort"
           @changed="loadProject"
         />
         <!-- 知识 tab（占位：内容随知识沉淀方案填充） -->
@@ -252,8 +258,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRefs } from "vue";
 import { api } from "../../api.js";
+import { usePersistedTabState } from "../../utils/usePersistedTabState.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
 import ProjectOverview from "./components/ProjectOverview.vue";
@@ -436,12 +443,25 @@ function toggleExpandAll() {
 
 // ===== 任务排序（V2.1.2）：默认（可拖拽）/ 等级 / 开始时间 =====
 // 拖拽仅默认排序可用；等级/时间排序时子任务与子子任务同样按规则排序（TaskTab sortTree 递归）
-const taskSort = ref("default");
 const sortOptions = [
   { value: "default", label: "默认排序", tip: "可拖拽调整顺序" },
   { value: "startDate", label: "时间排序", tip: "按开始时间，无日期排最后" },
   { value: "priority", label: "等级排序", tip: "P0 → P5" },
 ];
+
+// ===== R13 五 tab 筛选/排序状态持久化（composable：读写在 localStorage，防抖 300ms） =====
+// 键 neo-pm-ui-state-{version}-{projectId}-{tab}；projectId 变化自动重绑恢复，切换项目互不串状态
+const tasksState = usePersistedTabState(() => `${props.projectId}-tasks`, { search: "", sort: "default" });
+const requirementsState = usePersistedTabState(() => `${props.projectId}-requirements`, { search: "", status: "全部", sort: "default" });
+const plansState = usePersistedTabState(() => `${props.projectId}-plans`, { search: "", status: "全部" });
+const filesState = usePersistedTabState(() => `${props.projectId}-files`, { search: "" });
+const auditState = usePersistedTabState(() => `${props.projectId}-audit`, { action: "", dateRange: [] });
+const { search: taskSearch, sort: taskSort } = toRefs(tasksState);
+const { search: requirementSearch, status: requirementStatus, sort: requirementSort } = toRefs(requirementsState);
+const { search: planSearch, status: planStatus } = toRefs(plansState);
+const { search: fileSearch } = toRefs(filesState);
+const { action: auditAction, dateRange: auditDateRange } = toRefs(auditState);
+
 const sortTip = computed(() => {
   const opt = sortOptions.find((o) => o.value === taskSort.value);
   if (taskSort.value === "default") return "默认排序：可拖拽调整顺序；任务与子任务均按当前规则排序";
@@ -450,21 +470,20 @@ const sortTip = computed(() => {
 
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
-const taskSearch = ref("");
-const fileSearch = ref("");
 const annotManageShow = ref(false); // 批注管理大屏弹窗
 const calShow = ref(false); // 项目日历弹窗
-const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
-const planStatus = ref("全部");
 // 需求筛选（tab 栏右上角，与方案同形态；后端筛选 + 标题高亮）
-const requirementSearch = ref("");
 const REQUIREMENT_STATUS_FILTERS = ["全部", "待处理", "已完成", "已取消"];
-const requirementStatus = ref("全部");
 // 审计筛选：行为 + 时间范围（daterange，tab 栏右上角）
 const auditActions = ref([]);
-const auditAction = ref("");
-const auditDateRange = ref([]); // [开始, 结束] YYYY-MM-DD
+// R13：行为下拉选项就绪后校验恢复的 auditAction 是否仍存在（被删静默回落默认空=全部行为）
+function onAuditActionsReady(actions) {
+  auditActions.value = actions || [];
+  if (auditAction.value && !auditActions.value.includes(auditAction.value)) {
+    auditAction.value = "";
+  }
+}
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -512,6 +531,10 @@ function onTabAction() {
 
 // 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）
 watch(fileSearch, (v) => { fileTabRef.value?.setSearch?.(v); });
+// 文件搜索恢复后切到文件 tab 时同步初始值（FileTab 挂载前 watch 不生效）
+watch(tab, (v) => {
+  if (v === "files") nextTick(() => fileTabRef.value?.setSearch?.(fileSearch.value));
+});
 function onTabCalendarSelectTask(payload) {
   const taskId = typeof payload === "string" ? payload : payload?.taskId;
   if (!taskId) return;

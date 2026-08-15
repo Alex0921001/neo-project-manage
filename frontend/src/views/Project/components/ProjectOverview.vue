@@ -11,6 +11,10 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           刷新总结
         </button>
+        <button class="ov-refresh" title="一键生成周报/阶段总结" @click.stop="openReport">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          生成周报
+        </button>
       </div>
       <!-- 右标题：历史总结（始终显示，无数据时列内显示 el-empty） -->
       <div class="ov-head ov-head-tl">
@@ -287,6 +291,46 @@
         </li>
       </ul>
     </el-drawer>
+
+    <!-- 生成周报弹窗（V2.2 R3）：选时间范围 → 预览 Markdown → 复制 / 下载 .md -->
+    <el-dialog
+      v-model="reportShow"
+      title="生成周报"
+      width="640px"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <div class="report-range">
+        <el-radio-group v-model="reportRange" @change="onReportRangeChange">
+          <el-radio-button value="thisWeek">本周</el-radio-button>
+          <el-radio-button value="lastWeek">上周</el-radio-button>
+          <el-radio-button value="last7days">近 7 天</el-radio-button>
+          <el-radio-button value="custom">自定义</el-radio-button>
+        </el-radio-group>
+        <template v-if="reportRange === 'custom'">
+          <el-date-picker
+            v-model="reportCustomRange"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            class="report-custom-range"
+          />
+        </template>
+      </div>
+
+      <div v-if="reportLoading" class="report-loading">正在生成…</div>
+      <pre v-else-if="reportMarkdown" class="report-preview">{{ reportMarkdown }}</pre>
+      <div v-else class="report-loading">选择时间范围后点击「生成」预览周报</div>
+
+      <template #footer>
+        <el-button @click="reportShow = false">关闭</el-button>
+        <el-button :loading="reportLoading" @click="generateReport">生成</el-button>
+        <el-button v-if="reportMarkdown" @click="copyReport">复制</el-button>
+        <el-button v-if="reportMarkdown" class="btn-save" @click="downloadReport">下载 .md</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -323,6 +367,67 @@ const expanded = ref(true); // 默认展开
 const loading = ref(false);
 const s = ref(null); // summary data
 const riskConfigShow = ref(false); // 风险规则配置弹窗
+
+// ===== 生成周报（V2.2 R3）：选范围 → 预览 Markdown → 复制 / 下载 .md =====
+const reportShow = ref(false);
+const reportRange = ref("thisWeek");
+const reportCustomRange = ref([]);
+const reportLoading = ref(false);
+const reportMarkdown = ref("");
+const reportTitle = ref("周报.md");
+
+function openReport() {
+  reportMarkdown.value = "";
+  reportShow.value = true;
+}
+function onReportRangeChange() {
+  reportMarkdown.value = "";
+}
+
+async function generateReport() {
+  if (!props.projectId) return;
+  const body = { range: reportRange.value };
+  if (reportRange.value === "custom") {
+    if (!reportCustomRange.value?.length || reportCustomRange.value.length < 2) {
+      toast("请选择自定义起止日期", "error");
+      return;
+    }
+    body.startDate = reportCustomRange.value[0];
+    body.endDate = reportCustomRange.value[1];
+  }
+  reportLoading.value = true;
+  try {
+    const res = await api(`api/projects/${props.projectId}/report`, {
+      method: "POST", body: JSON.stringify(body), silent: true,
+    });
+    if (res?.ok) {
+      reportMarkdown.value = res.data?.markdown || "";
+      const r = res.data?.range || {};
+      reportTitle.value = `${r.start || "report"}_${r.end || ""}.md`;
+    } else {
+      toast(res?.error || "生成失败", "error");
+    }
+  } finally {
+    reportLoading.value = false;
+  }
+}
+
+function copyReport() {
+  if (reportMarkdown.value) copyText(reportMarkdown.value);
+}
+
+function downloadReport() {
+  if (!reportMarkdown.value) return;
+  const blob = new Blob([reportMarkdown.value], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = reportTitle.value;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 // ===== 历史总结时间线（V2.0 S14）=====
 const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
@@ -1004,6 +1109,38 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.6;
+  word-break: break-word;
+}
+
+/* ===== 生成周报弹窗（V2.2 R3） ===== */
+.report-range {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.report-custom-range {
+  width: 260px;
+}
+.report-loading {
+  padding: 28px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.report-preview {
+  max-height: 420px;
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text);
+  white-space: pre-wrap;
   word-break: break-word;
 }
 </style>

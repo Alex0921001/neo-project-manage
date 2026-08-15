@@ -179,9 +179,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount, toRefs } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { usePersistedTabState } from "../../../utils/usePersistedTabState.js";
 import FolderNode from "./FolderNode.vue";
 
 const props = defineProps({
@@ -193,8 +194,12 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 
 // ===== 视图状态 =====
 const search = ref("");
-const selectedFolder = ref(localStorage.getItem(`neo-pm-file-folder-${props.projectId}`) || "root"); // 'root' 根目录 | folderId 具体文件夹（持久化恢复）
-watch(selectedFolder, (v) => localStorage.setItem(`neo-pm-file-folder-${props.projectId}`, v));
+// R13 文件 tab 树状态持久化：高亮文件夹 + 折叠集合（恢复后父链展开见 applyExpandState）
+const folderState = usePersistedTabState(() => `${props.projectId}-files-tree`, {
+  selectedFolder: "root",
+  collapsedIds: [],
+});
+const { selectedFolder, collapsedIds } = toRefs(folderState);
 /* 左侧空白视为根目录目标：悬停高亮根目录项（drop 后清除） */
 const rootDropHover = ref(false);
 function onTreeDragOver(e) {
@@ -525,10 +530,37 @@ const dragFolderId = ref(""); // 拖拽中的文件夹 id（与文件拖拽 drag
 const externalDropHover = ref(false);
 let externalDropDepth = 0; // dragenter/dragleave 嵌套计数（子元素进出防闪烁）
 
+/** 重算展开集合：全部节点默认展开，剔除用户折叠的，再强制展开高亮文件夹的父链 */
+function applyExpandState(nodes) {
+  const s = new Set();
+  const walk = (n2) => { for (const n of n2 || []) { s.add(n.id); walk(n.children); } };
+  walk(nodes);
+  for (const id of collapsedIds.value) s.delete(id);
+  const chain = ancestorChain(nodes, selectedFolder.value);
+  for (const id of chain) s.add(id);
+  expandedIds.value = s;
+}
+/** 目标文件夹的祖先链（不含目标自身，root→父们），用于恢复高亮时展开父链 */
+function ancestorChain(nodes, target) {
+  if (!target || target === "root") return [];
+  const chain = [];
+  const find = (list, trail) => list.some((n) => {
+    if (n.id === target) { chain.push(...trail); return true; }
+    return find(n.children || [], [...trail, n.id]);
+  });
+  find(nodes, []);
+  return chain;
+}
+
 function toggleFolder(id) {
   const s = new Set(expandedIds.value);
-  if (s.has(id)) s.delete(id);
-  else s.add(id);
+  if (s.has(id)) {
+    s.delete(id);
+    collapsedIds.value = [...new Set([...collapsedIds.value, id])];
+  } else {
+    s.add(id);
+    collapsedIds.value = collapsedIds.value.filter((x) => x !== id);
+  }
   expandedIds.value = s;
 }
 
@@ -1039,10 +1071,7 @@ onMounted(() => {
   document.addEventListener("mouseup", onGridMouseUp);
   document.addEventListener("mousemove", onDocMouseMove);
   window.addEventListener("dragend", onGlobalDragEnd);
-  const s = new Set();
-  const walk = (nodes) => { for (const n of nodes || []) { s.add(n.id); walk(n.children); } };
-  walk(props.folders);
-  expandedIds.value = s;
+  applyExpandState(props.folders);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
@@ -1053,16 +1082,8 @@ onBeforeUnmount(() => {
   endResize();
 });
 
-// folders 数据更新后，新文件夹自动加入展开集合
-watch(
-  () => props.folders,
-  (nodes) => {
-    const s = new Set(expandedIds.value);
-    const walk = (n2) => { for (const n of n2 || []) { s.add(n.id); walk(n.children); } };
-    walk(nodes);
-    expandedIds.value = s;
-  }
-);
+// folders 数据更新后：重算展开集合（折叠集合持久化 + 高亮文件夹父链强制展开）
+watch(() => props.folders, (nodes) => applyExpandState(nodes));
 
 defineExpose({ openAdd, pickFile, setSearch });
 

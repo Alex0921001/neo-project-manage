@@ -11,7 +11,14 @@
     ]"
     :data-task-id="task.id"
   >
-    <div class="task-card-header" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
+    <div class="task-card-header" :class="{ 'has-select': selectable }" @click="expanded = !expanded" :data-connector-id="`task-${task.id}`">
+      <el-checkbox
+        v-if="selectable"
+        class="task-select-cb"
+        :model-value="selected"
+        @click.stop
+        @change="onToggleSelect"
+      />
       <span class="drag-handle" :class="{ 'drag-handle-disabled': !draggable_drag }" :title="draggable_drag ? '拖动重新排序' : ''" @click.stop>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="18" r="1"/></svg>
       </span>
@@ -103,6 +110,18 @@
         <span v-for="f in fileRefsList" :key="f.id" class="file-ref-link" title="双击打开" @dblclick="openFile(f)">{{ f.name }}</span>
       </div>
 
+      <!-- V2.2 R14：任务反向展示关联方案标签（可点击打开方案详情弹窗） -->
+      <div v-if="planRefsList.length" class="plan-refs-row">
+        <span class="plan-refs-row-label">关联方案</span>
+        <span
+          v-for="p in planRefsList"
+          :key="p.id"
+          class="plan-ref-link"
+          :title="`${p.title}（${p.status}）`"
+          @click.stop="openPlan(p.id)"
+        >{{ p.title }}</span>
+      </div>
+
       <!-- 子任务列表（递归渲染） -->
       <!-- depth 0（顶层卡片）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表，避免嵌套 draggable -->
       <!-- v1.3.1：depth 0 无子任务时也渲染空 draggable 放置区，支持从其他任务拖入子任务 -->
@@ -134,6 +153,7 @@
             @delete-task-deep="$emit('delete-task-deep', $event)"
             @toggle-milestone="$emit('toggle-milestone', $event)"
             @select-annotation="$emit('select-annotation', $event)"
+            @open-plan="$emit('open-plan', $event)"
             @changed="$emit('changed')"
           />
         </template>
@@ -160,6 +180,7 @@
           @delete-task-deep="$emit('delete-task-deep', $event)"
           @toggle-milestone="$emit('toggle-milestone', $event)"
           @select-annotation="$emit('select-annotation', $event)"
+          @open-plan="$emit('open-plan', $event)"
           @changed="$emit('changed')"
         />
       </div>
@@ -190,6 +211,8 @@ const props = defineProps({
   forceExpandIds: { type: Array, default: () => [] }, // 定位跳转：命中任务 id 强制展开（祖先链）
   depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
   dragDisabled: { type: Boolean, default: false }, // V2.1.2 非默认排序时禁用拖拽（隐藏把手）
+  selectable: { type: Boolean, default: false }, // V2.2 R7 多选模式：渲染复选框（仅顶层任务开启）
+  selected: { type: Boolean, default: false },
 });
 const emit = defineEmits([
   "mark-task-done",
@@ -200,6 +223,8 @@ const emit = defineEmits([
   "delete-task-deep",
   "toggle-milestone",
   "select-annotation",
+  "toggle-select",
+  "open-plan",
   "changed",
 ]);
 
@@ -300,6 +325,13 @@ const fileRefsList = computed(() => {
   return ids.map((id) => props.files.find((f) => f.id === id)).filter(Boolean);
 });
 
+// V2.2 R14：关联方案标签（task.planRefs 已含 id/title/status）
+const planRefsList = computed(() => props.task.planRefs || []);
+function openPlan(planId) {
+  if (!planId) return;
+  emit("open-plan", planId);
+}
+
 async function openFile(f) {
   if (!f?.path) return;
   const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`, { silent: true });
@@ -309,6 +341,9 @@ async function openFile(f) {
 function onComplete() {
   // 统一传整个 task 对象，TaskTab 根据 parent_task_id 字段判断 API 路径
   emit("mark-task-done", { task: props.task, done: true });
+}
+function onToggleSelect() {
+  emit("toggle-select", props.task.id);
 }
 function onActivate() {
   emit("mark-task-done", { task: props.task, done: false });
@@ -413,6 +448,17 @@ defineExpose({
   padding: 10px 12px 10px 14px;
   cursor: pointer;
   user-select: none;
+}
+/* 多选模式：左侧多一列复选框 */
+.task-card-header.has-select {
+  grid-template-columns: 20px 16px auto 24px 1fr auto;
+}
+.task-select-cb {
+  margin: 0;
+}
+.task-select-cb :deep(.el-checkbox__inner) {
+  width: 16px;
+  height: 16px;
 }
 
 .status-btn {
@@ -707,6 +753,36 @@ defineExpose({
   background: var(--bg-hover);
   color: var(--text);
   border-color: var(--border);
+}
+
+/* V2.2 R14：任务反向展示关联方案标签（可点击打开方案详情） */
+.plan-refs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.plan-refs-row-label {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+.plan-ref-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  font-size: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.plan-ref-link:hover {
+  border-color: var(--accent-warm);
+  text-decoration: underline;
 }
 
 /* 子任务列表 */

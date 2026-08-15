@@ -7,8 +7,17 @@
       :project-id="props.projectId"
       :requirement-id="modalId"
       :mode="modalMode"
+      :can-prev="canPrev"
+      :can-next="canNext"
       @close="modalShow = false"
-      @changed="load"
+      @changed="onModalChanged"
+      @saved="onSaved"
+      @created="onCreated"
+      @edit-cancel="onEditCancel"
+      @closed-detail="onClosedDetail"
+      @mode-change="onModeChange"
+      @prev="onNavigate(-1)"
+      @next="onNavigate(1)"
     />
 
     <!-- 空态（对齐方案/任务：图标 + 文案 + 添加按钮） -->
@@ -73,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { highlight } from "../../../utils/highlight.js";
@@ -84,6 +93,7 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   statusQuery: { type: String, default: "全部" },
+  sortQuery: { type: String, default: "default" }, // R12：default=创建时间倒序 / priority=优先级 P0→P5
 });
 const emit = defineEmits(["changed"]);
 
@@ -98,14 +108,18 @@ const pageSize = 10;
 const loading = ref(false);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
 
-async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
+let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
+async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery, sort = props.sortQuery) {
   if (!props.projectId) return;
+  const seq = ++loadSeq;
   loading.value = true;
   try {
     const q = new URLSearchParams({ limit: String(pageSize), offset: String((p - 1) * pageSize) });
     if (status !== "全部") q.set("status", status);
     if (keyword.trim()) q.set("keyword", keyword.trim());
+    if (sort && sort !== "default") q.set("sort", sort);
     const res = await api(`api/projects/${props.projectId}/requirements?${q}`);
+    if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
       list.value = res.data.items || [];
       total.value = res.data.total || 0;
@@ -118,34 +132,138 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
       }
     }
   } finally {
-    loading.value = false;
+    if (seq === loadSeq) loading.value = false;
   }
 }
 function goPage(p) {
   if (p < 1 || p > totalPages.value || p === page.value) return;
+  closeModal(); // 分页重载：关弹窗（导航基准基于旧序列，重载后失效）
   load(p);
 }
 
-// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
-watch(() => props.searchQuery, () => load(1));
-watch(() => props.statusQuery, () => load(1));
-// projectId 就绪/变化：重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
-watch(() => props.projectId, () => load(), { immediate: true });
+// 筛选 / 排序 / 搜索 / 项目切换：任何列表重载都关弹窗（PM 口径），再重新拉取
+watch(() => props.searchQuery, () => { closeModal(); load(1); });
+watch(() => props.statusQuery, () => { closeModal(); load(1); });
+watch(() => props.sortQuery, () => { closeModal(); load(1); });
+// projectId 就绪/变化：关弹窗（避免切项目残留 A 详情）+ 重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
+watch(() => props.projectId, () => { closeModal(); load(); }, { immediate: true });
 
 // ===== 详情/编辑弹窗（对齐方案：点击列表行预览，编辑/删除在弹窗内） =====
 const modalShow = ref(false);
 const modalMode = ref("read"); // read | edit
 const modalId = ref(null); // null = 新建
+// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+const editingFromDetail = ref(false);
+
+// 关弹窗并清空当前项（列表重载 / 项目切换统一走这里，避免导航基准残留）
+function closeModal() {
+  modalShow.value = false; // 先关，避免 requirementId 变化触发 modal 重载
+  modalId.value = null;
+  editingFromDetail.value = false;
+}
 
 function openCreate() {
   modalId.value = null;
   modalMode.value = "edit";
+  editingFromDetail.value = false;
   modalShow.value = true;
 }
-function openDetail(r) {
+function openDetail(r, globalIdx) {
   modalId.value = r.id;
   modalMode.value = "read";
+  editingFromDetail.value = false;
   modalShow.value = true;
+  // R10 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
+  if (typeof globalIdx === "number") {
+    detailGlobalIndex.value = globalIdx;
+  } else {
+    const idx = list.value.findIndex((x) => x.id === r.id);
+    detailGlobalIndex.value = idx >= 0 ? (page.value - 1) * pageSize + idx : 0;
+  }
+}
+
+// ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
+const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
+const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
+// 首/末条边界：首条不显示上一条，末条不显示下一条（仅查看已有项时）
+const canPrev = computed(() => modalShow.value && !!modalId.value && detailGlobalIndex.value > 0);
+const canNext = computed(() => modalShow.value && !!modalId.value && detailGlobalIndex.value < total.value - 1);
+
+function onNavigate(delta) {
+  // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
+  if (modalMode.value === "edit") {
+    pendingDelta.value = delta;
+    confirm.value = {
+      show: true,
+      message: "当前处于编辑中，切换将丢失未保存的修改。放弃修改并切换？",
+      confirmText: "放弃并切换",
+      action: "navigate",
+      req: null,
+    };
+    return;
+  }
+  doNavigate(delta);
+}
+// 详情内数据变化（状态流转等）：关弹窗 + 刷新列表（PM 口径：重载即关，不做位置判断）
+function onModalChanged() {
+  closeModal();
+  load();
+}
+
+// ===== V2.2 R15：编辑保存/取消回落详情 =====
+// 详情内点编辑：记录来源（新建不经过此分支，modalId 为空）
+function onModeChange(mode) {
+  if (mode === "edit" && modalId.value) editingFromDetail.value = true;
+  modalMode.value = mode; // 对齐 PlanTab：回写 modalMode，供 onNavigate 判断编辑态弹「放弃并切换」确认
+}
+// 编辑保存成功：来源详情 → 回落详情（重新拉数据）；来源列表 → 关弹窗刷新列表
+function onSaved(id) {
+  if (editingFromDetail.value) {
+    reopenDetail(id);
+  } else {
+    closeModal();
+    load();
+    emit("changed");
+  }
+}
+// 新建保存成功：关弹窗 + 刷新列表
+function onCreated() {
+  closeModal();
+  load();
+  emit("changed");
+}
+// 编辑取消：来源详情 → 回落详情；来源列表 → 关弹窗
+function onEditCancel() {
+  if (editingFromDetail.value && modalId.value) {
+    reopenDetail(modalId.value);
+  } else {
+    closeModal();
+  }
+}
+// X 关闭详情弹窗：回列表刷新
+function onClosedDetail() {
+  editingFromDetail.value = false;
+  load();
+}
+// 回落详情：先关（false）再 nextTick 重开（true），走完整 false→true 链路
+function reopenDetail(id) {
+  modalShow.value = false;
+  editingFromDetail.value = false;
+  nextTick(() => {
+    modalId.value = id;
+    modalMode.value = "read";
+    modalShow.value = true;
+  });
+}
+async function doNavigate(delta) {
+  const target = detailGlobalIndex.value + delta;
+  if (target < 0 || target >= total.value) return;
+  const targetPage = Math.floor(target / pageSize) + 1;
+  const inPage = target % pageSize;
+  if (targetPage !== page.value) await load(targetPage); // 跨页补拉，load 更新 list/page
+  const item = list.value[inPage];
+  if (!item) return;
+  openDetail(item, target);
 }
 
 // ===== 右键菜单：打开 / 编辑 / 删除（对齐方案列表） =====
@@ -199,6 +317,7 @@ function ctxEdit() {
   closeCtx();
   modalId.value = ctx.req.id;
   modalMode.value = "edit";
+  editingFromDetail.value = false; // 列表右键编辑：非详情来源
   modalShow.value = true;
 }
 function ctxDel() {
@@ -214,6 +333,11 @@ function ctxDel() {
 async function doCtxConfirm() {
   confirm.value.show = false;
   const { action, req } = confirm.value;
+  if (action === "navigate") {
+    // 放弃编辑并切换：openDetail 内部会切回 read 模式
+    doNavigate(pendingDelta.value);
+    return;
+  }
   if (!req || action !== "delete") return;
   const res = await api(`api/projects/${props.projectId}/requirements/${req.id}`, { method: "DELETE" });
   if (res?.ok) {
