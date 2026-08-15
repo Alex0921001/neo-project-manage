@@ -15,6 +15,8 @@ import { registerMembersRoutes } from "./modules/members.js";
 import { registerAuditRoutes } from "./modules/audit.js";
 import { registerPlansRoutes } from "./modules/plans.js";
 import { registerRequirementsRoutes } from "./modules/requirements.js";
+import { registerMessagesRoutes } from "./modules/messages.js";
+import { registerSearchRoutes } from "./modules/search.js";
 
 const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname_ui, "..");
@@ -140,6 +142,19 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerAuditRoutes(app, data);
   registerPlansRoutes(app, data);
   registerRequirementsRoutes(app, data);
+  // V2.3：消息中心（R1）+ 全文检索（R2）注册链末尾挂载
+  registerMessagesRoutes(app, data);
+  registerSearchRoutes(app, data);
+
+  // V2.3 R2：首次启动后台建 FTS 全量索引（非阻塞；已完成则空跑，脏标记不触发）
+  setTimeout(() => {
+    try {
+      const r = data.ensureFtsReady();
+      if (r.rebuilt) ctx.log.info("[fts] 全量索引构建完成（后台）");
+    } catch (e) {
+      ctx.log.warn(`[fts] 全量索引构建失败: ${e.message}`);
+    }
+  }, 0);
 
   // ===== Version（前端角标使用）=====
   app.get("/api/version", (c) => {

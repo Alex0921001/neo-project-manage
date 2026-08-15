@@ -35,12 +35,12 @@ function expectThrow(fn, pattern) {
   });
 }
 
-// ===== 1. v9 迁移：done_at 列 + 版本号（R14 已升 v10，版本号断言随当前 SCHEMA_VERSION） =====
-test("R3-1：v9 迁移补 tasks.done_at 列，SCHEMA_VERSION 随 R14 升至 10", () => {
+// ===== 1. v9 迁移：done_at 列 + 版本号（V2.3 精修已升 v12，版本号断言随当前 SCHEMA_VERSION） =====
+test("R3-1：v9 迁移补 tasks.done_at 列，SCHEMA_VERSION 随 V2.3 升至 12", () => {
   const cols = data._db.prepare("PRAGMA table_info(tasks)").all().map((c) => c.name);
   assert.ok(cols.includes("done_at"), "tasks 表应含 done_at 列");
   const version = data._db.prepare("SELECT value FROM schema_meta WHERE key = 'version'").get().value;
-  assert.equal(Number(version), 10, `schema 版本应为 10，实际 ${version}`);
+  assert.equal(Number(version), 12, `schema 版本应为 12，实际 ${version}`);
   // 幂等：再次实例化（同目录）不报错
   const data2 = createDataAccess(tmpDir);
   assert.ok(data2._db.prepare("PRAGMA table_info(tasks)").all().map((c) => c.name).includes("done_at"));

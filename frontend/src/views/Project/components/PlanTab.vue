@@ -311,6 +311,18 @@ function openCreate() {
   modal.value = { show: true, planId: null, mode: "edit" };
   editingFromDetail.value = false;
 }
+
+// V2.3 R2：按方案 ID 打开详情（全文搜索跳转；列表未加载到该条时 PlanModal 按 planId 直开）
+function openDetailById(planId) {
+  if (!planId) return;
+  const pl = plans.value.find((x) => x.id === planId);
+  if (pl) {
+    openDetail(pl);
+  } else {
+    modal.value = { show: true, planId, mode: "read" };
+    editingFromDetail.value = false;
+  }
+}
 function openCompare() {
   if (selectedCount.value < 2) return toast("请先勾选 2 个方案", "error");
   compareShow.value = true;
@@ -406,7 +418,7 @@ function reopenDetail(planId) {
   });
 }
 
-defineExpose({ openCreate, load, openCompare });
+defineExpose({ openCreate, load, openCompare, openDetailById });
 
 watch(() => props.projectId, () => { closeModal(); load(); }, { immediate: true });
 </script>

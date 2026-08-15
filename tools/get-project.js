@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_project";
-export const description = "获取项目详情（含任务树/批注/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
+export const description = "获取项目详情（含任务树/批注/需求/方案/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
 export const parameters = {
   type: "object",
   required: ["id"],
@@ -42,9 +42,39 @@ export async function execute(input, toolCtx) {
     for (const t of project.tasks) renderTask(lines, t, 1, isSummary, filesById);
   }
 
-  // summary 模式：跳过文件/备注明细，到此为止
+  // summary 模式：跳过需求/方案/文件/备注明细，到此为止
   if (isSummary) {
     return { content: [{ type: "text", text: lines.join("\n") }] };
+  }
+
+  // 需求清单（T1 data.getProject 追加字段；未合入前为 undefined，容错按 0 处理）
+  const requirements = project.requirements || [];
+  lines.push(`--- 需求 (${requirements.length}) ---`);
+  if (!requirements.length) {
+    lines.push("  （无）");
+  } else {
+    for (const r of requirements) {
+      const icon = r.status === "已完成" ? "✅" : r.status === "已取消" ? "⛔" : "⬜";
+      // priority 即 "P0"-"P5" 字符串（与 list_requirements 一致），直接输出避免双 P
+      const pText = r.priority != null ? ` [${r.priority}]` : "";
+      const sText = r.status ? ` [${r.status}]` : "";
+      const planText = r.planCount ? ` [关联方案 ${r.planCount}]` : "";
+      lines.push(`  ${icon} ${r.name}${pText}${sText}${planText} [ID: ${r.id}]`);
+    }
+  }
+
+  // 方案清单（同上，T1 追加字段；commentCount/taskName 空值不输出对应标记）
+  const plans = project.plans || [];
+  lines.push(`--- 方案 (${plans.length}) ---`);
+  if (!plans.length) {
+    lines.push("  （无）");
+  } else {
+    for (const p of plans) {
+      const sText = p.status ? ` [${p.status}]` : "";
+      const commentText = p.commentCount ? ` [评论 ${p.commentCount}]` : "";
+      const taskText = p.taskName ? ` [转任务: ${p.taskName}]` : "";
+      lines.push(`  ${p.title}${sText}${commentText}${taskText} [ID: ${p.id}]`);
+    }
   }
 
   lines.push(`--- 文件资产 (${project.files?.length || 0}) ---`);

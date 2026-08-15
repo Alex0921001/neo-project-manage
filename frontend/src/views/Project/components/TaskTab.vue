@@ -334,6 +334,22 @@ function onSelectAnnotation({ taskId, subtaskId }) {
   // 打开面板时刷新一次数据：批注本地确认标记在此归位并按确认状态重排
   emit("changed");
 }
+
+// V2.3 R2：按批注 ID 定位（全文搜索跳转）：找到含该批注的任务 → 打开批注面板并定位
+function scrollToAnnotationById(annotationId) {
+  if (!annotationId) return;
+  const found = findTaskByAnnotation(props.tasks, annotationId);
+  if (found) scrollToAnnotation(found.id, annotationId);
+}
+
+function findTaskByAnnotation(tasks, annotationId) {
+  for (const t of tasks || []) {
+    if ((t.annotations || []).some((a) => a.id === annotationId)) return t;
+    const hit = findTaskByAnnotation(t.subtasks || [], annotationId);
+    if (hit) return hit;
+  }
+  return null;
+}
 function closeAnnotation() {
   activeTaskId.value = "";
   activeSubtaskId.value = "";
@@ -1001,7 +1017,7 @@ const hasMilestones = computed(() => {
   return walk(props.tasks);
 });
 
-defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });
+defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation, scrollToAnnotationById });
 </script>
 
 <style scoped>

@@ -171,6 +171,15 @@ function openCreate() {
   editingFromDetail.value = false;
   modalShow.value = true;
 }
+
+// V2.3 R2：按需求 ID 打开详情（全文搜索跳转；列表未加载到该条时弹窗按 ID 直开）
+function openDetailById(reqId) {
+  if (!reqId) return;
+  modalId.value = reqId;
+  modalMode.value = "read";
+  editingFromDetail.value = false;
+  modalShow.value = true;
+}
 function openDetail(r, globalIdx) {
   modalId.value = r.id;
   modalMode.value = "read";
@@ -361,7 +370,7 @@ function stripHtml(html) {
   return (html || "").replace(/<[^>]*>/g, "").slice(0, 80);
 }
 
-defineExpose({ openCreate, load });
+defineExpose({ openCreate, load, openDetailById });
 </script>
 
 <style scoped>
