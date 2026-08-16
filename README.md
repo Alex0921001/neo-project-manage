@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、任务日历、自动总结、风险识别与周报生成的完整闭环。
 
-> 当前版本：**V2.3.0**（通知协同 + 全文检索：消息中心 / 全局搜索 / 项目详情完整数据 / 状态筛选持久化 / 风险口径收窄）
+> 当前版本：**V2.3.1**（小修版：ask_project 新增需求/方案问答维度 + 拖拽失效修复 + 审计覆盖补全）
 
 ## 快速使用
 
@@ -34,7 +34,7 @@
 3. list_tasks { projectId }                  → 任务列表
 4. summarize_project { projectId }           → 自动总结（风险/下一步）
 5. get_project_risks { projectId }           → 只读风险 JSON（不存档）
-6. ask_project { projectId, scope }          → 问答编排（summary/risks/decisions/timeline/files）
+6. ask_project { projectId, scope }          → 问答编排（summary/risks/decisions/timeline/files/requirements/plans）
 7. create_task / create_annotation ...       → 落地新任务/便利贴
 8. create_plan { projectId, title, content } → 创建方案
 9. search_all { keyword } → 全局/项目内全文检索（分组结果 + 命中片段）
@@ -112,7 +112,7 @@
 | `get_project_risks` | 只读 6 条规则计算后的风险 JSON（附配置，不存档）|
 | `list_project_risks` | 跨项目风险汇总（按项目集范围）|
 | `generate_report` | **一键生成周报/阶段总结**（本周/上周/近 7 天/自定义，Markdown：完成项/进行中/风险/建议）|
-| `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/all）|
+| `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/requirements/plans/all）|
 | `list_members` | 成员列表（all-known 模式聚合历史人名，带 isHistoric）|
 | `list_audit_logs` | 审计日志（项目级，limit/offset/dateFrom/dateTo/targetType 筛选）|
 | `list_plans` | 方案列表（分页/id 精确/标题关键字/状态筛选）|

@@ -166,6 +166,9 @@
               group="tasks"
               :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
+              :force-fallback="true"
+              fallback-on-body
+              fallback-tolerance="8"
               @end="onTopDragEnd"
             >
               <template #item="{ element: t }">
@@ -206,6 +209,9 @@
               animation="200"
               :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
+              :force-fallback="true"
+              fallback-on-body
+              fallback-tolerance="8"
               @end="onTopDragEnd"
             >
               <template #item="{ element: t }">

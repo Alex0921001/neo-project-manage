@@ -16,6 +16,9 @@
       item-key="key"
       ghost-class="tab-ghost"
       :animation="150"
+      :force-fallback="true"
+      fallback-on-body
+      fallback-tolerance="8"
       @end="onDragEnd"
       class="tabs-inner"
     >
@@ -104,6 +107,9 @@
           item-key="id"
           ghost-class="mgr-ghost"
           :animation="150"
+          :force-fallback="true"
+          fallback-on-body
+          fallback-tolerance="8"
           @end="onMgrDragEnd"
           class="mgr-drag"
         >

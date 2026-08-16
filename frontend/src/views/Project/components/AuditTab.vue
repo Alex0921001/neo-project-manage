@@ -174,6 +174,8 @@ const TYPE_LABEL = {
   project_set: "项目集",
   plan: "方案",
   plan_comment: "评论",
+  folder: "文件夹",
+  requirement: "需求",
 };
 
 // 动作色系：删除类红色、归档类暖色、创建/更新类默认
@@ -209,7 +211,7 @@ function fmtVal(v, max = 100) {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
-/** 从 old/new JSON 提取目标名（name 优先，content 兜底） */
+/** 从 old/new JSON 提取目标名（name 优先，title 次之，content 兜底；V2.3.1 补 title：方案审计用 title 字段） */
 function extractName(log) {
   for (const raw of [log.newValue, log.oldValue]) {
     if (!raw) continue;
@@ -217,6 +219,7 @@ function extractName(log) {
       const j = JSON.parse(raw);
       if (j && typeof j === "object") {
         if (j.name) return fmtVal(String(j.name), 18);
+        if (j.title) return fmtVal(String(j.title), 18);
         if (j.content) return fmtVal(String(j.content), 18);
       }
     } catch { /* 非 JSON 跳过 */ }
@@ -234,7 +237,29 @@ function findTask(tasks, id) {
   return null;
 }
 
-/** 从项目详情反查目标名（变更字段不含 name 时的兜底，如只改状态） */
+/** 递归找文件夹树节点 */
+function findFolder(nodes, id) {
+  for (const n of nodes || []) {
+    if (n.id === id) return n;
+    const hit = findFolder(n.children || [], id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** 从审计变更字段解析 planId（plan_comment 关联 plan 反查用） */
+function planIdFromLog(log) {
+  for (const raw of [log.newValue, log.oldValue]) {
+    if (!raw) continue;
+    try {
+      const j = JSON.parse(raw);
+      if (j && typeof j === "object" && j.planId) return j.planId;
+    } catch { /* 非 JSON 跳过 */ }
+  }
+  return "";
+}
+
+/** 从项目详情反查目标名（变更字段不含 name/title/content 时的兜底，如只改状态/优先级） */
 function lookupName(log) {
   const p = props.project;
   if (!p) return "";
@@ -252,6 +277,15 @@ function lookupName(log) {
   }
   if (log.targetType === "file") return (p.files || []).find((f) => f.id === log.targetId)?.name || "";
   if (log.targetType === "note") return (p.notes || []).find((n) => n.id === log.targetId)?.content || "";
+  // V2.3.1 补审：folder/plan/requirement 从项目详情反查；member 为全局成员无项目归属，名称已在变更字段由 extractName 提取；plan_comment 关联 plan 兜底
+  if (log.targetType === "folder") return findFolder(p.folders, log.targetId)?.name || "";
+  if (log.targetType === "plan") return (p.plans || []).find((pl) => pl.id === log.targetId)?.title || "";
+  if (log.targetType === "requirement") return (p.requirements || []).find((r) => r.id === log.targetId)?.name || "";
+  if (log.targetType === "member") return "";
+  if (log.targetType === "plan_comment") {
+    const planId = planIdFromLog(log);
+    return planId ? (p.plans || []).find((pl) => pl.id === planId)?.title || "" : "";
+  }
   return "";
 }
 
