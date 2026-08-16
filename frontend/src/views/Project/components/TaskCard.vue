@@ -134,6 +134,9 @@
         :animation="180"
         group="tasks"
         :class="['subtask-list', { 'subtask-empty': !(task.subtasks || []).length }]"
+        :force-fallback="true"
+        fallback-on-body
+        fallback-tolerance="8"
         @end="onSubtaskDragEnd"
       >
         <template #item="{ element: s }">

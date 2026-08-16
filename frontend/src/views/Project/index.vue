@@ -31,6 +31,9 @@
           ghost-class="tab-ghost"
           handle=".tab-btn"
           :animation="150"
+          :force-fallback="true"
+          fallback-on-body
+          fallback-tolerance="8"
           class="tab-bar-tabs"
           @end="onTabDragEnd"
         >

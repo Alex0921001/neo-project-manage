@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "ask_project";
-export const description = "项目级问答编排：按 scope 返回项目总结/风险/决策批注/时间线/文件清单，all 返回分节完整报告，供 Agent 一次性掌握项目全貌";
+export const description = "项目级问答编排：按 scope 返回项目总结/风险/决策批注/时间线/文件清单/需求列表/方案列表，all 返回分节完整报告，供 Agent 一次性掌握项目全貌";
 export const parameters = {
   type: "object",
   required: ["projectId"],
@@ -9,8 +9,8 @@ export const parameters = {
     projectId: { type: "string", description: "项目 ID" },
     scope: {
       type: "string",
-      enum: ["summary", "risks", "decisions", "timeline", "files", "all"],
-      description: "查询范围：summary=完整总结 / risks=风险列表 / decisions=决策批注 / timeline=项目时间线 / files=文件清单 / all=全部（默认 all）",
+      enum: ["summary", "risks", "decisions", "timeline", "files", "requirements", "plans", "all"],
+      description: "查询范围：summary=完整总结 / risks=风险列表 / decisions=决策批注 / timeline=项目时间线 / files=文件清单 / requirements=需求列表 / plans=方案列表 / all=全部（默认 all）",
     },
   },
 };
@@ -31,6 +31,8 @@ export async function execute(input, toolCtx) {
   if (scope === "all" || scope === "decisions") lines.push(...formatDecisions(r.decisions));
   if (scope === "all" || scope === "timeline") lines.push(...formatTimeline(r.timeline));
   if (scope === "all" || scope === "files") lines.push(...formatFiles(r.files));
+  if (scope === "all" || scope === "requirements") lines.push(...formatRequirements(r.requirements));
+  if (scope === "all" || scope === "plans") lines.push(...formatPlans(r.plans));
 
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
@@ -133,6 +135,40 @@ function formatFiles(files) {
     const digest = f.digest ? `：${cut(plain(f.digest), 50)}` : "";
     lines.push(`  📄 ${cut(f.name, 40)} (${f.ext || "?"}${size})${digest} [ID: ${f.id}]`);
   }
+  lines.push("");
+  return lines;
+}
+
+/** 需求列表（scope=requirements，优先级/状态/关联方案数，限 30 条防刷屏） */
+function formatRequirements(reqs) {
+  const lines = ["【需求】"];
+  if (reqs.length === 0) {
+    lines.push("  暂无需求", "");
+    return lines;
+  }
+  const shown = reqs.slice(0, 30);
+  for (const r of shown) {
+    const plan = r.planCount > 0 ? `, 关联方案 ${r.planCount}` : "";
+    lines.push(`  📋 [${r.priority || "P3"}] ${cut(r.name, 40)}（${r.status}${plan}）[ID: ${r.id}]`);
+  }
+  if (reqs.length > shown.length) lines.push(`  …及更多 ${reqs.length - shown.length} 条`);
+  lines.push("");
+  return lines;
+}
+
+/** 方案列表（scope=plans，状态/已转任务标记，限 30 条防刷屏） */
+function formatPlans(plans) {
+  const lines = ["【方案】"];
+  if (plans.length === 0) {
+    lines.push("  暂无方案", "");
+    return lines;
+  }
+  const shown = plans.slice(0, 30);
+  for (const p of shown) {
+    const converted = p.taskId ? " ➜ 已转任务" : "";
+    lines.push(`  📄 ${cut(p.title, 40)}（${p.status}${converted}）[ID: ${p.id}]`);
+  }
+  if (plans.length > shown.length) lines.push(`  …及更多 ${plans.length - shown.length} 条`);
   lines.push("");
   return lines;
 }
