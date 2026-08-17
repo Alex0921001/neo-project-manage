@@ -149,9 +149,9 @@
         </div>
         <el-empty v-if="!visibleFiles.length" description="暂无文件" :image-size="90" />
 
-        <!-- hover 气泡（fixed 跟随鼠标，脱离外层滚动裁剪；名称前 10 字符） -->
+        <!-- hover 气泡（fixed 跟随鼠标，脱离外层滚动裁剪；名称完整展示可折行，宽度受限） -->
         <div v-if="hover.show" class="fg-hover-tip" :style="{ left: hover.x + 'px', top: hover.y + 'px' }">
-          <div class="fhi-row"><span class="fhi-label">名称</span><span class="fhi-val">{{ short10(hover.file?.name) }}</span></div>
+          <div class="fhi-row"><span class="fhi-label">名称</span><span class="fhi-val fhi-val-name">{{ hover.file?.name }}</span></div>
           <div class="fhi-row"><span class="fhi-label">类型</span><span class="fhi-val">{{ fileType(hover.file) }}</span></div>
           <div class="fhi-row"><span class="fhi-label">大小</span><span class="fhi-val">{{ formatSize(hover.file?.size) }}</span></div>
           <div class="fhi-row"><span class="fhi-label">登记时间</span><span class="fhi-val">{{ fmtTime(hover.file?.uploadedAt) }}</span></div>
@@ -389,11 +389,7 @@ function hideHover() {
   clearTimeout(hoverTimer);
   hover.value = { show: false, x: 0, y: 0, file: null };
 }
-/** 前 10 个字符（用户规范：文本短展示取前 10 字） */
-function short10(s) {
-  const t = String(s ?? "");
-  return t.length > 10 ? `${t.slice(0, 10)}…` : t;
-}
+/** hover 气泡：名称完整展示（不截断），气泡宽度受限，超长折行 */
 const marqueeStyle = computed(() => {
   const m = marquee.value;
   if (!m.show) return {};
@@ -1197,19 +1193,20 @@ function setSearch(v) {
   pointer-events: none;
 }
 
-/* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息） */
+/* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息）
+   列宽固定 112px（V2.3.3 调整：文件名两行展示，固定宽度保证折行稳定、不随容器伸缩变宽） */
 .fg-grid {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  grid-template-columns: repeat(auto-fill, 112px);
   gap: 8px;
   padding: 8px;
   user-select: none;
 }
 .fg-card {
   position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 14px 8px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 8px 12px;
   border: 1px solid transparent;
   border-radius: 0; /* 直角卡片（与选中态虚线框一致，复古中式无圆角） */
   cursor: pointer;
@@ -1227,29 +1224,40 @@ function setSearch(v) {
   font-size: 12px; font-weight: 700; color: var(--text-secondary);
   letter-spacing: 0.2px; user-select: none;
 }
+/* 文件名：固定宽度 + 最多两行，超长截断省略；英文/数字也折行（break-all）
+   两行高度下 gap/padding 已放大（gap 8px / 底部 12px）保证呼吸空间 */
 .fg-name {
+  width: 100%;
   max-width: 100%;
   font-size: 12px; font-weight: 500; color: var(--text);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.4;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
 }
 .fg-card.selected .fg-name { color: var(--accent-warm-hover); font-weight: 600; }
-/* hover 气泡（fixed 跟随鼠标，白底细边框，1000ms 延迟显示） */
+/* hover 气泡（fixed 跟随鼠标，白底细边框，1000ms 延迟显示；名称完整展示可折行，宽度受限不随长名膨胀） */
 .fg-hover-tip {
   position: fixed;
   z-index: 4000;
   min-width: 180px;
-  max-width: 240px;
+  max-width: 260px;
   padding: 8px 12px;
   background: #fff;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   pointer-events: none;
-  white-space: nowrap;
+  white-space: normal;
 }
-.fhi-row { display: flex; gap: 12px; align-items: baseline; padding: 2px 0; }
+.fhi-row { display: flex; gap: 12px; align-items: flex-start; padding: 2px 0; }
 .fhi-label { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; }
-.fhi-val { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; }
+.fhi-val { font-size: 12px; color: var(--text); font-variant-numeric: tabular-nums; min-width: 0; }
+/* 名称行：占满剩余宽度，长文件名在气泡 max-width 内折行（英文/数字 break-all），不受等宽数字样式影响 */
+.fhi-val-name { flex: 1; font-variant-numeric: normal; word-break: break-all; }
 .fg-folder {
   max-width: 90px; font-size: 12px; color: var(--accent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
