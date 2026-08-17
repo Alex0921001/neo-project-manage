@@ -61,9 +61,11 @@ const props = defineProps({
 const emit = defineEmits(["cancel", "apply"]);
 
 // 弹窗内独立草稿：不实时生效，点应用才 emit
+// 过滤 defs 中不存在的 key（历史配置可能残留已删除的 tab，如 knowledge）
+const validKeys = new Set(props.defs.map((d) => d.key));
 const localDraft = ref({
-  order: [...(props.draft?.order || [])],
-  hidden: [...(props.draft?.hidden || [])],
+  order: (props.draft?.order || []).filter((k) => validKeys.has(k)),
+  hidden: (props.draft?.hidden || []).filter((k) => validKeys.has(k)),
 });
 
 function resetLocal() {

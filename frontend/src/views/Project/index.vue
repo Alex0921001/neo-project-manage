@@ -394,6 +394,10 @@ function tabCfgApply(scope, draft) {
   const visible = draft.order.filter((k) => !draft.hidden.includes(k));
   if (!visible.length) return toast("至少保留 1 个可见 tab", "error");
   persistTabConfig(draft.order, draft.hidden, scope);
+  // 全局应用语义：所有项目统一使用全局配置，清除项目级覆盖（否则重开弹窗仍读项目级旧配置）
+  if (scope === "global") {
+    try { localStorage.removeItem(PROJECT_TAB_KEY); } catch {}
+  }
   tabConfigShow.value = false;
   toast(scope === "project" ? "已应用到本项目" : "已应用到全部项目");
 }
