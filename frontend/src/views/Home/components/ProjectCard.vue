@@ -35,22 +35,26 @@
         </div>
       </div>
 
-      <!-- 第四行：统计（任务 / 需求 / 方案 / 文件） -->
+      <!-- 第四行：统计（任务 / 需求 / 方案 / 备注 / 文件） -->
       <div class="card-stats">
         <span class="stat-item" title="已完成/总任务数">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12l3 3 5-6"/></svg>
+          <span class="stat-label">任务</span>
           {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}
         </span>
         <span class="stat-item" title="需求数">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span class="stat-label">需求</span>
           {{ project.reqCount || 0 }}
         </span>
         <span class="stat-item" title="方案数">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+          <span class="stat-label">方案</span>
           {{ project.planCount || 0 }}
         </span>
+        <span class="stat-item" title="备注数">
+          <span class="stat-label">备注</span>
+          {{ project.noteCount || 0 }}
+        </span>
         <span class="stat-item" title="文件数">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="stat-label">文件</span>
           {{ project.fileCount || 0 }}
         </span>
       </div>
@@ -386,8 +390,11 @@ function shortSet(name) {
   align-items: center;
   gap: 5px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.stat-item svg { opacity: 0.6; }
+.stat-label {
+  opacity: 0.7;
+}
 
 /* 描述：灰色短线（虚线）线框，前 100 字完整换行显示 */
 .card-desc {

@@ -9,7 +9,9 @@
     "doc": "docs",
     "lib": "lib"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "node --test \"scripts/test/*.test.mjs\""
+  },
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "12.6.2"
