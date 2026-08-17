@@ -189,6 +189,7 @@ const props = defineProps({
   projectId: String,
   files: { type: Array, default: () => [] },
   folders: { type: Array, default: () => [] },
+  sortMode: { type: String, default: "default" }, // V2.3.3 文件排序：default / name / type
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
@@ -302,7 +303,8 @@ function folderNameOf(id) {
   return folderMap.value.get(id) || "";
 }
 
-/** 当前视图下应显示的文件（搜索时全局匹配，忽略文件夹过滤） */
+/** 当前视图下应显示的文件（搜索时全局匹配，忽略文件夹过滤）
+ * 排序：default=后端原有顺序；name=名称排序；type=类型排序（同类型内按名称） */
 const visibleFiles = computed(() => {
   let list = props.files;
   const kw = search.value.trim().toLowerCase();
@@ -312,6 +314,16 @@ const visibleFiles = computed(() => {
     list = list.filter((f) => !f.folderId);
   } else {
     list = list.filter((f) => f.folderId === selectedFolder.value);
+  }
+  const mode = props.sortMode || "default";
+  if (mode === "name") {
+    list = [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans-CN", { numeric: true }));
+  } else if (mode === "type") {
+    list = [...list].sort((a, b) => {
+      const ea = fileExt(a), eb = fileExt(b);
+      if (ea !== eb) return ea.localeCompare(eb);
+      return (a.name || "").localeCompare(b.name || "", "zh-Hans-CN", { numeric: true });
+    });
   }
   return list;
 });

@@ -122,6 +122,12 @@
             <input v-model="fileSearch" class="task-search-input" placeholder="搜索文件名称" @click.stop />
             <button v-if="fileSearch" class="task-search-clear" title="清空" @click="fileSearch = ''">×</button>
           </div>
+          <!-- 文件排序（V2.3.3，新建按钮左侧）：默认 / 名称 / 类型，持久化 -->
+          <el-select v-if="tab === 'files'" v-model="fileSort" class="sort-select" size="small" @click.stop title="文件排序">
+            <el-option label="默认排序" value="default" />
+            <el-option label="名称排序" value="name" />
+            <el-option label="类型排序" value="type" />
+          </el-select>
           <button v-if="tab === 'plans'" class="header-btn" :disabled="compareCount < 2" :title="compareCount < 2 ? '勾选 2 个方案后对比' : '对比选中的 2 个方案'" @click="planTabRef?.openCompare()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             对比选中{{ compareCount > 0 ? `（${compareCount}/2）` : "" }}
@@ -174,6 +180,7 @@
           :project-id="p?.id || ''"
           :files="p?.files || []"
           :folders="p?.folders || []"
+          :sort-mode="fileSort"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -509,12 +516,12 @@ const tasksState = usePersistedTabState(() => `${props.projectId}-tasks`, { sear
 // R4：需求/方案 tab 的状态筛选随存档持久化恢复（去除 skipRestore），切换项目/重进页面保持上次筛选；搜索词/排序/状态均持久化
 const requirementsState = usePersistedTabState(() => `${props.projectId}-requirements`, { search: "", status: "全部", sort: "default" }, 300);
 const plansState = usePersistedTabState(() => `${props.projectId}-plans`, { search: "", status: "全部" }, 300);
-const filesState = usePersistedTabState(() => `${props.projectId}-files`, { search: "" });
+const filesState = usePersistedTabState(() => `${props.projectId}-files`, { search: "", sort: "default" });
 const auditState = usePersistedTabState(() => `${props.projectId}-audit`, { action: "", dateRange: [] });
 const { search: taskSearch, sort: taskSort } = toRefs(tasksState);
 const { search: requirementSearch, status: requirementStatus, sort: requirementSort } = toRefs(requirementsState);
 const { search: planSearch, status: planStatus } = toRefs(plansState);
-const { search: fileSearch } = toRefs(filesState);
+const { search: fileSearch, sort: fileSort } = toRefs(filesState);
 const { action: auditAction, dateRange: auditDateRange } = toRefs(auditState);
 
 const sortTip = computed(() => {
