@@ -117,8 +117,8 @@ function lookupName(project, l) {
   return "";
 }
 
-/** 值展示：JSON 压缩 + 截断（默认 80 字符） */
-function shortValue(v, max = 80) {
+/** 值展示：JSON 压缩 + 截断（默认 500 字符，覆盖绝大多数变更值） */
+function shortValue(v, max = 500) {
   if (v === null || v === undefined) return "";
   let s;
   if (typeof v === "string") {

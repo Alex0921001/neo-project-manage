@@ -1,8 +1,9 @@
 <template>
+  <!-- X 关闭走 close（父级只关弹窗不刷新列表）；数据变化类关闭（如编辑期间被删）走 closed-detail（父级刷新） -->
   <FloatPanel
     :model-value="show"
     @update:model-value="emit('update:show', $event)"
-    @close="emit('closed-detail')"
+    @close="emit('close')"
     :title="panelTitle"
     :default-width="880"
     :default-height="600"

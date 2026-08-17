@@ -37,9 +37,8 @@ function formatTime(iso) {
   return iso.replace("T", " ").slice(0, 19) + "Z";
 }
 
-/** content 为总结 JSON 字符串，截断展示避免刷屏（默认前 80 字，压缩空白） */
-function shortSummary(content, max = 80) {
+/** content 为总结 JSON 字符串，压缩空白后完整返回（不截断，Agent 需完整上下文） */
+function shortSummary(content) {
   if (!content) return "-";
-  const text = content.replace(/\s+/g, " ").trim();
-  return text.length > max ? `${text.slice(0, max)}…` : text;
+  return content.replace(/\s+/g, " ").trim();
 }

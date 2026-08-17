@@ -252,7 +252,8 @@ function onEditCancel() {
     closeModal();
   }
 }
-// X 关闭详情弹窗：回列表刷新
+// X 关闭详情弹窗走 close（只关不刷新，见 RequirementModal）；此处仅处理异常关闭：
+// 编辑期间被删（详情加载失败）→ 关弹窗 + 回列表刷新，不白屏
 function onClosedDetail() {
   editingFromDetail.value = false;
   load();

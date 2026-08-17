@@ -84,7 +84,7 @@ export async function execute(input, toolCtx) {
     for (const f of project.files) {
       const sizeText = f.size != null ? formatSize(f.size) : "未知";
       const extText = f.ext ? ` [类型: ${f.ext}]` : "";
-      const digestText = f.digest ? ` [摘要: ${short(f.digest, 40)}]` : "";
+      const digestText = f.digest ? ` [摘要: ${f.digest}]` : "";
       const idxText = f.indexed ? " [已索引]" : " [未索引]";
       lines.push(`  📄 ${f.name}${extText} [大小: ${sizeText}]${digestText}${idxText} [登记: ${(f.uploadedAt || "").slice(0, 10)}] [ID: ${f.id}]`);
     }
@@ -95,7 +95,7 @@ export async function execute(input, toolCtx) {
     lines.push("  （无）");
   } else {
     for (const n of project.notes) {
-      lines.push(`  📝 ${short(plain(n.content), 60)} [创建: ${(n.createdAt || "").slice(0, 10)}] [ID: ${n.id}]`);
+      lines.push(`  📝 ${plain(n.content)} [创建: ${(n.createdAt || "").slice(0, 10)}] [ID: ${n.id}]`);
     }
   }
 
@@ -129,7 +129,7 @@ function renderTask(lines, t, depth, isSummary = false, filesById = new Map()) {
     for (const a of t.annotations) {
       const kindText = a.kind ? ` [类型: ${a.kind}]` : "";
       const confirmText = a.confirmed ? " [已确认]" : " [待确认]";
-      lines.push(`${indent}    ${short(plain(a.content), 50)}${kindText}${confirmText} [ID: ${a.id}]`);
+      lines.push(`${indent}    ${plain(a.content)}${kindText}${confirmText} [ID: ${a.id}]`);
     }
   }
   // 文件引用（fileRefs 为 id 数组，映射到项目文件资产显示名称；文件已删时回退显示 id）
@@ -155,7 +155,6 @@ function countTasks(tasks) {
 
 function oneLine(s) { return String(s ?? "").replace(/\s*\n+\s*/g, " ").trim(); }
 function plain(s) { return String(s ?? "").replace(/<[^>]*>/g, "").trim(); }
-function short(s, max = 40) { const t = String(s ?? "").trim(); return t.length > max ? `${t.slice(0, max)}…` : t; }
 function formatSize(bytes) {
   const n = Number(bytes) || 0;
   if (n < 1024) return `${n}B`;

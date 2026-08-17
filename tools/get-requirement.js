@@ -17,7 +17,7 @@ export async function execute(input, toolCtx) {
   const lines = [
     `${r.status === "已完成" ? "✅" : r.status === "已取消" ? "⛔" : "⬜"} ${r.name}（${r.status}）[${r.priority}] [ID: ${r.id}]`,
     `所属项目: ${r.projectName || "-"} [ID: ${r.projectId}]`,
-    r.description ? `描述: ${r.description.replace(/<[^>]*>/g, "").slice(0, 200)}` : "描述: (空)",
+    r.description ? `描述: ${r.description.replace(/<[^>]*>/g, "")}` : "描述: (空)",
     `关联方案 (${r.plans.length}):`,
     ...(r.plans.length ? r.plans.map((p) => `  - ${p.title}（${p.status}）[${p.id}]`) : ["  (无)"]),
   ];

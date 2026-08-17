@@ -58,8 +58,8 @@ function formatSize(bytes) {
   return `${v >= 100 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
 }
 
-/** digest 截断展示（默认前 40 字，超长加省略号） */
-function shortDigest(digest, max = 40) {
+/** digest 展示（完整返回，不截断） */
+function shortDigest(digest) {
   if (!digest) return "-";
-  return digest.length > max ? `${digest.slice(0, max)}…` : digest;
+  return digest;
 }

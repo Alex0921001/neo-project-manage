@@ -404,7 +404,8 @@ function onEditCancel() {
     closeModal();
   }
 }
-// X 关闭详情弹窗：回列表刷新（保存后筛选变化致该项不可见，关闭后列表重拉）
+// X 关闭详情弹窗走 close（只关不刷新，见 PlanModal）；此处仅处理异常关闭：
+// 编辑期间被删（详情加载失败）→ 关弹窗 + 回列表刷新，不白屏
 function onClosedDetail() {
   editingFromDetail.value = false;
   load();

@@ -20,10 +20,10 @@ export async function execute(input, toolCtx) {
     `创建: ${plan.createdAt}`,
   ];
   if (plan.taskName) lines.push(`已转任务: ${plan.taskName} [${plan.taskId}]`);
-  if (plan.content) lines.push(`内容: ${plan.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 500)}`);
+  if (plan.content) lines.push(`内容: ${plan.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()}`);
   if (plan.comments.length) {
     lines.push(`评论 ${plan.comments.length} 条:`);
-    for (const c of plan.comments) lines.push(`  ${c.createdAt.slice(5, 16)} ${c.content.slice(0, 100)}`);
+    for (const c of plan.comments) lines.push(`  ${c.createdAt.slice(5, 16)} ${c.content}`);
   }
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }

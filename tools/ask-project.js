@@ -85,17 +85,17 @@ function formatRisks(risks) {
   return lines;
 }
 
-/** 决策批注列表（scope=decisions，限 20 条防刷屏） */
+/** 决策批注列表（scope=decisions，限 100 条防刷屏） */
 function formatDecisions(decisions) {
   const lines = ["【决策】"];
   if (decisions.length === 0) {
     lines.push("  暂无决策批注", "");
     return lines;
   }
-  const shown = decisions.slice(0, 20);
+  const shown = decisions.slice(0, 100);
   for (const d of shown) {
     const mark = d.confirmed ? "✅" : "🕓";
-    lines.push(`  ${mark} ${d.taskName}：「${cut(plain(d.content), 60)}」（${formatTime(d.createdAt)}）[ID: ${d.id}]`);
+    lines.push(`  ${mark} ${d.taskName}：「${plain(d.content)}」（${formatTime(d.createdAt)}）[ID: ${d.id}]`);
   }
   if (decisions.length > shown.length) lines.push(`  …及更多 ${decisions.length - shown.length} 条`);
   lines.push("");
@@ -132,41 +132,41 @@ function formatFiles(files) {
   }
   for (const f of files) {
     const size = f.size != null ? `, ${formatSize(f.size)}` : "";
-    const digest = f.digest ? `：${cut(plain(f.digest), 50)}` : "";
-    lines.push(`  📄 ${cut(f.name, 40)} (${f.ext || "?"}${size})${digest} [ID: ${f.id}]`);
+    const digest = f.digest ? `：${plain(f.digest)}` : "";
+    lines.push(`  📄 ${f.name} (${f.ext || "?"}${size})${digest} [ID: ${f.id}]`);
   }
   lines.push("");
   return lines;
 }
 
-/** 需求列表（scope=requirements，优先级/状态/关联方案数，限 30 条防刷屏） */
+/** 需求列表（scope=requirements，优先级/状态/关联方案数，限 100 条防刷屏） */
 function formatRequirements(reqs) {
   const lines = ["【需求】"];
   if (reqs.length === 0) {
     lines.push("  暂无需求", "");
     return lines;
   }
-  const shown = reqs.slice(0, 30);
+  const shown = reqs.slice(0, 100);
   for (const r of shown) {
     const plan = r.planCount > 0 ? `, 关联方案 ${r.planCount}` : "";
-    lines.push(`  📋 [${r.priority || "P3"}] ${cut(r.name, 40)}（${r.status}${plan}）[ID: ${r.id}]`);
+    lines.push(`  📋 [${r.priority || "P3"}] ${r.name}（${r.status}${plan}）[ID: ${r.id}]`);
   }
   if (reqs.length > shown.length) lines.push(`  …及更多 ${reqs.length - shown.length} 条`);
   lines.push("");
   return lines;
 }
 
-/** 方案列表（scope=plans，状态/已转任务标记，限 30 条防刷屏） */
+/** 方案列表（scope=plans，状态/已转任务标记，限 100 条防刷屏） */
 function formatPlans(plans) {
   const lines = ["【方案】"];
   if (plans.length === 0) {
     lines.push("  暂无方案", "");
     return lines;
   }
-  const shown = plans.slice(0, 30);
+  const shown = plans.slice(0, 100);
   for (const p of shown) {
     const converted = p.taskId ? " ➜ 已转任务" : "";
-    lines.push(`  📄 ${cut(p.title, 40)}（${p.status}${converted}）[ID: ${p.id}]`);
+    lines.push(`  📄 ${p.title}（${p.status}${converted}）[ID: ${p.id}]`);
   }
   if (plans.length > shown.length) lines.push(`  …及更多 ${plans.length - shown.length} 条`);
   lines.push("");
@@ -178,12 +178,6 @@ function formatPlans(plans) {
 /** 富文本/HTML → 纯文本（去标签、压缩空白） */
 function plain(s) {
   return String(s ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-/** 截断限长（防刷屏） */
-function cut(s, max = 30) {
-  const t = String(s ?? "").trim();
-  return t.length > max ? `${t.slice(0, max)}…` : t;
 }
 
 /** ISO 时间 → 可读格式（UTC，去毫秒）；纯日期原样展示（与 timeline 数据格式一致） */
