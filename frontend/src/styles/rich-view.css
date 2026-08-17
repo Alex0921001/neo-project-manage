@@ -1,11 +1,13 @@
 /* ===== 富文本展示层公共排版 =====
- * v-html 渲染富文本的容器统一加 .rich-view 类（任务卡描述 / 项目描述 / 备注 / 便利贴），
+ * v-html 渲染富文本的容器统一加 .rich-view 类（任务卡描述 / 方案详情 / 需求详情 / 备注 / 便利贴），
  * 排版样式在此一处维护，避免各组件重复编写。
  * 注意：这是全局样式（非 scoped），选择器不经过 :deep。
  */
 
 .rich-view {
   word-break: break-word;
+  /* 防止超宽表格/长内容撑破容器（如方案「决策点×方案」表） */
+  overflow-x: auto;
 }
 
 /* 块级元素 margin 收敛，避免撑破容器 */
@@ -52,16 +54,40 @@
 
 .rich-view h1,
 .rich-view h2,
-.rich-view h3,
+.rich-view h3 { margin: 14px 0 6px; font-weight: 600; }
+.rich-view h1:first-child,
+.rich-view h2:first-child,
+.rich-view h3:first-child { margin-top: 0; }
 .rich-view h4,
 .rich-view h5,
-.rich-view h6 { margin: 6px 0 4px; font-weight: 600; }
+.rich-view h6 { margin: 10px 0 4px; font-weight: 600; }
 
 .rich-view hr {
   border: none;
   border-top: 1px solid oklch(0.88 0.03 80);
   margin: 6px 0;
 }
+
+/* 表格：统一加边框，避免富文本表格无样式裸露（方案/需求详情、备注等通用） */
+.rich-view table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: inherit;
+}
+.rich-view th,
+.rich-view td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.6;
+}
+.rich-view th {
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+.rich-view table code { font-size: 12px; }
 
 /* Tiptap 任务清单结构 */
 .rich-view ul[data-type="taskList"] { list-style: none; padding-left: 4px; }
