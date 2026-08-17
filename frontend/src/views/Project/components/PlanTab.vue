@@ -367,9 +367,9 @@ watch(selectedMap, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
 }
-// 方案数据变更（增删改 / 转任务）：关弹窗 + 刷新方案列表 + 冒泡父级刷新项目数据（任务树等，转出的任务立即可见）
+// 方案数据变更（状态切换 / 评论 / 转任务）：保持弹窗打开，仅刷新方案列表 + 冒泡父级刷新项目数据（任务树等）
+// （删除等需关闭的场景由 Modal 自行 emit close 关闭，这里不再关弹窗）
 function onChanged() {
-  closeModal();
   load();
   emit("changed");
 }

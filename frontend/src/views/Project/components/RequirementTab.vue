@@ -216,9 +216,9 @@ function onNavigate(delta) {
   }
   doNavigate(delta);
 }
-// 详情内数据变化（状态流转等）：关弹窗 + 刷新列表（PM 口径：重载即关，不做位置判断）
+// 详情内数据变化（状态流转等）：保持弹窗打开，仅刷新列表同步状态徽标
+// （删除等需关闭的场景由 Modal 自行 emit close 关闭，这里不再关弹窗）
 function onModalChanged() {
-  closeModal();
   load();
 }
 
