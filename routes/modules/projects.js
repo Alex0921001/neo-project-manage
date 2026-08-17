@@ -26,6 +26,18 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
+  // V2.2 R3：一键周报/阶段总结（body: { range, startDate?, endDate? }，返回 Markdown + 区间）
+  app.post("/api/projects/:id/report", async (c) => {
+    try {
+      const body = await c.req.json();
+      const report = data.generateReport(c.req.param("id"), body || {});
+      return c.json({ ok: true, data: report });
+    } catch (e) {
+      if (e.message.includes("不存在")) return c.json({ ok: false, error: e.message }, 404);
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // V2.1 项目级风险规则配置（齿轮弹窗 / Agent 工具读改写）
   app.get("/api/projects/:id/risk-config", (c) => {
     try {

@@ -16,7 +16,7 @@
 
     <!-- 主区：详情卡（单列，无日历） -->
     <div class="detail-main">
-      <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" @archive="onArchiveProject" @unarchive="onUnarchiveProject" />
+      <ProjectMeta :project="p" :set-label="currentSetLabel" @edit="showEditModal = true" @back="$emit('back')" @delete="onDeleteProject" @change-status="changeStatus" @archive="onArchiveProject" @unarchive="onUnarchiveProject" @search="searchShow = true" />
     </div>
 
     <!-- 项目概览（V2.0 S13）：折叠面板，summary 数据随 loadProject 联动刷新 -->
@@ -24,13 +24,16 @@
 
     <!-- Tab 区 -->
     <section class="tab-section">
-      <div class="tab-bar" @click="closeTabMenu">
+      <div ref="tabBarRef" class="tab-bar" :class="{ compact: barCompact, mini: barMini }" @click="closeTabMenu">
         <draggable
           v-model="tabDragList"
           item-key="key"
           ghost-class="tab-ghost"
           handle=".tab-btn"
           :animation="150"
+          :force-fallback="true"
+          fallback-on-body
+          fallback-tolerance="8"
           class="tab-bar-tabs"
           @end="onTabDragEnd"
         >
@@ -42,7 +45,7 @@
               @contextmenu.prevent="onTabContextMenu($event)"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
-              {{ defLabel(key) }}
+              <span class="tab-label">{{ defLabel(key) }}</span>
             </button>
           </template>
         </draggable>
@@ -69,6 +72,11 @@
           </div>
           <el-select v-if="tab === 'requirements'" v-model="requirementStatus" class="plan-status-select" size="small" @click.stop>
             <el-option v-for="s in REQUIREMENT_STATUS_FILTERS" :key="s" :label="s" :value="s" />
+          </el-select>
+          <!-- 需求排序（R12）：默认排序 / 等级排序，切换即时刷新 -->
+          <el-select v-if="tab === 'requirements'" v-model="requirementSort" class="sort-select" size="small" @click.stop title="需求排序">
+            <el-option label="默认排序" value="default" />
+            <el-option label="等级排序" value="priority" />
           </el-select>
           <!-- 审计筛选：行为下拉 + 时间范围（daterange，与其他 tab 对齐右上角） -->
           <el-select v-if="tab === 'audit'" v-model="auditAction" class="audit-filter-action" size="small" clearable placeholder="全部行为" @click.stop>
@@ -185,7 +193,7 @@
           :action-filter="auditAction"
           :date-from="auditDateRange?.[0] || ''"
           :date-to="auditDateRange?.[1] || ''"
-          @actions-ready="auditActions = $event"
+          @actions-ready="onAuditActionsReady"
         />
         <PlanTab
           v-if="tab === 'plans'"
@@ -204,6 +212,7 @@
           :project-id="p?.id || ''"
           :search-query="requirementSearch"
           :status-query="requirementStatus"
+          :sort-query="requirementSort"
           @changed="loadProject"
         />
         <!-- 知识 tab（占位：内容随知识沉淀方案填充） -->
@@ -248,12 +257,16 @@
       @close="confirm.show = false"
       @confirm="doConfirm"
     />
+
+    <!-- V2.3 R2：项目内全文搜索弹窗 -->
+    <SearchPanel v-model="searchShow" :project-id="p?.id || ''" title="项目内搜索" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRefs } from "vue";
 import { api } from "../../api.js";
+import { usePersistedTabState } from "../../utils/usePersistedTabState.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
 import ProjectOverview from "./components/ProjectOverview.vue";
@@ -264,6 +277,8 @@ import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
 import RequirementTab from "./components/RequirementTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
+import SearchPanel from "../../components/SearchPanel.vue";
+import { consumeJumpMark } from "../../utils/jump.js";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
 import AnnotationManagerModal from "./components/AnnotationManagerModal.vue";
 import CalendarModal from "../../components/CalendarModal.vue";
@@ -412,6 +427,68 @@ function onTabDragEnd() {
   persistTabConfig(order, cur.hidden, "global");
 }
 
+// tab 条宽度自适应：视口缩小时先收右侧按钮（mini），更窄再隐藏 tab 文字（compact）
+const tabBarRef = ref(null);
+const barCompact = ref(false);
+const barMini = ref(false);
+let barObs = null;
+
+// ===== V2.3 R2：项目内搜索 + 跳转消费 =====
+const searchShow = ref(false);
+
+/**
+ * 搜索结果/消息跳转（本项目内）：切 tab + 定位/打开详情
+ * type: task | annotation | plan | requirement | note | file
+ */
+function handleJump({ type, refId }) {
+  if (!type || !refId) return;
+  if (type === "task") {
+    tab.value = "tasks";
+    nextTick(() => taskTabRef.value?.scrollToTaskById?.(refId));
+  } else if (type === "annotation") {
+    tab.value = "tasks";
+    nextTick(() => taskTabRef.value?.scrollToAnnotationById?.(refId));
+  } else if (type === "plan") {
+    tab.value = "plans";
+    nextTick(() => planTabRef.value?.openDetailById?.(refId));
+  } else if (type === "requirement") {
+    tab.value = "requirements";
+    nextTick(() => requirementTabRef.value?.openDetailById?.(refId));
+  } else if (type === "note") {
+    // 备注内容在项目概览折叠面板（ProjectOverview 独立组件，非 tab）；切合法 tab + 提示，避免无效 tab 空白
+    tab.value = "tasks";
+    toast("备注内容请在项目概览查看");
+  } else if (type === "file") {
+    tab.value = "files";
+  }
+}
+
+/** 全局/消息面板跳转事件：目标项目即本项目时直接处理（App 负责跨项目切换） */
+function onGlobalJump(e) {
+  const { type, projectId: pid, refId } = e.detail || {};
+  if (!pid || pid !== props.projectId) return;
+  // 同页已直接处理：立即清除 sessionStorage 标记，防止下次 loadProject 幽灵重复跳转
+  consumeJumpMark();
+  handleJump({ type, refId });
+}
+
+onMounted(() => {
+  window.addEventListener("neo-pm:jump", onGlobalJump);
+});
+onUnmounted(() => {
+  window.removeEventListener("neo-pm:jump", onGlobalJump);
+});
+
+onMounted(() => {
+  barObs = new ResizeObserver((entries) => {
+    const w = entries[0]?.contentRect?.width || 0;
+    barMini.value = w < 1100; // 先减按钮：右侧仅留新建
+    barCompact.value = w < 800; // 后减文字：tab 只留图标
+  });
+  if (tabBarRef.value) barObs.observe(tabBarRef.value);
+});
+onUnmounted(() => { barObs?.disconnect(); });
+
 // ===== 一键展开/收起 =====
 // null = 未操作（子任务按默认：未完成展开、已完成折叠）；true/false = 显式展开/收起
 const expandAll = ref(null);
@@ -421,12 +498,26 @@ function toggleExpandAll() {
 
 // ===== 任务排序（V2.1.2）：默认（可拖拽）/ 等级 / 开始时间 =====
 // 拖拽仅默认排序可用；等级/时间排序时子任务与子子任务同样按规则排序（TaskTab sortTree 递归）
-const taskSort = ref("default");
 const sortOptions = [
   { value: "default", label: "默认排序", tip: "可拖拽调整顺序" },
   { value: "startDate", label: "时间排序", tip: "按开始时间，无日期排最后" },
   { value: "priority", label: "等级排序", tip: "P0 → P5" },
 ];
+
+// ===== R13 五 tab 筛选/排序状态持久化（composable：读写在 localStorage，防抖 300ms） =====
+// 键 neo-pm-ui-state-{version}-{projectId}-{tab}；projectId 变化自动重绑恢复，切换项目互不串状态
+const tasksState = usePersistedTabState(() => `${props.projectId}-tasks`, { search: "", sort: "default" });
+// R4：需求/方案 tab 的状态筛选随存档持久化恢复（去除 skipRestore），切换项目/重进页面保持上次筛选；搜索词/排序/状态均持久化
+const requirementsState = usePersistedTabState(() => `${props.projectId}-requirements`, { search: "", status: "全部", sort: "default" }, 300);
+const plansState = usePersistedTabState(() => `${props.projectId}-plans`, { search: "", status: "全部" }, 300);
+const filesState = usePersistedTabState(() => `${props.projectId}-files`, { search: "" });
+const auditState = usePersistedTabState(() => `${props.projectId}-audit`, { action: "", dateRange: [] });
+const { search: taskSearch, sort: taskSort } = toRefs(tasksState);
+const { search: requirementSearch, status: requirementStatus, sort: requirementSort } = toRefs(requirementsState);
+const { search: planSearch, status: planStatus } = toRefs(plansState);
+const { search: fileSearch } = toRefs(filesState);
+const { action: auditAction, dateRange: auditDateRange } = toRefs(auditState);
+
 const sortTip = computed(() => {
   const opt = sortOptions.find((o) => o.value === taskSort.value);
   if (taskSort.value === "default") return "默认排序：可拖拽调整顺序；任务与子任务均按当前规则排序";
@@ -435,21 +526,20 @@ const sortTip = computed(() => {
 
 // ===== 任务筛选 =====
 // 状态筛选在 index（全部/仅未完成/仅已完成）；关键词搜索过滤统一在 TaskTab 内完成（避免双份过滤逻辑）
-const taskSearch = ref("");
-const fileSearch = ref("");
 const annotManageShow = ref(false); // 批注管理大屏弹窗
 const calShow = ref(false); // 项目日历弹窗
-const planSearch = ref("");
 const PLAN_STATUS_FILTERS = ["全部", "草稿", "进行中", "已采纳", "已废弃", "已转任务"];
-const planStatus = ref("全部");
 // 需求筛选（tab 栏右上角，与方案同形态；后端筛选 + 标题高亮）
-const requirementSearch = ref("");
 const REQUIREMENT_STATUS_FILTERS = ["全部", "待处理", "已完成", "已取消"];
-const requirementStatus = ref("全部");
 // 审计筛选：行为 + 时间范围（daterange，tab 栏右上角）
 const auditActions = ref([]);
-const auditAction = ref("");
-const auditDateRange = ref([]); // [开始, 结束] YYYY-MM-DD
+// R13：行为下拉选项就绪后校验恢复的 auditAction 是否仍存在（被删静默回落默认空=全部行为）
+function onAuditActionsReady(actions) {
+  auditActions.value = actions || [];
+  if (auditAction.value && !auditActions.value.includes(auditAction.value)) {
+    auditAction.value = "";
+  }
+}
 
 const filteredTasks = computed(() => {
   return p.value?.tasks || [];
@@ -470,6 +560,9 @@ async function loadProject() {
     if (tab.value !== "tasks") tab.value = "tasks";
     nextTick(() => taskTabRef.value?.scrollToTaskById?.(scrollId));
   }
+  // V2.3 R2：消费跨页搜索/消息跳转标记（数据就绪后定位，避免与加载竞态）
+  const j = consumeJumpMark();
+  if (j && j.projectId === props.projectId) handleJump(j);
 }
 async function loadSets() {
   const res = await api("api/project-sets");
@@ -497,6 +590,10 @@ function onTabAction() {
 
 // 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）
 watch(fileSearch, (v) => { fileTabRef.value?.setSearch?.(v); });
+// 文件搜索恢复后切到文件 tab 时同步初始值（FileTab 挂载前 watch 不生效）
+watch(tab, (v) => {
+  if (v === "files") nextTick(() => fileTabRef.value?.setSearch?.(fileSearch.value));
+});
 function onTabCalendarSelectTask(payload) {
   const taskId = typeof payload === "string" ? payload : payload?.taskId;
   if (!taskId) return;
@@ -693,7 +790,13 @@ async function doConfirm() {
   display: inline-flex;
   align-items: center;
   gap: 2px;
+  /* V2.3 精修二批：tab 多时允许收缩并横向滚动，保底右侧工具区可见 */
+  flex-shrink: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.tab-bar-tabs::-webkit-scrollbar { display: none; }
 .tab-ghost {
   opacity: 0.4;
   background: var(--bg-hover);
@@ -715,6 +818,8 @@ async function doConfirm() {
   letter-spacing: 0.02em;
   margin: 6px 2px;
   user-select: none;
+  white-space: nowrap; /* 防止宽度不足时中文标签竖排 */
+  flex-shrink: 0; /* 按钮不被压缩变形，超出时容器滚动 */
   transition: background var(--duration-fast) var(--ease-out),
               color var(--duration-fast) var(--ease-out);
 }
@@ -789,7 +894,20 @@ async function doConfirm() {
   align-items: center;
   gap: 8px;
   padding-right: 6px;
+  /* V2.3 精修二批：窄容器不换行，允许收缩与横向滚动兜底 */
+  flex-wrap: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.tab-bar-right::-webkit-scrollbar { display: none; }
+/* 窄视口：tab 只留图标（文字隐藏） */
+.tab-bar.compact .tab-label { display: none; }
+.tab-bar.compact .tab-btn { padding: 7px 9px; }
+/* 更窄：右侧仅保留新建按钮，其余工具/搜索隐藏 */
+.tab-bar.mini .tab-bar-right > :not(.header-btn-primary) { display: none; }
+.tab-bar.mini .tab-bar-tabs { flex: 1; min-width: 0; }
 /* 任务排序下拉（V2.1.2，对齐 tab-bar 31px 高度，与方案/审计筛选下拉一致） */
 .sort-select {
   width: 100px;
@@ -826,6 +944,9 @@ async function doConfirm() {
   transition: all var(--duration-fast) var(--ease-out);
   font-family: inherit;
   letter-spacing: 0.01em;
+  /* V2.3 精修二批：文字不折行、不被压缩，窄容器时工具区整体横向滚动 */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .header-btn:hover {
   border-color: var(--border);
@@ -849,6 +970,8 @@ async function doConfirm() {
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
 }
 /* 方案状态筛选下拉（tab 栏，对比按钮左侧），高度与两侧按钮对齐（约 31px） */
 .plan-status-select {
@@ -899,7 +1022,9 @@ async function doConfirm() {
   outline: none;
   font-family: inherit;
   font-weight: 600;
+  /* V2.3 精修二批：允许收缩（窄容器工具区不换行，min-width 兜底不撑破） */
   width: 160px;
+  min-width: 56px;
   transition: all var(--duration-fast) var(--ease-out);
 }
 .task-search-input::placeholder { color: var(--text-tertiary); font-weight: 500; }

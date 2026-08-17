@@ -19,7 +19,8 @@ export function registerRequirementsRoutes(app, data) {
       const status = q.status ? String(q.status).trim() : undefined;
       const keyword = q.keyword ? String(q.keyword).trim() : undefined;
       const id = q.id ? String(q.id).trim() : undefined;
-      return c.json({ ok: true, data: data.listRequirements(c.req.param("projectId"), { limit, offset, status, keyword, id }) });
+      const sort = q.sort ? String(q.sort).trim() : undefined;
+      return c.json({ ok: true, data: data.listRequirements(c.req.param("projectId"), { limit, offset, status, keyword, id, sort }) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
     }

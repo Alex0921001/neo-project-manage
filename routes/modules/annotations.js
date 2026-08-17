@@ -55,6 +55,17 @@ export function registerAnnotationsRoutes(app, data) {
 
   // ===== 批量操作 =====
 
+  // V2.2 R7：批量更新批注（body: { annotations: [{id, content?, kind?, confirmed?}] }，逐条独立，冻结条目标失败）
+  app.post("/api/projects/:projectId/annotations/batch-update", async (c) => {
+    try {
+      const body = await c.req.json();
+      const result = data.updateAnnotations(c.req.param("projectId"), body.annotations);
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // 批量创建批注（body: { items: [{ content, kind? }] }，最多 50 个）
   app.post("/api/projects/:projectId/tasks/:taskId/annotations/batch", async (c) => {
     try {

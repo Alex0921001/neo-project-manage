@@ -2,6 +2,7 @@
   <FloatPanel
     :model-value="show"
     @update:model-value="emit('update:show', $event)"
+    @close="emit('closed-detail')"
     :title="panelTitle"
     :default-width="880"
     :default-height="600"
@@ -12,6 +13,14 @@
     <template v-if="mode === 'read'">
       <div class="rq-read">
         <div class="rq-head">
+          <div class="rq-head-nav">
+            <button v-if="canPrev" class="rq-nav-btn" title="上一条" @click="emit('prev')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button v-if="canNext" class="rq-nav-btn" title="下一条" @click="emit('next')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
           <span class="rq-head-title">{{ req?.name || "需求" }}</span>
           <div class="rq-head-ops">
             <!-- 状态下拉：三态自由切换（对齐方案弹窗） -->
@@ -24,7 +33,7 @@
             >
               <el-option v-for="s in REQUIREMENT_STATUSES" :key="s" :label="s" :value="s" />
             </el-select>
-            <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="编辑" @click="mode = 'edit'">
+            <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="编辑" @click="enterEdit">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
             <button v-if="req?.status !== '已完成'" class="pm-icon-btn pm-icon-danger" title="删除" @click="askDelete">
@@ -124,8 +133,10 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   requirementId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit（初始模式）
+  canPrev: { type: Boolean, default: false }, // R10：列表首条为 false
+  canNext: { type: Boolean, default: false }, // R10：列表末条为 false
 });
-const emit = defineEmits(["close", "changed", "update:show"]);
+const emit = defineEmits(["close", "changed", "update:show", "prev", "next", "saved", "created", "edit-cancel", "closed-detail", "mode-change"]);
 
 const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
@@ -178,9 +189,12 @@ const panelTitle = computed(() => {
   return "需求详情";
 });
 
+let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响应可写入
 async function loadDetail() {
   if (!currentId.value) return;
+  const seq = ++loadSeq;
   const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`);
+  if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     req.value = res.data;
     form.value = {
@@ -190,7 +204,9 @@ async function loadDetail() {
       planIds: [...(res.data.planIds || [])],
     };
   } else {
+    // R15：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
     toast(res?.error || "加载失败", "error");
+    emit("closed-detail");
     emit("close");
   }
 }
@@ -226,12 +242,20 @@ async function save() {
   saving.value = false;
   if (!res?.ok) return toast(res?.error || "保存失败", "error");
   toast(isEdit ? "已更新需求" : "已创建需求");
-  emit("changed");
-  emit("close"); // 对齐方案：编辑保存后关闭弹窗
+  // R15：编辑保存交给父级决定「回落详情」或「关弹窗刷新」；新建由父级关弹窗刷新
+  if (isEdit) emit("saved", currentId.value);
+  else emit("created");
 }
 
 function cancelEdit() {
-  emit("close"); // 对齐方案：编辑取消直接关闭（新建/编辑一致）
+  // R15：编辑取消交给父级决定「回落详情」或「关弹窗」
+  emit("edit-cancel");
+}
+
+// 详情内点编辑：切内部编辑态 + 通知父级记录来源
+function enterEdit() {
+  mode.value = "edit";
+  emit("mode-change", "edit");
 }
 
 // ===== 删除 =====
@@ -269,6 +293,7 @@ defineExpose({ loadDetail });
   min-height: 0;
 }
 .rq-head {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,15 +302,44 @@ defineExpose({ loadDetail });
   border-bottom: 0.5px solid var(--border-light);
   flex-shrink: 0;
 }
+/* 导航按钮：工具栏最左侧，键间呼吸间距 */
+.rq-head-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .rq-head-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 55%;
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
   line-height: 1.4;
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* R10 详情切换箭头按钮（左右两侧） */
+.rq-nav-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.rq-nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .rq-head-ops {
   display: flex;

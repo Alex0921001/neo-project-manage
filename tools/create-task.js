@@ -14,6 +14,7 @@ export const parameters = {
     startDate: { type: "string", description: "任务开始日期 YYYY-MM-DD（非必填）" },
     endDate: { type: "string", description: "任务结束日期 YYYY-MM-DD，需 >= startDate（非必填）" },
     priority: { type: "string", enum: ["P0", "P1", "P2", "P3", "P4", "P5"], description: "任务优先级（默认 P3，P0 最急 → P5 最缓，非必填）" },
+    planIds: { type: "array", items: { type: "string" }, description: "关联的方案 ID 列表（可选，自动去重，须属于本项目）" },
   },
 };
 
@@ -33,6 +34,7 @@ export async function execute(input, toolCtx) {
     startDate: input.startDate,
     endDate: input.endDate,
     priority: input.priority,
+    planIds: input.planIds,
   });
   const dateText = [task.startDate, task.endDate].filter(Boolean).join(" ~ ");
   const parts = [

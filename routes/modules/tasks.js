@@ -38,6 +38,17 @@ export function registerTasksRoutes(app, data) {
     }
   });
 
+  // V2.2 R7：批量更新任务（body: { tasks: [{id, ...可改字段}] }，逐条独立，返回成功/失败清单）
+  app.post("/api/projects/:projectId/tasks/batch-update", async (c) => {
+    try {
+      const body = await c.req.json();
+      const result = data.updateTasks(c.req.param("projectId"), body.tasks);
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
   // Delete task (CASCADE)
   app.delete("/api/projects/:projectId/tasks/:taskId", (c) => {
     try {

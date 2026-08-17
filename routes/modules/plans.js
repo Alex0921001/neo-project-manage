@@ -30,7 +30,7 @@ export function registerPlansRoutes(app, data) {
   app.post("/api/projects/:projectId/plans", async (c) => {
     const body = await c.req.json();
     try {
-      const plan = data.createPlan(c.req.param("projectId"), body.title, body.content, body.requirementIds);
+      const plan = data.createPlan(c.req.param("projectId"), body.title, body.content, body.requirementIds, body.taskIds);
       return c.json({ ok: true, data: plan });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);

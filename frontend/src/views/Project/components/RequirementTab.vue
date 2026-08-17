@@ -7,8 +7,17 @@
       :project-id="props.projectId"
       :requirement-id="modalId"
       :mode="modalMode"
+      :can-prev="canPrev"
+      :can-next="canNext"
       @close="modalShow = false"
-      @changed="load"
+      @changed="onModalChanged"
+      @saved="onSaved"
+      @created="onCreated"
+      @edit-cancel="onEditCancel"
+      @closed-detail="onClosedDetail"
+      @mode-change="onModeChange"
+      @prev="onNavigate(-1)"
+      @next="onNavigate(1)"
     />
 
     <!-- 空态（对齐方案/任务：图标 + 文案 + 添加按钮） -->
@@ -17,9 +26,9 @@
       <div class="reqs-empty-deco">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>
       </div>
-      <p class="reqs-empty-title">还没有需求</p>
-      <p class="reqs-empty-sub">记录需求，明确项目要做的事</p>
-      <button class="reqs-add reqs-add-large" @click="openCreate">
+      <p class="reqs-empty-title">{{ isFiltered ? '没有匹配的需求' : '还没有需求' }}</p>
+      <p class="reqs-empty-sub">{{ isFiltered ? '换个关键词或清除筛选试试' : '记录需求，明确项目要做的事' }}</p>
+      <button v-if="!isFiltered" class="reqs-add reqs-add-large" @click="openCreate">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>添加第一个需求</span>
       </button>
@@ -73,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, reactive, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { highlight } from "../../../utils/highlight.js";
@@ -84,6 +93,7 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   statusQuery: { type: String, default: "全部" },
+  sortQuery: { type: String, default: "default" }, // R12：default=创建时间倒序 / priority=优先级 P0→P5
 });
 const emit = defineEmits(["changed"]);
 
@@ -97,15 +107,21 @@ const page = ref(1);
 const pageSize = 10;
 const loading = ref(false);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
+// V2.2：区分「搜索/筛选无结果」与「真无数据」的空态（有筛选条件时展示搜索空态，不误报无需求）
+const isFiltered = computed(() => !!props.searchQuery || props.statusQuery !== "全部");
 
-async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
+let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
+async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery, sort = props.sortQuery) {
   if (!props.projectId) return;
+  const seq = ++loadSeq;
   loading.value = true;
   try {
     const q = new URLSearchParams({ limit: String(pageSize), offset: String((p - 1) * pageSize) });
     if (status !== "全部") q.set("status", status);
     if (keyword.trim()) q.set("keyword", keyword.trim());
+    if (sort && sort !== "default") q.set("sort", sort);
     const res = await api(`api/projects/${props.projectId}/requirements?${q}`);
+    if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
       list.value = res.data.items || [];
       total.value = res.data.total || 0;
@@ -118,34 +134,149 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
       }
     }
   } finally {
-    loading.value = false;
+    if (seq === loadSeq) loading.value = false;
   }
 }
 function goPage(p) {
   if (p < 1 || p > totalPages.value || p === page.value) return;
+  closeModal(); // 分页重载：关弹窗（导航基准基于旧序列，重载后失效）
   load(p);
 }
 
-// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
-watch(() => props.searchQuery, () => load(1));
-watch(() => props.statusQuery, () => load(1));
-// projectId 就绪/变化：重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
-watch(() => props.projectId, () => load(), { immediate: true });
-
 // ===== 详情/编辑弹窗（对齐方案：点击列表行预览，编辑/删除在弹窗内） =====
+// 注意：modal 状态必须在下方 immediate watch 之前声明（immediate 同步执行 closeModal/load，靠后声明会 TDZ 报错）
 const modalShow = ref(false);
 const modalMode = ref("read"); // read | edit
 const modalId = ref(null); // null = 新建
+// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+const editingFromDetail = ref(false);
+
+// 筛选 / 排序 / 搜索 / 项目切换：任何列表重载都关弹窗（PM 口径），再重新拉取
+watch(() => props.searchQuery, () => { closeModal(); load(1); });
+watch(() => props.statusQuery, () => { closeModal(); load(1); });
+watch(() => props.sortQuery, () => { closeModal(); load(1); });
+// projectId 就绪/变化：关弹窗（避免切项目残留 A 详情）+ 重新拉列表（immediate 覆盖首次挂载，空 id 不发请求）
+watch(() => props.projectId, () => { closeModal(); load(); }, { immediate: true });
+
+// 关弹窗并清空当前项（列表重载 / 项目切换统一走这里，避免导航基准残留）
+function closeModal() {
+  modalShow.value = false; // 先关，避免 requirementId 变化触发 modal 重载
+  modalId.value = null;
+  editingFromDetail.value = false;
+}
 
 function openCreate() {
   modalId.value = null;
   modalMode.value = "edit";
+  editingFromDetail.value = false;
   modalShow.value = true;
 }
-function openDetail(r) {
+
+// V2.3 R2：按需求 ID 打开详情（全文搜索跳转；列表未加载到该条时弹窗按 ID 直开）
+function openDetailById(reqId) {
+  if (!reqId) return;
+  modalId.value = reqId;
+  modalMode.value = "read";
+  editingFromDetail.value = false;
+  modalShow.value = true;
+}
+function openDetail(r, globalIdx) {
   modalId.value = r.id;
   modalMode.value = "read";
+  editingFromDetail.value = false;
   modalShow.value = true;
+  // R10 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
+  if (typeof globalIdx === "number") {
+    detailGlobalIndex.value = globalIdx;
+  } else {
+    const idx = list.value.findIndex((x) => x.id === r.id);
+    detailGlobalIndex.value = idx >= 0 ? (page.value - 1) * pageSize + idx : 0;
+  }
+}
+
+// ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
+const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
+const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
+// 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
+const canPrev = computed(() => modalShow.value && !!modalId.value);
+const canNext = computed(() => modalShow.value && !!modalId.value);
+
+function onNavigate(delta) {
+  // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
+  if (modalMode.value === "edit") {
+    pendingDelta.value = delta;
+    confirm.value = {
+      show: true,
+      message: "当前处于编辑中，切换将丢失未保存的修改。放弃修改并切换？",
+      confirmText: "放弃并切换",
+      action: "navigate",
+      req: null,
+    };
+    return;
+  }
+  doNavigate(delta);
+}
+// 详情内数据变化（状态流转等）：关弹窗 + 刷新列表（PM 口径：重载即关，不做位置判断）
+function onModalChanged() {
+  closeModal();
+  load();
+}
+
+// ===== V2.2 R15：编辑保存/取消回落详情 =====
+// 详情内点编辑：记录来源（新建不经过此分支，modalId 为空）
+function onModeChange(mode) {
+  if (mode === "edit" && modalId.value) editingFromDetail.value = true;
+  modalMode.value = mode; // 对齐 PlanTab：回写 modalMode，供 onNavigate 判断编辑态弹「放弃并切换」确认
+}
+// 编辑保存成功：来源详情 → 回落详情（重新拉数据）；来源列表 → 关弹窗刷新列表
+function onSaved(id) {
+  if (editingFromDetail.value) {
+    reopenDetail(id);
+  } else {
+    closeModal();
+    load();
+    emit("changed");
+  }
+}
+// 新建保存成功：关弹窗 + 刷新列表
+function onCreated() {
+  closeModal();
+  load();
+  emit("changed");
+}
+// 编辑取消：来源详情 → 回落详情；来源列表 → 关弹窗
+function onEditCancel() {
+  if (editingFromDetail.value && modalId.value) {
+    reopenDetail(modalId.value);
+  } else {
+    closeModal();
+  }
+}
+// X 关闭详情弹窗：回列表刷新
+function onClosedDetail() {
+  editingFromDetail.value = false;
+  load();
+}
+// 回落详情：先关（false）再 nextTick 重开（true），走完整 false→true 链路
+function reopenDetail(id) {
+  modalShow.value = false;
+  editingFromDetail.value = false;
+  nextTick(() => {
+    modalId.value = id;
+    modalMode.value = "read";
+    modalShow.value = true;
+  });
+}
+async function doNavigate(delta) {
+  const target = detailGlobalIndex.value + delta;
+  if (target < 0) { toast("到顶了！", "warn"); return; }
+  if (target >= total.value) { toast("到底了！", "warn"); return; }
+  const targetPage = Math.floor(target / pageSize) + 1;
+  const inPage = target % pageSize;
+  if (targetPage !== page.value) await load(targetPage); // 跨页补拉，load 更新 list/page
+  const item = list.value[inPage];
+  if (!item) return;
+  openDetail(item, target);
 }
 
 // ===== 右键菜单：打开 / 编辑 / 删除（对齐方案列表） =====
@@ -199,6 +330,7 @@ function ctxEdit() {
   closeCtx();
   modalId.value = ctx.req.id;
   modalMode.value = "edit";
+  editingFromDetail.value = false; // 列表右键编辑：非详情来源
   modalShow.value = true;
 }
 function ctxDel() {
@@ -214,6 +346,11 @@ function ctxDel() {
 async function doCtxConfirm() {
   confirm.value.show = false;
   const { action, req } = confirm.value;
+  if (action === "navigate") {
+    // 放弃编辑并切换：openDetail 内部会切回 read 模式
+    doNavigate(pendingDelta.value);
+    return;
+  }
   if (!req || action !== "delete") return;
   const res = await api(`api/projects/${props.projectId}/requirements/${req.id}`, { method: "DELETE" });
   if (res?.ok) {
@@ -233,7 +370,7 @@ function stripHtml(html) {
   return (html || "").replace(/<[^>]*>/g, "").slice(0, 80);
 }
 
-defineExpose({ openCreate, load });
+defineExpose({ openCreate, load, openDetailById });
 </script>
 
 <style scoped>

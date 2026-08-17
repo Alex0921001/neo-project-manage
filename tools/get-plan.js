@@ -1,21 +1,22 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_plan";
-export const description = "获取方案详情（含全部评论、转任务关联）";
+export const description = "获取方案详情（含全部评论、转任务关联）；支持仅凭方案 ID 或唯一短前缀全局查询，projectId 可不传（传了则校验归属）";
 export const parameters = {
   type: "object",
-  required: ["projectId", "planId"],
+  required: ["planId"],
   properties: {
-    projectId: { type: "string", description: "项目 ID" },
-    planId: { type: "string", description: "方案 ID" },
+    projectId: { type: "string", description: "项目 ID（可选；不传则全局查询，传了则校验归属）" },
+    planId: { type: "string", description: "方案 ID（完整 ID 或唯一短前缀）" },
   },
 };
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const plan = data.getPlan(input.projectId, input.planId);
+  const plan = data.getPlan(input.projectId || null, input.planId);
   const lines = [
-    `方案「${plan.title}」(${plan.status})`,
+    `方案「${plan.title}」(${plan.status}) [ID: ${plan.id}]`,
+    `所属项目: ${plan.projectName || "-"} [ID: ${plan.projectId}]`,
     `创建: ${plan.createdAt}`,
   ];
   if (plan.taskName) lines.push(`已转任务: ${plan.taskName} [${plan.taskId}]`);

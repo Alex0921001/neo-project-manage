@@ -152,8 +152,8 @@ test("任务：父子孙树 / 成员契约 / 日期边界 / 级联删除", () =>
   assert.equal(tasks.find((x) => x.id === sub.id)?.parent_task_id, t1.id, "子任务父级正确");
   assert.equal(tasks.find((x) => x.id === grand.id)?.parent_task_id, sub.id, "孙任务父级正确");
 
-  // 更新任务
-  const up = data.updateTask(p.id, t1.id, { name: "改名任务", done: true });
+  // 更新任务（仅改名；完成任务前置「后代需已完成」由 r3r7 回归测试覆盖）
+  const up = data.updateTask(p.id, t1.id, { name: "改名任务" });
   assert.equal(up.name, "改名任务");
 
   // 删除顶层任务 → 级联删除子/孙
@@ -751,7 +751,10 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
 
   // 任务删除后：状态冻结解除，可回退流转；回退到草稿后可删（级联删评论）
   data.deleteTask(proj.id, conv.taskId);
-  assert.equal(data.getPlan(proj.id, p1.id).taskExists, false);
+  // V2.2 R11：删任务时同步清空 plans.task_id，方案回到「未转」状态（可再次转任务）
+  const afterDel = data.getPlan(proj.id, p1.id);
+  assert.equal(afterDel.taskId, null);
+  assert.equal(afterDel.taskExists, null);
   data.updatePlan(proj.id, p1.id, { status: "草稿" }); // 悬空回退允许
   assert.equal(data.getPlan(proj.id, p1.id).status, "草稿");
   data.deletePlan(proj.id, p1.id);

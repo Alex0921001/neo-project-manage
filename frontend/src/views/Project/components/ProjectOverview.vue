@@ -7,6 +7,10 @@
         <svg class="ov-chevron" :class="{ rotated: expanded }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         <span class="ov-title">项目概览</span>
         <span class="ov-spacer"></span>
+        <button class="ov-refresh" title="一键生成周报/阶段总结" @click.stop="openReport">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
+          生成周报
+        </button>
         <button class="ov-refresh" :class="{ spinning: loading }" title="刷新总结" @click.stop="refresh">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           刷新总结
@@ -287,6 +291,38 @@
         </li>
       </ul>
     </el-drawer>
+
+    <!-- 生成周报（V2.2 R3 + 改造）：公共可拖拽缩放面板，自动生成，md 渲染预览 -->
+    <FloatPanel v-model="reportShow" title="生成周报" :default-width="760" :default-height="560">
+      <div class="report-panel">
+        <div class="report-range">
+          <el-radio-group v-model="reportRange" @change="onReportRangeChange">
+            <el-radio-button value="thisWeek">本周</el-radio-button>
+            <el-radio-button value="lastWeek">上周</el-radio-button>
+            <el-radio-button value="last7days">近 7 天</el-radio-button>
+            <el-radio-button value="custom">自定义</el-radio-button>
+          </el-radio-group>
+          <el-date-picker
+            v-if="reportRange === 'custom'"
+            v-model="reportCustomRange"
+            type="daterange"
+            value-format="YYYY-MM-DD"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            class="report-custom-range"
+          />
+        </div>
+
+        <div v-if="reportLoading" class="report-loading">正在生成…</div>
+        <div v-else-if="reportMarkdown" class="report-preview" v-html="reportHtml"></div>
+        <div v-else class="report-loading">暂无周报内容</div>
+
+        <div class="report-foot">
+          <el-button size="small" @click="reportShow = false">关闭</el-button>
+        </div>
+      </div>
+    </FloatPanel>
   </section>
 </template>
 
@@ -295,6 +331,71 @@ import { ref, computed, watch } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import RiskConfigModal from "./RiskConfigModal.vue";
+import FloatPanel from "../../../components/FloatPanel.vue";
+
+// V2.2：周报 Markdown 轻量渲染（内置，零依赖——避免第三方 md 库在构建产物中的 interop 风险）
+// 覆盖周报固定格式：标题 / 列表 / 表格 / 粗体 / 行内代码；未知内容转义后按文本输出
+function renderSimpleMd(src) {
+  if (!src) return "";
+  const esc = (s) =>
+    String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const inline = (s) =>
+    esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>");
+  const lines = String(src).split(/\r?\n/);
+  const out = [];
+  let i = 0;
+  const isTableRow = (l) => /^\|.*\|$/.test(l.trim());
+  while (i < lines.length) {
+    const line = lines[i];
+    const t = line.trim();
+    if (!t) { i++; continue; }
+    if (/^#{1,6}\s/.test(t)) {
+      const lv = t.match(/^#{1,6}/)[0].length;
+      out.push(`<h${Math.min(lv, 3)}>${inline(t.replace(/^#{1,6}\s*/, ""))}</h${Math.min(lv, 3)}>`);
+      i++; continue;
+    }
+    if (/^[-*]\s/.test(t)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*]\s/.test(lines[i].trim())) {
+        items.push(`<li>${inline(lines[i].trim().replace(/^[-*]\s*/, ""))}</li>`);
+        i++;
+      }
+      out.push(`<ul>${items.join("")}</ul>`);
+      continue;
+    }
+    if (/^\d+\.\s/.test(t)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+\.\s/.test(lines[i].trim())) {
+        items.push(`<li>${inline(lines[i].trim().replace(/^\d+\.\s*/, ""))}</li>`);
+        i++;
+      }
+      out.push(`<ol>${items.join("")}</ol>`);
+      continue;
+    }
+    if (isTableRow(t) && isTableRow(lines[i + 1] || "") && /^\|?\s*:?-{2,}\s*\|/.test((lines[i + 1] || "").trim())) {
+      // 表头 + 分隔行 + 数据行
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        const cells = lines[i].trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim()));
+        rows.push(cells);
+        i++;
+      }
+      const head = rows[0];
+      const body = rows.slice(2);
+      out.push(
+        `<table><thead><tr>${head.map((c) => `<th>${c}</th>`).join("")}</tr></thead><tbody>${body
+          .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`)
+          .join("")}</tbody></table>`
+      );
+      continue;
+    }
+    out.push(`<p>${inline(t)}</p>`);
+    i++;
+  }
+  return out.join("\n");
+}
 
 const props = defineProps({ projectId: { type: String, default: "" } });
 const emit = defineEmits(["jump-task", "jump-annotation"]);
@@ -323,6 +424,57 @@ const expanded = ref(true); // 默认展开
 const loading = ref(false);
 const s = ref(null); // summary data
 const riskConfigShow = ref(false); // 风险规则配置弹窗
+
+// ===== 生成周报（V2.2 R3 + 改造）：自动生成（打开/切换范围即拉取），md 渲染预览 =====
+const reportShow = ref(false);
+const reportRange = ref("thisWeek");
+const reportCustomRange = ref([]);
+const reportLoading = ref(false);
+const reportMarkdown = ref("");
+const reportHtml = computed(() => renderSimpleMd(reportMarkdown.value));
+
+function openReport() {
+  reportMarkdown.value = "";
+  reportShow.value = true;
+  generateReport();
+}
+function onReportRangeChange() {
+  reportMarkdown.value = "";
+  if (reportRange.value !== "custom") generateReport();
+}
+// 自定义范围选完起止日期后自动生成
+watch(reportCustomRange, (v) => {
+  if (reportRange.value === "custom" && Array.isArray(v) && v.length >= 2 && v[0] && v[1]) {
+    reportMarkdown.value = "";
+    generateReport();
+  }
+});
+
+async function generateReport() {
+  if (!props.projectId) return;
+  const body = { range: reportRange.value };
+  if (reportRange.value === "custom") {
+    if (!reportCustomRange.value?.length || reportCustomRange.value.length < 2) {
+      toast("请选择自定义起止日期", "error");
+      return;
+    }
+    body.startDate = reportCustomRange.value[0];
+    body.endDate = reportCustomRange.value[1];
+  }
+  reportLoading.value = true;
+  try {
+    const res = await api(`api/projects/${props.projectId}/report`, {
+      method: "POST", body: JSON.stringify(body), silent: true,
+    });
+    if (res?.ok) {
+      reportMarkdown.value = res.data?.markdown || "";
+    } else {
+      toast(res?.error || "生成失败", "error");
+    }
+  } finally {
+    reportLoading.value = false;
+  }
+}
 
 // ===== 历史总结时间线（V2.0 S14）=====
 const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
@@ -1005,6 +1157,93 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   color: var(--text-secondary);
   line-height: 1.6;
   word-break: break-word;
+}
+
+/* ===== 生成周报（V2.2 R3 + 改造） ===== */
+.report-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 16px;
+}
+.report-range {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.report-custom-range {
+  width: 260px;
+}
+.report-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.report-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--text);
+  word-break: break-word;
+}
+/* md 渲染：标题/列表/引用/粗体等基础样式 */
+.report-preview :deep(h1),
+.report-preview :deep(h2),
+.report-preview :deep(h3) {
+  margin: 14px 0 8px;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 0.5px solid var(--border-light);
+  padding-bottom: 4px;
+}
+.report-preview :deep(h1) { font-size: 17px; }
+.report-preview :deep(h2) { font-size: 15.5px; }
+.report-preview :deep(h3) { font-size: 14px; }
+.report-preview :deep(p) { margin: 6px 0; }
+.report-preview :deep(ul),
+.report-preview :deep(ol) { margin: 6px 0; padding-left: 22px; }
+.report-preview :deep(li) { margin: 3px 0; }
+.report-preview :deep(blockquote) {
+  margin: 8px 0;
+  padding: 2px 12px;
+  border-left: 3px solid var(--accent-warm, #b8860b);
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.report-preview :deep(code) {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.report-preview :deep(table) { border-collapse: collapse; margin: 8px 0; }
+.report-preview :deep(th),
+.report-preview :deep(td) {
+  border: 1px solid var(--border-light);
+  padding: 5px 10px;
+  font-size: 13px;
+}
+.report-preview :deep(th) { background: var(--bg-hover); font-weight: 600; }
+.report-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+  flex-shrink: 0;
 }
 </style>
 

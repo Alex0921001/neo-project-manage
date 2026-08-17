@@ -25,6 +25,9 @@
       @select-task="(payload) => { calendarShow = false; openTaskFromCalendar(payload) }"
     />
 
+    <!-- V2.3 R2：全局搜索（Home 放大镜 / Ctrl+F 触发） -->
+    <SearchPanel v-model="globalSearchShow" />
+
     <div
       v-if="versionInfo"
       class="version-badge"
@@ -41,11 +44,12 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from "vue";
+import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { api, reportHeight, getVersion } from "./api.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
 import CalendarModal from "./components/CalendarModal.vue";
+import SearchPanel from "./components/SearchPanel.vue";
 
 const view = ref("home");
 const projectId = ref(null);
@@ -55,6 +59,7 @@ const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
 const versionInfo = ref(null);
 const calendarShow = ref(false); // 全项目日历弹窗
+const globalSearchShow = ref(false); // V2.3 R2：全局搜索弹窗（Home 放大镜 / Ctrl+F）
 
 function formatTime(iso) {
   if (!iso) return "-";
@@ -109,19 +114,8 @@ function openTaskFromCalendar({ projectId: pid, taskId }) {
 }
 
 function goBack() {
-  const prev = historyStack.value.pop();
-  if (prev) {
-    view.value = prev.view;
-    projectId.value = prev.projectId;
-  } else {
-    view.value = "home";
-    projectId.value = null;
-  }
-  saveState();
-  if (view.value === "home") {
-    loadAllProjects();
-    nextTick(() => homeRef.value?.refresh?.());
-  }
+  // V2.3 精修：详情页返回按钮固定回项目列表页（Home），不再回上一次路由
+  goHome();
 }
 
 // ===== Persistence =====
@@ -191,7 +185,34 @@ onMounted(async () => {
   ro.observe(document.body);
   // 异步拉版本号，不阻塞主流程；失败时静态注入值兜底
   getVersion().then((v) => { if (v) versionInfo.value = v; }).catch(() => {});
+
+  // V2.3 R2：Ctrl+F 全局搜索（插件 iframe 内，若宿主拦截该快捷键则事件不达，自然降级为不拦截）
+  window.addEventListener("keydown", onGlobalKeydown);
+  // V2.3 R2：搜索/消息跳转事件（跨项目时切到目标项目；同项目由项目页自行处理）
+  window.addEventListener("neo-pm:jump", onGlobalJump);
 });
+onUnmounted(() => {
+  window.removeEventListener("keydown", onGlobalKeydown);
+  window.removeEventListener("neo-pm:jump", onGlobalJump);
+});
+
+function onGlobalKeydown(e) {
+  // 输入态放行：焦点在输入框/文本域/可编辑区时不劫持 Ctrl+F（浏览器默认查找仍可用）
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.ctrlKey && (e.key === "f" || e.key === "F")) {
+    e.preventDefault();
+    globalSearchShow.value = true;
+  }
+}
+
+function onGlobalJump(e) {
+  const { projectId: pid } = e.detail || {};
+  if (!pid) return;
+  // 已在目标项目页：项目页自己的监听处理定位，这里不再重复切换
+  if (view.value === "project" && projectId.value === pid) return;
+  openProject(pid);
+}
 </script>
 
 <style>

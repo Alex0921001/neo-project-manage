@@ -31,7 +31,7 @@ export async function execute(input, toolCtx) {
     return { content: [{ type: "text", text: "暂无方案" }] };
   }
   const lines = items.map((p) => {
-    const parts = [`#${p.id.slice(0, 4)}《${p.title}》(${p.status})`, `评论 ${p.commentCount}`];
+    const parts = [`#${p.id}《${p.title}》(${p.status})`, `评论 ${p.commentCount}`];
     if (p.taskName) parts.push(`已转任务: ${p.taskName} [${p.taskId}]`);
     return parts.join(" · ");
   });

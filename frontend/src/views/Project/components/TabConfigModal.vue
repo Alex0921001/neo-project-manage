@@ -15,6 +15,9 @@
           handle=".tc-drag"
           ghost-class="tc-ghost"
           :animation="150"
+          :force-fallback="true"
+          fallback-on-body
+          fallback-tolerance="8"
           class="tc-list"
         >
           <template #item="{ element: key, index: idx }">

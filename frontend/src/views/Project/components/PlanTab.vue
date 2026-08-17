@@ -67,11 +67,19 @@
       :plan-id="modal.planId"
       :mode="modal.mode"
       :clone-plan="modal.clonePlan"
-      @mode-change="modal.mode = $event"
+      :can-prev="canPrev"
+      :can-next="canNext"
+      @mode-change="onModeChange"
       @clone="onCloneFromDetail"
       @close="modal.show = false"
       @changed="onChanged"
+      @saved="onSaved"
+      @created="onCreated"
+      @edit-cancel="onEditCancel"
+      @closed-detail="onClosedDetail"
       @jump-task="jumpTask"
+      @prev="onNavigate(-1)"
+      @next="onNavigate(1)"
     />
     <PlanCompareModal v-model:show="compareShow" :plans="comparePlans" />
 
@@ -111,6 +119,7 @@ const loading = ref(false);
 // （show 经历 false→true 完整链路，与右击克隆行为完全一致；同 tick 替换 show 会被 Vue 合并，弹窗不会重开）
 function onCloneFromDetail(p) {
   if (!p) return;
+  editingFromDetail.value = false; // 详情内克隆：新建方案，非编辑已有方案
   modal.value = { ...modal.value, show: false };
   nextTick(() => {
     modal.value = { show: true, planId: null, mode: "edit", clonePlan: p };
@@ -121,6 +130,15 @@ function onCloneFromDetail(p) {
 const selectedMap = ref(new Map());
 const modal = ref({ show: false, planId: null, mode: "read", clonePlan: null });
 const compareShow = ref(false);
+// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+// 编辑保存/取消后据此决定「回落详情」还是「关弹窗刷新列表」
+const editingFromDetail = ref(false);
+
+// 关弹窗并清空当前项（列表重载 / 项目切换统一走这里，避免导航基准残留）
+function closeModal() {
+  modal.value = { show: false, planId: null, mode: "read", clonePlan: null };
+  editingFromDetail.value = false;
+}
 
 // ===== 右键菜单：打开 / 克隆 / 编辑 / 删除 / 转任务 =====
 const ctx = reactive({ show: false, x: 0, y: 0, plan: null });
@@ -174,10 +192,12 @@ function ctxOpen() {
 // 克隆：无权限控制，把当前方案标题 + 内容预填到新建编辑弹窗（保存即新建）
 function ctxClone() {
   closeCtx();
+  editingFromDetail.value = false; // 克隆新建：非编辑已有方案
   modal.value = { show: true, planId: null, mode: "edit", clonePlan: ctx.plan };
 }
 function ctxEdit() {
   closeCtx();
+  editingFromDetail.value = false; // 列表右键编辑：非详情来源，保存/取消维持关弹窗现状
   modal.value = { show: true, planId: ctx.plan.id, mode: "edit", clonePlan: null };
 }
 function ctxDel() {
@@ -191,6 +211,11 @@ function ctxConvert() {
 async function doCtxConfirm() {
   confirm.value.show = false;
   const { action, plan } = confirm.value;
+  if (action === "navigate") {
+    // 放弃编辑并切换：openDetail 内部会切回 read 模式
+    doNavigate(pendingDelta.value);
+    return;
+  }
   if (!plan) return;
   if (action === "delete") {
     const res = await api(`api/projects/${props.projectId}/plans/${plan.id}`, { method: "DELETE" });
@@ -215,14 +240,17 @@ const selectedCount = computed(() => selectedMap.value.size);
 // 对比数据：从跨页 Map 取完整方案（不依赖当前页）
 const comparePlans = computed(() => [...selectedMap.value.values()].slice(0, 2));
 
+let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
 async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
+  const seq = ++loadSeq;
   loading.value = true;
   try {
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
     if (keyword.trim()) params.set("keyword", keyword.trim());
     if (status && status !== "全部") params.set("status", status);
     const res = await api(`api/projects/${props.projectId}/plans?${params}`);
+    if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
       plans.value = res.data.items || [];
       total.value = res.data.total || 0;
@@ -242,18 +270,19 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
       toast(res?.error || "加载方案失败", "error");
     }
   } finally {
-    loading.value = false;
+    if (seq === loadSeq) loading.value = false;
   }
 }
 
 function goPage(p) {
   if (p < 1 || p > totalPages.value || p === page.value) return;
+  closeModal(); // 分页重载：关弹窗（导航基准基于旧序列，重载后失效）
   load(p);
 }
 
-// 搜索关键字 / 状态变化：回到第 1 页重新查询（后端筛选）
-watch(() => props.searchQuery, () => load(1));
-watch(() => props.statusQuery, () => load(1));
+// 筛选 / 搜索变化：任何列表重载都关弹窗（PM 口径），再重新拉取
+watch(() => props.searchQuery, () => { closeModal(); load(1); });
+watch(() => props.statusQuery, () => { closeModal(); load(1); });
 
 function toggleSelect(pl) {
   const m = new Map(selectedMap.value);
@@ -267,15 +296,70 @@ function toggleSelect(pl) {
   selectedMap.value = m;
 }
 
-function openDetail(pl) {
+function openDetail(pl, globalIdx) {
   modal.value = { show: true, planId: pl.id, mode: "read" };
+  editingFromDetail.value = false;
+  // R10 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
+  if (typeof globalIdx === "number") {
+    detailGlobalIndex.value = globalIdx;
+  } else {
+    const idx = plans.value.findIndex((x) => x.id === pl.id);
+    detailGlobalIndex.value = idx >= 0 ? (page.value - 1) * PAGE_SIZE + idx : 0;
+  }
 }
 function openCreate() {
   modal.value = { show: true, planId: null, mode: "edit" };
+  editingFromDetail.value = false;
+}
+
+// V2.3 R2：按方案 ID 打开详情（全文搜索跳转；列表未加载到该条时 PlanModal 按 planId 直开）
+function openDetailById(planId) {
+  if (!planId) return;
+  const pl = plans.value.find((x) => x.id === planId);
+  if (pl) {
+    openDetail(pl);
+  } else {
+    modal.value = { show: true, planId, mode: "read" };
+    editingFromDetail.value = false;
+  }
 }
 function openCompare() {
   if (selectedCount.value < 2) return toast("请先勾选 2 个方案", "error");
   compareShow.value = true;
+}
+
+// ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
+const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
+const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
+// 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
+const canPrev = computed(() => modal.value.show && !!modal.value.planId);
+const canNext = computed(() => modal.value.show && !!modal.value.planId);
+
+function onNavigate(delta) {
+  // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
+  if (modal.value.mode === "edit") {
+    pendingDelta.value = delta;
+    confirm.value = {
+      show: true,
+      message: "当前处于编辑中，切换将丢失未保存的修改。放弃修改并切换？",
+      confirmText: "放弃并切换",
+      action: "navigate",
+      plan: null,
+    };
+    return;
+  }
+  doNavigate(delta);
+}
+async function doNavigate(delta) {
+  const target = detailGlobalIndex.value + delta;
+  if (target < 0) { toast("到顶了！", "warn"); return; }
+  if (target >= total.value) { toast("到底了！", "warn"); return; }
+  const targetPage = Math.floor(target / PAGE_SIZE) + 1;
+  const inPage = target % PAGE_SIZE;
+  if (targetPage !== page.value) await load(targetPage); // 跨页补拉，load 更新 plans/page
+  const item = plans.value[inPage];
+  if (!item) return;
+  openDetail(item, target);
 }
 
 // 勾选数上报父级（右上角「对比选中」按钮联动 disabled / 计数）
@@ -283,15 +367,60 @@ watch(selectedMap, () => emit("compare-count", selectedCount.value));
 function jumpTask(taskId) {
   emit("jump-task", taskId);
 }
-// 方案数据变更（增删改 / 转任务）：刷新方案列表 + 冒泡父级刷新项目数据（任务树等，转出的任务立即可见）
+// 方案数据变更（增删改 / 转任务）：关弹窗 + 刷新方案列表 + 冒泡父级刷新项目数据（任务树等，转出的任务立即可见）
 function onChanged() {
+  closeModal();
   load();
   emit("changed");
 }
 
-defineExpose({ openCreate, load, openCompare });
+// ===== V2.2 R15：编辑保存/取消回落详情 =====
+// 详情内点编辑：mode 从 read → edit 且 planId 非空（新建不经过此分支）
+function onModeChange(mode) {
+  if (mode === "edit" && modal.value.planId) editingFromDetail.value = true;
+  modal.value = { ...modal.value, mode };
+}
+// 编辑保存成功：来源详情 → 回落详情（重新拉数据）；来源列表 → 关弹窗刷新列表（现状）
+function onSaved(planId) {
+  if (editingFromDetail.value) {
+    reopenDetail(planId);
+  } else {
+    closeModal();
+    load();
+    emit("changed");
+  }
+}
+// 新建保存成功：关弹窗 + 刷新列表（现状）
+function onCreated() {
+  closeModal();
+  load();
+  emit("changed");
+}
+// 编辑取消：来源详情 → 回落详情；来源列表 → 关弹窗（现状）
+function onEditCancel() {
+  if (editingFromDetail.value && modal.value.planId) {
+    reopenDetail(modal.value.planId);
+  } else {
+    closeModal();
+  }
+}
+// X 关闭详情弹窗：回列表刷新（保存后筛选变化致该项不可见，关闭后列表重拉）
+function onClosedDetail() {
+  editingFromDetail.value = false;
+  load();
+}
+// 回落详情：先关（show false）再 nextTick 重开（show true），走完整 false→true 链路，避免同 tick 合并重开失败
+function reopenDetail(planId) {
+  modal.value = { show: false, planId: null, mode: "read", clonePlan: null };
+  editingFromDetail.value = false;
+  nextTick(() => {
+    modal.value = { show: true, planId, mode: "read", clonePlan: null };
+  });
+}
 
-watch(() => props.projectId, () => load(), { immediate: true });
+defineExpose({ openCreate, load, openCompare, openDetailById });
+
+watch(() => props.projectId, () => { closeModal(); load(); }, { immediate: true });
 </script>
 
 <style scoped>

@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "delete_note";
-export const description = "删除项目备注";
+export const description = "删除项目备注（项目级富文本备注，随项目详情查看与编辑）";
 export const parameters = {
   type: "object",
   required: ["projectId", "noteId"],

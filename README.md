@@ -1,8 +1,8 @@
 # neo-project-manage（项目管理）
 
-面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、任务日历、自动总结与风险识别的完整闭环。
+面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、任务日历、自动总结、风险识别与周报生成的完整闭环。
 
-> 当前版本：**V2.1.5**（文件系统精修：框选/拖拽防环/分割线可拖/持久化 + 工具 65 + 桌面拖入登记 + 右键打开文件夹）
+> 当前版本：**V2.3.1**（小修版：ask_project 新增需求/方案问答维度 + 拖拽失效修复 + 审计覆盖补全）
 
 ## 快速使用
 
@@ -11,13 +11,18 @@
 1. 创建项目集 → 创建项目 → 创建任务（支持任意层级子任务）
 2. 任务可分配成员、起止日期；便利贴（批注）记录备注/决策/风险/节点
 3. 项目概览面板自动生成：KPI 统计、风险识别、下一步建议、历史总结时间线
-4. **方案管理**：新建/克隆/编辑方案，支持评论、一键转任务、状态流转（草稿→进行中→已采纳/已废弃）；可从文件导入（txt / md / docx）快速成稿
-5. **日历弹窗**：列表页「前往日历」（全项目）与详情页任务 tab「前往日历 >」（单项目）均为弹窗，可拖动缩放
-6. **风险规则配置**：概览页「风险」标题旁齿轮，7 条规则按项目级配置开关 / 阈值 / 等级
-7. 项目可 ⭐ 收藏置顶；任务可设等级（P0~P5）；成员统一管理（⚙ 人员管理）
-8. 任务可标为里程碑（旗帜），里程碑任务自动汇聚成步骤条时间轴
-9. 审计追踪：所有写操作留痕（时间/行为/目标/变更内容），支持行为与时间范围筛选
-10. 项目可归档（非进行中）或标记已取消；已归档项目可在「已归档」分组查看/恢复
+4. **需求管理**：新建/编辑需求，三态流转（待处理→已完成/已取消），支持排序、搜索、状态筛选、分页；需求可关联方案
+5. **方案管理**：新建/克隆/编辑方案，支持评论、一键转任务、状态流转（草稿→进行中→已采纳/已废弃）、双向关联需求与任务；可从文件导入（txt / md / docx）快速成稿
+6. **一键周报**：概览页「一键生成周报/阶段总结」，按本周/上周/近 7 天/自定义范围生成 Markdown（完成项/进行中/风险/下周建议）
+7. **详情弹窗**：需求/方案/任务详情右上导航（上一条/下一条），点击列表行预览、编辑/删除在弹窗内
+8. **页面持久化**：tab 顺序与显隐、搜索词、排序方式自动记忆；需求/方案状态筛选同样持久化（刷新恢复上次筛选）
+9. **消息中心**：项目集条右上角铃铛 + 未读角标；弹窗左列表（20 条/页滚动加载）右详情；到期提醒（提前 N 天可配置）与风险提醒（仅非归档 + 进行中/待开始项目的中高级风险）**聚合消息**（同类每日一条不轰炸）；搜索高亮 / 右键删除 / 一键已读 / 提醒配置（提前天数 + 开关）
+10. **全文检索**：三入口（项目内放大镜 / 项目集条放大镜 / Ctrl+F）；FTS5 中文检索（3 字以上 trigram，1~2 字模糊匹配）；结果按类型分组（项目/任务/批注/方案/需求/备注/文件）卡片展示，命中词琥珀高亮，点击跳转原文；首次建索引有动效提示
+11. **日历弹窗**：列表页「前往日历」（全项目）与详情页任务 tab「前往日历 >」（单项目）均为弹窗，可拖动缩放
+12. **风险规则配置**：概览页「风险」标题旁齿轮，6 条规则按项目级配置开关 / 阈值 / 等级；跨项目风险汇总仅统计非归档 + 进行中/待开始项目，仅中高级别
+11. 项目可 ⭐ 收藏置顶；任务可设等级（P0~P5）；成员统一管理（⚙ 人员管理）；任务可标里程碑（旗帜）自动汇聚步骤条
+12. 审计追踪：所有写操作留痕（时间/行为/目标/变更内容），支持行为与时间范围筛选
+13. 项目可归档（非进行中）或标记已取消；已归档项目可在「已归档」分组查看/恢复
 
 ### Agent（工具调用）
 
@@ -29,12 +34,14 @@
 3. list_tasks { projectId }                  → 任务列表
 4. summarize_project { projectId }           → 自动总结（风险/下一步）
 5. get_project_risks { projectId }           → 只读风险 JSON（不存档）
-6. ask_project { projectId, scope }          → 问答编排（summary/risks/decisions/timeline/files）
+6. ask_project { projectId, scope }          → 问答编排（summary/risks/decisions/timeline/files/requirements/plans）
 7. create_task / create_annotation ...       → 落地新任务/便利贴
 8. create_plan { projectId, title, content } → 创建方案
+9. search_all { keyword } → 全局/项目内全文检索（分组结果 + 命中片段）
+10. list_messages { } / get_message_config { } → 消息中心 / 提醒配置
 ```
 
-## 工具清单（65 个）
+## 工具清单（75 个）
 
 ### 创建
 
@@ -58,9 +65,11 @@
 | `update_project_set` | 重命名项目集 |
 | `update_project` | 编辑项目（名称/描述/成员/时间/状态/归档/收藏）|
 | `update_task` | 编辑任务（改名/成员/日期/等级/里程碑/标记完成）|
+| `update_tasks` | **批量更新任务**（最多 50 个，逐条独立校验，单条失败不影响其他，返回成功/失败清单）|
 | `update_annotation` | 编辑便利贴内容 / 类型 / 确认状态 |
+| `update_annotations` | **批量更新便利贴**（最多 50 个，逐条独立校验；已完成任务冻结条目标记失败）|
 | `update_member` | 成员改名 |
-| `update_plan` | 编辑方案（标题/内容/状态/关联需求，含业务校验）|
+| `update_plan` | 编辑方案（标题/内容/状态/关联需求/关联任务，含业务校验）|
 | `update_requirement` | 编辑需求（仅待处理：名称/简述/优先级/关联方案）|
 | `update_requirement_status` | 需求三态流转（待处理/已完成/已取消，自由互转）|
 | `update_note` | 编辑项目备注 |
@@ -89,7 +98,7 @@
 | `list_projects` | 项目列表（keyword / projectSetId 筛选，含统计与归档标记）|
 | `get_project` | 项目详情（任务树/批注/文件/备注/归档/会话全字段）|
 | `list_tasks` | 任务列表（status/assignee/keyword/dateRange 筛选）|
-| `get_task` | 按 ID 全局查任务（含父任务/批注类型/子任务）|
+| `get_task` | 按 ID 全局查任务（短前缀/完整 ID，含父任务/批注/子任务/完成时间/关联文件与方案）|
 | `list_annotations` | 便利贴列表（**taskId 单任务 或 projectId 项目级**，可 kind/keyword 筛选）|
 | `list_project_files` | 项目文件资产清单（folderId/name 筛选，含大小/摘要/索引）|
 | `get_project_file` | 单个文件详情 |
@@ -100,15 +109,23 @@
 | `list_project_sessions` | 关联会话列表 |
 | `get_project_summaries` | 项目历史总结（最近 N 条）|
 | `summarize_project` | 项目自动总结（完成度/风险/下一步，触发存档）|
-| `get_project_risks` | 只读 7 条规则计算后的风险 JSON（附配置，不存档）|
+| `get_project_risks` | 只读 6 条规则计算后的风险 JSON（附配置，不存档）|
 | `list_project_risks` | 跨项目风险汇总（按项目集范围）|
-| `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/all）|
+| `generate_report` | **一键生成周报/阶段总结**（本周/上周/近 7 天/自定义，Markdown：完成项/进行中/风险/建议）|
+| `ask_project` | 项目问答编排（scope: summary/risks/decisions/timeline/files/requirements/plans/all）|
 | `list_members` | 成员列表（all-known 模式聚合历史人名，带 isHistoric）|
 | `list_audit_logs` | 审计日志（项目级，limit/offset/dateFrom/dateTo/targetType 筛选）|
 | `list_plans` | 方案列表（分页/id 精确/标题关键字/状态筛选）|
 | `get_plan` | 方案详情（含评论）|
 | `list_requirements` | 需求列表（分页/状态/关键字/id 筛选）|
 | `get_requirement` | 需求详情（含关联方案明细）|
+| `list_messages` | 消息列表（20 条/页分页，先扫描生成再返回；type/projectId 过滤）|
+| `get_message_unread_count` | 未读消息计数 |
+| `get_message_config` | 提醒配置（提前天数/到期开关/风险开关）|
+| `update_message_config` | 修改提醒配置（deadlineDays 1~14、deadlineEnabled、riskEnabled）|
+| `search_all` | **全文检索**（keyword/projectId 限定/type 过滤/limit；3 字以上 FTS5，1~2 字 LIKE 兜底；返回分组结果 + snippet 命中片段 + fullIndexed 状态）|
+| `delete_message` | 删除消息 |
+| `mark_message_read` | 标记消息已读（ids 数组，≤50）|
 
 ### 会话关联 / 方案扩展
 
@@ -141,6 +158,21 @@ get_project_risks { "projectId": "xxx" }
 create_plan { "projectId": "xxx", "title": "方案A", "content": "<p>要点</p>" }
 convert_plan_to_task { "projectId": "xxx", "planId": "方案ID" }
 
+// 创建需求并关联方案（已采纳）
+create_requirement { "projectId": "xxx", "name": "需求A", "priority": "P1", "planIds": ["已采纳方案ID"] }
+
+// 一键生成周报（近 7 天）
+generate_report { "projectId": "xxx", "range": "last7days" }
+
+// 批量更新任务（逐条独立，返回成功/失败清单）
+update_tasks { "projectId": "xxx", "tasks": [{ "id": "t1", "priority": "P1" }, { "id": "t2", "done": true }] }
+
+// 批量确认便利贴（项目全部未确认）
+confirm_annotations { "projectId": "xxx" }
+
+// 任务全局查询（短前缀即可）
+get_task { "taskId": "a1b2" }
+
 // 归档项目
 update_project { "id": "xxx", "archived": true }
 
@@ -151,40 +183,41 @@ list_tasks { "projectId": "xxx", "keyword": "登录" }
 update_task { "projectId": "xxx", "id": "任务ID", "isMilestone": true }
 update_task { "projectId": "xxx", "id": "任务ID", "done": true }
 
+// 全文检索（全局；项目内搜加 projectId）
+search_all { "keyword": "知识库" }
+
+// 消息中心 / 提醒配置
+list_messages { "limit": 20 }
+update_message_config { "deadlineDays": 7, "riskEnabled": true }
+
 // 审计追踪（时间范围筛选）
 list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-08-31" }
 ```
 
 > **便利贴互斥规则**：任务已完成 → 不能挂载 / 修改 / 取消确认便利贴（冻结，删除放行）；任务完成前置 → 该任务全部便利贴须已确认。规则在工具与 REST 同时生效。
 
+> **任务完成前置校验**：任务已完成 → 便利贴全部须已确认；父任务完成 → 全部子任务须已完成（子任务未完成拦截）。
+
 > **方案状态规则**：编辑标题/内容仅草稿/进行中；已转任务且任务存在时状态冻结（任务删除后可回退）；删除仅草稿/已废弃。
+
+> **任务关联方案规则**：任务只能关联**已采纳**的方案（前后端一致拦截）；需求关联方案不限状态。
+
+> **周报口径**：完成项按完成时间（done_at）落在区间内（老数据无 done_at 不统计）；进行中=当前全部未完成任务（快照）；风险/建议沿用 6 条风险规则。
+
+> **消息提醒口径**：到期提醒 = 未完成任务 endDate 在「今天 ~ 今天+N 天」（N=配置提前天数，默认 3），同类每日聚合一条；风险提醒 = 仅**非归档 + 进行中/待开始**项目，且仅**中高级别**风险，每日聚合一条；历史消息保留，删除仅手动。
+
+> **风险统计口径**：`list_project_risks` 仅统计非归档 + 进行中/待开始项目，仅中高级别风险（low 不入列不计数）。
 
 ## 数据存储
 
 - SQLite（better-sqlite3，原生绑定 vendor 在 `lib/vendor/`），WAL 模式 + 外键级联
 - 位置：`ctx.dataDir/projects.sqlite`（卸载插件不删数据）
-- schema 版本 **8**，启动自动幂等迁移（老数据兼容；risk_config 等新列为幂等补列）
-- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / project_summaries / schema_meta
+- schema 版本 **12**，启动自动幂等迁移（老数据兼容）+ 悬空引用自愈（plans.task_id / requirement_plans / task_plans）
+- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / messages / fts_entries / fts_dirty / fts_meta / settings / schema_meta
 
 ## 开发指南
 
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
-- **测试**：`node scripts/test/data.test.mjs`（数据层）+ `node scripts/test/tools.test.mjs`（工具层）+ `node scripts/test/plan-import.test.mjs`（文件解析）
-
-## 版本历史
-
-| 版本 | 日期 | 要点 |
-| --- | --- | --- |
-| V2.1.4 | 2026-08-13 | 文件系统重构（file_folders 多层嵌套 + files.folder_id + 删除提升语义 + 拖拽防环 + 名称搜索 + 文件夹 3 工具 + read_project_file docx/pdf 文本提取，工具 59→63）· FileTab 左树右网格 · 需求页样式对齐 PlanTab/TaskTab（工具栏上移父级 + 修复新建按钮 + 徽标/空态/分页统一）|
-| V2.1.3 | 2026-08-13 | tab 栏配置化（7 tab 数据化 + 拖拽调序 + 右键设置 + 全局/项目双配置）· 需求管理（三态流转 + 方案双向挂载，工具 51→59）· 方案评论折叠 · 知识 tab 占位 |
-| V2.1.2 | 2026-08-13 | 工具类补齐至 51（confirm_annotations / register_project_file / import_plan_file / list_project_risks）· 查询输出增强（planCount / nearDeadlineDays / view=summary）· 任务排序三模式（默认可拖拽 / 时间 / 等级，递归子任务，非默认禁用拖拽）· 内层任务定位修复（祖先链强制展开）|
-| V2.1.1 | 2026-08-13 | 方案管理全量落地 + 文件导入（txt/md/docx）· 日历统一弹窗 · 风险规则配置化（项目级）· 风险批注聚合 + 类别排序 · get_project_risks 工具 · 审计筛选 · 备注三工具 · 批注定位高亮/全部任务/关键字搜索 · 项目卡片方案数 + 项目集名（工具 47）|
-| V2.1.0 | 2026-08-12 | 收藏置顶 · 任务等级 P0~P5 · 功能速查弹窗（右下角 ?）· 成员管理 · 任务里程碑 + 步骤条 · 批注消费（milestone 标签 / risk 纳入总结）· 审计追踪（分页 + 中文翻译）· 便利贴互斥规则（schema v7）|
-| V2.0.0 | 2026-08-11 | 批注类型化（决策/风险/节点）· 文件资产化 · 会话关联 · 自动总结 + 风险识别 · 概览面板 · 历史时间线 · 批注管理大屏 · 已取消状态 + 项目归档（schema v6）· 后续精修：KPI 半透明/hover 淡化、nextSteps 状态分支、查询工具字段补齐、list_annotations 项目级查询 |
-| V1.3.1 | 2026-08-10 | 项目集拖拽排序持久化 · 嵌套任务状态同步 · 子任务日期范围 · 错误提示拦截（ElMessage）· 卡片精修 |
-| V1.3.0 | 2026-08-09 | 便利贴式项目卡片 · 项目集顶部 tabs · 详情页改造 · 任务日历 tab |
-| V1.2.0 | 2026-08-07 | 任务成员 + 起止时间 · 任务日历 · 富文本（base64 内联图片）· Element Plus 弹窗 |
-| V1.0.1 | 2026-08-02 | 批量批注工具/路由 · list_tasks/list_projects keyword 搜索 |
-| V1.0.0 | - | 初始版本：完整 CRUD + SQLite 存储 |
+- **测试**：`node --test scripts/test/*.test.mjs`（99 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`

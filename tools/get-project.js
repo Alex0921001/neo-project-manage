@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_project";
-export const description = "获取项目详情（含任务树/批注/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
+export const description = "获取项目详情（含任务树/批注/需求/方案/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
 export const parameters = {
   type: "object",
   required: ["id"],
@@ -34,16 +34,47 @@ export async function execute(input, toolCtx) {
   ];
 
   // 任务树（递归渲染：父任务 + 子任务缩进 + 批注/文件引用；summary 模式仅名称/状态/日期）
+  const filesById = new Map((project.files || []).map((f) => [f.id, f]));
   lines.push(`--- 任务 (${countTasks(project.tasks)}) ---`);
   if (!project.tasks?.length) {
     lines.push("  （无）");
   } else {
-    for (const t of project.tasks) renderTask(lines, t, 1, isSummary);
+    for (const t of project.tasks) renderTask(lines, t, 1, isSummary, filesById);
   }
 
-  // summary 模式：跳过文件/备注明细，到此为止
+  // summary 模式：跳过需求/方案/文件/备注明细，到此为止
   if (isSummary) {
     return { content: [{ type: "text", text: lines.join("\n") }] };
+  }
+
+  // 需求清单（T1 data.getProject 追加字段；未合入前为 undefined，容错按 0 处理）
+  const requirements = project.requirements || [];
+  lines.push(`--- 需求 (${requirements.length}) ---`);
+  if (!requirements.length) {
+    lines.push("  （无）");
+  } else {
+    for (const r of requirements) {
+      const icon = r.status === "已完成" ? "✅" : r.status === "已取消" ? "⛔" : "⬜";
+      // priority 即 "P0"-"P5" 字符串（与 list_requirements 一致），直接输出避免双 P
+      const pText = r.priority != null ? ` [${r.priority}]` : "";
+      const sText = r.status ? ` [${r.status}]` : "";
+      const planText = r.planCount ? ` [关联方案 ${r.planCount}]` : "";
+      lines.push(`  ${icon} ${r.name}${pText}${sText}${planText} [ID: ${r.id}]`);
+    }
+  }
+
+  // 方案清单（同上，T1 追加字段；commentCount/taskName 空值不输出对应标记）
+  const plans = project.plans || [];
+  lines.push(`--- 方案 (${plans.length}) ---`);
+  if (!plans.length) {
+    lines.push("  （无）");
+  } else {
+    for (const p of plans) {
+      const sText = p.status ? ` [${p.status}]` : "";
+      const commentText = p.commentCount ? ` [评论 ${p.commentCount}]` : "";
+      const taskText = p.taskName ? ` [转任务: ${p.taskName}]` : "";
+      lines.push(`  ${p.title}${sText}${commentText}${taskText} [ID: ${p.id}]`);
+    }
   }
 
   lines.push(`--- 文件资产 (${project.files?.length || 0}) ---`);
@@ -72,7 +103,7 @@ export async function execute(input, toolCtx) {
 }
 
 /** 递归渲染任务树（含批注/文件引用/子任务缩进；summary 模式仅名称/状态/日期） */
-function renderTask(lines, t, depth, isSummary = false) {
+function renderTask(lines, t, depth, isSummary = false, filesById = new Map()) {
   const indent = "  ".repeat(depth);
   const statusIcon = t.done ? "✅" : "⬜";
   const dateText = [t.startDate, t.endDate].filter(Boolean).join(" ~ ");
@@ -87,7 +118,7 @@ function renderTask(lines, t, depth, isSummary = false) {
   // summary 模式：不展开批注/文件明细，仅继续递归子任务
   if (isSummary) {
     if (t.subtasks?.length) {
-      for (const s of t.subtasks) renderTask(lines, s, depth + 1, true);
+      for (const s of t.subtasks) renderTask(lines, s, depth + 1, true, filesById);
     }
     return;
   }
@@ -101,16 +132,17 @@ function renderTask(lines, t, depth, isSummary = false) {
       lines.push(`${indent}    ${short(plain(a.content), 50)}${kindText}${confirmText} [ID: ${a.id}]`);
     }
   }
-  // 文件引用
+  // 文件引用（fileRefs 为 id 数组，映射到项目文件资产显示名称；文件已删时回退显示 id）
   if (t.fileRefs?.length) {
     lines.push(`${indent}  📎 文件 (${t.fileRefs.length}):`);
-    for (const f of t.fileRefs) {
-      lines.push(`${indent}    ${f.name || f.id} [ID: ${f.id}]`);
+    for (const fid of t.fileRefs) {
+      const f = filesById.get(fid);
+      lines.push(`${indent}    ${f ? f.name : fid} [ID: ${fid}]`);
     }
   }
   // 子任务
   if (t.subtasks?.length) {
-    for (const s of t.subtasks) renderTask(lines, s, depth + 1);
+    for (const s of t.subtasks) renderTask(lines, s, depth + 1, false, filesById);
   }
 }
 

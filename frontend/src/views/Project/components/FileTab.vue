@@ -56,7 +56,7 @@
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
             </span>
             <svg class="ft-tree-folder-ic" width="16" height="16" viewBox="0 0 24 24" fill="rgb(255,247,209)" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <span>根目录</span><span v-if="folderFileCounts.total" class="ft-tree-count">({{ folderFileCounts.total }})</span>
+            <span class="ft-tree-name">根目录</span><span v-if="folderFileCounts.total" class="ft-tree-count">({{ folderFileCounts.total }})</span>
           </div>
           <template v-if="rootExpanded">
             <FolderNode
@@ -162,6 +162,7 @@
     <!-- 右键菜单（文件夹 / 文件通用；folder=null 表示在空白处右键 → 根层新建文件夹） -->
     <div v-if="menu.show" class="ctx-menu" :style="{ left: menu.x + 'px', top: menu.y + 'px' }">
       <template v-if="menu.type === 'folder'">
+        <div class="ctx-item" @click.stop="menuUpload">上传文件</div>
         <div v-if="!menu.folder" class="ctx-item" @click.stop="menuNewRoot">新建文件夹</div>
         <div v-if="menu.folder" class="ctx-item" @click.stop="menuNewChild">新建子文件夹</div>
         <div v-if="menu.folder" class="ctx-item" @click.stop="menuRename">编辑</div>
@@ -178,9 +179,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount, toRefs } from "vue";
 import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { usePersistedTabState } from "../../../utils/usePersistedTabState.js";
 import FolderNode from "./FolderNode.vue";
 
 const props = defineProps({
@@ -192,12 +194,16 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 
 // ===== 视图状态 =====
 const search = ref("");
-const selectedFolder = ref(localStorage.getItem(`neo-pm-file-folder-${props.projectId}`) || "root"); // 'root' 根目录 | folderId 具体文件夹（持久化恢复）
-watch(selectedFolder, (v) => localStorage.setItem(`neo-pm-file-folder-${props.projectId}`, v));
+// R13 文件 tab 树状态持久化：高亮文件夹 + 折叠集合（恢复后父链展开见 applyExpandState）
+const folderState = usePersistedTabState(() => `${props.projectId}-files-tree`, {
+  selectedFolder: "root",
+  collapsedIds: [],
+});
+const { selectedFolder, collapsedIds } = toRefs(folderState);
 /* 左侧空白视为根目录目标：悬停高亮根目录项（drop 后清除） */
 const rootDropHover = ref(false);
 function onTreeDragOver(e) {
-  // 外部文件拖入左树：暂不支持登记，不点亮 drop 目标高亮（静默无操作；prevent 由模板 .prevent 承担，不会打开文件）
+  // 外部文件拖入左树：不支持登记（宿主 iframe 拿不到文件路径），静默无操作
   if (e.dataTransfer?.files?.length) { e.stopPropagation(); return; }
   rootDropHover.value = true;
   e.stopPropagation();
@@ -272,6 +278,8 @@ const dialogShow = ref(false);
 const picking = ref(false);
 const adding = ref(false);
 const pending = ref([]);
+/** 右键上传的目标文件夹覆盖（null = 用当前选中文件夹）；每次打开弹窗时重设 */
+const addFolderOverride = ref(null);
 
 // ===== 右键菜单 =====
 const menu = ref({ show: false, x: 0, y: 0, type: "file", folder: null, file: null });
@@ -316,8 +324,11 @@ watch(visibleFiles, (list) => {
 /** 是否需要展示文件夹归属标签（仅搜索视图下显示） */
 const showFolderLabel = computed(() => !!search.value.trim());
 
-/** 登记文件的目标夹：当前选中的具体文件夹（root 时登记到根目录） */
+/** 登记文件的目标夹：右键上传时用覆盖目标，否则当前选中的具体文件夹（root 时登记到根目录） */
 const addTargetLabel = computed(() => {
+  if (addFolderOverride.value) {
+    return `文件夹「${folderNameOf(addFolderOverride.value)}」`;
+  }
   if (selectedFolder.value !== "root") {
     return `文件夹「${folderNameOf(selectedFolder.value)}」`;
   }
@@ -519,10 +530,37 @@ const dragFolderId = ref(""); // 拖拽中的文件夹 id（与文件拖拽 drag
 const externalDropHover = ref(false);
 let externalDropDepth = 0; // dragenter/dragleave 嵌套计数（子元素进出防闪烁）
 
+/** 重算展开集合：全部节点默认展开，剔除用户折叠的，再强制展开高亮文件夹的父链 */
+function applyExpandState(nodes) {
+  const s = new Set();
+  const walk = (n2) => { for (const n of n2 || []) { s.add(n.id); walk(n.children); } };
+  walk(nodes);
+  for (const id of collapsedIds.value) s.delete(id);
+  const chain = ancestorChain(nodes, selectedFolder.value);
+  for (const id of chain) s.add(id);
+  expandedIds.value = s;
+}
+/** 目标文件夹的祖先链（不含目标自身，root→父们），用于恢复高亮时展开父链 */
+function ancestorChain(nodes, target) {
+  if (!target || target === "root") return [];
+  const chain = [];
+  const find = (list, trail) => list.some((n) => {
+    if (n.id === target) { chain.push(...trail); return true; }
+    return find(n.children || [], [...trail, n.id]);
+  });
+  find(nodes, []);
+  return chain;
+}
+
 function toggleFolder(id) {
   const s = new Set(expandedIds.value);
-  if (s.has(id)) s.delete(id);
-  else s.add(id);
+  if (s.has(id)) {
+    s.delete(id);
+    collapsedIds.value = [...new Set([...collapsedIds.value, id])];
+  } else {
+    s.add(id);
+    collapsedIds.value = collapsedIds.value.filter((x) => x !== id);
+  }
   expandedIds.value = s;
 }
 
@@ -751,9 +789,17 @@ function fileName(p) {
   return p.split(/[\\/]/).pop() || p;
 }
 
-function openAdd() {
+function openAdd(folderId = null) {
+  addFolderOverride.value = folderId;
   pending.value = [];
   dialogShow.value = true;
+}
+
+/** 右键「上传文件」：登记到被右键的文件夹（null = 根目录/当前选中） */
+function menuUpload() {
+  const fid = menu.value.folder?.id || null;
+  closeMenu();
+  openAdd(fid);
 }
 
 async function pickFile() {
@@ -784,8 +830,8 @@ async function pickFile() {
 async function confirmAdd() {
   if (!pending.value.length) return;
   adding.value = true;
-  // 登记目标：当前选中具体文件夹时归入该夹，否则根目录
-  const folderId = selectedFolder.value !== "all" && selectedFolder.value !== "root" ? selectedFolder.value : "";
+  // 登记目标：右键上传时用覆盖目标，否则当前选中具体文件夹，否则根目录
+  const folderId = addFolderOverride.value || (selectedFolder.value !== "all" && selectedFolder.value !== "root" ? selectedFolder.value : "");
   const results = [];
   for (const p of pending.value) {
     const res = await api(`api/projects/${props.projectId}/files`, {
@@ -819,33 +865,47 @@ function openFileMenu(f, event) {
   };
 }
 
-function menuOpenFile() {
+/** 批量动作目标：右键文件在选中集中且多选 → 全选中集；否则仅右键文件（对齐删除的 Windows 行为） */
+function menuTargetFiles() {
   const f = menu.value.file;
-  closeMenu();
-  if (f) openFile(f);
+  if (!f) return [];
+  if (selected.value.includes(f.id) && selected.value.length > 1) {
+    return selected.value.map((id) => props.files.find((x) => x.id === id)).filter(Boolean);
+  }
+  return [f];
 }
 
-/** 右键「打开文件夹」：资源管理器定位到文件所在文件夹 */
-async function menuOpenFolder() {
-  const f = menu.value.file;
+function menuOpenFile() {
+  const files = menuTargetFiles();
   closeMenu();
-  if (!f?.path) { toast("无文件路径", "error"); return; }
-  const res = await api(`api/open-folder?path=${encodeURIComponent(f.path)}`, { silent: true });
-  if (!res?.ok) toast(res?.error || "打开文件夹失败", "error");
+  for (const f of files) openFile(f); // 批量打开；openFile 内部失败 toast
+}
+
+/** 右键「打开文件夹」：资源管理器定位到文件所在文件夹（多选批量定位） */
+async function menuOpenFolder() {
+  const files = menuTargetFiles();
+  closeMenu();
+  for (const f of files) {
+    if (!f?.path) { toast("无文件路径", "error"); continue; }
+    const res = await api(`api/open-folder?path=${encodeURIComponent(f.path)}`, { silent: true });
+    if (!res?.ok) toast(res?.error || "打开文件夹失败", "error");
+  }
 }
 
 async function menuCopyPath() {
-  const f = menu.value.file;
+  const files = menuTargetFiles();
   closeMenu();
-  if (!f?.path) { toast("无文件路径", "error"); return; }
+  const paths = files.map((f) => f.path).filter(Boolean);
+  if (!paths.length) { toast("无文件路径", "error"); return; }
+  const text = paths.join("\r\n");
   let ok = false;
   try {
-    await navigator.clipboard.writeText(f.path);
+    await navigator.clipboard.writeText(text);
     ok = true;
   } catch {
     // 剪贴板 API 受限时降级 execCommand
     const ta = document.createElement("textarea");
-    ta.value = f.path;
+    ta.value = text;
     ta.style.position = "fixed";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
@@ -853,7 +913,7 @@ async function menuCopyPath() {
     ok = document.execCommand("copy");
     document.body.removeChild(ta);
   }
-  toast(ok ? "路径已复制" : "复制失败", ok ? "success" : "error");
+  toast(ok ? `已复制 ${paths.length} 个路径` : "复制失败", ok ? "success" : "error");
 }
 
 function menuDeleteFile() {
@@ -894,27 +954,18 @@ function onExternalDrop(e) {
   if (!files?.length) return;
   registerDroppedFiles(files);
 }
-/** 批量登记拖入文件：目标 = 当前选中文件夹（root → null）；成功静默，失败才提示 */
+/** 批量登记拖入文件：目标 = 当前选中文件夹（root → null）
+ * 注：宿主 iframe 拿不到拖入文件绝对路径（Electron 32+ 移除 File.path），此功能暂不可用，失败静默 */
 async function registerDroppedFiles(files) {
   const list = [...files];
-  for (const f of list) {
-    if (!f.path || !String(f.path).trim()) {
-      toast("拖入文件需在桌面端使用，无法获取文件路径", "error");
-      return; // 无 File.path（非 Electron 环境）：中止，不做上传降级
-    }
-  }
   const folderId = selectedFolder.value !== "root" ? selectedFolder.value : null;
   const results = await Promise.all(
     list.map((f) => api(`api/projects/${props.projectId}/files`, {
-      method: "POST", body: JSON.stringify({ path: f.path, folderId }), silent: true,
+      method: "POST", body: JSON.stringify({ path: f?.path || "", folderId }), silent: true,
     }))
   );
   const okCount = results.filter((r) => r?.ok).length;
-  if (okCount) {
-    emit("changed"); // 成功静默（与移动/文件夹操作一致）
-  } else {
-    toast(results[0]?.error || "登记失败", "error");
-  }
+  if (okCount) emit("changed"); // 成功静默；失败也静默（拖入路径不可用，不打扰）
 }
 
 // ===== 拖拽移动 =====
@@ -1020,10 +1071,7 @@ onMounted(() => {
   document.addEventListener("mouseup", onGridMouseUp);
   document.addEventListener("mousemove", onDocMouseMove);
   window.addEventListener("dragend", onGlobalDragEnd);
-  const s = new Set();
-  const walk = (nodes) => { for (const n of nodes || []) { s.add(n.id); walk(n.children); } };
-  walk(props.folders);
-  expandedIds.value = s;
+  applyExpandState(props.folders);
 });
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onKeydown);
@@ -1034,16 +1082,8 @@ onBeforeUnmount(() => {
   endResize();
 });
 
-// folders 数据更新后，新文件夹自动加入展开集合
-watch(
-  () => props.folders,
-  (nodes) => {
-    const s = new Set(expandedIds.value);
-    const walk = (n2) => { for (const n of n2 || []) { s.add(n.id); walk(n.children); } };
-    walk(nodes);
-    expandedIds.value = s;
-  }
-);
+// folders 数据更新后：重算展开集合（折叠集合持久化 + 高亮文件夹父链强制展开）
+watch(() => props.folders, (nodes) => applyExpandState(nodes));
 
 defineExpose({ openAdd, pickFile, setSearch });
 
@@ -1090,7 +1130,8 @@ function setSearch(v) {
   user-select: none; white-space: nowrap;
   transition: background var(--duration-fast) var(--ease-out);
 }
-.ft-tree-count { font-size: 12px; color: var(--text-tertiary); margin-left: 4px; font-variant-numeric: tabular-nums; }
+.ft-tree-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ft-tree-count { flex-shrink: 0; font-size: 12px; color: var(--text-tertiary); margin-left: 4px; font-variant-numeric: tabular-nums; }
 .ft-tree-fixed.active .ft-tree-count { color: var(--text-tertiary); }
 .ft-tree-fixed:hover { background: var(--bg-hover); color: var(--text); }
 .ft-tree-fixed.active { background: var(--bg-hover); color: var(--text); font-weight: 600; }

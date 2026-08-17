@@ -99,6 +99,8 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
     ],
   });
   assert.match(tasksTxt, /批量创建/);
+  const subTaskIds = [...tasksTxt.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
+  assert.equal(subTaskIds.length, 2);
 
   // 6. 批注（单条 + 批量）
   const annTxt = await run("create_annotation", { projectId: projId, taskId, content: "第一条批注" });
@@ -142,6 +144,10 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
   const toConfirm = [...allAnns.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
   for (const aid of toConfirm) {
     await run("update_annotation", { taskId, annotationId: aid, confirmed: true });
+  }
+  // V2.2 R7 后端兜底：完成任务前需先完成其后代（父完成 + 子未完成会被拒绝）
+  for (const sid of subTaskIds) {
+    await run("update_task", { projectId: projId, id: sid, done: true });
   }
   const upTask = await run("update_task", { projectId: projId, id: taskId, name: "AT-改名任务", done: true });
   assert.match(upTask, /AT-改名任务/);

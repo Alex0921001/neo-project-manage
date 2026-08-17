@@ -15,7 +15,7 @@
           <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
         </el-form-item>
 
-        <!-- 第二行：起止日期 + 优先级 + 成员 -->
+        <!-- 第二行：起止日期 + 成员 -->
         <div class="task-form-row">
           <el-form-item label="起止日期">
             <el-date-picker
@@ -29,16 +29,6 @@
               style="width: 100%"
             />
           </el-form-item>
-          <el-form-item label="优先级">
-            <el-select v-model="form.priority" style="width: 100%">
-              <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="是否里程碑">
-            <el-select v-model="form.isMilestone" style="width: 100%">
-              <el-option v-for="o in milestoneOptions" :key="String(o.value)" :label="o.label" :value="o.value" />
-            </el-select>
-          </el-form-item>
           <el-form-item label="成员">
             <MemberSelect
               v-model="form.assignees"
@@ -49,22 +39,53 @@
           </el-form-item>
         </div>
 
-        <!-- 第三行：关联文件 -->
-        <el-form-item label="关联文件">
-          <el-select
-            v-model="form.fileRefs"
-            multiple
-            :disabled="!files || !files.length"
-            :placeholder="(files && files.length) ? '请选择关联文件' : '项目暂无文件，请先到文件页上传'"
-            collapse-tags
-            collapse-tags-tooltip
-            style="width: 100%"
-          >
-            <el-option v-for="f in files" :key="f.id" :label="f.name" :value="f.id" />
-          </el-select>
-        </el-form-item>
+        <!-- 第三行：优先级 + 是否里程碑 -->
+        <div class="task-form-row">
+          <el-form-item label="优先级">
+            <el-select v-model="form.priority" style="width: 100%">
+              <el-option v-for="p in priorityOptions" :key="p" :label="p" :value="p" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="是否里程碑">
+            <el-select v-model="form.isMilestone" style="width: 100%">
+              <el-option v-for="o in milestoneOptions" :key="String(o.value)" :label="o.label" :value="o.value" />
+            </el-select>
+          </el-form-item>
+        </div>
 
-        <!-- 第四行：简述 -->
+        <!-- 第四行：关联方案 + 关联文件（R14 任务↔方案双向关联） -->
+        <div class="task-form-row">
+          <el-form-item label="关联方案">
+            <el-select
+              v-model="form.planIds"
+              multiple
+              filterable
+              collapse-tags
+              collapse-tags-tooltip
+              popper-class="task-plan-popper"
+              style="width: 100%"
+              :placeholder="plans.length ? '请选择关联方案' : '项目暂无已采纳方案'"
+            >
+              <el-option v-for="pl in plans" :key="pl.id" :label="pl.title" :value="pl.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="关联文件">
+            <el-select
+              v-model="form.fileRefs"
+              multiple
+              filterable
+              :disabled="!files || !files.length"
+              :placeholder="(files && files.length) ? '请选择关联文件' : '项目暂无文件，请先到文件页上传'"
+              collapse-tags
+              collapse-tags-tooltip
+              style="width: 100%"
+            >
+              <el-option v-for="f in files" :key="f.id" :label="f.name" :value="f.id" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <!-- 第五行：简述 -->
         <el-form-item label="简述">
           <RichEditor v-model="form.description" :project-id="projectId" />
         </el-form-item>
@@ -74,6 +95,21 @@
         <el-button class="btn-save" :loading="saving" @click="submitInline">{{ isEditMode ? '保存' : '创建' }}</el-button>
       </template>
     </el-dialog>
+
+    <!-- V2.2 R14：任务条目点击关联方案标签 → 方案详情（read，复用 PlanModal） -->
+    <PlanModal
+      v-model:show="planDetailShow"
+      :project-id="projectId"
+      :plan-id="planDetailId"
+      :mode="planDetailMode"
+      @mode-change="planDetailMode = $event"
+      @saved="onPlanDetailSaved"
+      @created="onPlanDetailSaved"
+      @edit-cancel="planDetailMode = 'read'"
+      @changed="() => emit('changed')"
+      @closed-detail="() => emit('changed')"
+      @close="planDetailShow = false"
+    />
 
     <!-- 列表模式：左侧任务列表 + 右侧便利贴 -->
     <div class="task-tab-layout" ref="layoutRef">
@@ -130,6 +166,9 @@
               group="tasks"
               :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
+              :force-fallback="true"
+              fallback-on-body
+              fallback-tolerance="8"
               @end="onTopDragEnd"
             >
               <template #item="{ element: t }">
@@ -149,6 +188,7 @@
                   @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
                   @edit-subtask="startEditSubtask"
                   @select-annotation="onSelectAnnotation"
+                  @open-plan="openPlanDetail"
                   @changed="$emit('changed')"
                 />
               </template>
@@ -169,6 +209,9 @@
               animation="200"
               :disabled="!!searchQuery || props.sortMode !== 'default'"
               class="task-drag-area"
+              :force-fallback="true"
+              fallback-on-body
+              fallback-tolerance="8"
               @end="onTopDragEnd"
             >
               <template #item="{ element: t }">
@@ -188,6 +231,7 @@
               @delete-task-deep="(id) => $emit('confirm-ask', { message: '确认删除此任务？', action: 'delete-task', payload: id })"
               @edit-subtask="startEditSubtask"
               @select-annotation="onSelectAnnotation"
+              @open-plan="openPlanDetail"
               @changed="$emit('changed')"
             />
               </template>
@@ -217,6 +261,7 @@ import TaskCard from "./TaskCard.vue";
 import MilestoneTimeline from "./MilestoneTimeline.vue";
 import AnnotationPanel from "./AnnotationPanel.vue";
 import MemberSelect from "../../../components/MemberSelect.vue";
+import PlanModal from "./PlanModal.vue";
 import { normalizeRichText } from "../../../utils/text.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 // 富文本编辑器异步加载（Tiptap 体积大，拆独立 chunk，含 loading/error/重试）
@@ -294,6 +339,22 @@ function onSelectAnnotation({ taskId, subtaskId }) {
   activeSubtaskId.value = subtaskId || "";
   // 打开面板时刷新一次数据：批注本地确认标记在此归位并按确认状态重排
   emit("changed");
+}
+
+// V2.3 R2：按批注 ID 定位（全文搜索跳转）：找到含该批注的任务 → 打开批注面板并定位
+function scrollToAnnotationById(annotationId) {
+  if (!annotationId) return;
+  const found = findTaskByAnnotation(props.tasks, annotationId);
+  if (found) scrollToAnnotation(found.id, annotationId);
+}
+
+function findTaskByAnnotation(tasks, annotationId) {
+  for (const t of tasks || []) {
+    if ((t.annotations || []).some((a) => a.id === annotationId)) return t;
+    const hit = findTaskByAnnotation(t.subtasks || [], annotationId);
+    if (hit) return hit;
+  }
+  return null;
 }
 function closeAnnotation() {
   activeTaskId.value = "";
@@ -564,9 +625,34 @@ const saving = ref(false);
 const editingId = ref(null);
 const subtaskParent = ref(null);
 const editingSubId = ref(null);
-const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", isMilestone: false, fileRefs: [] });
+const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", isMilestone: false, fileRefs: [], planIds: [] });
 const submitErr = ref(false);
 const formRef = ref(null);
+
+// V2.2 R14：关联方案数据源（任务表单多选下拉）
+const plans = ref([]);
+async function loadPlans() {
+  if (!props.projectId) return;
+  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+  if (res?.ok) plans.value = (res.data.items || []).filter((p) => p.status === "已采纳"); // V2.2：仅已采纳方案可挂载
+}
+// 打开任务表单弹窗时预加载方案选项（关联方案多选数据源）
+watch(dialogShow, (v) => { if (v) loadPlans(); });
+
+// V2.2 R14：任务条目点击关联方案标签 → 打开方案详情（read 模式），不跳转方案 tab
+const planDetailShow = ref(false);
+const planDetailId = ref(null);
+const planDetailMode = ref("read");
+function openPlanDetail(planId) {
+  planDetailId.value = planId;
+  planDetailMode.value = "read";
+  planDetailShow.value = true;
+}
+// 方案详情内编辑保存后：关闭弹窗 + 刷新任务树（planRefs 关联方案标签随之更新）
+function onPlanDetailSaved() {
+  planDetailShow.value = false;
+  emit("changed");
+}
 
 // ===== 起止日期 range（P1）：单个 daterange 绑定，同步到 form.startDate/endDate =====
 const dateRangeVal = ref([]);
@@ -636,6 +722,7 @@ function resetForm() {
   form.endDate = "";
   form.priority = "P3";
   form.isMilestone = false;
+  form.planIds = [];
   submitErr.value = false;
 }
 
@@ -660,6 +747,7 @@ function startEdit(t) {
   form.endDate = t.endDate || "";
   form.priority = t.priority || "P3";
   form.isMilestone = !!t.isMilestone;
+  form.planIds = [...(t.planRefs || []).map((p) => p.id)];
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -686,6 +774,7 @@ function startEditSubtask(task, sub) {
   form.endDate = sub.endDate || "";
   form.priority = sub.priority || "P3";
   form.isMilestone = !!sub.isMilestone;
+  form.planIds = [...(sub.planRefs || []).map((p) => p.id)];
   submitErr.value = false;
   syncDateRangeFromForm();
   dialogShow.value = true;
@@ -706,6 +795,7 @@ function buildPayload() {
     endDate: form.endDate,
     priority: form.priority || "P3",
     isMilestone: form.isMilestone,
+    planIds: form.planIds,
   };
 }
 
@@ -933,7 +1023,8 @@ const hasMilestones = computed(() => {
   return walk(props.tasks);
 });
 
-defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });</script>
+defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation, scrollToAnnotationById });
+</script>
 
 <style scoped>
 .area-section {
@@ -946,20 +1037,14 @@ defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });</script>
   padding: 24px;
 }
 
-/* 任务弹窗：同行多列 */
+/* 任务弹窗：同行多列（第 2/3 行五五开） */
 .task-form-row {
   display: flex;
   gap: 14px;
-  flex-wrap: wrap;
 }
 .task-form-row .el-form-item {
   flex: 1;
   min-width: 0;
-}
-/* 起止日期占更多宽度（daterange 有最小输入宽度），优先级/成员均分剩余 */
-.task-form-row .el-form-item:first-child {
-  flex: 1.5;
-  min-width: 280px;
 }
 
 .task-tab-layout {
@@ -1135,4 +1220,11 @@ defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation });</script>
 }
 .area-section.mode-form { height: 100%; display: flex; flex-direction: column; margin-bottom: 0; }
 
+</style>
+
+<style>
+/* V2.2 R14 关联方案下拉：限高 + 滚动，防溢出 */
+.task-plan-popper .el-select-dropdown__wrap {
+  max-height: 260px;
+}
 </style>

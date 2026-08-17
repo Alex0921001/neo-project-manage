@@ -2,6 +2,7 @@
   <FloatPanel
     :model-value="show"
     @update:model-value="emit('update:show', $event)"
+    @close="emit('closed-detail')"
     :title="panelTitle"
     :default-width="1000"
     :default-height="640"
@@ -13,6 +14,14 @@
     <template v-if="mode === 'read'">
       <div class="pm-read">
         <div class="pm-head">
+          <div class="pm-head-nav">
+            <button v-if="canPrev" class="pm-nav-btn" title="上一条" @click="emit('prev')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button v-if="canNext" class="pm-nav-btn" title="下一条" @click="emit('next')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
           <span class="pm-head-title">{{ plan?.title || "方案" }}</span>
           <div class="pm-head-ops">
             <el-select
@@ -123,10 +132,27 @@
             placeholder="方案内容：记录背景、方案要点、优劣对比……"
           />
         </div>
-        <!-- V2.1.4 方案侧关联需求（多选，样式对齐需求弹窗的关联方案下拉） -->
-        <div class="pm-edit-plans">
-          <el-select
-            v-model="editRequirementIds"
+        <!-- V2.2 R14：关联任务 + 关联需求并排一行（五五开） -->
+        <div class="pm-edit-assoc">
+          <div class="pm-edit-tasks">
+            <el-tree-select
+              v-model="editTaskIds"
+              :data="taskTree"
+            multiple
+            check-strictly
+            filterable
+            node-key="id"
+            :props="{ label: 'name', children: 'children' }"
+            collapse-tags
+            collapse-tags-tooltip
+            size="small"
+            style="width: 100%"
+            :placeholder="taskTree.length ? '关联任务（多选，父子不联动）' : '项目暂无任务'"
+          />
+          </div>
+          <div class="pm-edit-plans">
+            <el-select
+              v-model="editRequirementIds"
             multiple
             filterable
             size="small"
@@ -135,9 +161,10 @@
           >
             <el-option v-for="r in requirements" :key="r.id" :label="r.name" :value="r.id" />
           </el-select>
+          </div>
         </div>
         <div class="pm-edit-footer">
-          <button class="pm-btn" @click="emit('close')">取消</button>
+          <button class="pm-btn" @click="cancelEdit">取消</button>
           <button class="pm-btn pm-btn-save" :disabled="saving" @click="savePlan">
             {{ saving ? "保存中…" : "保存" }}
           </button>
@@ -174,8 +201,10 @@ const props = defineProps({
   planId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit
   clonePlan: { type: Object, default: null }, // 克隆源：新建编辑态预填其标题 + 内容（无权限控制）
+  canPrev: { type: Boolean, default: false }, // R10：列表首条为 false
+  canNext: { type: Boolean, default: false }, // R10：列表末条为 false
 });
-const emit = defineEmits(["close", "changed", "jump-task", "mode-change", "clone", "update:show"]);
+const emit = defineEmits(["close", "changed", "jump-task", "mode-change", "clone", "update:show", "prev", "next", "saved", "created", "edit-cancel", "closed-detail"]);
 
 const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
@@ -198,6 +227,28 @@ async function loadRequirements() {
   if (!props.projectId) return;
   const res = await api(`api/projects/${props.projectId}/requirements?limit=100`);
   if (res?.ok) requirements.value = res.data.items || [];
+}
+
+// V2.2 R14 方案侧关联任务（树形多选，父子不联动：check-strictly 下不勾父自动勾子）
+const taskTree = ref([]);
+const editTaskIds = ref([]);
+async function loadTasks() {
+  if (!props.projectId) return;
+  const res = await api(`api/projects/${props.projectId}/tasks`);
+  if (res?.ok) taskTree.value = buildTaskTreeFromFlat(res.data || []);
+}
+// 扁平任务（listTasks 含 parent_task_id）→ 树（id 唯一，子任务挂到父节点 children）
+function buildTaskTreeFromFlat(flat) {
+  const map = new Map(flat.map((t) => [t.id, { ...t, children: [] }]));
+  const roots = [];
+  for (const node of map.values()) {
+    if (node.parent_task_id && map.has(node.parent_task_id)) {
+      map.get(node.parent_task_id).children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
 }
 
 // ===== 从文件导入（txt / md / docx，仅新建/编辑态） =====
@@ -250,20 +301,26 @@ function initEdit() {
     editTitle.value = props.clonePlan.title;
     editContent.value = props.clonePlan.content || "";
     editRequirementIds.value = [...(props.clonePlan.requirementIds || [])];
+    editTaskIds.value = [...(props.clonePlan.taskRefs || []).map((t) => t.id)];
   } else if (!props.planId) {
     editTitle.value = "";
     editContent.value = "";
     editRequirementIds.value = [];
+    editTaskIds.value = [];
   } else if (plan.value) {
     editTitle.value = plan.value.title;
     editContent.value = plan.value.content || "";
     editRequirementIds.value = (plan.value.requirements || []).map((r) => r.id);
+    editTaskIds.value = (plan.value.taskRefs || []).map((t) => t.id);
   }
 }
 
+let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响应可写入
 async function loadDetail() {
   if (!props.show || !props.planId) return;
+  const seq = ++loadSeq;
   const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`);
+  if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     plan.value = res.data;
     comments.value = res.data.comments || [];
@@ -271,7 +328,10 @@ async function loadDetail() {
     // 编辑模式直接打开（不经 read）时，加载完成后再预填
     if (props.mode === "edit") initEdit();
   } else {
+    // R15：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
     toast(res?.error || "加载方案失败", "error");
+    emit("closed-detail");
+    emit("close");
   }
 }
 
@@ -293,23 +353,30 @@ async function savePlan() {
     if (props.planId) {
       const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
         method: "PUT",
-        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value }),
+        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value }),
       });
       if (!res?.ok) return toast(res?.error || "保存失败", "error");
       toast("已保存");
+      // R15：编辑保存不再直接关弹窗，交给父级决定「回落详情」或「关弹窗刷新列表」
+      emit("saved", props.planId);
     } else {
       const res = await api(`api/projects/${props.projectId}/plans`, {
         method: "POST",
-        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value }),
+        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value }),
       });
       if (!res?.ok) return toast(res?.error || "创建失败", "error");
       toast("已创建方案");
+      // 新建保存：通知父级关弹窗 + 刷新列表
+      emit("created");
     }
-    emit("changed");
-    emit("close");
   } finally {
     saving.value = false;
   }
+}
+
+// R15：编辑态取消，交给父级决定「回落详情」或「关弹窗」
+function cancelEdit() {
+  emit("edit-cancel");
 }
 
 // 状态切换（阅读模式）
@@ -432,6 +499,7 @@ watch(() => props.show, (v) => {
     initEdit();
     loadDetail();
     loadRequirements();
+    loadTasks();
   }
 });
 watch(() => props.planId, () => {
@@ -439,6 +507,7 @@ watch(() => props.planId, () => {
     initEdit();
     loadDetail();
     loadRequirements();
+    loadTasks();
   }
 });
 // 克隆源变化兜底：详情内克隆（read→edit 切换、planId 同 tick 置空）时强制预填，与右击克隆效果对齐
@@ -449,10 +518,15 @@ watch(
       editTitle.value = v.title;
       editContent.value = v.content || "";
       editRequirementIds.value = [...(v.requirementIds || [])];
+      editTaskIds.value = [...(v.taskRefs || []).map((t) => t.id)];
     }
   },
   { immediate: true }
 );
+// R15 补：详情开着时列表右键编辑同一方案（show/planId 未变只 mode 变）→ 预填表单，避免空表单覆盖原关联
+watch(() => props.mode, (m) => {
+  if (props.show && m === "edit") initEdit();
+});
 </script>
 
 <style scoped>
@@ -499,22 +573,54 @@ watch(
   margin-bottom: 12px;
 }
 .pm-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 16px 12px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+/* 导航按钮：工具栏最左侧，键间呼吸间距 */
+.pm-head-nav {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 2px 12px;
-  border-bottom: 0.5px solid var(--border);
-  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .pm-head-title {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 55%;
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+/* R10 详情切换箭头按钮（左右两侧） */
+.pm-nav-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.pm-nav-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 .pm-head-ops {
   display: flex;
@@ -817,15 +923,25 @@ watch(
   min-height: 0;
   max-height: none;
 }
-/* V2.1.4 方案编辑态关联需求：与富文本留呼吸间距，下拉加高 */
-.pm-edit-plans {
-  padding: 10px 0 12px;
+/* V2.2 编辑态关联需求+关联任务：并排一行五五开，四周留呼吸间距 */
+.pm-edit-assoc {
+  display: flex;
+  gap: 14px;
+  padding: 12px 0 4px;
   flex-shrink: 0;
 }
-.pm-edit-plans :deep(.el-select__wrapper) {
+.pm-edit-assoc .pm-edit-tasks,
+.pm-edit-assoc .pm-edit-plans {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.pm-edit-assoc :deep(.el-select__wrapper),
+.pm-edit-assoc :deep(.el-tree-select__wrapper) {
   min-height: 38px;
 }
-.pm-edit-plans :deep(.el-select__selection) {
+.pm-edit-assoc :deep(.el-select__selection),
+.pm-edit-assoc :deep(.el-tree-select__selection) {
   min-height: 34px;
 }
 .pm-edit-footer {

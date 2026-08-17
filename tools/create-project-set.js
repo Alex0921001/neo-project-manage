@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "create_project_set";
-export const description = "创建项目集";
+export const description = "创建项目集（分组容器，用于归拢项目）；返回新建项目集 ID";
 export const parameters = {
   type: "object",
   required: ["name"],
