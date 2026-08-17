@@ -79,5 +79,10 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  test: {
+    environment: "jsdom",
+    globals: false,
+    include: ["src/**/*.test.js"],
+  },
 }));
 

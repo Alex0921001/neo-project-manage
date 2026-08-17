@@ -1,6 +1,6 @@
 {
   "name": "neo-project-manage",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "private": true,
   "type": "module",
   "description": "项目与任务管理工具。支持 Agent 读取项目数据、创建任务。",
@@ -9,7 +9,9 @@
     "doc": "docs",
     "lib": "lib"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "node --test \"scripts/test/*.test.mjs\""
+  },
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "12.6.2"

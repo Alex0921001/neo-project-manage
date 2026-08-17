@@ -215,11 +215,6 @@
           :sort-query="requirementSort"
           @changed="loadProject"
         />
-        <!-- 知识 tab（占位：内容随知识沉淀方案填充） -->
-        <div v-if="tab === 'knowledge'" class="tab-placeholder">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          <p>知识沉淀规划中，内容随知识沉淀方案（V2.2 候选）设计后填充</p>
-        </div>
       </div>
     </section>
 
@@ -318,7 +313,7 @@ watch(tab, (v) => {
   // 各 tab 均为 v-if 按需渲染：切回时组件重建，内部 watch(projectId, immediate) 自动拉取最新数据
 });
 
-// tab 定义：默认顺序即用户指定顺序 任务》需求》方案》文件》知识》备注》审计
+// tab 定义：默认顺序即用户指定顺序 任务》需求》方案》文件》备注》审计
 const TAB_DEFS = [
   {
     key: "tasks", label: "任务", svg: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/>',
@@ -331,9 +326,6 @@ const TAB_DEFS = [
   },
   {
     key: "files", label: "文件", svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  },
-  {
-    key: "knowledge", label: "知识", svg: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
   },
   {
     key: "notes", label: "备注", svg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
@@ -368,7 +360,10 @@ function readTabConfig() {
 const tabConfig = ref(readTabConfig());
 // 可见 tab（按配置顺序渲染）
 const tabList = computed(() =>
-  tabConfig.value.order.filter((k) => !(tabConfig.value.hidden || []).includes(k))
+  tabConfig.value.order
+    // 过滤已删除/无效 tab（如历史配置里残留的 knowledge）
+    .filter((k) => TAB_DEFS.some((d) => d.key === k))
+    .filter((k) => !(tabConfig.value.hidden || []).includes(k))
 );
 // 拖拽用可变数组（v-model 绑定），配置变化时同步
 const tabDragList = ref([]);
