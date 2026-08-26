@@ -13,20 +13,6 @@
         <div class="hole"></div>
       </div>
     </div>
-    <!-- 右装订边 -->
-    <div class="gutter gutter-right">
-      <div class="tear"></div>
-      <div class="hole-col">
-        <div class="hole"></div>
-        <div class="hole"></div>
-        <div class="hole"></div>
-        <div class="hole"></div>
-        <div class="hole"></div>
-        <div class="hole"></div>
-        <div class="hole"></div>
-      </div>
-    </div>
-
     <!-- 便利贴胶带：状态色（已归档项目固定白色） -->
     <div :class="['tape', project.archived ? 'tape-archived' : `tape-${statusKey(displayStatus)}`]"></div>
 
@@ -44,19 +30,19 @@
         </button>
         <div class="title" :title="project.name">{{ project.name }}</div>
       </div>
-      <div class="no-chip">No.{{ project.id.slice(0, 6) }}</div>
+      <div class="no-chip">No.{{ project.id }}</div>
     </div>
 
     <!-- 信息区：双栏字段 -->
     <div class="info">
       <div class="col">
         <div class="field">
-          <div class="lab">日期</div>
-          <div class="val mono">{{ fmtDate(project.planStart) }} ~ {{ fmtDate(project.planEnd) }}</div>
+          <div class="lab">成员</div>
+          <div class="val">{{ membersLabel }}</div>
         </div>
         <div class="field">
-          <div class="lab">项目集</div>
-          <div class="val">{{ setLabel || '—' }}</div>
+          <div class="lab">日期</div>
+          <div class="val mono">{{ fmtDate(project.planStart) }} ~ {{ fmtDate(project.planEnd) }}</div>
         </div>
       </div>
       <div class="col">
@@ -200,6 +186,12 @@ const progressPercent = computed(() => {
   return Math.round((doneTaskCount.value / total) * 100);
 });
 
+// ===== 成员 =====
+const membersLabel = computed(() => {
+  const m = props.project.members || [];
+  return m.length ? m.join('、') : '—';
+});
+
 // ===== 剩余天数 =====
 const remainingDays = computed(() => {
   if (!props.project.planEnd) return '—';
@@ -214,15 +206,14 @@ const remainingDays = computed(() => {
 const descText = computed(() => {
   const t = (props.project.description || "").trim();
   if (!t) return "";
-  const plain = richTextToPlain(t);
-  return plain.length > 100 ? plain.slice(0, 100) + "..." : plain;
+  return richTextToPlain(t);
 });
 
 // ===== 日期 =====
 function fmtDate(d) {
   if (!d) return "—";
   const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
+  return m ? `${m[2]}-${m[3]}` : d;
 }
 </script>
 
@@ -230,13 +221,13 @@ function fmtDate(d) {
 /* ===== 传真单（完全照搬参考结构） ===== */
 .project-card {
   position: relative;
-  height: 246px;
+  height: 270px;
   background: #ffffff;
   border: 1px solid #e0d7c6;
   border-radius: 0;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 6px 18px rgba(90, 80, 70, 0.06);
   cursor: pointer;
-  padding: 18px 30px 16px;
+  padding: 18px 30px 16px 40px;
   display: flex;
   flex-direction: column;
   z-index: 0;
@@ -283,14 +274,13 @@ function fmtDate(d) {
 /* 左右装订边：孔列靠外、撕口在孔列内侧，对齐参考比例 */
 .gutter {
   position: absolute;
-  top: 14px;
-  bottom: 14px;
-  width: 26px;
+  top: 8px;
+  bottom: 8px;
+  width: 30px;
   pointer-events: none;
   z-index: 1;
 }
-.gutter.left { left: 5px; }
-.gutter.right { right: 5px; }
+.gutter.gutter-left { left: 0; }
 
 /* 虚线撕口：位于孔列内侧边缘 */
 .gutter .tear {
@@ -302,31 +292,32 @@ function fmtDate(d) {
   background-size: 1px 8px;
   background-repeat: repeat-y;
 }
-.gutter.left .tear { left: 21px; }
-.gutter.right .tear { right: 21px; }
+.gutter.gutter-left .tear { left: 26px; }
 
 /* 装订孔列 */
 .gutter .hole-col {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 20px;
+  width: 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 0;
+  padding: 6px 0;
 }
-.gutter.left .hole-col { left: 0; }
-.gutter.right .hole-col { right: 0; }
+.gutter.gutter-left .hole-col { left: 0; }
 
 /* 单个装订孔 */
 .gutter .hole {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: #f2ebdb;
-  box-shadow: inset 0 0 0 1px #d6ccb8, inset 0 1px 3px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.16),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px #d6ccb8;
   flex-shrink: 0;
 }
 
@@ -346,11 +337,11 @@ function fmtDate(d) {
   flex: 1;
 }
 .title {
-  font-family: 'EB Garamond', 'Noto Serif SC', 'Songti SC', 'STSong', serif;
-  font-size: 15px;
+  font-family: 'EB Garamond', 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
+  font-size: 16px;
   font-weight: 700;
   color: #5f574d;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
@@ -360,7 +351,7 @@ function fmtDate(d) {
 .no-chip {
   flex-shrink: 0;
   font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-size: 10.5px;
+  font-size: 11px;
   color: #7c7367;
   letter-spacing: 1px;
   line-height: 1.5;
@@ -408,15 +399,15 @@ function fmtDate(d) {
 .field:last-child { margin-bottom: 0; }
 .field .lab {
   font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-size: 9.5px;
-  letter-spacing: 1px;
-  color: #a8a094;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: #7c7367;
   flex-shrink: 0;
   width: 2.8em;
 }
 .field .val {
   font-size: 11px;
-  color: #7c7367;
+  color: #5f574d;
   min-width: 0;
   overflow: hidden;
   line-height: 1.5;
@@ -445,30 +436,36 @@ function fmtDate(d) {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
-    transparent 21px,
-    #e2d9c9 21px,
-    #e2d9c9 22px
+    transparent 26px,
+    #e2d9c9 26px,
+    #e2d9c9 27px
   );
 }
 .write-text {
-  padding: 2px 0 0;
-  font-size: 11px;
-  line-height: 22px;
+  padding: 4px 0 0;
+  font-size: 12px;
+  line-height: 27px;
   color: #7c7367;
-  font-family: 'EB Garamond', 'Noto Serif SC', serif;
-  letter-spacing: 0.2px;
+  font-family: 'EB Garamond', 'Noto Serif SC', 'Source Han Serif SC', serif;
+  letter-spacing: 0.3px;
   word-break: break-word;
   white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 108px;
 }
 
 /* 底部说明 */
 .foot-desc {
   margin-top: 8px;
-  font-size: 9.5px;
+  font-size: 10.5px;
   color: #a8a094;
   letter-spacing: 0.2px;
-  line-height: 1.6;
-  font-family: 'EB Garamond', 'Noto Serif SC', serif;
+  line-height: 1.7;
+  font-family: 'EB Garamond', 'Noto Serif SC', 'Source Han Serif SC', serif;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
