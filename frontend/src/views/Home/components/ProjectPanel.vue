@@ -433,8 +433,8 @@ defineExpose({ load, setFilter, filSetId });
 
 .project-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 18px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px 16px;
 }
 
 /* 已归档更多入口 */

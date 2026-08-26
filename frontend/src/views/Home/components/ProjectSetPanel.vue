@@ -1,55 +1,60 @@
 <template>
-  <div class="set-panel">
-    <div class="panel-header">
-      <div class="header-main">
-        <h2>项目集</h2>
-        <div class="header-sub">{{ sets.length }} 个</div>
-      </div>
-      <div class="header-actions">
-        <button class="search-toggle" :class="{ active: showSearch }" @click="showSearch = !showSearch" title="搜索">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-        </button>
-        <button class="add-btn" @click="openAdd" title="新建项目集">
+  <el-dialog
+    :model-value="modelValue"
+    title="项目集"
+    width="560px"
+    :close-on-click-modal="false"
+    append-to-body
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
+    <div class="set-panel">
+      <!-- header：搜索 + 新建 -->
+      <div class="panel-header">
+        <div class="search-area">
+          <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
+          <input v-model="search" class="search-input" placeholder="搜索项目集..." />
+          <button v-if="search" class="search-clear" @click="search = ''">×</button>
+        </div>
+        <button class="add-btn" @click="openAdd">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          新建项目集
         </button>
       </div>
+
+      <!-- 全部项目卡片 -->
+      <div class="set-grid">
+        <div class="square-card all-card" :class="{ active: selectedId === null }" @click="select(null)">
+          <div class="square-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </div>
+          <div class="square-name">全部项目</div>
+          <div class="square-meta">{{ totalProjectCount }} 个项目</div>
+        </div>
+
+        <div v-if="filteredSets.length === 0 && search" class="empty-state">暂无匹配</div>
+        <div
+          v-for="s in filteredSets"
+          :key="s.id"
+          class="square-card"
+          :class="{ active: s.id === selectedId }"
+          @click="select(s.id)"
+        >
+          <div class="square-color" :style="{ background: pickPaletteColor(sets.indexOf(s)) }"></div>
+          <div class="square-name">{{ s.name }}</div>
+          <div class="square-meta">{{ s.projectCount }} 个项目</div>
+          <div class="square-actions" @click.stop>
+            <button title="编辑" @click="startEdit(s)">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button title="删除" class="danger" @click="startDelete(s)">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <transition name="search">
-      <div v-if="showSearch" class="search-area">
-        <svg class="search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5L21 21"/></svg>
-        <input v-model="search" class="search-input" placeholder="搜索项目集...">
-      </div>
-    </transition>
-
-    <!-- 全部项目 -->
-    <div :class="['all-card', { active: selectedId === null }]" @click="$emit('select-set', null)">
-      <div class="all-icon">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      </div>
-      <div class="all-text">
-        <div class="all-name">全部项目</div>
-        <div class="all-meta">{{ totalProjectCount }} 个项目</div>
-      </div>
-    </div>
-
-    <div class="divider">
-      <span>分组</span>
-    </div>
-
-    <div v-if="filteredSets.length === 0 && search" class="empty-state">暂无匹配</div>
-    <SetCard
-      v-for="(s, idx) in filteredSets"
-      :key="s.id"
-      :set="s"
-      :is-active="s.id === selectedId"
-      :color="pickPaletteColor(idx)"
-      @select="$emit('select-set', s.id)"
-      @edit="startEdit"
-      @delete="startDelete"
-    />
-
-    <!-- Set 弹窗（新建/编辑，el-dialog + el-form） -->
+    <!-- 新建/编辑弹窗 -->
     <el-dialog
       v-model="dialogShow"
       :title="dialogMode === 'add' ? '新建项目集' : '编辑项目集'"
@@ -67,7 +72,7 @@
         <el-button type="primary" :loading="saving" @click="doSave">{{ dialogMode === 'add' ? '创建' : '保存' }}</el-button>
       </template>
     </el-dialog>
-  </div>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -75,18 +80,17 @@ import { ref, reactive, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { pickPaletteColor } from "../../../utils/palette.js";
-import SetCard from "./SetCard.vue";
 
 const props = defineProps({
+  modelValue: { type: Boolean, default: false },
   sets: { type: Array, default: () => [] },
   selectedId: { type: String, default: null },
 });
-const emit = defineEmits(["select-set", "changed", "confirm-ask"]);
+const emit = defineEmits(["update:modelValue", "select-set", "changed", "confirm-ask"]);
 
 const search = ref("");
-const showSearch = ref(false);
 const dialogShow = ref(false);
-const dialogMode = ref("add"); // "add" | "edit"
+const dialogMode = ref("add");
 const editTargetId = ref(null);
 const saving = ref(false);
 const formRef = ref(null);
@@ -109,6 +113,11 @@ const totalProjectCount = computed(() => {
   return props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
 });
 
+function select(id) {
+  emit("select-set", id);
+  emit("update:modelValue", false);
+}
+
 function openAdd() {
   dialogMode.value = "add";
   editTargetId.value = null;
@@ -129,7 +138,6 @@ async function doSave() {
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) return;
   const name = setForm.name.trim();
-  // 前端唯一性校验（后端会双重校验，但避免无意义请求）
   if (dialogMode.value === "add") {
     if (props.sets.some((s) => s.name.trim() === name)) {
       return toast(`项目集名称「${name}」已存在`, "error");
@@ -166,167 +174,170 @@ function startDelete(s) {
 
 <style scoped>
 .set-panel {
-  flex-shrink: 0;
-  width: 260px;
-  overflow-y: auto;
-  background: var(--bg-card);
-  padding: 20px 16px 20px 14px;
-  border-right: 1px solid var(--border-light);
+  min-height: 200px;
 }
 
-/* header */
 .panel-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 16px;
-  padding: 0 4px 14px;
-  border-bottom: 1px solid var(--border-light);
-}
-.header-main { display: flex; align-items: baseline; gap: 8px; }
-.header-main h2 {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 0;
-}
-.header-sub {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-weight: 600;
-}
-.header-actions {
-  display: flex;
-  gap: 6px;
-}
-
-/* buttons */
-.search-toggle,
-.add-btn {
-  width: 28px;
-  height: 28px;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  border-radius: 7px;
-  cursor: pointer;
-  color: #6b7280;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease-out;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-.search-toggle:hover,
-.add-btn:hover { background: #f3f4f6; color: #111827; border-color: #d1d5db; }
-.search-toggle.active { background: #f3f4f6; color: #111827; }
 
-/* search */
 .search-area {
+  flex: 1;
   position: relative;
-  margin-bottom: 12px;
-  padding: 0 4px;
 }
 .search-icon {
   position: absolute;
-  left: 14px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  color: var(--text-tertiary);
   pointer-events: none;
 }
 .search-input {
   width: 100%;
-  padding: 7px 10px 7px 30px;
-  border: 1px solid #e5e7eb;
-  border-radius: 7px;
-  font-size: 12px;
-  background: #ffffff;
-  color: #1f2937;
+  padding: 7px 28px 7px 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  background: var(--bg);
+  color: var(--text);
   outline: none;
-  transition: all 0.15s ease-out;
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
-.search-input:focus { border-color: #111827; box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06); }
-.search-input::placeholder { color: #9ca3af; }
-
-.search-enter-active, .search-leave-active { transition: all 0.2s ease-out; }
-.search-enter-from, .search-leave-to { opacity: 0; transform: translateY(-4px); }
-
-/* all card */
-.all-card {
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text-tertiary); }
+.search-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 14px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
-  position: relative;
-  margin: 0 4px 2px;
+  justify-content: center;
+  border-radius: 50%;
 }
-.all-card:hover { background: var(--bg-hover); }
-.all-card.active {
-  background: var(--bg-hover);
-  color: var(--text);
-}
-.all-card.active .all-icon { color: var(--text); background: transparent; }
-.all-card.active .all-name { color: var(--text); }
-.all-card.active .all-meta { color: var(--text-secondary); }
-.all-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-hover);
+.search-clear:hover { background: var(--bg-hover); color: var(--text); }
+
+.add-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
+  gap: 5px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 12.5px;
+  cursor: pointer;
+  white-space: nowrap;
   flex-shrink: 0;
   transition: all var(--duration-fast) var(--ease-out);
 }
-.all-text { flex: 1; min-width: 0; }
-.all-name {
-  font-weight: 600;
+.add-btn:hover { background: var(--bg-hover); border-color: var(--border); }
+
+/* 方形卡片网格 */
+.set-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.square-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 12px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
+}
+.square-card:hover { border-color: var(--border); background: var(--bg-hover); }
+.square-card.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.square-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+.square-card.active .square-icon { color: var(--accent); background: var(--accent-subtle); }
+
+.square-color {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.square-name {
   font-size: 13px;
+  font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
-.all-meta {
+
+.square-meta {
   font-size: 11px;
   color: var(--text-tertiary);
-  margin-top: 2px;
+  font-weight: 500;
 }
 
-.divider {
+.square-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 12px 8px;
-  font-size: 10px;
-  font-weight: 700;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.square-card:hover .square-actions { opacity: 1; }
+.square-actions button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
   color: var(--text-tertiary);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-out);
 }
-.divider::before,
-.divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #f3f4f6;
-}
+.square-actions button:hover { background: var(--bg-hover); color: var(--text); }
+.square-actions button.danger:hover { background: #fdecec; color: var(--danger); }
 
 .empty-state {
-  padding: 16px 8px;
-  color: #9ca3af;
-  font-size: 12px;
+  grid-column: 1 / -1;
+  padding: 32px 8px;
   text-align: center;
-  font-style: italic;
+  color: var(--text-tertiary);
+  font-size: 12.5px;
 }
-
-.dropdown-danger { color: #dc2626 !important; }
-.dropdown-danger:hover { background: #fef2f2 !important; }
 </style>

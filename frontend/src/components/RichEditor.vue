@@ -76,6 +76,34 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       </button></el-tooltip>
 
+      <!-- 表格 -->
+      <span class="rich-sep"></span>
+      <el-dropdown trigger="click" @command="(cmd) => handleTableCommand(cmd)" v-if="editor?.isActive('table')">
+        <el-tooltip content="表格操作" :show-after="300"><button type="button" class="rich-btn rich-btn-table">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+        </button></el-tooltip>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="addRowAfter">插入行（下方）</el-dropdown-item>
+            <el-dropdown-item command="addRowBefore">插入行（上方）</el-dropdown-item>
+            <el-dropdown-item command="deleteRow">删除行</el-dropdown-item>
+            <el-dropdown-item divided command="addColumnAfter">插入列（右侧）</el-dropdown-item>
+            <el-dropdown-item command="addColumnBefore">插入列（左侧）</el-dropdown-item>
+            <el-dropdown-item command="deleteColumn">删除列</el-dropdown-item>
+            <el-dropdown-item divided command="toggleHeaderRow">切换表头行</el-dropdown-item>
+            <el-dropdown-item command="toggleHeaderColumn">切换表头列</el-dropdown-item>
+            <el-dropdown-item divided command="mergeCells">合并单元格</el-dropdown-item>
+            <el-dropdown-item command="splitCell">拆分单元格</el-dropdown-item>
+            <el-dropdown-item divided command="deleteTable" style="color:var(--el-color-danger)">删除表格</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-tooltip content="插入表格" :show-after="300" v-else>
+        <button type="button" class="rich-btn" @mousedown.prevent="insertTable">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+        </button>
+      </el-tooltip>
+
       <input ref="fileInputRef" type="file" accept="image/png,image/jpeg,image/gif,image/webp" style="display: none" @change="onFilePicked" />
     </div>
     <editor-content :editor="editor" class="rich-content" />
@@ -95,6 +123,10 @@ import Color from "@tiptap/extension-color";
 import Highlight from "@tiptap/extension-highlight";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import { toast } from "../toast.js";
 
 const props = defineProps({
@@ -120,6 +152,10 @@ const editor = useEditor({
     Image.configure({ inline: false, allowBase64: true }),
     Link.configure({ openOnClick: false, autolink: true }),
     Placeholder.configure({ placeholder: props.placeholder }),
+    Table.configure({ resizable: true }),
+    TableRow,
+    TableCell,
+    TableHeader,
   ],
   // 问题2：Ctrl+V 粘贴剪贴板图片 → 自动上传 + 插入
   editorProps: {
@@ -169,6 +205,18 @@ onBeforeUnmount(() => {
 function clearFormat() {
   if (!editor.value) return;
   editor.value.chain().focus().unsetAllMarks().clearNodes().run();
+}
+
+// ===== 表格 =====
+function insertTable() {
+  if (!editor.value) return;
+  editor.value.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+}
+
+function handleTableCommand(cmd) {
+  if (!editor.value) return;
+  const chain = editor.value.chain().focus();
+  chain[cmd]().run();
 }
 
 // ===== 图片压缩（上传前本地压缩，减小 base64 体积，编辑器内缩略显示）=====
@@ -340,6 +388,7 @@ async function onFilePicked(e) {
 .rich-content :deep(.ProseMirror) {
   outline: none;
   min-height: 300px;
+  position: relative;
 }
 .rich-content :deep(.ProseMirror img) {
   max-width: 100%;
@@ -405,5 +454,45 @@ async function onFilePicked(e) {
 }
 .rich-content :deep(.ProseMirror li[data-type="taskItem"] > label) {
   margin-top: 3px;
+}
+
+/* 表格样式 */
+.rich-content :deep(.ProseMirror table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  overflow: hidden;
+  font-size: 13px;
+}
+.rich-content :deep(.ProseMirror th),
+.rich-content :deep(.ProseMirror td) {
+  border: 1px solid var(--el-border-color, oklch(0.88 0.008 270));
+  padding: 6px 10px;
+  min-width: 60px;
+  vertical-align: top;
+  text-align: left;
+}
+.rich-content :deep(.ProseMirror th) {
+  background: var(--el-fill-color-lighter, oklch(0.96 0.005 270));
+  font-weight: 600;
+}
+.rich-content :deep(.ProseMirror .selectedCell) {
+  background: oklch(0.9 0.06 250 / 0.2);
+}
+.rich-content :deep(.ProseMirror th),
+.rich-content :deep(.ProseMirror td) {
+  position: relative;
+}
+.rich-content :deep(.ProseMirror .tableWrapper) {
+  overflow-x: auto;
+}
+.rich-content :deep(.ProseMirror .column-resize-handle) {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background-color: var(--el-color-primary, #409eff);
 }
 </style>

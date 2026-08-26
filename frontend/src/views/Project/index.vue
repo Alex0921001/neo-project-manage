@@ -41,7 +41,7 @@
             <button
               class="tab-btn"
               :class="{ active: tab === key }"
-              @click="tab = key"
+              @click="onTabClick(key)"
               @contextmenu.prevent="onTabContextMenu($event)"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="defSvg(key)"></svg>
@@ -315,6 +315,20 @@ const fullBreadcrumb = computed(() => {
 // ===== Tab（V2.1.3 配置化：顺序 + 显隐，全局/本项目两级配置） =====
 const tabKey = `neo-pm-tab-${props.projectId}`;
 const tab = ref(localStorage.getItem(tabKey) || "tasks");
+
+/**
+ * Tab 点击处理：
+ * - 点击不同 tab → 切换（组件重建，自动加载数据）
+ * - 点击当前 tab → 刷新项目数据（保持展开/收起状态）
+ */
+function onTabClick(key) {
+  if (key === tab.value) {
+    loadProject();
+  } else {
+    tab.value = key;
+  }
+}
+
 watch(tab, (v) => {
   try { localStorage.setItem(tabKey, v); } catch {}
   // 各 tab 均为 v-if 按需渲染：切回时组件重建，内部 watch(projectId, immediate) 自动拉取最新数据

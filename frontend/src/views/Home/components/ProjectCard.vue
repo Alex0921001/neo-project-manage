@@ -1,11 +1,38 @@
 <template>
   <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)" @contextmenu.prevent="openMenu">
+    <!-- 左装订边：虚线撕口 + 装订孔列 -->
+    <div class="gutter gutter-left">
+      <div class="tear"></div>
+      <div class="hole-col">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+      </div>
+    </div>
+    <!-- 右装订边 -->
+    <div class="gutter gutter-right">
+      <div class="tear"></div>
+      <div class="hole-col">
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+        <div class="hole"></div>
+      </div>
+    </div>
+
     <!-- 便利贴胶带：状态色（已归档项目固定白色） -->
     <div :class="['tape', project.archived ? 'tape-archived' : `tape-${statusKey(displayStatus)}`]"></div>
 
-    <div class="card-content">
-      <!-- 第一行：收藏星标 + 项目名称 -->
-      <div class="card-name-row">
+    <!-- 头部：标题 + 收藏 + 编号 -->
+    <div class="head">
+      <div class="head-left">
         <button
           class="pin-btn"
           :class="{ 'pin-on': !!project.pinned }"
@@ -15,55 +42,46 @@
           <svg v-if="!project.pinned" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         </button>
-        <div class="card-name" :title="project.name">{{ project.name }}</div>
+        <div class="title" :title="project.name">{{ project.name }}</div>
       </div>
+      <div class="no-chip">No.{{ project.id.slice(0, 6) }}</div>
+    </div>
 
-      <!-- 第二行：时间（小字灰色） + 项目集名称（右对齐，最多 10 字） -->
-      <div class="card-date">
-        <span class="card-date-range">
-          <span>{{ fmtDate(project.planStart) }}</span>
-          <span class="date-sep">→</span>
-          <span>{{ fmtDate(project.planEnd) }}</span>
-        </span>
-        <span v-if="setLabel" class="card-set" :title="setLabel">{{ shortSet(setLabel) }}</span>
-      </div>
-
-      <!-- 第三行：进度条 -->
-      <div class="card-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: progressPercent + '%' }"></div>
+    <!-- 信息区：双栏字段 -->
+    <div class="info">
+      <div class="col">
+        <div class="field">
+          <div class="lab">日期</div>
+          <div class="val mono">{{ fmtDate(project.planStart) }} ~ {{ fmtDate(project.planEnd) }}</div>
+        </div>
+        <div class="field">
+          <div class="lab">项目集</div>
+          <div class="val">{{ setLabel || '—' }}</div>
         </div>
       </div>
-
-      <!-- 第四行：统计（任务 / 需求 / 方案 / 备注 / 文件） -->
-      <div class="card-stats">
-        <span class="stat-item" title="已完成/总任务数">
-          <span class="stat-label">任务</span>
-          {{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}
-        </span>
-        <span class="stat-item" title="需求数">
-          <span class="stat-label">需求</span>
-          {{ project.reqCount || 0 }}
-        </span>
-        <span class="stat-item" title="方案数">
-          <span class="stat-label">方案</span>
-          {{ project.planCount || 0 }}
-        </span>
-        <span class="stat-item" title="备注数">
-          <span class="stat-label">备注</span>
-          {{ project.noteCount || 0 }}
-        </span>
-        <span class="stat-item" title="文件数">
-          <span class="stat-label">文件</span>
-          {{ project.fileCount || 0 }}
-        </span>
+      <div class="col">
+        <div class="field">
+          <div class="lab">剩余</div>
+          <div class="val mono">{{ remainingDays }}</div>
+        </div>
+        <div class="field">
+          <div class="lab">进度</div>
+          <div class="val mono">{{ progressPercent }}%</div>
+        </div>
       </div>
+    </div>
 
-      <!-- 最后：描述（灰色短线线框，前100字） -->
-      <div class="card-desc">
-        <template v-if="descText">{{ descText }}</template>
-        <span v-else class="desc-empty">这个用户很懒，还没有添加描述。</span>
-      </div>
+    <!-- 分割线 -->
+    <div class="divider"></div>
+
+    <!-- 手写横格区：描述文字浮在连续横线上，每行文字下有下划线，下方延续手写横线 -->
+    <div class="write-area">
+      <div class="write-text">{{ descText || '这个用户很懒，还没有添加描述。' }}</div>
+    </div>
+
+    <!-- 底部说明 -->
+    <div class="foot-desc">
+      当前项目下拥有：任务（{{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}）需求（{{ project.reqCount || 0 }}）方案（{{ project.planCount || 0 }}）备注（{{ project.noteCount || 0 }}）文件（{{ project.fileCount || 0 }}）
     </div>
 
     <!-- 右键菜单 -->
@@ -182,6 +200,16 @@ const progressPercent = computed(() => {
   return Math.round((doneTaskCount.value / total) * 100);
 });
 
+// ===== 剩余天数 =====
+const remainingDays = computed(() => {
+  if (!props.project.planEnd) return '—';
+  const end = new Date(props.project.planEnd + 'T23:59:59');
+  const now = new Date();
+  const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return '已过期';
+  return diff + ' 天';
+});
+
 // ===== 描述（固定前 100 字） =====
 const descText = computed(() => {
   const t = (props.project.description || "").trim();
@@ -196,25 +224,19 @@ function fmtDate(d) {
   const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${m[1]}-${m[2]}-${m[3]}` : d;
 }
-
-// ===== 项目集名称（最多 5 字直接截断，hover 显示全名） =====
-function shortSet(name) {
-  const s = String(name || "").trim();
-  return s.length > 5 ? s.slice(0, 5) : s;
-}
 </script>
 
 <style scoped>
+/* ===== 传真单（完全照搬参考结构） ===== */
 .project-card {
   position: relative;
-  height: 262px;
-  background: #fff;
-  /* 无圆角 / 无边框，右下角硬阴影 + hover 旋转 */
-  border: none;
+  height: 246px;
+  background: #ffffff;
+  border: 1px solid #e0d7c6;
   border-radius: 0;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02), 0 6px 18px rgba(90, 80, 70, 0.06);
   cursor: pointer;
-  padding: 22px 16px 14px;
+  padding: 18px 30px 16px;
   display: flex;
   flex-direction: column;
   z-index: 0;
@@ -223,9 +245,8 @@ function shortSet(name) {
   will-change: transform;
 }
 .project-card:hover {
-  /* 顺时针轻微旋转 + 阴影加深 + 浮到上层 */
   transform: rotate(-2deg);
-  box-shadow: 8px 8px 18px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(90, 80, 70, 0.12);
   z-index: 2;
 }
 
@@ -259,28 +280,95 @@ function shortSet(name) {
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.06), inset 0 0 0 1px oklch(0 0 0 / 0.22);
 }
 
-.card-content {
-  flex: 1;
-  min-height: 0;
+/* 左右装订边：孔列靠外、撕口在孔列内侧，对齐参考比例 */
+.gutter {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  width: 26px;
+  pointer-events: none;
+  z-index: 1;
+}
+.gutter.left { left: 5px; }
+.gutter.right { right: 5px; }
+
+/* 虚线撕口：位于孔列内侧边缘 */
+.gutter .tear {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-image: linear-gradient(to bottom, #d6ccb8 0, #d6ccb8 4px, transparent 4px, transparent 8px);
+  background-size: 1px 8px;
+  background-repeat: repeat-y;
+}
+.gutter.left .tear { left: 21px; }
+.gutter.right .tear { right: 21px; }
+
+/* 装订孔列 */
+.gutter .hole-col {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.gutter.left .hole-col { left: 0; }
+.gutter.right .hole-col { right: 0; }
+
+/* 单个装订孔 */
+.gutter .hole {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f2ebdb;
+  box-shadow: inset 0 0 0 1px #d6ccb8, inset 0 1px 3px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
 }
 
-/* 第一行：收藏星标 + 名称 */
-.card-name-row {
-  position: relative; /* 星星绝对定位锚点 */
+/* 头部：标题 + 编号 */
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+.head-left {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding-left: 22px; /* 给星星让位（16px 按钮 + 6px gap） */
+  flex: 1;
 }
+.title {
+  font-family: 'EB Garamond', 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #5f574d;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.no-chip {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 10.5px;
+  color: #7c7367;
+  letter-spacing: 1px;
+  line-height: 1.5;
+}
+
+/* 收藏星标 */
 .pin-btn {
-  position: absolute; /* 绝对定位：与 button 行高/文字基线彻底解耦 */
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 16px;
@@ -288,129 +376,102 @@ function shortSet(name) {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--text-tertiary);
+  color: #c3b9a8;
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  flex-shrink: 0;
   line-height: 0;
+  border-radius: var(--radius-sm);
   transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
-.pin-btn svg {
-  display: block;
-}
-.pin-btn:hover {
-  color: #f5a623;
-  background: rgba(245, 166, 35, 0.12);
-}
-.pin-btn.pin-on {
-  color: #f5a623;
-}
-.pin-btn.pin-on:hover {
-  color: var(--text-tertiary);
-}
+.pin-btn svg { display: block; }
+.pin-btn:hover { color: #f5a623; background: rgba(245, 166, 35, 0.12); }
+.pin-btn.pin-on { color: #f5a623; }
+.pin-btn.pin-on:hover { color: #c3b9a8; background: transparent; }
 
-/* 第一行：名称 */
-.card-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  line-height: 1.4;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-right: 2px;
-  min-width: 0;
-}
-
-/* 第二行：时间（左） + 项目集名称（右）两端对齐 */
-.card-date {
-  margin-top: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11.5px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-.card-date-range {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-.card-set {
-  flex-shrink: 0;
-  max-width: 100px;
-  color: var(--text-secondary);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: default;
-}
-.date-sep {
-  color: var(--text-tertiary);
-  opacity: 0.6;
-}
-
-/* 第三行：进度条（颜色对齐胶带/状态色） */
-.card-progress {
-  margin-top: 14px;
-}
-.progress-bar {
-  height: 4px;
-  background: #f0f0f0;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
-  border-radius: 2px;
-  background: var(--accent-warm);
-  transition: width 0.3s var(--ease-out);
-}
-.status-todo .progress-fill { background: var(--status-todo-text); }
-.status-doing .progress-fill { background: var(--status-doing-text); }
-.status-done .progress-fill { background: var(--status-done-text); }
-.status-delay .progress-fill { background: var(--status-delay-text); }
-.status-cancel .progress-fill { background: var(--status-cancel-text); }
-
-/* 第四行：统计 */
-.card-stats {
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-}
-.stat-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.stat-label {
-  opacity: 0.7;
-}
-
-/* 描述：灰色短线（虚线）线框，前 100 字完整换行显示 */
-.card-desc {
+/* 信息区：双栏 */
+.info {
   margin-top: 12px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-  padding: 7px 9px;
-  font-size: 11.5px;
-  color: var(--text-secondary);
-  line-height: 1.55;
+  display: flex;
+  gap: 20px;
+}
+.info .col {
+  flex: 1;
+  min-width: 0;
+}
+.field {
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+.field:last-child { margin-bottom: 0; }
+.field .lab {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  color: #a8a094;
+  flex-shrink: 0;
+  width: 2.8em;
+}
+.field .val {
+  font-size: 11px;
+  color: #7c7367;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.field .val.mono {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2px;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* 分割线 */
+.divider {
+  margin-top: 10px;
+  border-top: 1px dashed #c3b9a8;
+}
+
+/* 手写横格区：repeating-linear-gradient 画横线，文字每行下有一条线，下方空白延续横线 */
+.write-area {
+  margin-top: 6px;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 21px,
+    #e2d9c9 21px,
+    #e2d9c9 22px
+  );
 }
-.desc-empty {
-  color: var(--text-tertiary);
-  font-style: italic;
+.write-text {
+  padding: 2px 0 0;
+  font-size: 11px;
+  line-height: 22px;
+  color: #7c7367;
+  font-family: 'EB Garamond', 'Noto Serif SC', serif;
+  letter-spacing: 0.2px;
+  word-break: break-word;
+  white-space: normal;
+}
+
+/* 底部说明 */
+.foot-desc {
+  margin-top: 8px;
+  font-size: 9.5px;
+  color: #a8a094;
+  letter-spacing: 0.2px;
+  line-height: 1.6;
+  font-family: 'EB Garamond', 'Noto Serif SC', serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 右键菜单 */

@@ -31,10 +31,19 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           全部已读
         </button>
-        <button class="msg-btn msg-btn-danger" :disabled="!selected" title="删除当前打开的消息" @click="askDelete()">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          删除
-        </button>
+        <el-dropdown trigger="click" :disabled="!selected" @command="onDeleteCmd">
+          <button class="msg-btn msg-btn-danger" :disabled="!selected" title="删除消息">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            删除
+            <el-icon class="el-icon--right"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></el-icon>
+          </button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="single" :disabled="!selected">删除单条</el-dropdown-item>
+              <el-dropdown-item command="all" divided>全部删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
         <!-- V2.3 精修二批：设置按钮移到删除按钮右侧 -->
         <button class="msg-btn" title="消息提醒配置" @click="openConfig">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -114,6 +123,15 @@
       confirm-text="删除"
       @close="confirmShow = false"
       @confirm="doDelete"
+    />
+
+    <!-- 全部删除确认 -->
+    <ConfirmModal
+      :show="deleteAllShow"
+      message="确认删除全部消息？此操作不可恢复。"
+      confirm-text="全部删除"
+      @close="deleteAllShow = false"
+      @confirm="doDeleteAll"
     />
 
     <!-- V2.3 精修 #7：消息提醒配置弹窗 -->
@@ -366,6 +384,51 @@ async function doDelete() {
   } else {
     toast(res?.error || "删除失败", "error");
   }
+}
+
+// ===== 删除下拉菜单：删除单条 / 全部删除 =====
+function onDeleteCmd(cmd) {
+  if (cmd === "single") {
+    askDelete();
+  } else if (cmd === "all") {
+    askDeleteAll();
+  }
+}
+
+const deleteAllShow = ref(false);
+function askDeleteAll() {
+  deleteAllShow.value = true;
+}
+
+async function doDeleteAll() {
+  deleteAllShow.value = false;
+  // 拉全量消息
+  let allMsgs = [];
+  let offset = 0;
+  while (true) {
+    const res = await api(`api/messages?limit=100&offset=${offset}`, { silent: true });
+    if (!res?.ok) break;
+    const page = res.data.items || [];
+    allMsgs = allMsgs.concat(page);
+    if (allMsgs.length >= (res.data.total || 0)) break;
+    if (!page.length) break;
+    offset += page.length;
+  }
+  if (!allMsgs.length) {
+    toast("没有可删除的消息", "info");
+    return;
+  }
+  // 逐个删除（后端无批量删除接口，逐个删更可靠）
+  let deleted = 0;
+  for (const m of allMsgs) {
+    const res = await api(`api/messages/${m.id}`, { method: "DELETE", silent: true });
+    if (res?.ok) deleted++;
+  }
+  items.value = [];
+  selected.value = null;
+  total.value = 0;
+  emit("changed");
+  toast(`已删除 ${deleted} 条消息`);
 }
 
 // ===== V2.3 精修 #7：消息提醒配置弹窗 =====
