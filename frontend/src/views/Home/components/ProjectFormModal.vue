@@ -1,78 +1,77 @@
 <template>
-  <el-dialog
-    :model-value="show"
+  <FormDialog
+    :show="show"
     :title="isEdit ? '编辑项目' : '新建项目'"
-    width="800px"
-    :close-on-click-modal="false"
-    append-to-body
-    @close="$emit('close')"
+    :width="800"
+    :height="620"
+    :form="form"
+    :rules="rules"
+    :saving="saving"
+    :save-text="isEdit ? '保存' : '创建'"
+    @update:show="(v) => { if (!v) $emit('close') }"
+    @cancel="$emit('close')"
+    @save="submit"
   >
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-      <!-- 第一行：名称 -->
-      <el-form-item label="名称" prop="name">
-        <el-input v-model="form.name" placeholder="项目名称" maxlength="20" show-word-limit />
+    <!-- 第一行：名称 -->
+    <el-form-item label="名称" prop="name">
+      <el-input v-model="form.name" placeholder="项目名称" maxlength="20" show-word-limit />
+    </el-form-item>
+
+    <!-- 第二行：项目集 + 状态 -->
+    <div class="form-row">
+      <el-form-item label="项目集">
+        <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
+          <el-option label="未归类" value="" />
+          <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
+        </el-select>
       </el-form-item>
+      <el-form-item label="状态">
+        <el-select v-model="form.status" style="width: 100%">
+          <el-option label="待开始" value="待开始" />
+          <el-option label="进行中" value="进行中" />
+          <el-option label="已完成" value="已完成" />
+          <el-option label="已取消" value="已取消" />
+        </el-select>
+      </el-form-item>
+    </div>
 
-      <!-- 第二行：项目集 + 状态 -->
-      <div class="form-row">
-        <el-form-item label="项目集">
-          <el-select v-model="form.projectSetId" placeholder="请选择项目集（可不选）" clearable style="width: 100%">
-            <el-option label="未归类" value="" />
-            <el-option v-for="s in sets" :key="s.id" :label="s.name" :value="s.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="form.status" style="width: 100%">
-            <el-option label="待开始" value="待开始" />
-            <el-option label="进行中" value="进行中" />
-            <el-option label="已完成" value="已完成" />
-            <el-option label="已取消" value="已取消" />
-          </el-select>
-        </el-form-item>
-      </div>
-
-      <!-- 第三行：计划周期 + 成员 -->
-      <div class="form-row">
-        <el-form-item label="计划周期">
-          <el-date-picker
-            v-model="planRangeVal"
-            type="daterange"
-            value-format="YYYY-MM-DD"
-            range-separator="至"
-            start-placeholder="计划开始"
-            end-placeholder="计划结束"
-            style="width: 100%"
-          />
-          <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
-        </el-form-item>
-        <el-form-item label="成员">
-          <MemberSelect v-model="form.members" />
-        </el-form-item>
-      </div>
-
-      <!-- 第四行：描述 -->
-      <el-form-item label="描述">
-        <el-input
-          v-model="form.description"
-          type="textarea"
-          :rows="4"
-          resize="none"
-          placeholder="一句话描述项目目标（可选）"
+    <!-- 第三行：计划周期 + 成员 -->
+    <div class="form-row">
+      <el-form-item label="计划周期">
+        <el-date-picker
+          v-model="planRangeVal"
+          type="daterange"
+          value-format="YYYY-MM-DD"
+          range-separator="至"
+          start-placeholder="计划开始"
+          end-placeholder="计划结束"
+          style="width: 100%"
         />
+        <div v-if="dateRangeErr" class="field-err">结束日期不能早于开始日期</div>
       </el-form-item>
-    </el-form>
+      <el-form-item label="成员">
+        <MemberSelect v-model="form.members" />
+      </el-form-item>
+    </div>
 
-    <template #footer>
-      <el-button @click="$emit('close')">取消</el-button>
-      <el-button class="btn-save" :loading="saving" @click="submit">{{ isEdit ? '保存' : '创建' }}</el-button>
-    </template>
-  </el-dialog>
+    <!-- 第四行：描述 -->
+    <el-form-item label="描述">
+      <el-input
+        v-model="form.description"
+        type="textarea"
+        :rows="4"
+        resize="none"
+        placeholder="一句话描述项目目标（可选）"
+      />
+    </el-form-item>
+  </FormDialog>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
 import { normalizeRichText, richTextToPlain } from "../../../utils/text.js";
 import MemberSelect from "../../../components/MemberSelect.vue";
+import FormDialog from "../../../components/FormDialog.vue";
 
 const props = defineProps({
   show: Boolean,
@@ -84,9 +83,7 @@ const props = defineProps({
 const emit = defineEmits(["close", "save"]);
 
 const isEdit = computed(() => props.mode === "edit");
-const projectId = computed(() => (props.data?.id) || "");
 
-const formRef = ref(null);
 const saving = ref(false);
 const form = reactive({
   id: "", name: "", description: "", planStart: "", planEnd: "",
@@ -140,14 +137,11 @@ watch(() => props.show, (v) => {
       form.projectSetId = props.defaultSetId;
       form.members = [];
     }
-    formRef.value?.clearValidate();
   }
 });
 
 async function submit() {
   if (dateRangeErr.value) return;
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
   saving.value = true;
   try {
     emit("save", {
@@ -180,24 +174,5 @@ async function submit() {
   margin-top: 6px;
   font-size: 12px;
   color: var(--danger);
-}
-</style>
-
-<style>
-/* 保存按钮：黑底白字（el-dialog append-to-body，需全局样式） */
-.btn-save.el-button {
-  background: var(--text) !important;
-  border-color: var(--text) !important;
-  color: #fff !important;
-  font-weight: 600;
-}
-.btn-save.el-button:hover {
-  background: var(--accent-hover) !important;
-  border-color: var(--accent-hover) !important;
-  color: #fff !important;
-}
-.btn-save.el-button.is-loading {
-  background: var(--text) !important;
-  border-color: var(--text) !important;
 }
 </style>

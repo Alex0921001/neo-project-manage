@@ -54,24 +54,24 @@
       </div>
     </div>
 
-    <!-- 新建/编辑弹窗 -->
-    <el-dialog
-      v-model="dialogShow"
+    <!-- 新建/编辑项目集（公共 FormDialog：可拖拽/缩放/双击全屏） -->
+    <FormDialog
+      v-model:show="dialogShow"
       :title="dialogMode === 'add' ? '新建项目集' : '编辑项目集'"
-      width="400px"
-      :close-on-click-modal="false"
-      append-to-body
+      :width="420"
+      :height="260"
+      :form="setForm"
+      :rules="rules"
+      :saving="saving"
+      :save-text="dialogMode === 'add' ? '创建' : '保存'"
+      @update:show="(v) => { if (!v) dialogShow = false }"
+      @cancel="dialogShow = false"
+      @save="doSave"
     >
-      <el-form ref="formRef" :model="setForm" :rules="rules" label-position="top" @submit.prevent>
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="setForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogShow = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doSave">{{ dialogMode === 'add' ? '创建' : '保存' }}</el-button>
-      </template>
-    </el-dialog>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="setForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
+      </el-form-item>
+    </FormDialog>
   </el-dialog>
 </template>
 
@@ -80,6 +80,7 @@ import { ref, reactive, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { pickPaletteColor } from "../../../utils/palette.js";
+import FormDialog from "../../../components/FormDialog.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -93,7 +94,6 @@ const dialogShow = ref(false);
 const dialogMode = ref("add");
 const editTargetId = ref(null);
 const saving = ref(false);
-const formRef = ref(null);
 const setForm = reactive({ name: "" });
 
 const rules = {
@@ -123,7 +123,6 @@ function openAdd() {
   editTargetId.value = null;
   setForm.name = "";
   dialogShow.value = true;
-  formRef.value?.clearValidate();
 }
 
 function startEdit(s) {
@@ -131,12 +130,9 @@ function startEdit(s) {
   editTargetId.value = s.id;
   setForm.name = s.name;
   dialogShow.value = true;
-  formRef.value?.clearValidate();
 }
 
 async function doSave() {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
   const name = setForm.name.trim();
   if (dialogMode.value === "add") {
     if (props.sets.some((s) => s.name.trim() === name)) {

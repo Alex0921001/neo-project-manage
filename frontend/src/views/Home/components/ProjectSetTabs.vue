@@ -75,23 +75,24 @@
     </div>
 
     <!-- 新增/编辑弹窗 -->
-    <el-dialog
-      v-model="editShow"
+    <!-- 新建/编辑项目集（公共 FormDialog：可拖拽/缩放/双击全屏） -->
+    <FormDialog
+      v-model:show="editShow"
       :title="editMode === 'add' ? '新建项目集' : '编辑项目集'"
-      width="400px"
-      :close-on-click-modal="false"
-      append-to-body
+      :width="420"
+      :height="260"
+      :form="editForm"
+      :rules="rules"
+      :saving="saving"
+      :save-text="editMode === 'add' ? '创建' : '保存'"
+      @update:show="(v) => { if (!v) editShow = false }"
+      @cancel="editShow = false"
+      @save="doSave"
     >
-      <el-form ref="formRef" :model="editForm" :rules="rules" label-position="top" @submit.prevent>
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="editForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="editShow = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="doSave">{{ editMode === 'add' ? '创建' : '保存' }}</el-button>
-      </template>
-    </el-dialog>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="editForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
+      </el-form-item>
+    </FormDialog>
 
     <!-- 管理弹窗（列表 + 排序 + 快捷增删） -->
     <el-dialog
@@ -163,6 +164,7 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 import draggable from "vuedraggable";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import FormDialog from "../../../components/FormDialog.vue";
 import MessageCenterPanel from "../MessageCenterPanel.vue";
 import SearchPanel from "../../../components/SearchPanel.vue";
 
@@ -283,7 +285,6 @@ const editShow = ref(false);
 const editMode = ref("add");
 const editTargetId = ref(null);
 const saving = ref(false);
-const formRef = ref(null);
 const editForm = reactive({ name: "" });
 const rules = {
   name: [
@@ -297,18 +298,14 @@ function openAdd() {
   editTargetId.value = null;
   editForm.name = "";
   editShow.value = true;
-  formRef.value?.clearValidate();
 }
 function startEdit(s) {
   editMode.value = "edit";
   editTargetId.value = s.id;
   editForm.name = s.name;
   editShow.value = true;
-  formRef.value?.clearValidate();
 }
 async function doSave() {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
   const name = editForm.name.trim();
   if (editMode.value === "add") {
     if (props.sets.some((s) => s.name.trim() === name)) return toast(`项目集名称「${name}」已存在`, "error");

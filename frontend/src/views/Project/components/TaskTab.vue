@@ -1,17 +1,20 @@
 <template>
   <div class="area-section">
-    <!-- 任务新建/编辑弹窗（el-dialog + el-form） -->
-    <el-dialog
-      v-model="dialogShow"
+    <!-- 任务新建/编辑弹窗（公共 FormDialog：可拖拽/缩放/双击全屏） -->
+    <FormDialog
+      v-model:show="dialogShow"
       :title="dialogTitle"
-      width="800px"
-      class="task-dialog-el"
-      :close-on-click-modal="false"
-      append-to-body
+      :width="800"
+      :height="640"
+      :form="form"
+      :rules="rules"
+      :saving="saving"
+      :save-text="isEditMode ? '保存' : '创建'"
+      @update:show="(v) => { if (!v) dialogShow = false }"
+      @cancel="dialogShow = false"
+      @save="submitInline"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <!-- 第一行：名称 -->
-        <el-form-item label="名称" prop="name">
+      <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="任务名称" maxlength="50" show-word-limit />
         </el-form-item>
 
@@ -89,12 +92,7 @@
         <el-form-item label="简述">
           <RichEditor v-model="form.description" :project-id="projectId" />
         </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogShow = false">取消</el-button>
-        <el-button class="btn-save" :loading="saving" @click="submitInline">{{ isEditMode ? '保存' : '创建' }}</el-button>
-      </template>
-    </el-dialog>
+    </FormDialog>
 
     <!-- V2.2 R14：任务条目点击关联方案标签 → 方案详情（read，复用 PlanModal） -->
     <PlanModal
@@ -261,6 +259,7 @@ import TaskCard from "./TaskCard.vue";
 import MilestoneTimeline from "./MilestoneTimeline.vue";
 import AnnotationPanel from "./AnnotationPanel.vue";
 import MemberSelect from "../../../components/MemberSelect.vue";
+import FormDialog from "../../../components/FormDialog.vue";
 import PlanModal from "./PlanModal.vue";
 import { normalizeRichText } from "../../../utils/text.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
@@ -627,7 +626,6 @@ const subtaskParent = ref(null);
 const editingSubId = ref(null);
 const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", isMilestone: false, fileRefs: [], planIds: [] });
 const submitErr = ref(false);
-const formRef = ref(null);
 
 // V2.2 R14：关联方案数据源（任务表单多选下拉）
 const plans = ref([]);
@@ -800,8 +798,6 @@ function buildPayload() {
 }
 
 async function submitInline() {
-  const valid = await formRef.value?.validate().catch(() => false);
-  if (!valid) return;
   // 硬校验：结束日期不能早于开始日期
   if (form.startDate && form.endDate && form.endDate < form.startDate) {
     toast("结束日期不能早于开始日期", "error");

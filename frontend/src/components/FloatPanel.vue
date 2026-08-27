@@ -20,6 +20,10 @@
       <div class="float-panel-body" :class="{ 'float-panel-no-select': dragging || resizing }">
         <slot />
       </div>
+      <!-- 底部操作区（可选，表单弹窗用） -->
+      <div v-if="$slots.footer" class="float-panel-footer">
+        <slot name="footer" />
+      </div>
       <!-- 右下角缩放柄 -->
       <div class="float-panel-resize" :class="{ 'float-panel-resizing': resizing }" @mousedown="startResize"></div>
     </div>
@@ -244,6 +248,16 @@ function startResize(e) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+.float-panel-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-card);
 }
 .float-panel-no-select {
   user-select: none;

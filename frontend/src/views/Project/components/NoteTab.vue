@@ -1,24 +1,23 @@
 <template>
   <div class="area-section">
-    <!-- 新建/编辑备注弹窗（el-dialog + el-form） -->
-    <el-dialog
-      v-model="dialogShow"
+    <!-- 新建/编辑备注弹窗（公共 FormDialog：可拖拽/缩放/双击全屏） -->
+    <FormDialog
+      v-model:show="dialogShow"
       :title="editingId ? '编辑备注' : '新建备注'"
-      width="800px"
-      :close-on-click-modal="false"
-      append-to-body
+      :width="800"
+      :height="560"
+      :form="form"
+      :rules="rules"
+      :saving="saving"
+      :save-text="editingId ? '保存' : '添加备注'"
+      @update:show="(v) => { if (!v) dialogShow = false }"
+      @cancel="dialogShow = false"
+      @save="submit"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
-        <el-form-item label="内容" prop="content">
-          <RichEditor v-model="form.content" :project-id="projectId" placeholder="随手记一条想法、链接、灵感……" />
-          <div class="form-hint">支持富文本，可插入图片（≤2MB）</div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogShow = false">取消</el-button>
-        <el-button class="btn-save" :loading="saving" @click="submit">{{ editingId ? '保存' : '添加备注' }}</el-button>
-      </template>
-    </el-dialog>
+      <el-form-item label="内容" prop="content">
+        <RichEditor v-model="form.content" :project-id="projectId" placeholder="随手记一条想法、链接、灵感……" />
+      </el-form-item>
+    </FormDialog>
 
     <!-- 列表模式 -->
     <div v-if="!notes.length" class="notes-empty">
@@ -69,6 +68,7 @@
 import { ref, reactive } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import FormDialog from "../../../components/FormDialog.vue";
 import { formatDescription, normalizeRichText } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
@@ -84,7 +84,6 @@ const emit = defineEmits(["changed", "confirm-ask"]);
 const dialogShow = ref(false);
 const editingId = ref(null);
 const saving = ref(false);
-const formRef = ref(null);
 const form = reactive({ content: "" });
 
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();

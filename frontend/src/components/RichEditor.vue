@@ -292,8 +292,9 @@ async function onFilePicked(e) {
 <style scoped>
 /* 视觉对齐 Element Plus 弹窗（P2）：白底 + EP 边框/背景变量，去暖黄色调 */
 .rich-editor {
-  width: 750px;
-  max-width: 100%; /* 窄容器下防溢出 */
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--el-border-color, oklch(0.9 0.008 270));
   border-radius: 8px;
   overflow: hidden;
@@ -375,10 +376,10 @@ async function onFilePicked(e) {
   flex-shrink: 0;
 }
 .rich-content {
+  flex: 1;
   padding: 8px 12px;
-  /* 问题4.1：编辑框高度加大 */
-  min-height: 320px;
-  max-height: 400px;
+  /* 跟随弹窗高度伸缩；最小高度兜底 */
+  min-height: 200px;
   overflow-y: auto;
   background: #fff;
   font-size: 13.5px;
