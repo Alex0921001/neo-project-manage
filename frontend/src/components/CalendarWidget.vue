@@ -40,6 +40,7 @@ const props = defineProps({
   compact: { type: Boolean, default: true },
   taskMode: { type: Boolean, default: false }, // true = 事件源为任务（日历 tab）
   projectId: { type: String, default: "" },   // taskMode 且非空 = 限定单项目
+  projectSetId: { type: String, default: null }, // projectMode 下按项目集过滤（null/空=全部）
 });
 const emit = defineEmits(["select", "select-task"]);
 
@@ -117,13 +118,22 @@ watch(calFilter, () => {
 });
 watch(() => props.projectId, () => { if (props.taskMode) loadTaskEvents(); });
 
-// ===== 项目状态筛选（非 taskMode，仅独立页非 compact 生效）=====
+// ===== 项目状态筛选（非 taskMode，仅独立页非 compact 生效） =====
+// 规则：全部=待开始+进行中+已完成；未完成=待开始+进行中；已完成=已完成。
+// 始终排除「已取消」与「已归档」项目。compact（侧边小日历）保持原始全部逻辑。
+const STATUS_ALLOWED = ["待开始", "进行中", "已完成"];
 const visibleProjects = computed(() => {
-  if (props.compact || calFilter.value === "all") return props.projects;
-  const done = calFilter.value === "done";
-  return props.projects.filter((p) =>
-    done ? p.status === "已完成" : p.status !== "已完成"
-  );
+  if (props.compact) return props.projects;
+  // 项目集过滤：传了非空 projectSetId 则只留该集下项目
+  let list = props.projects;
+  if (props.projectSetId) list = list.filter((p) => p.projectSetId === props.projectSetId);
+  // 排除已取消 + 已归档
+  list = list.filter((p) => !p.archived && p.status !== "已取消");
+  if (list.length === 0) return list;
+  // 状态筛选
+  if (calFilter.value === "all") return list.filter((p) => STATUS_ALLOWED.includes(p.status));
+  if (calFilter.value === "done") return list.filter((p) => p.status === "已完成");
+  return list.filter((p) => p.status !== "已完成" && STATUS_ALLOWED.includes(p.status));
 });
 
 function getSetName(projectSetId) {

@@ -4,7 +4,7 @@
       v-show="view === 'home'"
       ref="homeRef"
       @open-project="openProject"
-      @go-calendar="goCalendar"
+      @go-calendar="(setId) => goCalendar(setId)"
     />
 
     <ProjectDetail
@@ -21,6 +21,7 @@
       v-model="calendarShow"
       :projects="allProjects"
       :sets="allSets"
+      :project-set-id="calendarSetId"
       @select="(id) => { calendarShow = false; openProject(id) }"
       @select-task="(payload) => { calendarShow = false; openTaskFromCalendar(payload) }"
     />
@@ -59,6 +60,7 @@ const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
 const versionInfo = ref(null);
 const calendarShow = ref(false); // 全项目日历弹窗
+const calendarSetId = ref(null); // 打开日历时携带的当前项目集 id（null=全部项目集）
 const globalSearchShow = ref(false); // V2.3 R2：全局搜索弹窗（Home 放大镜 / Ctrl+F）
 
 function formatTime(iso) {
@@ -89,8 +91,9 @@ function goHome() {
   nextTick(() => homeRef.value?.refresh?.());
 }
 
-// 列表页「前往日历」：改为弹窗（不再切独立路由视图）
-function goCalendar() {
+// 列表页「前往日历」：改为弹窗（不再切独立路由视图）；携带当前选择的项目集 id
+function goCalendar(setId) {
+  calendarSetId.value = setId || null;
   calendarShow.value = true;
   loadAllProjects();
 }

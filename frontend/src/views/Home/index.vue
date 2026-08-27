@@ -13,7 +13,7 @@
       :sets="sets"
       :refresh-key="refreshKey"
       @open-project="$emit('open-project', $event)"
-      @go-calendar="$emit('go-calendar')"
+      @go-calendar="() => $emit('go-calendar', selSetId)"
       @changed="load"
       @confirm-ask="onConfirm"
     />

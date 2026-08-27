@@ -38,7 +38,7 @@
       <div class="col">
         <div class="field">
           <div class="lab">成员</div>
-          <div class="val">{{ membersLabel }}</div>
+          <div class="val val-members">{{ membersLabel }}</div>
         </div>
         <div class="field">
           <div class="lab">日期</div>
@@ -60,9 +60,11 @@
     <!-- 分割线 -->
     <div class="divider"></div>
 
-    <!-- 手写横格区：描述文字浮在连续横线上，每行文字下有下划线，下方延续手写横线 -->
+    <!-- 手写横格区：默认 4 行，全部展示项目描述；无描述用缺省文案；超过 4 行截断 -->
     <div class="write-area">
-      <div class="write-text">{{ descText || '这个用户很懒，还没有添加描述。' }}</div>
+      <div class="write-text">
+        <div class="write-row desc" :title="descText">{{ descText || '这个用户很懒，还没有添加描述。' }}</div>
+      </div>
     </div>
 
     <!-- 底部说明 -->
@@ -202,7 +204,7 @@ const remainingDays = computed(() => {
   return diff + ' 天';
 });
 
-// ===== 描述（固定前 100 字） =====
+// ===== 描述（固定前 4 行展示） =====
 const descText = computed(() => {
   const t = (props.project.description || "").trim();
   if (!t) return "";
@@ -221,7 +223,7 @@ function fmtDate(d) {
 /* ===== 传真单（完全照搬参考结构） ===== */
 .project-card {
   position: relative;
-  height: 270px;
+  height: 288px;
   background: #ffffff;
   border: 1px solid #e0d7c6;
   border-radius: 0;
@@ -420,6 +422,12 @@ function fmtDate(d) {
   white-space: normal;
   word-break: break-word;
 }
+/* 成员：多人只在一行显示，超长省略，不挤压其他元素 */
+.field .val-members {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 /* 分割线 */
 .divider {
@@ -427,7 +435,7 @@ function fmtDate(d) {
   border-top: 1px dashed #c3b9a8;
 }
 
-/* 手写横格区：repeating-linear-gradient 画横线，文字每行下有一条线，下方空白延续横线 */
+/* 手写横格区：flex:1 填充剩余高度；横线只在顶部 4 行（96px）内绘制，其余透明，保证固定 4 条下划线，最后一条不被遮蔽 */
 .write-area {
   margin-top: 6px;
   flex: 1;
@@ -436,26 +444,35 @@ function fmtDate(d) {
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
-    transparent 26px,
-    #e2d9c9 26px,
-    #e2d9c9 27px
+    transparent 29px,
+    #e2d9c9 29px,
+    #e2d9c9 30px
   );
+  background-size: 100% 120px;
+  background-repeat: no-repeat;
 }
 .write-text {
-  padding: 4px 0 0;
+  padding: 0;
+}
+.write-row {
+  display: block;
   font-size: 12px;
-  line-height: 27px;
+  line-height: 30px;
   color: #7c7367;
   font-family: 'EB Garamond', 'Noto Serif SC', 'Source Han Serif SC', serif;
   letter-spacing: 0.3px;
-  word-break: break-word;
+}
+/* 描述：占满可用行，最多 4 行，超长截断；无描述时显示缺省文案 */
+.write-row.desc {
   white-space: normal;
+  word-break: break-word;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-height: 108px;
+  height: auto;
+  max-height: 120px;
 }
 
 /* 底部说明 */

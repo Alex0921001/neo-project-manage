@@ -3,13 +3,15 @@
     <div
       v-if="modelValue"
       class="float-panel"
+      :class="{ 'float-panel-full-state': fullscreen }"
       :style="panelStyle"
     >
-      <!-- 标题栏：拖动区域（点 × 关闭；无遮罩，点击外部不关闭） -->
+      <!-- 标题栏：拖动区域（点 × 关闭；双击标题撑满整页；无遮罩，点击外部不关闭） -->
       <div
         class="float-panel-head"
-        :class="{ 'float-panel-dragging': dragging }"
+        :class="{ 'float-panel-dragging': dragging, 'float-panel-fullscreen': fullscreen }"
         @mousedown="startDrag"
+        @dblclick="toggleFullscreen"
       >
         <span class="float-panel-title">{{ title }}</span>
         <button class="float-panel-close" title="关闭" @click="close">✕</button>
@@ -46,14 +48,28 @@ const dragging = ref(false);
 const resizing = ref(false);
 // 打开时动态取层级（后打开的面板/弹窗永远更高）
 const zIndex = ref(0);
+// 双击标题栏撑满整页：记住进入全屏前的尺寸/位置，恢复用
+const fullscreen = ref(false);
+const prevRect = ref(null);
 
-const panelStyle = computed(() => ({
-  width: size.value.w + "px",
-  height: size.value.h + "px",
-  left: pos.value.x + "px",
-  top: pos.value.y + "px",
-  zIndex: zIndex.value || 3000,
-}));
+const panelStyle = computed(() => {
+  if (fullscreen.value) {
+    return {
+      width: "100vw",
+      height: "100vh",
+      left: 0,
+      top: 0,
+      zIndex: zIndex.value || 3000,
+    };
+  }
+  return {
+    width: size.value.w + "px",
+    height: size.value.h + "px",
+    left: pos.value.x + "px",
+    top: pos.value.y + "px",
+    zIndex: zIndex.value || 3000,
+  };
+});
 
 function clamp(v, min, max) {
   return Math.min(max, Math.max(min, v));
@@ -81,6 +97,9 @@ watch(() => props.modelValue, (v) => {
       center();
     }
   }
+  // 重新打开时重置全屏，回到默认尺寸
+  fullscreen.value = false;
+  prevRect.value = null;
   zIndex.value = nextZIndex();
 });
 
@@ -89,9 +108,26 @@ function close() {
   emit("close");
 }
 
+// ===== 双击标题栏：撑满整页 / 恢复 =====
+function toggleFullscreen() {
+  if (fullscreen.value) {
+    // 恢复：回到进入全屏前的尺寸与位置
+    fullscreen.value = false;
+    if (prevRect.value) {
+      size.value = { w: prevRect.value.w, h: prevRect.value.h };
+      pos.value = { x: prevRect.value.x, y: prevRect.value.y };
+    }
+    prevRect.value = null;
+  } else {
+    prevRect.value = { w: size.value.w, h: size.value.h, x: pos.value.x, y: pos.value.y };
+    fullscreen.value = true;
+  }
+}
+
 // ===== 拖动（标题栏） =====
 function startDrag(e) {
   if (e.button !== 0) return;
+  if (fullscreen.value) return;
   dragging.value = true;
   const startX = e.clientX;
   const startY = e.clientY;
@@ -116,6 +152,7 @@ function startDrag(e) {
 // ===== 缩放（右下角柄，尺寸钳制在 [min, max]） =====
 function startResize(e) {
   if (e.button !== 0) return;
+  if (fullscreen.value) return;
   resizing.value = true;
   const startX = e.clientX;
   const startY = e.clientY;
@@ -150,6 +187,11 @@ function startResize(e) {
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
+/* 全屏态：去掉圆角与边框，铺满整页 */
+.float-panel-full-state {
+  border-radius: 0;
+  border: none;
+}
 .float-panel-head {
   display: flex;
   align-items: center;
@@ -164,6 +206,9 @@ function startResize(e) {
 }
 .float-panel-dragging {
   cursor: grabbing;
+}
+.float-panel-fullscreen {
+  cursor: default;
 }
 .float-panel-title {
   font-size: 13px;

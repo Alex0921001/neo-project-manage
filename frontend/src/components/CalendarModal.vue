@@ -17,6 +17,7 @@
         :compact="false"
         :task-mode="taskMode"
         :project-id="projectId"
+        :project-set-id="projectSetId"
         @select="(id) => emit('select', id)"
         @select-task="(payload) => emit('select-task', payload)"
       />
@@ -34,6 +35,7 @@ defineProps({
   sets: { type: Array, default: () => [] },
   taskMode: { type: Boolean, default: false }, // true=单项目任务日历（详情页），false=全项目日历（列表页）
   projectId: { type: String, default: "" },
+  projectSetId: { type: String, default: null },
 });
 const emit = defineEmits(["update:modelValue", "select", "select-task"]);
 </script>
