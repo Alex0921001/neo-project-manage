@@ -9,6 +9,7 @@
       @reorder="onReorder"
     />
     <ProjectPanel
+      v-if="selSetId !== 'inbox'"
       ref="projPanel"
       :sets="sets"
       :refresh-key="refreshKey"
@@ -16,6 +17,12 @@
       @go-calendar="() => $emit('go-calendar', selSetId)"
       @changed="load"
       @confirm-ask="onConfirm"
+    />
+    <!-- 临时任务面板（selSetId='inbox' 时替换项目网格） -->
+    <QuickTaskPanel
+      v-else
+      @open-project="$emit('open-project', $event)"
+      @changed="load"
     />
 
     <ConfirmModal
@@ -32,11 +39,12 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, nextTick } from "vue";
 import { api } from "../../api.js";
 import { toast } from "../../toast.js";
 import ProjectSetTabs from "./components/ProjectSetTabs.vue";
 import ProjectPanel from "./components/ProjectPanel.vue";
+import QuickTaskPanel from "./components/QuickTaskPanel.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import CapabilityCheatSheet from "../../components/CapabilityCheatSheet.vue";
 
@@ -67,7 +75,9 @@ async function refresh() {
 
 function onSelectSet(id) {
   selSetId.value = id;
-  projPanel.value?.setFilter(id);
+  if (id === "inbox") return; // 临时任务页签：不触项目过滤
+  // 从 inbox 切回时 ProjectPanel 刚重新挂载，等 nextTick 后再设过滤
+  nextTick(() => projPanel.value?.setFilter(id));
 }
 
 // tabs 拖拽/弹窗排序：按新顺序重排 sets，并持久化到后端（v1.3.1）

@@ -9,6 +9,7 @@ import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
 import { registerFilesRoutes } from "./modules/files.js";
 import { registerNotesRoutes } from "./modules/notes.js";
+import { registerQuickTasksRoutes } from "./modules/quick-tasks.js";
 import { registerUploadRoutes } from "./modules/upload.js";
 import { registerCalendarRoutes } from "./modules/calendar.js";
 import { registerMembersRoutes } from "./modules/members.js";
@@ -136,6 +137,7 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerAnnotationsRoutes(app, data);
   registerFilesRoutes(app, data);
   registerNotesRoutes(app, data);
+  registerQuickTasksRoutes(app, data);
   registerUploadRoutes(app, data, ctx);
   registerCalendarRoutes(app, data);
   registerMembersRoutes(app, data);

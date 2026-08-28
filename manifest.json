@@ -1,7 +1,7 @@
 {
   "id": "neo-project-manage",
   "name": "项目管理",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "项目与任务管理工具。支持 Agent 读取项目数据、创建任务。",
   "minAppVersion": "0.159.0",
   "trust": "full-access",
@@ -103,7 +103,13 @@
       "./tools/get-message-unread-count.js",
       "./tools/search-all.js",
       "./tools/get-message-config.js",
-      "./tools/update-message-config.js"
+      "./tools/update-message-config.js",
+      "./tools/quick-task-list.js",
+      "./tools/quick-task-add.js",
+      "./tools/quick-task-update.js",
+      "./tools/quick-task-archive.js",
+      "./tools/quick-task-delete.js",
+      "./tools/quick-task-convert.js"
     ]
   },
   "dev": {

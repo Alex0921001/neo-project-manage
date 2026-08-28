@@ -66,15 +66,15 @@ async function handleSubmit() {
 .form-dialog-body {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   padding: 16px 20px;
   background: var(--bg-card);
 }
 .form-dialog-form {
-  flex: 1;
-  min-height: 0;
+  flex: 1 0 auto;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
 }

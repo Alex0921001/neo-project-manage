@@ -227,9 +227,17 @@ async function loadUnread() {
 watch(msgShow, (v) => { if (v) loadUnread(); });
 
 // ===== tabs 数据 =====
+const quickCount = ref(0);
+async function loadQuickCount() {
+  try {
+    const res = await api("api/quick-tasks", { silent: true });
+    if (res?.ok) quickCount.value = (res.data || []).filter((t) => t.status === "active").length;
+  } catch { /* ignore */ }
+}
 const tabItems = computed(() => {
   const total = props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
   return [
+    { key: "inbox", label: "临时任务", count: quickCount.value, isSet: false },
     { key: null, label: "全部项目", count: total, isSet: false },
     ...props.sets.map((s) => ({ key: s.id, label: s.name, count: s.projectCount || 0, isSet: true })),
   ];
@@ -266,6 +274,7 @@ function onDocClick() {
 onMounted(() => {
   document.addEventListener("click", onDocClick);
   loadUnread();
+  loadQuickCount();
 });
 onUnmounted(() => document.removeEventListener("click", onDocClick));
 
