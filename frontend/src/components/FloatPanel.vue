@@ -24,8 +24,13 @@
       <div v-if="$slots.footer" class="float-panel-footer">
         <slot name="footer" />
       </div>
-      <!-- 右下角缩放柄 -->
-      <div class="float-panel-resize" :class="{ 'float-panel-resizing': resizing }" @mousedown="startResize"></div>
+      <!-- 八方向缩放柄（Windows 窗口式）：四边 + 四角 -->
+      <div
+        v-for="d in ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']"
+        :key="d"
+        :class="['float-panel-edge', 'fp-edge-' + d]"
+        @mousedown="startResize($event, d)"
+      ></div>
     </div>
   </Teleport>
 </template>
@@ -153,21 +158,34 @@ function startDrag(e) {
   e.preventDefault();
 }
 
-// ===== 缩放（右下角柄，尺寸钳制在 [min, max]） =====
-function startResize(e) {
+// ===== 缩放（Windows 窗口式：四边 + 四角，尺寸钳制在 [min, max]） =====
+function startResize(e, dir = "se") {
   if (e.button !== 0) return;
   if (fullscreen.value) return;
   resizing.value = true;
   const startX = e.clientX;
   const startY = e.clientY;
-  const orig = { ...size.value };
+  const origSize = { ...size.value };
+  const origPos = { ...pos.value };
   const onMove = (ev) => {
-    size.value = {
-      w: clamp(orig.w + ev.clientX - startX, props.minWidth, props.maxWidth),
-      h: clamp(orig.h + ev.clientY - startY, props.minHeight, props.maxHeight),
-    };
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    let w = origSize.w;
+    let h = origSize.h;
+    if (dir.includes("e")) w = clamp(origSize.w + dx, props.minWidth, props.maxWidth);
+    if (dir.includes("s")) h = clamp(origSize.h + dy, props.minHeight, props.maxHeight);
+    if (dir.includes("w")) {
+      w = clamp(origSize.w - dx, props.minWidth, props.maxWidth);
+      // 尺寸被钳到 min 后位置回正，面板右边框跟随鼠标
+      pos.value.x = origPos.x + (origSize.w - w);
+    }
+    if (dir.includes("n")) {
+      h = clamp(origSize.h - dy, props.minHeight, props.maxHeight);
+      pos.value.y = origPos.y + (origSize.h - h);
+    }
+    size.value = { w, h };
     // 3.3：宽度变化事件透传（供大屏 <500px 自动收起任务树等响应式逻辑）
-    emit("resize", { width: size.value.w, height: size.value.h });
+    emit("resize", { width: w, height: h });
   };
   const onUp = () => {
     resizing.value = false;
@@ -262,16 +280,22 @@ function startResize(e) {
 .float-panel-no-select {
   user-select: none;
 }
-.float-panel-resize {
+.float-panel-edge {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 18px;
-  height: 18px;
-  cursor: nwse-resize;
-  z-index: 5;
+  z-index: 6;
 }
-.float-panel-resize::after {
+/* 四边：热区在内侧（面板 overflow:hidden 不裁切），左右留出四角 */
+.fp-edge-n { top: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.fp-edge-s { bottom: 0; left: 10px; right: 10px; height: 5px; cursor: ns-resize; }
+.fp-edge-e { right: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+.fp-edge-w { left: 0; top: 10px; bottom: 10px; width: 5px; cursor: ew-resize; }
+/* 四角：右下沿用原大热区（含视觉拖拽指示） */
+.fp-edge-ne { top: 0; right: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.fp-edge-nw { top: 0; left: 0; width: 12px; height: 12px; cursor: nwse-resize; }
+.fp-edge-sw { bottom: 0; left: 0; width: 12px; height: 12px; cursor: nesw-resize; }
+.fp-edge-se { bottom: 0; right: 0; width: 16px; height: 16px; cursor: nwse-resize; }
+/* 右下角拖拽视觉指示（保留原右下柄的三角标记，纯装饰不拦截点击） */
+.fp-edge-se::after {
   content: "";
   position: absolute;
   right: 4px;
@@ -280,8 +304,5 @@ function startResize(e) {
   height: 7px;
   border-right: 2px solid var(--border);
   border-bottom: 2px solid var(--border);
-}
-.float-panel-resizing {
-  cursor: nwse-resize;
 }
 </style>
