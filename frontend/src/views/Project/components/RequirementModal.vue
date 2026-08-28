@@ -43,7 +43,7 @@
           </div>
         </div>
         <div class="rq-grid">
-          <!-- 左 7：需求内容（富文本只读渲染） -->
+          <!-- 需求内容（富文本只读渲染），关联方案同方案详情的关联需求一致，收在内容底部 -->
           <div class="rq-content">
             <div
               v-if="req?.description"
@@ -52,15 +52,15 @@
               @click="onRichClick"
             ></div>
             <div v-else class="rq-content-empty">暂无内容</div>
-          </div>
-          <!-- 右 3：关联方案（替代评论栏，需求↔方案多对多） -->
-          <div class="rq-plans">
-            <div class="rq-plans-title">关联方案（{{ req?.plans?.length || 0 }}）</div>
-            <div v-if="!req?.plans?.length" class="rq-plans-empty">暂无关联方案<br /><span class="rq-plans-hint">编辑需求可关联方案</span></div>
-            <div v-for="pl in req?.plans || []" :key="pl.id" class="rq-plan-item">
-              <span class="rq-plan-dot" :class="`dot-${planStatusKey(pl.status)}`"></span>
-              <span class="rq-plan-title" :title="pl.title">{{ pl.title }}</span>
-              <span class="rq-plan-status">{{ pl.status }}</span>
+            <!-- 关联方案（需求↔方案多对多）：样式对齐方案详情的关联需求（内容底部区块） -->
+            <div class="rq-plans">
+              <div class="rq-plans-title">关联方案（{{ req?.plans?.length || 0 }}）</div>
+              <div v-if="!req?.plans?.length" class="rq-plans-empty">暂无关联方案，编辑需求可关联方案</div>
+              <div v-for="pl in req?.plans || []" :key="pl.id" class="rq-plan-item">
+                <span class="rq-plan-dot" :class="`dot-${planStatusKey(pl.status)}`"></span>
+                <span class="rq-plan-title" :title="pl.title">{{ pl.title }}</span>
+                <span class="rq-plan-status">{{ pl.status }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -369,13 +369,12 @@ defineExpose({ loadDetail });
   color: var(--status-delay-text);
 }
 
-/* 7:3 分栏 */
+/* 单栏（关联方案收在内容底部） */
 .rq-grid {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 7fr 3fr;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
   padding: 16px;
 }
 .rq-content {
@@ -391,33 +390,29 @@ defineExpose({ loadDetail });
   font-size: 13px;
 }
 
-/* 右栏：关联方案 */
+/* 关联方案：内容底部区块（对齐方案详情的关联需求样式） */
 .rq-plans {
-  min-width: 0;
-  padding-left: 16px;
-  border-left: 0.5px solid var(--border-light);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  margin-top: 14px;
+  border-top: 0.5px solid var(--border);
+  padding-top: 10px;
 }
 .rq-plans-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
 }
 .rq-plans-empty {
   font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.6;
 }
-.rq-plans-hint { font-size: 11px; }
 .rq-plan-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px; /* 左右边距统一 10px */
-  border-radius: var(--radius-sm);
-  background: var(--bg);
+  gap: 6px;
+  padding: 4px 0;
   font-size: 12px;
 }
 .rq-plan-dot {
@@ -439,8 +434,9 @@ defineExpose({ loadDetail });
   color: var(--text);
 }
 .rq-plan-status {
+  margin-left: auto;
   font-size: 11px;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
 

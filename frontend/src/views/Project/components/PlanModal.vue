@@ -215,7 +215,7 @@ const comments = ref([]);
 const statusVal = ref("草稿");
 const statusSaving = ref(false);
 const commentDraft = ref("");
-const commentsCollapsed = ref(false); // V2.1.3 评论折叠（默认展开）
+const commentsCollapsed = ref(true); // 评论折叠：加载详情后按评论数初始化（有评论展开，无评论闭合）
 
 // 编辑态（状态默认草稿，创建后由阅读模式头部切换，编辑弹窗不设状态）
 const editTitle = ref("");
@@ -325,6 +325,8 @@ async function loadDetail() {
   if (res?.ok) {
     plan.value = res.data;
     comments.value = res.data.comments || [];
+    // 评论折叠默认态：有评论默认展开，无评论默认闭合
+    commentsCollapsed.value = comments.value.length === 0;
     statusVal.value = res.data.status || "草稿";
     // 编辑模式直接打开（不经 read）时，加载完成后再预填
     if (props.mode === "edit") initEdit();
