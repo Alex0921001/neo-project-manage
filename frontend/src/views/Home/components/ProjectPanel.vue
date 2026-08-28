@@ -277,13 +277,15 @@ defineExpose({ load, setFilter, filSetId });
 /* header */
 .panel-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 10px 16px;
   margin-bottom: 18px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-light);
 }
-.header-main { display: flex; align-items: baseline; gap: 10px; }
+.header-main { display: flex; align-items: baseline; gap: 10px; flex-shrink: 0; }
 .header-main h2 {
   font-size: 22px;
   font-weight: 700;
@@ -298,6 +300,7 @@ defineExpose({ load, setFilter, filSetId });
 }
 .header-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -305,7 +308,9 @@ defineExpose({ load, setFilter, filSetId });
 /* 常显搜索框 */
 .header-search {
   position: relative;
-  width: 190px;
+  flex: 1 1 150px;
+  min-width: 130px;
+  max-width: 190px;
 }
 .header-search .search-icon {
   position: absolute;
