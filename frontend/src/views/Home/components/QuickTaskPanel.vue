@@ -283,7 +283,7 @@ function onNewEnter(e) {
 function onEditEnter(t, e) {
   if (e.isComposing || e.keyCode === 229) return;
   e.preventDefault();
-  saveEdit(t.id);
+  saveEdit(t.id).then(() => startInline()); // 保存后唤出末尾新增输入框，与新增态样式对齐
 }
 
 // ===== 新增 =====

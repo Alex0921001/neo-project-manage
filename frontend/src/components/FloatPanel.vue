@@ -133,15 +133,32 @@ function toggleFullscreen() {
   }
 }
 
-// ===== 拖动（标题栏） =====
+// ===== 拖动（标题栏）；全屏态拖动 = 退出全屏并恢复原尺寸，跟随鼠标继续拖 =====
 function startDrag(e) {
   if (e.button !== 0) return;
-  if (fullscreen.value) return;
   dragging.value = true;
   const startX = e.clientX;
   const startY = e.clientY;
-  const orig = { ...pos.value };
+  let orig = { ...pos.value };
   const onMove = (ev) => {
+    if (fullscreen.value) {
+      // 移动超过阈值才退出全屏（纯点击/双击不触发，交给 dblclick 恢复，避免冲突）
+      if (Math.abs(ev.clientX - startX) < 4 && Math.abs(ev.clientY - startY) < 4) return;
+      fullscreen.value = false;
+      if (prevRect.value) {
+        size.value = { w: prevRect.value.w, h: prevRect.value.h };
+        // 保持鼠标相对抓取位置：按全屏时的横向比例定位，纵向标题栏贴鼠标
+        const ratio = clamp(startX / window.innerWidth, 0, 1);
+        pos.value = {
+          x: Math.round(ev.clientX - ratio * size.value.w),
+          y: Math.max(0, ev.clientY - 16),
+        };
+        prevRect.value = null;
+      } else {
+        center();
+      }
+      orig = { ...pos.value };
+    }
     // 水平可拖出大部分（留 20px 便于拖回）；垂直顶边不越出视口（标题栏始终可抓）
     pos.value = {
       x: clamp(orig.x + ev.clientX - startX, 20 - size.value.w, window.innerWidth - 20),
