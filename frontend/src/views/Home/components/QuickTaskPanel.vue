@@ -72,7 +72,8 @@
             class="qtp-edit-input qtp-new-input"
             rows="1"
             placeholder="回车即存 · Shift + 回车换行"
-            @keydown.enter.exact.prevent="addTask"
+            @keydown.enter.exact.prevent="addTask()"
+            @keydown.up="onNewNav"
             @keydown.esc="hideInline"
             @blur="onInlineBlur"
             @input="fitEditHeight"
@@ -274,13 +275,11 @@ async function addTask(refocus = true) {
     inputText.value = "";
     await load(); // 立即拉取新数据，否则要等下一次 load 才出现
     emit("changed");
-    if (refocus) {
-      nextTick(() => {
-        // 复位输入框高度，保持可连续记录
-        if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
-        inlineInputRef.value?.focus();
-      });
-    }
+    nextTick(() => {
+      // 任何提交路径都复位输入框高度，否则 outside 提交后输入行残留多行高度、与上下行错位
+      if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
+      if (refocus) inlineInputRef.value?.focus();
+    });
   } else {
     toast(res?.error || "记录失败", "error");
   }
@@ -333,26 +332,65 @@ function startEdit(t, e, forcedPos) {
   });
 }
 
-// ===== 上下键跨任务移动光标：当前行首行按 ↑ 跳上一条（光标落末尾），末行按 ↓ 跳下一条（光标落开头） =====
+// ===== 上下键导航（仿 Word：逐视觉行移动，首行 ↑ / 末行 ↓ 才跨任务） =====
+// 用 mirror 测量光标所在视觉行：textarea 有软换行，逻辑行（\n）≠ 视觉行，
+// 只看 \n 会导致长文字在中间视觉行按 ↑ 也被误判为首行而跳任务
+function visualCaretTop(el, pos) {
+  const div = document.createElement("div");
+  const cs = getComputedStyle(el);
+  Object.assign(div.style, {
+    position: "absolute",
+    visibility: "hidden",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-all",
+    width: el.clientWidth + "px",
+    font: cs.font,
+    lineHeight: cs.lineHeight,
+    letterSpacing: cs.letterSpacing,
+    padding: cs.padding,
+    border: "none",
+    margin: "0",
+  });
+  const mark = document.createElement("span");
+  mark.textContent = "\u200b";
+  div.append(document.createTextNode(el.value.slice(0, pos)), mark);
+  document.body.append(div);
+  const top = mark.offsetTop;
+  div.remove();
+  return top;
+}
 function onEditNav(t, e) {
+  if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
   const el = e.target;
   if (e.key === "ArrowUp") {
-    if (el.value.slice(0, el.selectionStart).includes("\n")) return; // 多行内上移走默认行为
+    if (visualCaretTop(el, el.selectionStart) > visualCaretTop(el, 0) + 1) return; // 非视觉首行，默认上移
     e.preventDefault();
     jumpNeighbor(t, -1);
-  } else if (e.key === "ArrowDown") {
-    if (el.value.slice(el.selectionEnd).includes("\n")) return; // 末行才跳下一条
+  } else {
+    if (visualCaretTop(el, el.selectionStart) < visualCaretTop(el, el.value.length) - 1) return; // 非视觉末行
     e.preventDefault();
     jumpNeighbor(t, 1);
   }
 }
-function jumpNeighbor(t, dir) {
+async function jumpNeighbor(t, dir) {
   const list = activeList.value;
   const idx = list.findIndex((x) => x.id === t.id);
   const next = list[idx + dir];
   if (!next) return;
-  saveEdit(t.id); // 先保存当前行（乐观，含空即删），再切到相邻行
-  startEdit(next, null, dir < 0 ? next.content.length : 0);
+  await saveEdit(t.id); // 先保存当前行（乐观，含空即删），再切到相邻行
+  startEdit(next, null, dir < 0 ? next.content.length : 0); // ↑ 落上一条末尾，↓ 落下一条开头
+}
+// 新增行 ↑：有文字先提交再跳上一条末尾；无文字不建任务直接跳上一条末尾。↓ 已在末尾不处理
+function onNewNav(e) {
+  if (e.key !== "ArrowUp") return;
+  const el = e.target;
+  if (el.value && visualCaretTop(el, el.selectionStart) > visualCaretTop(el, 0) + 1) return;
+  e.preventDefault();
+  const list = activeList.value;
+  const last = list[list.length - 1];
+  if (!last) return;
+  if (inputText.value.trim()) addTask(false);
+  startEdit(last, null, last.content.length);
 }
 // 编辑框随内容自动增高（沿 30px 横格线）
 function fitEditHeight(e) {
@@ -641,7 +679,8 @@ defineExpose({ load });
   white-space: nowrap;
 }
 .qtp-line-row:hover .qtp-ops,
-.qtp-done-row:hover .qtp-ops { display: inline-flex; align-items: center; gap: 4px; }
+.qtp-done-row:hover .qtp-ops,
+.qtp-ops:hover { display: inline-flex; align-items: center; gap: 4px; }
 /* 编辑态常驻气泡 */
 .qtp-ops-static { display: inline-flex !important; align-items: center; gap: 4px; }
 /* 条目序号 */

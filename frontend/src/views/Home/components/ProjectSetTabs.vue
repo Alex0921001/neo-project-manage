@@ -238,6 +238,8 @@ async function loadQuickCount() {
     if (res?.ok) quickCount.value = (res.data || []).filter((t) => t.status === "active").length;
   } catch { /* ignore */ }
 }
+// QuickTaskPanel 内的增删改会触发 Home load() 重新赋值 sets，借此刷新 tab 角标数字
+watch(() => props.sets, () => { loadQuickCount(); });
 const tabItems = computed(() => {
   const total = props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
   return [
