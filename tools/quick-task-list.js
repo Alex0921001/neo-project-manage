@@ -1,14 +1,14 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "quick_task_list";
-export const description = "查询临时任务列表（可按状态筛选、按内容模糊搜索；归档态支持分页）";
+export const description = "查询临时任务列表（不传 status 默认只返回未完成 active；已完成/已转化/归档需显式传状态；归档态支持分页）";
 export const parameters = {
   type: "object",
   properties: {
     status: {
       type: "string",
       enum: ["active", "done", "converted", "archived"],
-      description: "按状态筛选（active=未完成 / done=已完成 / converted=已转化 / archived=已归档）；不传返回全部非归档任务",
+      description: "按状态筛选（active=未完成 / done=已完成 / converted=已转化 / archived=已归档）；不传默认只查未完成 active",
     },
     keyword: { type: "string", description: "按内容模糊搜索（可选）" },
     page: { type: "number", description: "归档列表页码（仅 status=archived 时生效，默认 1）" },
@@ -18,7 +18,7 @@ export const parameters = {
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const status = input.status;
+  const status = input.status || "active"; // 不传默认查未完成
   if (status === "archived") {
     const result = data.listArchivedQuickTasks({
       page: input.page,
