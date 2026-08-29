@@ -94,15 +94,17 @@
       </el-form-item>
     </FormDialog>
 
-    <!-- 管理弹窗（列表 + 排序 + 快捷增删） -->
-    <el-dialog
+    <!-- 管理弹窗（列表 + 排序 + 快捷增删；FloatPanel 可拖拽缩放） -->
+    <FloatPanel
       v-model="mgrShow"
       title="管理项目集"
-      width="440px"
-      :close-on-click-modal="false"
-      append-to-body
+      :default-width="480"
+      :default-height="520"
+      :min-width="380"
+      :min-height="340"
     >
-      <div class="mgr-list">
+      <div class="mgr-body">
+        <div class="mgr-list">
         <draggable
           :list="mgrSets"
           item-key="id"
@@ -150,7 +152,8 @@
           @keyup.enter="mgrAdd"
         />
       </div>
-    </el-dialog>
+      </div>
+    </FloatPanel>
 
     <!-- V2.3 R1：消息中心弹窗（读/删后刷新铃铛角标） -->
     <MessageCenterPanel v-model="msgShow" @changed="loadUnread" />
@@ -165,6 +168,7 @@ import draggable from "vuedraggable";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import FormDialog from "../../../components/FormDialog.vue";
+import FloatPanel from "../../../components/FloatPanel.vue";
 import MessageCenterPanel from "../MessageCenterPanel.vue";
 import SearchPanel from "../../../components/SearchPanel.vue";
 
@@ -565,9 +569,17 @@ async function mgrAdd() {
 .ctx-menu .ctx-danger { color: var(--danger); }
 .ctx-menu .ctx-danger:hover { background: #fdecec; }
 
-/* 管理弹窗 */
+/* 管理弹窗（FloatPanel 容器） */
+.mgr-body {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+}
 .mgr-list {
-  height: 260px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin-bottom: 12px;
 }
@@ -612,5 +624,5 @@ async function mgrAdd() {
 .mgr-op:disabled { opacity: 0.3; cursor: not-allowed; }
 .mgr-danger:hover:not(:disabled) { background: #fdecec; color: var(--danger); }
 .mgr-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--text-tertiary); }
-.mgr-add { display: flex; gap: 8px; }
+.mgr-add { display: flex; gap: 8px; flex-shrink: 0; }
 </style>

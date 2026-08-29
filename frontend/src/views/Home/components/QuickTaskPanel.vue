@@ -34,9 +34,16 @@
               @click.stop
               @keydown.enter.exact.prevent="saveEdit(t.id)"
               @keydown.esc="cancelEdit"
+              @keydown.up="onEditNav(t, $event)"
+              @keydown.down="onEditNav(t, $event)"
               @blur="onEditBlur(t)"
               @input="fitEditHeight"
             ></textarea>
+            <!-- 编辑态常驻气泡：保存前先同步编辑内容 -->
+            <span class="qtp-ops qtp-ops-static" @click.stop>
+              <button class="qtp-act qtp-green" @mousedown.prevent @click="bubbleDone(t)">【完成】</button>
+              <button class="qtp-act qtp-green" @mousedown.prevent @click="bubbleConvert(t)">【转正式】</button>
+            </span>
           </template>
           <template v-else>
             <span class="qtp-idx">{{ idx + 1 }}.</span>
@@ -266,6 +273,7 @@ async function addTask(refocus = true) {
   if (res?.ok) {
     inputText.value = "";
     await load(); // 立即拉取新数据，否则要等下一次 load 才出现
+    emit("changed");
     if (refocus) {
       nextTick(() => {
         // 复位输入框高度，保持可连续记录
@@ -278,39 +286,73 @@ async function addTask(refocus = true) {
   }
 }
 
-// ===== 完成 / 退回 =====
+// ===== 完成 / 退回（完成后通知父级刷新 tab 角标数字） =====
 async function markDone(t) {
   const res = await api(`api/quick-tasks/${t.id}`, { method: "PUT", body: JSON.stringify({ action: "complete" }) });
-  if (res?.ok) await load();
+  if (res?.ok) { await load(); emit("changed"); }
   else toast(res?.error || "操作失败", "error");
 }
 async function reopenTask(t) {
   const res = await api(`api/quick-tasks/${t.id}`, { method: "PUT", body: JSON.stringify({ action: "reopen" }) });
-  if (res?.ok) await load();
+  if (res?.ok) { await load(); emit("changed"); }
   else toast(res?.error || "操作失败", "error");
+}
+// 编辑态气泡按钮：先把编辑内容落库再执行动作（mousedown.prevent 阻断 blur，避免双写）
+async function bubbleDone(t) {
+  if (!editText.value.trim()) return; // 空内容走 outside 删除路径
+  await saveEdit(t.id);
+  markDone(t);
+}
+function bubbleConvert(t) {
+  if (editText.value.trim()) saveEdit(t.id);
+  openConvert(t);
 }
 
 // ===== 点击即编辑（光标定位到点击处）与空行即删 =====
-function startEdit(t, e) {
+function startEdit(t, e, forcedPos) {
   hideInline(); // 编辑态与新增行互斥
   if (editId.value === t.id) return;
   editId.value = t.id;
   editText.value = t.content;
-  const clickX = e?.clientX;
-  const clickY = e?.clientY;
+  // 光标定位必须在点击时同步计算：此刻 DOM 还是显示态，caretRangeFromPoint 才能命中原文文本节点；
+  // 拖到 nextTick 后 DOM 已变 textarea，坐标只能落到输入框上，永远 fallback 末尾
+  let pos = forcedPos;
+  if (pos == null) {
+    pos = editText.value.length;
+    try {
+      const range = e ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+      if (range && range.startContainer.nodeType === Node.TEXT_NODE) pos = range.startOffset;
+    } catch (_) { /* 降级末尾 */ }
+  }
   nextTick(() => {
     const el = document.querySelector(".qtp-edit-input");
     if (!el) return;
     fitEditHeight({ target: el });
     el.focus();
-    // 光标定位：把点击坐标换算为文本偏移（行内容只有一个纯文本节点），失败则落末尾
-    let offset = editText.value.length;
-    try {
-      const range = document.caretRangeFromPoint(clickX, clickY);
-      if (range && range.startContainer.nodeType === Node.TEXT_NODE) offset = range.startOffset;
-    } catch (_) { /* 降级末尾 */ }
-    el.setSelectionRange(offset, offset);
+    el.setSelectionRange(pos, pos);
   });
+}
+
+// ===== 上下键跨任务移动光标：当前行首行按 ↑ 跳上一条（光标落末尾），末行按 ↓ 跳下一条（光标落开头） =====
+function onEditNav(t, e) {
+  const el = e.target;
+  if (e.key === "ArrowUp") {
+    if (el.value.slice(0, el.selectionStart).includes("\n")) return; // 多行内上移走默认行为
+    e.preventDefault();
+    jumpNeighbor(t, -1);
+  } else if (e.key === "ArrowDown") {
+    if (el.value.slice(el.selectionEnd).includes("\n")) return; // 末行才跳下一条
+    e.preventDefault();
+    jumpNeighbor(t, 1);
+  }
+}
+function jumpNeighbor(t, dir) {
+  const list = activeList.value;
+  const idx = list.findIndex((x) => x.id === t.id);
+  const next = list[idx + dir];
+  if (!next) return;
+  saveEdit(t.id); // 先保存当前行（乐观，含空即删），再切到相邻行
+  startEdit(next, null, dir < 0 ? next.content.length : 0);
 }
 // 编辑框随内容自动增高（沿 30px 横格线）
 function fitEditHeight(e) {
@@ -354,6 +396,8 @@ async function removeEmpty(id) {
   if (!res?.ok) {
     tasks.value = prev;
     toast(res?.error || "删除失败", "error");
+  } else {
+    emit("changed");
   }
 }
 
@@ -373,14 +417,14 @@ async function doConfirmDelete() {
 // ===== 归档 =====
 async function archiveOne(t) {
   const res = await api(`api/quick-tasks/${t.id}/archive`, { method: "POST" });
-  if (res?.ok) { await load(); loadArchCount(); }
+  if (res?.ok) { await load(); loadArchCount(); emit("changed"); }
   else toast(res?.error || "归档失败", "error");
 }
 async function archiveAll() {
   const n = doneList.value.length;
   if (!n) { toast("没有可归档的数据", "error"); return; }
   const res = await api("api/quick-tasks/archive", { method: "POST", body: JSON.stringify({ all: true }) });
-  if (res?.ok) { await load(); loadArchCount(); }
+  if (res?.ok) { await load(); loadArchCount(); emit("changed"); }
   else toast(res?.error || "归档失败", "error");
 }
 
@@ -580,12 +624,13 @@ defineExpose({ load });
 }
 .qtp-text { white-space: pre-wrap; }
 .qtp-done-text { white-space: pre-wrap; }
-/* 操作气泡：hover 时浮出行右上角，不占文档流，避免文字多时硬塞一行按钮跳行 */
+/* 操作气泡：hover 时浮出行上方，不占文档流，避免文字多时硬塞一行按钮跳行；
+   top 足够高避免遮挡本行/上一行文字 */
 .qtp-ops {
   display: none;
   position: absolute;
   right: 0;
-  top: -14px;
+  top: -34px;
   z-index: 6;
   background: #fffdf8;
   border: 1px solid #e0d7c6;
@@ -597,6 +642,8 @@ defineExpose({ load });
 }
 .qtp-line-row:hover .qtp-ops,
 .qtp-done-row:hover .qtp-ops { display: inline-flex; align-items: center; gap: 4px; }
+/* 编辑态常驻气泡 */
+.qtp-ops-static { display: inline-flex !important; align-items: center; gap: 4px; }
 /* 条目序号 */
 .qtp-idx {
   flex: none; width: 26px;
@@ -647,7 +694,12 @@ defineExpose({ load });
   display: flex; align-items: flex-start; gap: 8px;
   min-height: 30px;
   position: relative;
+  border-radius: 4px;
+  cursor: default;
 }
+/* 已完成行：悬浮/点击高亮 */
+.qtp-done-row:hover { background: rgba(83, 125, 150, 0.06); }
+.qtp-done-row:active { background: rgba(83, 125, 150, 0.12); }
 .qtp-done-text {
   font-size: 13px; color: #b3a996;
   text-decoration: line-through; text-decoration-color: rgba(154, 145, 134, 0.55);
