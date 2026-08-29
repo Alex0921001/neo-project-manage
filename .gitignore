@@ -19,3 +19,4 @@ Desktop.ini
 
 # 开发环境日志
 devserver*.log
+".git-commit-msg.tmp"  
