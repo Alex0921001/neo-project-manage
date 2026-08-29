@@ -11,8 +11,8 @@
 | 模块 | 能力 |
 | --- | --- |
 | 项目集 | 分组管理、拖拽排序、右键菜单增删改；集下还有项目时禁止删除；集条右上角消息铃铛 + 未读角标 |
-| 项目 | 增删改查；成员、起止日期、状态流转（待开始 / 进行中 / 已完成 / 已取消）；归档与恢复；收藏置顶 |
-| 树形任务 | 父子孙多级结构，删除父任务**级联删除**子孙；批量创建（≤50 条，中途失败整体回滚）；编辑支持改父任务；等级 P0~P5；里程碑旗帜标记；三种排序模式（默认可拖拽 / 时间 / 等级）；关键词搜索命中任务名 / 描述 / 批注内容 |
+| 项目 | 增删改查；成员、起止日期、状态流转（待开始 / 进行中 / 已完成 / 已取消）；归档与恢复；收藏置顶；删除时回退转化自该项目的临时任务 |
+| 树形任务 | 父子孙多级结构，删除父任务**级联删除**子孙，转化来源的临时任务自动回退为已完成并清除转化标记；批量创建（≤50 条，中途失败整体回滚）；编辑支持改父任务；等级 P0~P5；里程碑旗帜标记；三种排序模式（默认可拖拽 / 时间 / 等级）；关键词搜索命中任务名 / 描述 / 批注内容 |
 | 多级文件夹 | file_folders 无限层级树 + 文件归属；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除真删除（递归删子孙夹+夹内文件登记，磁盘不碰）；拖拽防环禁用提示；左侧空白=根目录；框选（AABB 实时碰撞）+ Ctrl/Shift 多选 + Delete 批量删除；分割线可拖（双击复位）+ 文件夹/树宽持久化；hover 气泡；桌面拖入文件登记；右键打开文件夹 |
 | 文件资产 | 资产化登记：大小、类型、摘要（digest）；路径失效防御（文件被移动/删除不报错）；上传与桌面文件选取；文件内容提取（txt/docx/pdf） |
 | 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求 |
@@ -30,7 +30,7 @@
 | 详情弹窗导航 | 需求/方案/任务详情右上导航（上一条/下一条），点击列表行预览，编辑/删除在弹窗内 |
 | 公共表单弹窗 | 新建/编辑项目集、项目、任务、备注统一使用 FormDialog（基于 FloatPanel）：可拖拽移动、右下角缩放、双击标题栏撑满整页；自带表单校验与统一 footer；富文本编辑区随弹窗大小自适应，小窗长表单可滚动 |
 | 项目卡片 | 传真单风格：白纸底、装订孔 + 撕口虚线、横格下划线、衬线字体 + 等宽编号；固定四行项目描述区，成员单行省略 |
-| 临时任务 | 项目集 Tab 栏最前的独立页签（传真单风格）：一行随手记回车即存、完成/退回、行内编辑、转正式任务（选项目插入）、归档（后端分页 + 模糊搜索 + 删除）；四态流转 active → done → archived，converted 平行路径；全局搜索可命中（含归档） |
+| 临时任务 | 项目集 Tab 栏最前的独立页签（传真单风格）：点击条目原位编辑（光标落在点击处），回车保存并唤出末尾新增框，清空内容回车/outside 即删；↑↓ 逐视觉行移动光标、首末行跨任务（仿 Word）；快捷气泡点击常驻（完成/转正式/删除，已完成行为退回/转正式/归档/删除）；转正式任务（选项目插入）；归档（后端分页 + 搜索高亮 + 删除）；正式任务/项目删除时自动回退转化标记；四态流转 active → done → archived，converted 平行路径；全局搜索可命中（含归档） |
 | 功能速查弹窗 | 右下角 `?` 按钮，运行时读取本文档渲染 |
 | 安全与校验 | 服务端 XSS 清洗（零依赖白名单）；非法成员 / 非法日期拒绝，日期越界软提示（warnings） |
 
@@ -62,8 +62,8 @@
 | 类别 | 工具 | 说明 |
 | --- | --- | --- |
 | 项目集 | `create_project_set` `update_project_set` `delete_project_set` `list_project_sets` | 项目集增删改查 |
-| 项目 | `create_project` `update_project` `delete_project` `list_projects` `get_project` | 项目增删改查；update 支持归档/收藏；get 支持 `view=summary` 轻量模式 |
-| 任务 | `create_task` `create_tasks` `update_task` `update_tasks` `delete_task` `delete_tasks` `get_task` `list_tasks` | 树形任务增删改查 + 批量更新（逐条独立校验，不整体回滚）；list 支持 `nearDeadlineDays` 临近截止筛选 |
+| 项目 | `create_project` `update_project` `delete_project` `list_projects` `get_project` | 项目增删改查；update 支持归档/收藏；get 支持 `view=summary` 轻量模式；删除时回退来源临时任务 |
+| 任务 | `create_task` `create_tasks` `update_task` `update_tasks` `delete_task` `delete_tasks` `get_task` `list_tasks` | 树形任务增删改查 + 批量更新（逐条独立校验，不整体回滚）；list 支持 `nearDeadlineDays` 临近截止筛选；删除时回退来源临时任务 |
 | 批注 | `create_annotation` `create_annotations` `update_annotation` `update_annotations` `delete_annotation` `delete_annotations` `list_annotations` `confirm_annotations` | 批注增删改查 + 批量更新/确认（三范围）；已完成任务便利贴冻结 |
 | 风险 | `get_project_risks` `list_project_risks` | 项目风险（读侧）与跨项目风险汇总 |
 | 文件 | `list_project_files` `get_project_file` `register_project_file` `move_project_file` `delete_project_file` `create_project_folder` `update_project_folder` `delete_project_folder` `read_project_file` | 文件资产清单/详情/登记/移动/删除；多级文件夹管理（建/改/删，删除真删除，磁盘不碰）；文件内容提取；register 支持 folderId 指定目录 |
@@ -74,7 +74,7 @@
 | 需求 | `create_requirement` `update_requirement` `update_requirement_status` `delete_requirement` `list_requirements` `get_requirement` `link_requirement_plans` `unlink_requirement_plans` | 需求增删改查 + 三态流转 + 方案双向挂载 |
 | 消息 | `list_messages` `mark_message_read` `delete_message` `get_message_unread_count` `get_message_config` `update_message_config` | 消息中心（到期/风险提醒聚合）；提醒配置（提前天数 1-14 + 开关） |
 | 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/备注/临时任务/文件名；FTS5 trigram + 高亮 snippet |
-| 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增 / 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（草稿与归档）/ 转正式任务（选项目插入） |
+| 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增 / 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入） |
 | 备注 | `create_note` `update_note` `delete_note` | 项目备注管理 |
 | 审计 | `list_audit_logs` | 审计日志查询（行为/类型/关键词/时间筛选，分页） |
 

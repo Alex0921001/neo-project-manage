@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "delete_task";
-export const description = "删除任务（删除父任务会级联删除其子任务）";
+export const description = "删除任务（删除父任务会级联删除其子任务；转化来源的临时任务自动回退为已完成并清除转化标记）";
 export const parameters = {
   type: "object",
   required: ["projectId", "id"],

@@ -1,11 +1,11 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "quick_task_delete";
-export const description = "删除临时任务：未完成草稿可直接删；归档数据可在归档中删除（传 archivedAll=true 删除全部归档）；已完成/已转化不可直接删除";
+export const description = "删除临时任务：未完成/已完成/已转化均可直接删（乐观同步索引）；归档数据在归档中删除（传 archivedAll=true 删除全部归档）";
 export const parameters = {
   type: "object",
   properties: {
-    id: { type: "string", description: "要删除的临时任务 ID（未完成草稿或归档数据）" },
+    id: { type: "string", description: "要删除的临时任务 ID（未完成/已完成/已转化状态）" },
     archivedAll: { type: "boolean", description: "删除全部归档数据（true，仅限已归档状态）" },
   },
 };
