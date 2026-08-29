@@ -171,26 +171,28 @@
           />
           <button class="qtp-act qtp-red qtp-act-lg" @click="deleteAllArch">【删除全部】</button>
         </div>
-        <table class="qtp-table">
-          <thead>
-            <tr><th>内容</th><th>完成时间</th><th>归档时间</th><th>转化去向</th><th>操作</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="t in archItems" :key="t.id">
-              <td class="qtp-c-main">{{ t.content }}</td>
-              <td class="qtp-c-time">{{ fmtTime(t.doneAt) }}</td>
-              <td class="qtp-c-time">{{ fmtTime(t.archivedAt) }}</td>
-              <td>
-                <span v-if="t.convertedProject" class="qtp-link">→ {{ t.convertedProject }}</span>
-                <span v-else>—</span>
-              </td>
-              <td><button class="qtp-act qtp-red" @click="deleteArch(t)">【删除】</button></td>
-            </tr>
-            <tr v-if="!archItems.length">
-              <td colspan="5" class="qtp-empty">无匹配数据</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="qtp-table-wrap">
+          <table class="qtp-table">
+            <thead>
+              <tr><th>内容</th><th>完成时间</th><th>归档时间</th><th>转化去向</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="t in archItems" :key="t.id">
+                <td class="qtp-c-main">{{ t.content }}</td>
+                <td class="qtp-c-time">{{ fmtTime(t.doneAt) }}</td>
+                <td class="qtp-c-time">{{ fmtTime(t.archivedAt) }}</td>
+                <td>
+                  <span v-if="t.convertedProject" class="qtp-link">→ {{ t.convertedProject }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td><button class="qtp-act qtp-red" @click="deleteArch(t)">【删除】</button></td>
+              </tr>
+              <tr v-if="!archItems.length">
+                <td colspan="5" class="qtp-empty">无匹配数据</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <div class="qtp-pager">
           <span class="qtp-arch-total">共 {{ archTotal }} 条（后端分页 · 每页 {{ archPageSize }} 条）</span>
           <button :disabled="archPage <= 1" @click="archGo(archPage - 1)">‹</button>
@@ -793,8 +795,10 @@ defineExpose({ load });</script>
 }
 /* 归档弹窗内容 */
 .qtp-arch-body { padding: 14px 16px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
-.qtp-searchrow { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+.qtp-searchrow { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; flex-shrink: 0; }
 .qtp-searchrow .el-input { flex: 1; }
+/* 表格区滚动：弹窗拉多高都只滚表格区，搜索框与分页条固定 */
+.qtp-table-wrap { flex: 1; min-height: 0; overflow-y: auto; }
 .qtp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .qtp-table th {
   text-align: left; font-weight: 500; color: #9a9186; font-size: 11px;
@@ -814,8 +818,9 @@ defineExpose({ load });</script>
 }
 .qtp-link { color: #4a6b4a; cursor: pointer; }
 .qtp-pager {
-  display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 12px;
+  display: flex; align-items: center; gap: 6px; margin-top: 12px; padding-top: 0;
   font-size: 12px; color: #9a9186; justify-content: flex-end;
+  flex-shrink: 0;
 }
 .qtp-arch-total { margin-right: auto; font-size: 11.5px; }
 .qtp-pager button {
