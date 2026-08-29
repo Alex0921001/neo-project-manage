@@ -22,6 +22,7 @@
           v-for="(t, idx) in activeList"
           :key="t.id"
           class="qtp-line-row"
+          @click="startEdit(t, $event)"
         >
           <template v-if="editId === t.id">
             <span class="qtp-idx">{{ idx + 1 }}.</span>
@@ -34,10 +35,11 @@
                 @click.stop
                 @keydown.enter.prevent="saveEdit(t.id)"
                 @keydown.esc="cancelEdit"
+                @blur="onEditBlur(t)"
                 @input="fitEditHeight"
               ></textarea>
-              <span class="qtp-edit-ops">
-                <button class="qtp-act" @click="saveEdit(t.id)">【保存】</button>
+              <span class="qtp-edit-ops" @click.stop>
+                <button class="qtp-act" @mousedown.prevent @click="saveEdit(t.id)">【保存】</button>
               </span>
             </div>
           </template>
@@ -45,11 +47,9 @@
             <span class="qtp-idx">{{ idx + 1 }}.</span>
             <div class="qtp-line-content">
               <span class="qtp-text">{{ t.content }}</span>
-              <span class="qtp-ops">
+              <span class="qtp-ops" @click.stop>
                 <button class="qtp-act qtp-green" @click.stop="markDone(t)">【完成】</button>
-                <button class="qtp-act" @click.stop="startEdit(t)">【编辑】</button>
                 <button class="qtp-act qtp-green" @click.stop="openConvert(t)">【转正式】</button>
-                <button class="qtp-act qtp-red" @click.stop="delTask(t)">【删除】</button>
               </span>
             </div>
           </template>
@@ -246,6 +246,7 @@ async function refresh() {
 
 // ===== 新增（点击末尾固定空行触发） =====
 function startInline() {
+  cancelEdit(); // 编辑态与新增行互斥
   inlineInput.value = true;
   nextTick(() => inlineInputRef.value?.focus());
 }
@@ -287,18 +288,26 @@ async function reopenTask(t) {
   else toast(res?.error || "操作失败", "error");
 }
 
-// ===== 行内编辑 =====
-function startEdit(t) {
+// ===== 点击即编辑（光标定位到点击处）与空行即删 =====
+function startEdit(t, e) {
   hideInline(); // 编辑态与新增行互斥
+  if (editId.value === t.id) return;
   editId.value = t.id;
   editText.value = t.content;
+  const clickX = e?.clientX;
+  const clickY = e?.clientY;
   nextTick(() => {
     const el = document.querySelector(".qtp-edit-input");
-    if (el) {
-      fitEditHeight({ target: el });
-      el.focus();
-      el.select();
-    }
+    if (!el) return;
+    fitEditHeight({ target: el });
+    el.focus();
+    // 光标定位：把点击坐标换算为文本偏移（行内容只有一个纯文本节点），失败则落末尾
+    let offset = editText.value.length;
+    try {
+      const range = document.caretRangeFromPoint(clickX, clickY);
+      if (range && range.startContainer.nodeType === Node.TEXT_NODE) offset = range.startOffset;
+    } catch (_) { /* 降级末尾 */ }
+    el.setSelectionRange(offset, offset);
   });
 }
 // 编辑框随内容自动增高（沿 30px 横格线）
@@ -311,16 +320,27 @@ function cancelEdit() {
   editId.value = null;
   editText.value = "";
 }
+// 保存：内容非空更新；清空后回车 = 直接删除该条（无需确认）
 async function saveEdit(id) {
   const v = editText.value.trim();
-  if (!v) { cancelEdit(); return; }
+  if (!v) { await removeEmpty(id); return; }
   const res = await api(`api/quick-tasks/${id}`, { method: "PUT", body: JSON.stringify({ content: v }) });
   if (res?.ok) await load();
   else toast(res?.error || "保存失败", "error");
   cancelEdit();
 }
+// 编辑态失焦：清空状态则静默删除，否则不动（等回车保存 / Esc 退出）
+function onEditBlur(t) {
+  if (!editText.value.trim()) removeEmpty(t.id);
+}
+async function removeEmpty(id) {
+  cancelEdit();
+  const res = await api(`api/quick-tasks/${id}`, { method: "DELETE" });
+  if (res?.ok) await load();
+  else toast(res?.error || "删除失败", "error");
+}
 
-// ===== 删除（未完成草稿，公共 ConfirmModal 二次确认） =====
+// ===== 删除二次确认（归档数据破坏性操作用；未完成草稿清空即删无需确认） =====
 const delConfirm = reactive({ show: false, message: "", action: null });
 function askDelete(message, action) {
   delConfirm.message = message;
@@ -331,14 +351,6 @@ async function doConfirmDelete() {
   const action = delConfirm.action;
   delConfirm.show = false;
   if (action) await action();
-}
-async function delTask(t) {
-  const short = t.content.length > 10 ? t.content.slice(0, 10) + "…" : t.content;
-  askDelete(`确认删除「${short}」？`, async () => {
-    const res = await api(`api/quick-tasks/${t.id}`, { method: "DELETE" });
-    if (res?.ok) await load();
-    else toast(res?.error || "删除失败", "error");
-  });
 }
 
 // ===== 归档 =====
