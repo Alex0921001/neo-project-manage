@@ -14,7 +14,7 @@
           <svg :class="{ spinning: refreshing }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
-      <div class="qtp-sub">随手记 · 想到什么写什么，回车即存 · Shift + 回车换行</div>
+      <div class="qtp-sub">随手记 · 想到什么写什么</div>
 
       <!-- 未完成列表（横格线，带序号；末尾固定空行，点击输入） -->
       <div class="qtp-lines">
@@ -64,7 +64,7 @@
             v-model="inputText"
             class="qtp-edit-input qtp-new-input"
             rows="1"
-            placeholder="想到什么写什么…"
+            placeholder="回车即存 · Shift + 回车换行"
             @keydown.enter.exact.prevent="addTask"
             @keydown.esc="hideInline"
             @blur="onInlineBlur"
@@ -265,6 +265,7 @@ async function addTask() {
   const res = await api("api/quick-tasks", { method: "POST", body: JSON.stringify({ content: v }) });
   if (res?.ok) {
     inputText.value = "";
+    await load(); // 立即拉取新数据，否则要等下一次 load 才出现
     nextTick(() => {
       // 复位输入框高度，保持可连续记录
       if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
@@ -320,13 +321,19 @@ function cancelEdit() {
   editText.value = "";
 }
 // 保存（回车或 blur 触发）：内容非空更新；清空 = 直接删除该条（无需确认）
+// 乐观更新：先改本地，再发请求；失败回滚。避免编辑态退出后旧内容闪现
 async function saveEdit(id, val) {
   const v = (val ?? editText.value).trim();
   if (!v) { await removeEmpty(id); return; }
-  const res = await api(`api/quick-tasks/${id}`, { method: "PUT", body: JSON.stringify({ content: v }) });
-  if (res?.ok) await load();
-  else toast(res?.error || "保存失败", "error");
   cancelEdit();
+  const target = tasks.value.find((t) => t.id === id);
+  const prevContent = target?.content;
+  if (target) target.content = v;
+  const res = await api(`api/quick-tasks/${id}`, { method: "PUT", body: JSON.stringify({ content: v }) });
+  if (!res?.ok) {
+    if (target && prevContent !== undefined) target.content = prevContent;
+    toast(res?.error || "保存失败", "error");
+  }
 }
 // 编辑态失焦（点击 outside）：内容变了 = 保存，清空 = 删除，未变 = 静默退出
 function onEditBlur(t) {
@@ -336,11 +343,16 @@ function onEditBlur(t) {
   if (v === t.content) { cancelEdit(); return; }
   saveEdit(t.id, v);
 }
+// 乐观删除：先从本地移除再发请求，失败回滚。避免先闪现旧内容再消失
 async function removeEmpty(id) {
   cancelEdit();
+  const prev = tasks.value;
+  tasks.value = tasks.value.filter((t) => t.id !== id);
   const res = await api(`api/quick-tasks/${id}`, { method: "DELETE" });
-  if (res?.ok) await load();
-  else toast(res?.error || "删除失败", "error");
+  if (!res?.ok) {
+    tasks.value = prev;
+    toast(res?.error || "删除失败", "error");
+  }
 }
 
 // ===== 删除二次确认（归档数据破坏性操作用；未完成草稿清空即删无需确认） =====
