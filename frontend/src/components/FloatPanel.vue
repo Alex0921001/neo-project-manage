@@ -36,8 +36,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { nextZIndex } from "../utils/zIndex.js";
+
+// 已打开面板的 zIndex 栈：Esc 只关最上层，避免多弹窗叠加时一按全关
+const openStack = [];
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -95,7 +98,12 @@ function center() {
 // 打开时：首次打开居中；后续打开位置不可见（视口变化/拖出）才重新居中，否则保持上次位置
 let positioned = false;
 watch(() => props.modelValue, (v) => {
-  if (!v) return;
+  if (!v) {
+    // 关闭：从打开栈移除自己
+    const i = openStack.indexOf(zIndex.value);
+    if (i >= 0) openStack.splice(i, 1);
+    return;
+  }
   if (!positioned) {
     center();
     positioned = true;
@@ -110,6 +118,24 @@ watch(() => props.modelValue, (v) => {
   fullscreen.value = false;
   prevRect.value = null;
   zIndex.value = nextZIndex();
+  openStack.push(zIndex.value);
+});
+
+// ===== Esc 关闭弹窗 =====
+// 输入控件内（INPUT/TEXTAREA/contentEditable）的 Esc 由局部逻辑优先（如临时任务编辑态取消），不关弹窗；
+// 多弹窗叠加时只关最上层
+function onPanelKeydown(e) {
+  if (e.key !== "Escape" || !props.modelValue) return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (openStack[openStack.length - 1] !== zIndex.value) return;
+  close();
+}
+onMounted(() => document.addEventListener("keydown", onPanelKeydown));
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onPanelKeydown);
+  const i = openStack.indexOf(zIndex.value);
+  if (i >= 0) openStack.splice(i, 1);
 });
 
 function close() {
