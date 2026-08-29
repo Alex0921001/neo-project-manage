@@ -26,22 +26,17 @@
         >
           <template v-if="editId === t.id">
             <span class="qtp-idx">{{ idx + 1 }}.</span>
-            <div class="qtp-edit-wrap">
-              <textarea
-                ref="editInput"
-                v-model="editText"
-                class="qtp-edit-input"
-                rows="1"
-                @click.stop
-                @keydown.enter.prevent="saveEdit(t.id)"
-                @keydown.esc="cancelEdit"
-                @blur="onEditBlur(t)"
-                @input="fitEditHeight"
-              ></textarea>
-              <span class="qtp-edit-ops" @click.stop>
-                <button class="qtp-act" @mousedown.prevent @click="saveEdit(t.id)">【保存】</button>
-              </span>
-            </div>
+            <textarea
+              ref="editInput"
+              v-model="editText"
+              class="qtp-edit-input"
+              rows="1"
+              @click.stop
+              @keydown.enter.prevent="saveEdit(t.id)"
+              @keydown.esc="cancelEdit"
+              @blur="onEditBlur(t)"
+              @input="fitEditHeight"
+            ></textarea>
           </template>
           <template v-else>
             <span class="qtp-idx">{{ idx + 1 }}.</span>
@@ -320,18 +315,22 @@ function cancelEdit() {
   editId.value = null;
   editText.value = "";
 }
-// 保存：内容非空更新；清空后回车 = 直接删除该条（无需确认）
-async function saveEdit(id) {
-  const v = editText.value.trim();
+// 保存（回车或 blur 触发）：内容非空更新；清空 = 直接删除该条（无需确认）
+async function saveEdit(id, val) {
+  const v = (val ?? editText.value).trim();
   if (!v) { await removeEmpty(id); return; }
   const res = await api(`api/quick-tasks/${id}`, { method: "PUT", body: JSON.stringify({ content: v }) });
   if (res?.ok) await load();
   else toast(res?.error || "保存失败", "error");
   cancelEdit();
 }
-// 编辑态失焦：清空状态则静默删除，否则不动（等回车保存 / Esc 退出）
+// 编辑态失焦（点击 outside）：内容变了 = 保存，清空 = 删除，未变 = 静默退出
 function onEditBlur(t) {
-  if (!editText.value.trim()) removeEmpty(t.id);
+  if (editId.value !== t.id) return; // 已由其他路径处理（回车保存/Esc 后 DOM 移除触发）
+  const v = editText.value.trim();
+  if (!v) { removeEmpty(t.id); return; }
+  if (v === t.content) { cancelEdit(); return; }
+  saveEdit(t.id, v);
 }
 async function removeEmpty(id) {
   cancelEdit();
@@ -590,15 +589,6 @@ defineExpose({ load });
 .qtp-act.qtp-red { color: #8b2c1f; }
 .qtp-act.qtp-red:hover { border-bottom-color: #8b2c1f; }
 .qtp-act-lg { font-size: 13px; }
-/* 编辑行：textarea + inline 保存按钮（沿 30px 格线对齐） */
-.qtp-edit-wrap {
-  flex: 1; min-width: 0;
-  display: flex; align-items: flex-start;
-}
-.qtp-edit-ops {
-  flex: none; margin-left: 10px;
-  line-height: 30px; white-space: nowrap;
-}
 .qtp-edit-input {
   flex: 1; min-width: 0;
   border: none; outline: none; resize: none;
