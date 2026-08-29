@@ -96,17 +96,18 @@
             v-for="(t, idx) in doneList"
             :key="t.id"
             class="qtp-done-row"
+            @click="toggleDoneOps(t)"
           >
             <span class="qtp-idx">{{ idx + 1 }}.</span>
             <div class="qtp-line-content">
               <span class="qtp-done-text">{{ t.content }}</span>
-              <span class="qtp-ops">
+              <span class="qtp-ops" :class="{ 'qtp-ops-open': activeDoneId === t.id }" @click.stop>
                 <button v-if="t.status === 'done'" class="qtp-act" @click.stop="reopenTask(t)">【退回】</button>
                 <button v-if="t.status === 'done'" class="qtp-act qtp-green" @click.stop="openConvert(t)">【转正式】</button>
                 <button class="qtp-act" @click.stop="archiveOne(t)">【归档】</button>
               </span>
             </div>
-            <span v-if="t.status === 'converted'" class="qtp-conv-tag" title="打开目标项目" @click="goProject(t)">→ {{ t.convertedProject }}</span>
+            <span v-if="t.status === 'converted'" class="qtp-conv-tag" title="打开目标项目" @click.stop="goProject(t)">→ {{ t.convertedProject }}</span>
           </div>
           <div v-if="!doneList.length" class="qtp-empty">空空如也</div>
         </div>
@@ -204,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { Search as SearchIcon } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
@@ -512,6 +513,23 @@ function goProject(t) {
   if (t.convertedProjectId) emit("open-project", t.convertedProjectId);
 }
 
+// ===== 已完成行点击激活气泡（非 hover）：点击行常驻，点击别处收起 =====
+const activeDoneId = ref(null);
+function toggleDoneOps(t) {
+  activeDoneId.value = activeDoneId.value === t.id ? null : t.id;
+}
+function onDocClick(e) {
+  if (!e.target.closest(".qtp-done-row")) activeDoneId.value = null;
+}
+onMounted(() => {
+  document.addEventListener("click", onDocClick);
+  load();
+  loadArchCount();
+});
+onBeforeUnmount(() => {
+  document.removeEventListener("click", onDocClick);
+});
+
 // ===== 已归档弹窗 =====
 const archShow = ref(false);
 const archItems = ref([]);
@@ -567,13 +585,7 @@ async function deleteAllArch() {
   });
 }
 
-onMounted(() => {
-  load();
-  loadArchCount();
-});
-
-defineExpose({ load });
-</script>
+defineExpose({ load });</script>
 
 <style scoped>
 .qtp-wrap {
@@ -678,11 +690,9 @@ defineExpose({ load });
   line-height: 26px;
   white-space: nowrap;
 }
-.qtp-line-row:hover .qtp-ops,
-.qtp-done-row:hover .qtp-ops,
-.qtp-ops:hover { display: inline-flex; align-items: center; gap: 4px; }
-/* 编辑态常驻气泡 */
-.qtp-ops-static { display: inline-flex !important; align-items: center; gap: 4px; }
+/* 气泡显示：编辑态常驻（.qtp-ops-static）、已完成行点击激活（.qtp-ops-open），不用 hover */
+.qtp-ops-static,
+.qtp-ops-open { display: inline-flex !important; align-items: center; gap: 4px; }
 /* 条目序号 */
 .qtp-idx {
   flex: none; width: 26px;
