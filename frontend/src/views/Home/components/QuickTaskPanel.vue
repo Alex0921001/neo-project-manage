@@ -25,17 +25,21 @@
         >
           <template v-if="editId === t.id">
             <span class="qtp-idx">{{ idx + 1 }}.</span>
-            <textarea
-              ref="editInput"
-              v-model="editText"
-              class="qtp-edit-input"
-              rows="1"
-              @click.stop
-              @keydown.enter.prevent="saveEdit(t.id)"
-              @keydown.esc="cancelEdit"
-              @input="fitEditHeight"
-            ></textarea>
-            <button class="qtp-act" @click="saveEdit(t.id)">【保存】</button>
+            <div class="qtp-edit-wrap">
+              <textarea
+                ref="editInput"
+                v-model="editText"
+                class="qtp-edit-input"
+                rows="1"
+                @click.stop
+                @keydown.enter.prevent="saveEdit(t.id)"
+                @keydown.esc="cancelEdit"
+                @input="fitEditHeight"
+              ></textarea>
+              <span class="qtp-edit-ops">
+                <button class="qtp-act" @click="saveEdit(t.id)">【保存】</button>
+              </span>
+            </div>
           </template>
           <template v-else>
             <span class="qtp-idx">{{ idx + 1 }}.</span>
@@ -98,7 +102,6 @@
               </span>
             </div>
             <span v-if="t.status === 'converted'" class="qtp-conv-tag" title="打开目标项目" @click="goProject(t)">→ {{ t.convertedProject }}</span>
-            <span class="qtp-time">{{ shortTime(t.doneAt) }}</span>
           </div>
           <div v-if="!doneList.length" class="qtp-empty">空空如也</div>
         </div>
@@ -223,11 +226,6 @@ async function load() {
   if (res?.ok) {
     tasks.value = res.data || [];
   }
-}
-function shortTime(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 function fmtTime(iso) {
   if (!iso) return "—";
@@ -566,17 +564,7 @@ defineExpose({ load });
   text-align: right; line-height: 30px;
   user-select: none;
 }
-/* 时间：第一行右侧（flex 内），hover 时让位给操作栏 */
-.qtp-time {
-  flex: none;
-  align-self: flex-start;
-  line-height: 30px;
-  font-size: 10.5px; color: #b3a996;
-  font-family: 'JetBrains Mono', monospace;
-  white-space: nowrap;
-}
-.qtp-line-row:hover .qtp-time,
-.qtp-done-row:hover .qtp-time { display: none; }
+/* 时间：已完成行不再展示时间 */
 .qtp-act {
   font-family: 'Noto Serif SC', var(--font-serif, serif);
   font-size: 12px; color: #537d96; cursor: pointer;
@@ -590,6 +578,15 @@ defineExpose({ load });
 .qtp-act.qtp-red { color: #8b2c1f; }
 .qtp-act.qtp-red:hover { border-bottom-color: #8b2c1f; }
 .qtp-act-lg { font-size: 13px; }
+/* 编辑行：textarea + inline 保存按钮（沿 30px 格线对齐） */
+.qtp-edit-wrap {
+  flex: 1; min-width: 0;
+  display: flex; align-items: flex-start;
+}
+.qtp-edit-ops {
+  flex: none; margin-left: 10px;
+  line-height: 30px; white-space: nowrap;
+}
 .qtp-edit-input {
   flex: 1; min-width: 0;
   border: none; outline: none; resize: none;
