@@ -1,7 +1,0 @@
-feat: get_project 短前缀查询 + list_projects 状态筛选 + 面包屑粘连
-
-- get_project：支持完整 ID 或唯一短前缀全局查询（复用 resolveRowById，
-  对齐 get_plan / get_requirement 的 ID 体系），路由包 400 兜底多候选报错
-- list_projects：新增 status 参数（待开始/进行中/已完成/已取消，非法值 400），
-  支撑巡检场景按状态过滤；工具与路由透传
-- 项目详情面包屑改粘连布局（sticky top 0），长页面滚动时固定在顶部

@@ -1,22 +1,22 @@
-# Node.js 依赖
+﻿# Node.js 渚濊禆
 node_modules/
 frontend/node_modules/
 
-# Vite 构建输出
+# Vite 鏋勫缓杈撳嚭
 frontend/dist/
 
-# Vite 缓存
+# Vite 缂撳瓨
 frontend/.vite/
 
-# 项目本地脚本
+# 椤圭洰鏈湴鑴氭湰
 *.py
 *.txt
 
-# 系统文件
+# 绯荤粺鏂囦欢
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# 开发环境日志
+# 寮€鍙戠幆澧冩棩蹇?
 devserver*.log
-".git-commit-msg.tmp"  
+.git-commit-msg.tmp
