@@ -32,17 +32,18 @@
               class="qtp-edit-input"
               rows="1"
               @click.stop
-              @keydown.enter.exact.prevent="saveEdit(t.id)"
+              @keydown.enter.exact="onEditEnter(t, $event)"
               @keydown.esc="cancelEdit"
               @keydown.up="onEditNav(t, $event)"
               @keydown.down="onEditNav(t, $event)"
               @blur="onEditBlur(t)"
               @input="fitEditHeight"
             ></textarea>
-            <!-- 编辑态常驻气泡：保存前先同步编辑内容 -->
+            <!-- 编辑态常驻气泡：保存前先同步编辑内容；删除在最右 -->
             <span class="qtp-ops qtp-ops-static" @click.stop>
               <button class="qtp-act qtp-green" @mousedown.prevent @click="bubbleDone(t)">【完成】</button>
               <button class="qtp-act qtp-green" @mousedown.prevent @click="bubbleConvert(t)">【转正式】</button>
+              <button class="qtp-act qtp-red" @mousedown.prevent @click="removeEmpty(t.id)">【删除】</button>
             </span>
           </template>
           <template v-else>
@@ -72,7 +73,7 @@
             class="qtp-edit-input qtp-new-input"
             rows="1"
             placeholder="回车即存 · Shift + 回车换行"
-            @keydown.enter.exact.prevent="addTask()"
+            @keydown.enter.exact="onNewEnter"
             @keydown.up="onNewNav"
             @keydown.esc="hideInline"
             @blur="onInlineBlur"
@@ -96,6 +97,7 @@
             v-for="(t, idx) in doneList"
             :key="t.id"
             class="qtp-done-row"
+            :class="{ 'qtp-highlight': activeDoneId === t.id }"
             @click="toggleDoneOps(t)"
           >
             <span class="qtp-idx">{{ idx + 1 }}.</span>
@@ -105,6 +107,7 @@
                 <button v-if="t.status === 'done'" class="qtp-act" @click.stop="reopenTask(t)">【退回】</button>
                 <button v-if="t.status === 'done'" class="qtp-act qtp-green" @click.stop="openConvert(t)">【转正式】</button>
                 <button class="qtp-act" @click.stop="archiveOne(t)">【归档】</button>
+                <button class="qtp-act qtp-red" @click.stop="removeEmpty(t.id)">【删除】</button>
               </span>
             </div>
             <span v-if="t.status === 'converted'" class="qtp-conv-tag" title="打开目标项目" @click.stop="goProject(t)">→ {{ t.convertedProject }}</span>
@@ -260,17 +263,33 @@ function hideInline() {
   inlineInput.value = false;
   inputText.value = "";
 }
-// blur 且无内容时才收起；有内容点击 outside 直接提交（与编辑态 outside 即存一致）
-function onInlineBlur() {
-  if (inputText.value.trim()) addTask(false);
-  else hideInline();
+// blur 且无内容时收起；有内容点击 outside 直接提交后收起（连续输入只在回车路径保持，避免输入框常驻造成困惑）
+async function onInlineBlur() {
+  if (inputText.value.trim()) {
+    const ok = await addTask(false);
+    if (ok) hideInline();
+  } else {
+    hideInline();
+  }
+}
+// 输入法选词回车（isComposing）不触发提交，否则中文打字过程会被误存
+function onNewEnter(e) {
+  if (e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  addTask();
+}
+function onEditEnter(t, e) {
+  if (e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  saveEdit(t.id);
 }
 
 // ===== 新增 =====
 // refocus：回车提交后留在输入框连续记录；outside 提交时拉走焦点
+// 返回是否成功，供 outside 路径决定是否收起输入行
 async function addTask(refocus = true) {
   const v = inputText.value.trim();
-  if (!v) return;
+  if (!v) return false;
   const res = await api("api/quick-tasks", { method: "POST", body: JSON.stringify({ content: v }) });
   if (res?.ok) {
     inputText.value = "";
@@ -283,7 +302,9 @@ async function addTask(refocus = true) {
     });
   } else {
     toast(res?.error || "记录失败", "error");
+    return false;
   }
+  return true;
 }
 
 // ===== 完成 / 退回（完成后通知父级刷新 tab 角标数字） =====
@@ -429,6 +450,7 @@ function onEditBlur(t) {
 // 乐观删除：先从本地移除再发请求，失败回滚。避免先闪现旧内容再消失
 async function removeEmpty(id) {
   cancelEdit();
+  activeDoneId.value = null;
   const prev = tasks.value;
   tasks.value = tasks.value.filter((t) => t.id !== id);
   const res = await api(`api/quick-tasks/${id}`, { method: "DELETE" });
@@ -746,9 +768,10 @@ defineExpose({ load });</script>
   border-radius: 4px;
   cursor: default;
 }
-/* 已完成行：悬浮/点击高亮 */
+/* 已完成行：悬浮/点击高亮；点击激活气泡后高亮常驻 */
 .qtp-done-row:hover { background: rgba(83, 125, 150, 0.06); }
-.qtp-done-row:active { background: rgba(83, 125, 150, 0.12); }
+.qtp-done-row:active,
+.qtp-done-row.qtp-highlight { background: rgba(83, 125, 150, 0.12); }
 .qtp-done-text {
   font-size: 13px; color: #b3a996;
   text-decoration: line-through; text-decoration-color: rgba(154, 145, 134, 0.55);
@@ -779,6 +802,9 @@ defineExpose({ load });</script>
   white-space: nowrap; letter-spacing: 1px;
 }
 .qtp-table td { padding: 8px; border-bottom: 1px solid #efe8d8; color: #5f574d; vertical-align: middle; }
+/* 操作列不折行，避免【删除】按钮换行 */
+.qtp-table th:last-child,
+.qtp-table td:last-child { white-space: nowrap; }
 .qtp-c-main {
   min-width: 160px; white-space: normal; word-break: break-all;
 }
