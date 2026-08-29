@@ -88,8 +88,8 @@
           </el-form-item>
         </div>
 
-        <!-- 第五行：简述 -->
-        <el-form-item label="简述">
+        <!-- 第五行：简述（form-stretch：撑满剩余高度） -->
+        <el-form-item label="简述" class="form-stretch">
           <RichEditor v-model="form.description" :project-id="projectId" />
         </el-form-item>
     </FormDialog>

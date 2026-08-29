@@ -54,8 +54,8 @@
       </el-form-item>
     </div>
 
-    <!-- 第四行：描述 -->
-    <el-form-item label="描述">
+    <!-- 第四行：描述（form-stretch：撑满剩余高度） -->
+    <el-form-item label="描述" class="form-stretch">
       <el-input
         v-model="form.description"
         type="textarea"

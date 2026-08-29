@@ -14,7 +14,7 @@
       @cancel="dialogShow = false"
       @save="submit"
     >
-      <el-form-item label="内容" prop="content">
+      <el-form-item label="内容" prop="content" class="form-stretch">
         <RichEditor v-model="form.content" :project-id="projectId" placeholder="随手记一条想法、链接、灵感……" />
       </el-form-item>
     </FormDialog>

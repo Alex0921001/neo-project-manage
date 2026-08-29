@@ -251,26 +251,28 @@ function hideInline() {
   inlineInput.value = false;
   inputText.value = "";
 }
-// blur 且无内容时才收起（回车添加后保持可连续输入）
+// blur 且无内容时才收起；有内容点击 outside 直接提交（与编辑态 outside 即存一致）
 function onInlineBlur() {
-  setTimeout(() => {
-    if (inlineInput.value && !inputText.value.trim()) hideInline();
-  }, 120);
+  if (inputText.value.trim()) addTask(false);
+  else hideInline();
 }
 
 // ===== 新增 =====
-async function addTask() {
+// refocus：回车提交后留在输入框连续记录；outside 提交时拉走焦点
+async function addTask(refocus = true) {
   const v = inputText.value.trim();
   if (!v) return;
   const res = await api("api/quick-tasks", { method: "POST", body: JSON.stringify({ content: v }) });
   if (res?.ok) {
     inputText.value = "";
     await load(); // 立即拉取新数据，否则要等下一次 load 才出现
-    nextTick(() => {
-      // 复位输入框高度，保持可连续记录
-      if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
-      inlineInputRef.value?.focus();
-    });
+    if (refocus) {
+      nextTick(() => {
+        // 复位输入框高度，保持可连续记录
+        if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
+        inlineInputRef.value?.focus();
+      });
+    }
   } else {
     toast(res?.error || "记录失败", "error");
   }
@@ -568,10 +570,7 @@ defineExpose({ load });
 .qtp-inline-row { background-color: transparent; }
 /* 列表末尾固定空行：点击输入 */
 .qtp-newline-row { cursor: text; }
-/* 新增输入框：多行，浅底提示可输入；宽度对齐编辑框（消除跳字） */
-.qtp-new-input {
-  background-color: rgba(83, 125, 150, 0.05);
-}
+/* 新增输入框：透明底与纸面一致，placeholder 提示操作 */
 .qtp-new-input::placeholder { color: #c9c0b2; }
 /* 全文常显：文字沿 30px 横格线多行铺开；padding 与编辑框一致，进入编辑不跳字 */
 .qtp-line-content {
@@ -579,18 +578,25 @@ defineExpose({ load });
   font-size: 13.5px; line-height: 30px; word-break: break-all;
   padding: 0 4px;
 }
-.qtp-text { white-space: normal; }
-.qtp-done-text { white-space: normal; }
-/* 操作栏：inline 浮在最后一行右侧，文字自动让位 */
+.qtp-text { white-space: pre-wrap; }
+.qtp-done-text { white-space: pre-wrap; }
+/* 操作气泡：hover 时浮出行右上角，不占文档流，避免文字多时硬塞一行按钮跳行 */
 .qtp-ops {
   display: none;
-  float: right;
-  margin-left: 10px;
-  line-height: 30px;
+  position: absolute;
+  right: 0;
+  top: -14px;
+  z-index: 6;
+  background: #fffdf8;
+  border: 1px solid #e0d7c6;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(95, 87, 77, 0.16);
+  padding: 2px 8px;
+  line-height: 26px;
   white-space: nowrap;
 }
 .qtp-line-row:hover .qtp-ops,
-.qtp-done-row:hover .qtp-ops { display: inline; }
+.qtp-done-row:hover .qtp-ops { display: inline-flex; align-items: center; gap: 4px; }
 /* 条目序号 */
 .qtp-idx {
   flex: none; width: 26px;
@@ -616,8 +622,7 @@ defineExpose({ load });
 .qtp-edit-input {
   flex: 1; min-width: 0;
   border: none; outline: none; resize: none;
-  background: rgba(83, 125, 150, 0.04);
-  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 29px, rgba(83, 125, 150, 0.35) 29px, rgba(83, 125, 150, 0.35) 30px);
+  background: transparent;
   font-family: inherit; font-size: 13.5px; color: #5f574d;
   padding: 0 4px; box-sizing: border-box;
   line-height: 30px; height: 30px;

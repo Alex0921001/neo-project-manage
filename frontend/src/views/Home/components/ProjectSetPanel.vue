@@ -1,11 +1,13 @@
 <template>
-  <el-dialog
+  <FloatPanel
     :model-value="modelValue"
     title="项目集"
-    width="560px"
-    :close-on-click-modal="false"
-    append-to-body
+    :default-width="640"
+    :default-height="480"
+    :min-width="480"
+    :min-height="360"
     @update:model-value="$emit('update:modelValue', $event)"
+    @close="$emit('update:modelValue', false)"
   >
     <div class="set-panel">
       <!-- header：搜索 + 新建 -->
@@ -72,7 +74,7 @@
         <el-input v-model="setForm.name" maxlength="10" show-word-limit placeholder="最多10字" @keyup.enter="doSave" />
       </el-form-item>
     </FormDialog>
-  </el-dialog>
+  </FloatPanel>
 </template>
 
 <script setup>
@@ -81,6 +83,7 @@ import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { pickPaletteColor } from "../../../utils/palette.js";
 import FormDialog from "../../../components/FormDialog.vue";
+import FloatPanel from "../../../components/FloatPanel.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -171,6 +174,10 @@ function startDelete(s) {
 <style scoped>
 .set-panel {
   min-height: 200px;
+  padding: 14px 16px;
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .panel-header {

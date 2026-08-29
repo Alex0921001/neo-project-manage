@@ -78,15 +78,30 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
 }
-.form-dialog-form :deep(.el-form-item:last-child) {
+/* 内容区自适应：加 form-stretch 的最后一项（描述/简述/备注）撑满剩余高度；
+   弹窗拖大时富文本/文本域跟随填满，小窗时不小于 min-height，超出走 body 滚动 */
+.form-dialog-form :deep(.el-form-item.form-stretch) {
+  flex: 1;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+}
+.form-dialog-form :deep(.el-form-item.form-stretch .el-form-item__content) {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.form-dialog-form :deep(.el-form-item:last-child .el-form-item__content) {
+.form-dialog-form :deep(.el-form-item.form-stretch .el-form-item__content > *) {
   flex: 1;
-  min-height: 0;
+}
+/* 文本域撑满（项目描述） */
+.form-dialog-form :deep(.el-form-item.form-stretch .el-textarea),
+.form-dialog-form :deep(.el-form-item.form-stretch .el-textarea__inner) {
+  height: 100%;
+}
+.form-dialog-form :deep(.el-form-item.form-stretch .el-textarea__inner) {
+  resize: none;
 }
 </style>
 
