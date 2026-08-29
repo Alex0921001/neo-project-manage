@@ -14,7 +14,7 @@
           <svg :class="{ spinning: refreshing }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
-      <div class="qtp-sub">随手记 · 想到什么写什么，回车即存</div>
+      <div class="qtp-sub">随手记 · 想到什么写什么，回车即存 · Shift + 回车换行</div>
 
       <!-- 未完成列表（横格线，带序号；末尾固定空行，点击输入） -->
       <div class="qtp-lines">
@@ -32,7 +32,7 @@
               class="qtp-edit-input"
               rows="1"
               @click.stop
-              @keydown.enter.prevent="saveEdit(t.id)"
+              @keydown.enter.exact.prevent="saveEdit(t.id)"
               @keydown.esc="cancelEdit"
               @blur="onEditBlur(t)"
               @input="fitEditHeight"
@@ -56,18 +56,20 @@
           title="点击输入"
           @click="startInline"
         ></div>
-        <!-- 新增输入行（点击末尾空行后原位出现） -->
+        <!-- 新增输入行（点击末尾空行后原位出现）：多行输入，shift+回车换行 -->
         <div v-else class="qtp-line-row qtp-inline-row">
           <span class="qtp-idx">{{ activeList.length + 1 }}.</span>
-          <input
+          <textarea
             ref="inlineInputRef"
             v-model="inputText"
-            class="qtp-line-input"
+            class="qtp-edit-input qtp-new-input"
+            rows="1"
             placeholder="想到什么写什么…"
-            @keydown.enter="addTask"
+            @keydown.enter.exact.prevent="addTask"
             @keydown.esc="hideInline"
             @blur="onInlineBlur"
-          />
+            @input="fitEditHeight"
+          ></textarea>
         </div>
       </div>
 
@@ -263,9 +265,11 @@ async function addTask() {
   const res = await api("api/quick-tasks", { method: "POST", body: JSON.stringify({ content: v }) });
   if (res?.ok) {
     inputText.value = "";
-    await load();
-    // 保持输入行继续可连续记录
-    nextTick(() => inlineInputRef.value?.focus());
+    nextTick(() => {
+      // 复位输入框高度，保持可连续记录
+      if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
+      inlineInputRef.value?.focus();
+    });
   } else {
     toast(res?.error || "记录失败", "error");
   }
@@ -501,24 +505,33 @@ defineExpose({ load });
   color: #5f574d;
   box-sizing: border-box;
 }
-/* 装订孔 + 撕口（仅左侧） */
-.qtp-gutter { position: absolute; top: 0; bottom: 0; width: 26px; }
-.qtp-gutter-left { left: 5px; }
-.qtp-tear { position: absolute; top: 8px; bottom: 8px; width: 0; border-left: 1.5px dashed #d6ccb8; }
-.qtp-gutter-left .qtp-tear { left: 21px; }
+/* 装订孔 + 撕口（仅左侧）：样式对齐 ProjectCard */
+.qtp-gutter { position: absolute; top: 8px; bottom: 8px; width: 30px; pointer-events: none; }
+.qtp-gutter-left { left: 0; }
+.qtp-tear {
+  position: absolute; top: 0; bottom: 0; width: 1px;
+  background-image: linear-gradient(to bottom, #d6ccb8 0, #d6ccb8 4px, transparent 4px, transparent 8px);
+  background-size: 1px 8px;
+  background-repeat: repeat-y;
+}
+.qtp-gutter-left .qtp-tear { left: 26px; }
 .qtp-holes {
-  position: absolute; top: 0; bottom: 0; left: 0; right: 0;
-  display: flex; flex-direction: column; justify-content: space-between;
-  padding: 14px 0;
+  position: absolute; top: 0; bottom: 0; left: 0; width: 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: 6px 0;
 }
 .qtp-hole {
-  width: 11px; height: 11px; border-radius: 50%;
-  background: #f2ebdb; border: 1px solid #d6ccb8;
-  margin: 0 auto; flex: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.16),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.6),
+    inset 0 0 0 1px #d6ccb8;
+  flex: none;
 }
 /* 标题 */
 .qtp-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
-.qtp-title { font-family: 'EB Garamond', 'Noto Serif SC', serif; font-size: 19px; font-weight: 600; letter-spacing: 1px; }
+.qtp-title { font-family: 'EB Garamond', 'Noto Serif SC', serif; font-size: 19px; font-weight: 600; letter-spacing: 1px; color: oklch(0.5 0.16 28); }
 .qtp-refresh {
   margin-left: auto;
   border: none; background: none; cursor: pointer;
@@ -543,17 +556,16 @@ defineExpose({ load });
 .qtp-inline-row { background-color: transparent; }
 /* 列表末尾固定空行：点击输入 */
 .qtp-newline-row { cursor: text; }
-.qtp-line-input {
-  flex: 1; border: none; outline: none; background: transparent;
-  font-family: inherit; font-size: 13.5px; color: #5f574d; min-width: 0;
-  height: 30px; line-height: 30px;
+/* 新增输入框：多行，浅底提示可输入；宽度对齐编辑框（消除跳字） */
+.qtp-new-input {
+  background-color: rgba(83, 125, 150, 0.05);
 }
-.qtp-line-input::placeholder { color: #c9c0b2; }
-.qtp-line-input:focus { background: rgba(83, 125, 150, 0.04); }
-/* 全文常显：文字沿 30px 横格线多行铺开 */
+.qtp-new-input::placeholder { color: #c9c0b2; }
+/* 全文常显：文字沿 30px 横格线多行铺开；padding 与编辑框一致，进入编辑不跳字 */
 .qtp-line-content {
   flex: 1; min-width: 0;
   font-size: 13.5px; line-height: 30px; word-break: break-all;
+  padding: 0 4px;
 }
 .qtp-text { white-space: normal; }
 .qtp-done-text { white-space: normal; }
