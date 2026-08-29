@@ -11,7 +11,7 @@
       <div class="qtp-head">
         <span class="qtp-title">临时任务</span>
         <button class="qtp-refresh" title="刷新" @click="refresh">
-          <svg :class="{ spinning: refreshing }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <svg :class="{ 'spin-once': spinOnce }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" @animationend="spinOnce = false"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
         </button>
       </div>
       <div class="qtp-sub">随手记 · 想到什么写什么</div>
@@ -178,7 +178,7 @@
             </thead>
             <tbody>
               <tr v-for="t in archItems" :key="t.id">
-                <td class="qtp-c-main">{{ t.content }}</td>
+                <td class="qtp-c-main" v-html="highlightKeyword(t.content, archKeyword)"></td>
                 <td class="qtp-c-time">{{ fmtTime(t.doneAt) }}</td>
                 <td class="qtp-c-time">{{ fmtTime(t.archivedAt) }}</td>
                 <td>
@@ -214,6 +214,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "v
 import { Search as SearchIcon } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
+import { highlightKeyword } from "../../../utils/jump.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
@@ -243,11 +244,13 @@ function fmtTime(iso) {
   return iso.slice(0, 16).replace("T", " ");
 }
 
-// ===== 刷新 =====
+// ===== 刷新（点击图标转一圈） =====
 const refreshing = ref(false);
+const spinOnce = ref(false);
 async function refresh() {
   if (refreshing.value) return;
   refreshing.value = true;
+  spinOnce.value = true;
   try {
     await Promise.all([load(), loadArchCount()]);
   } finally {
@@ -671,7 +674,8 @@ defineExpose({ load });</script>
   display: inline-flex; align-items: center;
 }
 .qtp-refresh:hover { color: #537d96; background: rgba(83, 125, 150, 0.08); }
-.qtp-refresh .spinning { animation: qtp-spin 0.8s linear infinite; }
+/* 点击后转一圈（animationend 复位） */
+.qtp-refresh .spin-once { animation: qtp-spin 0.5s cubic-bezier(0.4, 0, 0.2, 1) 1; }
 @keyframes qtp-spin { to { transform: rotate(360deg); } }
 .qtp-sub { font-size: 11.5px; color: #9a9186; margin-bottom: 12px; font-family: var(--el-font-family, sans-serif); }
 /* 横格行 */
@@ -810,7 +814,15 @@ defineExpose({ load });</script>
 .qtp-table th:last-child,
 .qtp-table td:last-child { white-space: nowrap; }
 .qtp-c-main {
-  min-width: 160px; white-space: normal; word-break: break-all;
+  min-width: 160px; white-space: pre-wrap; word-break: break-all;
+}
+/* 归档搜索命中高亮：与 Ctrl+F 搜索弹窗同款（warm 黄底加粗） */
+.qtp-arch-body :deep(mark) {
+  background: var(--accent-warm-subtle);
+  color: var(--accent-warm-hover);
+  border-radius: 2px;
+  padding: 0 1px;
+  font-weight: 600;
 }
 .qtp-c-time {
   font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
