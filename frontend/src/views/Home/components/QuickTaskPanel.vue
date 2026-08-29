@@ -57,15 +57,8 @@
             </div>
           </template>
         </div>
-        <!-- 列表末尾固定空行：点击该行出现输入框 -->
-        <div
-          v-if="!inlineInput"
-          class="qtp-line-row qtp-newline-row"
-          title="点击输入"
-          @click="startInline"
-        ></div>
-        <!-- 新增输入行（点击末尾空行后原位出现）：多行输入，shift+回车换行 -->
-        <div v-else class="qtp-line-row qtp-inline-row">
+        <!-- 列表末尾常驻新增输入框（多行输入，shift+回车换行） -->
+        <div class="qtp-line-row qtp-inline-row">
           <span class="qtp-idx">{{ activeList.length + 1 }}.</span>
           <textarea
             ref="inlineInputRef"
@@ -75,7 +68,7 @@
             placeholder="回车即存 · Shift + 回车换行"
             @keydown.enter.exact="onNewEnter"
             @keydown.up="onNewNav"
-            @keydown.esc="hideInline"
+            @keydown.esc="clearNewInput"
             @blur="onInlineBlur"
             @input="fitEditHeight"
           ></textarea>
@@ -221,7 +214,6 @@ const emit = defineEmits(["open-project", "changed"]);
 // ===== 数据 =====
 const tasks = ref([]);
 const inputText = ref("");
-const inlineInput = ref(false);
 const inlineInputRef = ref(null);
 const editId = ref(null);
 const editText = ref("");
@@ -253,24 +245,15 @@ async function refresh() {
   }
 }
 
-// ===== 新增（点击末尾固定空行触发） =====
-function startInline() {
-  cancelEdit(); // 编辑态与新增行互斥
-  inlineInput.value = true;
-  nextTick(() => inlineInputRef.value?.focus());
-}
-function hideInline() {
-  inlineInput.value = false;
-  inputText.value = "";
-}
-// blur 且无内容时收起；有内容点击 outside 直接提交后收起（连续输入只在回车路径保持，避免输入框常驻造成困惑）
+// ===== 新增（末尾常驻输入框，无需点击唤出） =====
+// outside 时：有内容提交后留在框内（复位内容与高度）；无内容不动
 async function onInlineBlur() {
-  if (inputText.value.trim()) {
-    const ok = await addTask(false);
-    if (ok) hideInline();
-  } else {
-    hideInline();
-  }
+  if (inputText.value.trim()) await addTask(false);
+}
+// Esc：清空当前输入（输入框常驻，只清内容）
+function clearNewInput() {
+  inputText.value = "";
+  if (inlineInputRef.value) fitEditHeight({ target: inlineInputRef.value });
 }
 // 输入法选词回车（isComposing）不触发提交，否则中文打字过程会被误存
 function onNewEnter(e) {
@@ -331,7 +314,6 @@ function bubbleConvert(t) {
 
 // ===== 点击即编辑（光标定位到点击处）与空行即删 =====
 function startEdit(t, e, forcedPos) {
-  hideInline(); // 编辑态与新增行互斥
   if (editId.value === t.id) return;
   editId.value = t.id;
   editText.value = t.content;
@@ -685,7 +667,6 @@ defineExpose({ load });</script>
 }
 .qtp-inline-row { background-color: transparent; }
 /* 列表末尾固定空行：点击输入 */
-.qtp-newline-row { cursor: text; }
 /* 新增输入框：透明底与纸面一致，placeholder 提示操作 */
 .qtp-new-input::placeholder { color: #c9c0b2; }
 /* 全文常显：文字沿 30px 横格线多行铺开；padding 与编辑框一致，进入编辑不跳字 */
