@@ -723,13 +723,17 @@ async function doConfirm() {
 }
 .detail-view::-webkit-scrollbar { display: none; }
 
-/* ===== 面包屑 ===== */
+/* ===== 面包屑（粘连布局：滚动时固定在滚动容器顶部） ===== */
 .detail-crumb {
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 24px 0;
+  padding: 14px 24px 10px;
 }
 .crumb-back {
   width: 26px;

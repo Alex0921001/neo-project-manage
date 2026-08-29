@@ -1,18 +1,19 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "list_projects";
-export const description = "列出项目（可按项目集 ID 筛选、按名称模糊搜索）";
+export const description = "列出项目（可按项目集 ID 筛选、按名称模糊搜索、按状态过滤）";
 export const parameters = {
   type: "object",
   properties: {
     projectSetId: { type: "string", description: "项目集 ID（可空，传空字符串查未归类项目）" },
     keyword: { type: "string", description: "按项目名模糊匹配（可选）" },
+    status: { type: "string", enum: ["待开始", "进行中", "已完成", "已取消"], description: "按状态过滤（可选）" },
   },
 };
 
 export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
-  const projects = data.listProjects(input.projectSetId, input.keyword);
+  const projects = data.listProjects(input.projectSetId, input.keyword, input.status);
   if (projects.length === 0) {
     return { content: [{ type: "text", text: "暂无项目" }] };
   }

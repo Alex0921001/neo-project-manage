@@ -1,12 +1,12 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "get_project";
-export const description = "获取项目详情（含任务树/批注/需求/方案/文件/备注，覆盖归档、会话、项目集等全字段）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
+export const description = "获取项目详情（含任务树/批注/需求/方案/文件/备注，覆盖归档、会话、项目集等全字段）；支持仅凭 ID 或唯一短前缀全局查询（对齐 get_plan / get_requirement）；view=summary 时输出轻量视图（仅任务名/状态/日期，省 token）";
 export const parameters = {
   type: "object",
   required: ["id"],
   properties: {
-    id: { type: "string", description: "项目 ID" },
+    id: { type: "string", description: "项目 ID（完整 ID 或唯一短前缀）" },
     view: { type: "string", enum: ["summary"], description: "view=summary 轻量模式：仅项目头 + 任务名/状态/日期（可选）" },
   },
 };

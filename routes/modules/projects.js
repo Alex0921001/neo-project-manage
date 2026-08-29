@@ -5,14 +5,28 @@ export function registerProjectsRoutes(app, data) {
   app.get("/api/projects", (c) => {
     const projectSetId = c.req.query("projectSetId");
     const keyword = c.req.query("keyword") || "";
-    const projects = data.listProjects(projectSetId !== undefined ? projectSetId : undefined, keyword);
-    return c.json({ ok: true, data: projects });
+    const status = c.req.query("status") || undefined;
+    try {
+      const projects = data.listProjects(
+        projectSetId !== undefined ? projectSetId : undefined,
+        keyword,
+        status
+      );
+      return c.json({ ok: true, data: projects });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
   });
 
   app.get("/api/projects/:id", (c) => {
-    const project = data.getProject(c.req.param("id"));
-    if (!project) return c.json({ ok: false, error: "项目不存在" }, 404);
-    return c.json({ ok: true, data: project });
+    try {
+      const project = data.getProject(c.req.param("id"));
+      if (!project) return c.json({ ok: false, error: "项目不存在" }, 404);
+      return c.json({ ok: true, data: project });
+    } catch (e) {
+      // 短前缀多候选等解析错误：400 带候选提示
+      return c.json({ ok: false, error: e.message }, 400);
+    }
   });
 
   // V2.0 S12：项目总结（与 summarize-project 工具同源，数据来自 data.summarizeProject）
