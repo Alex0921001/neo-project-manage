@@ -1,13 +1,12 @@
 <template>
-  <el-dialog
+  <FloatPanel
     :model-value="show"
     title="已归档项目"
-    width="920px"
-    :close-on-click-modal="false"
-    append-to-body
-    @update:model-value="(v) => emit('update:modelValue', v)"
-    @close="emit('close')"
+    :default-width="920"
+    :default-height="560"
+    @update:model-value="(v) => { if (!v) emit('close'); }"
   >
+    <div class="arch-body">
     <!-- 搜索栏：项目名称 + 起止日期 -->
     <div class="arch-search">
       <div class="arch-search-name">
@@ -37,7 +36,8 @@
       <span class="arch-count">{{ filtered.length }} 条</span>
     </div>
 
-    <!-- 表格（分页，一屏展示；边框 + 列宽收敛避免横向滚动） -->
+    <!-- 表格（分页；独立滚动容器：搜索栏/分页条固定，表格区随弹窗拉伸滚动） -->
+    <div class="arch-table-wrap">
     <el-table :data="pagedItems" border style="width: 100%" empty-text="没有匹配的已归档项目">
       <el-table-column label="项目名称" min-width="180">
         <template #default="{ row }">
@@ -73,6 +73,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
 
     <div class="arch-pager">
       <el-pagination
@@ -84,11 +85,13 @@
         small
       />
     </div>
-  </el-dialog>
+    </div>
+  </FloatPanel>
 </template>
 
 <script setup>
 import { ref, computed, watch } from "vue";
+import FloatPanel from "../../../components/FloatPanel.vue";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -165,11 +168,15 @@ function formatDate(iso) {
 </script>
 
 <style scoped>
+/* 弹窗内容三段式：搜索栏固定 / 表格区随弹窗拉伸滚动 / 分页条固定 */
+.arch-body { padding: 14px 16px; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }
+.arch-table-wrap { flex: 1; min-height: 0; overflow-y: auto; }
 .arch-search {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .arch-search-name {
   position: relative;
@@ -253,6 +260,7 @@ function formatDate(iso) {
   display: flex;
   justify-content: flex-end;
   margin-top: 12px;
+  flex-shrink: 0;
 }
 .arch-restore {
   padding: 3px 12px;
