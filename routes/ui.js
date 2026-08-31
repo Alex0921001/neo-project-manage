@@ -242,9 +242,9 @@ export default function registerPluginUiRoutes(app, ctx) {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
       if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
-      // windowsVerbatimArguments：参数原样传递不加引号（explorer 的 /select, 按前缀解析，本身能处理空格；
-      // 默认转义加引号会导致 explorer 识别失败回退打开默认位置，如「文档」文件夹）
-      execFile("explorer.exe", [`/select,${filePath}`], { windowsVerbatimArguments: true }, (err) => {
+      // windowsVerbatimArguments：参数原样传递；explorer 的 /select, 路径需自带引号，
+      // 含空格路径不加引号会被 explorer 截断，回退打开默认位置（如「文档」）
+      execFile("explorer.exe", [`/select,"${filePath}"`], { windowsVerbatimArguments: true }, (err) => {
         if (err) ctx.log.warn(`[open-folder] 打开失败: ${err.message}`);
       });
       return c.json({ ok: true });

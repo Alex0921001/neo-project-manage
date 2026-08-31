@@ -1,12 +1,13 @@
 <template>
   <div class="area-section" @click="closeMenu">
-    <!-- 添加文件弹窗：桌面集成（选择本地文件路径） -->
-    <el-dialog
-      v-model="dialogShow"
+    <!-- 添加文件弹窗：桌面集成（选择本地文件路径；公共 FormDialog 可拖拽/缩放/双击全屏） -->
+    <FormDialog
+      v-model:show="dialogShow"
       title="添加文件"
-      width="480px"
-      :close-on-click-modal="false"
-      append-to-body
+      :width="480"
+      :height="400"
+      @update:show="(v) => { if (!v) dialogShow = false }"
+      @cancel="dialogShow = false"
     >
       <el-form label-position="top">
         <el-form-item label="选择本地文件">
@@ -30,11 +31,11 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogShow = false">取消</el-button>
-        <el-button class="btn-save" :loading="adding" :disabled="!pending.length" @click="confirmAdd">
+        <el-button class="form-dialog-save" :loading="adding" :disabled="!pending.length" @click="confirmAdd">
           添加 {{ pending.length ? `(${pending.length})` : '' }}
         </el-button>
       </template>
-    </el-dialog>
+    </FormDialog>
 
     <!-- 搜索框已移至 tab 栏「新建」左侧（index.vue 联动 setSearch） -->
 
@@ -184,6 +185,7 @@ import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import { usePersistedTabState } from "../../../utils/usePersistedTabState.js";
 import FolderNode from "./FolderNode.vue";
+import FormDialog from "../../../components/FormDialog.vue";
 
 const props = defineProps({
   projectId: String,

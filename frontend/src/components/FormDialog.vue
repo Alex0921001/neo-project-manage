@@ -21,8 +21,10 @@
       </el-form>
     </div>
     <template #footer>
-      <el-button @click="emitCancel">取消</el-button>
-      <el-button class="form-dialog-save" :loading="saving" @click="handleSubmit">{{ saveText }}</el-button>
+      <slot name="footer">
+        <el-button @click="emitCancel">取消</el-button>
+        <el-button class="form-dialog-save" :loading="saving" @click="handleSubmit">{{ saveText }}</el-button>
+      </slot>
     </template>
   </FloatPanel>
 </template>

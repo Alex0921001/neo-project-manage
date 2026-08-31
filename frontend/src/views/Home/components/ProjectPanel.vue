@@ -123,7 +123,7 @@ const filteredProjects = computed(() => {
 
 // ===== 分组（基于展示状态：已延期合并到待开始组；已取消独立组；已归档独立组） =====
 // 已归档组预览条数，超出走弹窗
-const ARCHIVED_PREVIEW = 10;
+const ARCHIVED_PREVIEW = 3;
 // 排序依据快照（非响应式 Map，load 时填充）：点击收藏只变星星视觉，不触发排序重排（避免卡片跳动）
 // 置顶排序在下次数据刷新（load）时体现
 const pinSnapshot = new Map(); // id -> boolean
