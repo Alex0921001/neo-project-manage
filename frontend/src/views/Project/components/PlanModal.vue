@@ -104,6 +104,7 @@
             @changed="emit('changed')"
             @quoted="onQuoted"
             @locate-quote="locateQuoteInBody"
+            @quote-removed="onQuoteRemoved"
           />
         </div>
       </div>
@@ -204,7 +205,7 @@ import { PLAN_STATUS_OPTIONS, planStatusKey } from "../../../utils/planStatus.js
 import CommentPanel from "./CommentPanel.vue";
 import VersionModal from "./VersionModal.vue";
 import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
-import { applyQuoteToDom, quoteIdFromEvent } from "../../../utils/quoteComment.js";
+import { applyQuoteToDom, unwrapQuoteFromDom, unwrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -324,16 +325,30 @@ function quoteNow() {
   nextTick(() => commentPanel.value?.beginQuote(anchor));
 }
 
-/** 评论提交成功（带引用）：DOM 立即打高亮 → 把带 span 的 HTML 持久化到方案 */
+/** 评论提交成功（带引用）：DOM 立即打高亮 → 走专用 anchor 接口持久化（不受状态冻结限制） */
 async function onQuoted({ comment, anchor }) {
   const container = richContainer.value?.querySelector(".rich-view");
   const ok = container ? applyQuoteToDom(container, anchor, comment.id) : false;
   const newHtml = ok
     ? container.innerHTML
     : wrapQuoteInHtml(plan.value?.content, anchor, comment.id);
-  if (newHtml === plan.value?.content) return;
-  const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
-    method: "PUT",
+  const res = await api(`api/projects/${props.projectId}/comments/${comment.id}/anchor`, {
+    method: "POST",
+    body: JSON.stringify({ content: newHtml }),
+  });
+  if (res?.ok) plan.value = { ...plan.value, content: newHtml };
+  else toast(res?.error || "引用标注保存失败", "error");
+}
+
+/** 删除带引用的评论：清理正文高亮 + 持久化（同走 anchor 接口） */
+async function onQuoteRemoved(commentId) {
+  const container = richContainer.value?.querySelector(".rich-view");
+  if (!container) return;
+  const had = unwrapQuoteFromDom(container, commentId);
+  if (!had) return; // 孤立引用（正文已无标注）无需清理
+  const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
+  const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
+    method: "POST",
     body: JSON.stringify({ content: newHtml }),
   });
   if (res?.ok) plan.value = { ...plan.value, content: newHtml };

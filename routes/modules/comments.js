@@ -54,4 +54,15 @@ export function registerCommentsRoutes(app, data) {
       return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
     }
   });
+
+  // 评论引用标注写入（V2.6 划词引用）：前端包裹好高亮 span 的新 HTML，绕过内容编辑状态冻结
+  app.post("/api/projects/:projectId/comments/:commentId/anchor", async (c) => {
+    const body = await c.req.json();
+    try {
+      data.applyQuoteAnchor(c.req.param("projectId"), c.req.param("commentId"), body.content);
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
+    }
+  });
 }

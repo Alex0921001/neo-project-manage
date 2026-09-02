@@ -13,6 +13,19 @@
     <!-- ===== 阅读模式：7:3 左内容 + 右关联方案（无评论栏） ===== -->
     <template v-if="mode === 'read'">
       <div class="rq-read">
+        <!-- 评论折叠切换（对齐方案弹窗定位：挂在头部层，右上角） -->
+        <button
+          v-if="mode === 'read'"
+          class="rq-comments-toggle"
+          :class="{ folded: commentsCollapsed }"
+          :title="commentsCollapsed ? '展开评论' : '收起评论'"
+          @click="commentsCollapsed = !commentsCollapsed"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path v-if="!commentsCollapsed" d="M15 18l-6-6 6-6"></path>
+            <path v-else d="M9 18l6-6-6-6"></path>
+          </svg>
+        </button>
         <div class="rq-head">
           <div class="rq-head-nav">
             <button v-if="canPrev" class="rq-nav-btn" title="上一条" @click="emit('prev')">
@@ -46,18 +59,6 @@
           </div>
         </div>
         <div class="rq-grid" :class="{ 'rq-grid-folded': commentsCollapsed }">
-          <!-- 评论折叠切换（对齐方案弹窗）：无评论时默认折叠，右上角开关展开 -->
-          <button
-            class="rq-comments-toggle"
-            :class="{ folded: commentsCollapsed }"
-            :title="commentsCollapsed ? '展开评论' : '收起评论'"
-            @click="commentsCollapsed = !commentsCollapsed"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <path v-if="!commentsCollapsed" d="M15 18l-6-6 6-6"></path>
-              <path v-else d="M9 18l6-6-6-6"></path>
-            </svg>
-          </button>
           <!-- 左：需求内容（富文本只读渲染 + 划词引用气泡），关联方案收在内容底部 -->
           <div class="rq-content" ref="richContainer" @mouseup="onSelectionMouseup">
             <div
@@ -93,6 +94,7 @@
             @changed="emit('changed')"
             @quoted="onQuoted"
             @locate-quote="locateQuoteInBody"
+            @quote-removed="onQuoteRemoved"
           />
         </div>
       </div>
@@ -172,7 +174,7 @@ import { planStatusKey } from "../../../utils/planStatus.js";
 import CommentPanel from "./CommentPanel.vue";
 import VersionModal from "./VersionModal.vue";
 import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
-import { applyQuoteToDom, wrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
+import { applyQuoteToDom, wrapQuoteInHtml, unwrapQuoteFromDom, unwrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -277,17 +279,31 @@ function quoteNow() {
   nextTick(() => commentPanel.value?.beginQuote(anchor));
 }
 
-/** 评论提交成功（带引用）：DOM 立即打高亮 → 把带 span 的 HTML 持久化到需求描述 */
+/** 评论提交成功（带引用）：DOM 立即打高亮 → 走专用 anchor 接口持久化（不受状态冻结限制） */
 async function onQuoted({ comment, anchor }) {
   const container = richContainer.value?.querySelector(".rich-view");
   const ok = container ? applyQuoteToDom(container, anchor, comment.id) : false;
   const newHtml = ok
     ? container.innerHTML
     : wrapQuoteInHtml(req.value?.description, anchor, comment.id);
-  if (newHtml === req.value?.description) return;
-  const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`, {
-    method: "PUT",
-    body: JSON.stringify({ description: newHtml }),
+  const res = await api(`api/projects/${props.projectId}/comments/${comment.id}/anchor`, {
+    method: "POST",
+    body: JSON.stringify({ content: newHtml }),
+  });
+  if (res?.ok) req.value = { ...req.value, description: newHtml };
+  else toast(res?.error || "引用标注保存失败", "error");
+}
+
+/** 删除带引用的评论：清理正文高亮 + 持久化（同走 anchor 接口） */
+async function onQuoteRemoved(commentId) {
+  const container = richContainer.value?.querySelector(".rich-view");
+  if (!container) return;
+  const had = unwrapQuoteFromDom(container, commentId);
+  if (!had) return;
+  const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
+  const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
+    method: "POST",
+    body: JSON.stringify({ content: newHtml }),
   });
   if (res?.ok) req.value = { ...req.value, description: newHtml };
 }
@@ -504,13 +520,15 @@ defineExpose({ loadDetail });
   color: var(--status-delay-text);
 }
 
+.rq-read {
+  position: relative; /* 评论折叠按钮定位基准（对齐方案弹窗） */
+}
 /* V2.6：横向分栏（内容 + 评论面板），折叠时评论隐藏内容占满 */
 .rq-grid {
   flex: 1;
   min-height: 0;
   display: flex;
   padding: 16px;
-  position: relative; /* 评论折叠按钮定位基准 */
 }
 .rq-comments-toggle {
   position: absolute;

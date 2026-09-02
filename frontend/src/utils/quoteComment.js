@@ -123,3 +123,31 @@ export function quoteIdFromEvent(e) {
   const el = e.target?.closest?.("[data-quote-comment]");
   return el ? el.getAttribute("data-quote-comment") : null;
 }
+
+/**
+ * 在已渲染 DOM 上解除某条评论的引用包裹（删除评论时清理正文高亮）
+ * span 替换为其内部内容；多条分片全部处理
+ */
+export function unwrapQuoteFromDom(container, commentId) {
+  if (!container) return false;
+  const marks = container.querySelectorAll(`span[data-quote-comment="${commentId}"]`);
+  if (!marks.length) return false;
+  for (const m of marks) {
+    const parent = m.parentNode;
+    while (m.firstChild) parent.insertBefore(m.firstChild, m);
+    parent.removeChild(m);
+    parent.normalize(); // 合并相邻文本节点
+  }
+  return true;
+}
+
+/**
+ * 在 HTML 字符串上解除引用包裹（持久化用）
+ * 嵌套叠加时逐层去除，直到该 commentId 不再出现
+ */
+export function unwrapQuoteInHtml(html, commentId) {
+  const re = new RegExp(`<span[^>]*data-quote-comment=["']${commentId}["'][^>]*>([\\s\\S]*?)</span>`, "g");
+  let out = String(html || "");
+  while (re.test(out)) out = out.replace(re, "$1");
+  return out;
+}

@@ -8,6 +8,12 @@
       @dblclick="resetWidth"
     ></div>
     <div class="cp-title">评论（{{ comments.length }}）</div>
+    <!-- 引用挂起提示：让用户知道当前输入是针对选中文字的引用评论 -->
+    <div v-if="pendingQuote" class="cp-pending">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="cp-pending-text" :title="pendingQuote.text">引用：{{ pendingQuote.text }}</span>
+      <button class="cp-pending-cancel" title="取消引用" @click="cancelQuote">×</button>
+    </div>
     <div class="cp-list" ref="listEl">
       <div v-if="comments.length === 0" class="cp-empty">暂无评论</div>
       <div
@@ -39,7 +45,7 @@
               <button class="cp-op cp-op-danger" title="删除" @click="askDelete(c)">删除</button>
             </span>
           </div>
-          <!-- 引用块（划词引用）：琥珀左线 + 灰底，点击定位到正文引用处 -->
+          <!-- 引用块（划词引用）：单行截断，点击定位到正文高亮处 -->
           <div v-if="c.quoteText" class="cp-quote" :title="c.quoteText" @click="locateQuote(c)">{{ c.quoteText }}</div>
           <div class="cp-body">{{ c.content }}</div>
         </template>
@@ -75,7 +81,7 @@ const props = defineProps({
   targetType: { type: String, required: true }, // 'plan' | 'requirement'
   targetId: { type: String, required: true },
 });
-const emit = defineEmits(["loaded", "changed", "quoted", "locate-quote"]);
+const emit = defineEmits(["loaded", "changed", "quoted", "locate-quote", "quote-removed"]);
 
 const comments = ref([]);
 const draft = ref("");
@@ -292,11 +298,14 @@ async function askDelete(c) {
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);
     emit("changed");
+    // 带引用的评论删除后通知父级清理正文高亮（unwrap + 持久化）
+    if (c.quoteText) emit("quote-removed", c.id);
     toast("已删除评论");
   } else {
     // 已被删（并发）：提示后本地移除
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);
+    if (c.quoteText) emit("quote-removed", c.id);
     toast(res?.error || "已删除");
   }
 }
@@ -353,6 +362,36 @@ defineExpose({ load, scrollToComment, beginQuote, focusInput: () => inputEl.valu
   color: var(--text-secondary);
   flex-shrink: 0;
 }
+/* 引用挂起提示条 */
+.cp-pending {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--accent-warm-hover);
+  background: var(--accent-warm-subtle);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.cp-pending-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-pending-cancel {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.cp-pending-cancel:hover { color: var(--text); }
 .cp-list {
   flex: 1;
   min-height: 0;
@@ -406,16 +445,15 @@ defineExpose({ load, scrollToComment, beginQuote, focusInput: () => inputEl.valu
   font-size: 11.5px;
   color: var(--text-tertiary);
   background: var(--accent-warm-subtle);
-  border-left: 2px solid var(--accent-warm);
-  padding: 3px 6px;
+  padding: 2px 6px;
   margin: 4px 0;
-  border-radius: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
+.cp-quote:hover { color: var(--text-secondary); }
 .cp-body {
   font-size: 13px;
   color: var(--text);
