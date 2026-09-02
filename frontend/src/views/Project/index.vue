@@ -222,6 +222,8 @@
           :sort-query="requirementSort"
           @changed="loadProject"
         />
+        <!-- 验证 tab（V2.6）：看板 + 对象清单 -->
+        <VerificationTab v-if="tab === 'verification'" :project-id="p?.id || ''" @changed="loadProject" />
       </div>
     </section>
 
@@ -278,6 +280,7 @@ import NoteTab from "./components/NoteTab.vue";
 import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
 import RequirementTab from "./components/RequirementTab.vue";
+import VerificationTab from "./components/VerificationTab.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
 import SearchPanel from "../../components/SearchPanel.vue";
 import { consumeJumpMark } from "../../utils/jump.js";
@@ -350,6 +353,9 @@ const TAB_DEFS = [
   },
   {
     key: "notes", label: "备注", svg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  },
+  {
+    key: "verification", label: "验证", svg: '<path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   },
   {
     key: "audit", label: "审计", svg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',

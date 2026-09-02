@@ -110,7 +110,17 @@
       "./tools/quick-task-update.js",
       "./tools/quick-task-archive.js",
       "./tools/quick-task-delete.js",
-      "./tools/quick-task-convert.js"
+      "./tools/quick-task-convert.js",
+      "./tools/list-verifications.js",
+      "./tools/create-verification.js",
+      "./tools/update-verification.js",
+      "./tools/toggle-verification.js",
+      "./tools/delete-verification.js",
+      "./tools/generate-verification-template.js",
+      "./tools/verification-summary.js",
+      "./tools/list-versions.js",
+      "./tools/restore-version.js",
+      "./tools/set-version-label.js"
     ]
   },
   "dev": {

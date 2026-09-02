@@ -15,8 +15,11 @@
 | 树形任务 | 父子孙多级结构，删除父任务**级联删除**子孙，转化来源的临时任务自动回退为已完成并清除转化标记；批量创建（≤50 条，中途失败整体回滚）；编辑支持改父任务；等级 P0~P5；里程碑旗帜标记；三种排序模式（默认可拖拽 / 时间 / 等级）；关键词搜索命中任务名 / 描述 / 批注内容 |
 | 多级文件夹 | file_folders 无限层级树 + 文件归属；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除真删除（递归删子孙夹+夹内文件登记，磁盘不碰）；拖拽防环禁用提示；左侧空白=根目录；框选（AABB 实时碰撞）+ Ctrl/Shift 多选 + Delete 批量删除；分割线可拖（双击复位）+ 文件夹/树宽持久化；hover 气泡；桌面拖入文件登记；右键打开文件夹 |
 | 文件资产 | 资产化登记：大小、类型、摘要（digest）；路径失效防御（文件被移动/删除不报错）；上传与桌面文件选取；文件内容提取（txt/docx/pdf） |
-| 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求 |
-| 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；筛选/搜索/分页/排序 |
+| 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论（增删改 + 引用）；版本管理；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求 |
+| 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；评论（增删改 + 引用）；版本管理；筛选/搜索/分页/排序 |
+| 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
+| 版本管理 | 需求/方案共用：每次保存内容实际变化自动存版（创建存 v1，保留最近 50 版）；版本历史弹窗任选两版对比（逐字段 + 块级 LCS + 字符级高亮，自写不引依赖）；还原 = 旧内容存为新版本（版本链不断）；版本可标记重要备注 |
+| 验证模块 | 项目「验证」tab：看板（总进度 + 各需求/方案卡片进度 + 通用横切项）→ 点卡片进对象清单；一句话检查项 + 自由分类分组（组内进度、整组 ✓、可折叠）；打勾即落库（记勾选时间/人）+ 退回；模板一键生成（标准三件套 / UI 走查 / 兼容性）；增删改/勾选全量审计；内容进全文检索 |
 | tab 栏 | 7 tab 数据驱动 + 拖拽调序 + 右键设置；项目级 > 全局级 > 默认顺序；tab 顺序与显隐持久化 |
 | 批注（便利贴） | 四类：`note` 备注 / `decision` 决策 / `risk` 风险 / `milestone` 节点；待确认 / 已确认两种状态；任务级与项目级筛选；批注管理大屏（可折叠任务树 + 全部任务视图 + 关键字搜索）；已完成任务冻结（不可挂载/修改，可删除） |
 | 成员 | 全局成员表（name 唯一）；项目/任务人员下拉统一走成员体系，支持快捷新增与管理；历史人名自动聚合补录 |
@@ -25,7 +28,7 @@
 | 日历 | 全项目 / 单项目任务日历弹窗：按任务起止日期聚合，点击任务跳转定位；全项目日历按当前选中项目集过滤，状态三档筛选（全部 = 待开始+进行中+已完成 / 未完成 = 待开始+进行中 / 已完成），始终排除已取消与已归档 |
 | 备注 | 项目级备注，随项目详情查看与编辑（富文本） |
 | 消息中心 | 项目集条铃铛 + 未读角标；弹窗左列表（20 条/页滚动加载）右详情；到期提醒（提前 N 天可配置）与风险提醒（仅非归档 + 进行中/待开始项目的中高级风险）；聚合消息（同类每日一条不轰炸）；搜索高亮 / 右键删除 / 一键已读 / 提醒配置 |
-| 全文检索 | 三入口（项目内放大镜 / 项目集条放大镜 / Ctrl+F）；FTS5 中文检索（3 字以上 trigram，1~2 字模糊匹配）；结果按类型分组（项目/任务/批注/方案/需求/备注/临时任务/文件）卡片展示，命中词高亮，点击跳转原文；首次建索引有动效提示 |
+| 全文检索 | 三入口（项目内放大镜 / 项目集条放大镜 / Ctrl+F）；FTS5 中文检索（3 字以上 trigram，1~2 字模糊匹配）；结果按类型分组（项目/任务/批注/方案/需求/评论/验证项/临时任务/文件）卡片展示，命中词高亮，点击跳转原文；首次建索引有动效提示 |
 | 一键周报 | 概览页「一键生成周报/阶段总结」：本周 / 上周 / 近 7 天 / 自定义范围生成 Markdown（完成项按 done_at 统计，含进行中/风险/下周建议） |
 | 详情弹窗导航 | 需求/方案/任务详情右上导航（上一条/下一条），点击列表行预览，编辑/删除在弹窗内 |
 | 公共表单弹窗 | 新建/编辑项目集、项目、任务、备注统一使用 FormDialog（基于 FloatPanel）：可拖拽移动、右下角缩放、双击标题栏撑满整页；自带表单校验与统一 footer；富文本编辑区随弹窗大小自适应，小窗长表单可滚动 |
@@ -56,8 +59,11 @@
 - 「把「给王总发合同」那条标记完成 / 退回」→ `quick_task_update`（action）
 - 「把那条临时任务转成瑞联SIP的正式任务」→ `quick_task_convert`（id + projectId）
 - 「临时任务里搜一下域名」→ `quick_task_list`（keyword）或 `search_all`（type=quick-task）
+- 「这个需求的验证项都过了吗」→ `verification_summary`（projectId）或 `list_verifications`（targetType+targetId）
+- 「把验证项 [xxxx] 标记通过」→ `toggle_verification`
+- 「方案的上一版改了什么」→ `list_versions` 查版本列表，可视化 diff 在弹窗中查看；「还原到上一版」→ `restore_version`
 
-### Agent 工具（81 个）
+### Agent 工具（91 个）
 
 | 类别 | 工具 | 说明 |
 | --- | --- | --- |
@@ -70,11 +76,13 @@
 | 成员 | `list_members` `create_member` `update_member` `delete_member` | 全局成员管理 |
 | 会话 | `link_project_session` `list_project_sessions` `unlink_project_session` | 项目与会话双向关联 |
 | 总结 | `summarize_project` `ask_project` `get_project_summaries` `generate_report` | 项目总结 / 问答 / 历史总结 / 周报生成（本周/上周/近7天/自定义） |
-| 方案 | `create_plan` `update_plan` `delete_plan` `list_plans` `get_plan` `add_plan_comment` `delete_plan_comment` `convert_plan_to_task` `import_plan_file` | 方案全生命周期 + 文件导入 |
+| 方案 | `create_plan` `update_plan` `delete_plan` `list_plans` `get_plan` `add_plan_comment` `update_plan_comment` `delete_plan_comment` `convert_plan_to_task` `import_plan_file` | 方案全生命周期 + 评论（含编辑）+ 文件导入 |
 | 需求 | `create_requirement` `update_requirement` `update_requirement_status` `delete_requirement` `list_requirements` `get_requirement` `link_requirement_plans` `unlink_requirement_plans` | 需求增删改查 + 三态流转 + 方案双向挂载 |
 | 消息 | `list_messages` `mark_message_read` `delete_message` `get_message_unread_count` `get_message_config` `update_message_config` | 消息中心（到期/风险提醒聚合）；提醒配置（提前天数 1-14 + 开关） |
-| 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/备注/临时任务/文件名；FTS5 trigram + 高亮 snippet |
+| 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/评论/验证项/临时任务/文件名；FTS5 trigram + 高亮 snippet |
 | 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增 / 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入） |
+| 验证 | `list_verifications` `create_verification` `update_verification` `toggle_verification` `delete_verification` `generate_verification_template` `verification_summary` | 验证清单全生命周期：查询（对象/分类/状态筛选）/ 新增（可挂需求/方案或通用）/ 编辑 / 勾选退回（打勾即落库 + 审计）/ 删除 / 模板生成（standard/ui/compat）/ 看板进度聚合 |
+| 版本 | `list_versions` `restore_version` `set_version_label` | 需求/方案版本快照：查询 / 还原（旧内容存为新版本）/ 备注标记 |
 | 备注 | `create_note` `update_note` `delete_note` | 项目备注管理 |
 | 审计 | `list_audit_logs` | 审计日志查询（行为/类型/关键词/时间筛选，分页） |
 
