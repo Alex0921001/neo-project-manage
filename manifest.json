@@ -84,6 +84,7 @@
       "./tools/list-plans.js",
       "./tools/get-plan.js",
       "./tools/add-plan-comment.js",
+      "./tools/update-plan-comment.js",
       "./tools/delete-plan-comment.js",
       "./tools/convert-plan-to-task.js",
       "./tools/create-requirement.js",

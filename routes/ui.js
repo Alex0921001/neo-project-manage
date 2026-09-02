@@ -15,6 +15,7 @@ import { registerCalendarRoutes } from "./modules/calendar.js";
 import { registerMembersRoutes } from "./modules/members.js";
 import { registerAuditRoutes } from "./modules/audit.js";
 import { registerPlansRoutes } from "./modules/plans.js";
+import { registerCommentsRoutes } from "./modules/comments.js";
 import { registerRequirementsRoutes } from "./modules/requirements.js";
 import { registerMessagesRoutes } from "./modules/messages.js";
 import { registerSearchRoutes } from "./modules/search.js";
@@ -143,6 +144,8 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerMembersRoutes(app, data);
   registerAuditRoutes(app, data);
   registerPlansRoutes(app, data);
+  // V2.6：统一评论（需求/方案共用）
+  registerCommentsRoutes(app, data);
   registerRequirementsRoutes(app, data);
   // V2.3：消息中心（R1）+ 全文检索（R2）注册链末尾挂载
   registerMessagesRoutes(app, data);
