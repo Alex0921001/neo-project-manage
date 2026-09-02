@@ -93,3 +93,43 @@
 .rich-view ul[data-type="taskList"] { list-style: none; padding-left: 4px; }
 .rich-view li[data-type="taskItem"] { display: flex; gap: 6px; align-items: flex-start; }
 .rich-view li[data-type="taskItem"] > label { margin-top: 3px; }
+
+/* ===== 划词引用评论高亮（V2.6）：虚线下划线 + 琥珀底，编辑器与阅读视图共用 ===== */
+.qc-mark,
+span[data-quote-comment] {
+  border-bottom: 1.5px dashed var(--accent-warm, #b8860b);
+  background: var(--accent-warm-subtle, rgba(184, 134, 11, 0.12));
+  border-radius: 0;
+  cursor: pointer;
+}
+.qc-flash,
+span[data-quote-comment].qc-flash {
+  background: rgba(184, 134, 11, 0.3);
+}
+
+/* ===== 划词引用选区气泡（V2.6）===== */
+.quote-bubble {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  background: var(--bg-card, #fff);
+  border: 0.5px solid var(--border, #ddd);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  padding: 2px;
+}
+.quote-bubble-btn {
+  border: none;
+  background: transparent;
+  color: var(--text, #333);
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.quote-bubble-btn:hover {
+  background: var(--bg-hover, #f2f2f2);
+  color: var(--text, #111);
+}

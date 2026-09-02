@@ -127,6 +127,7 @@ import Table from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
 import TableHeader from "@tiptap/extension-table-header";
+import { QuoteCommentMark } from "../utils/quoteComment.js";
 import { toast } from "../toast.js";
 
 const props = defineProps({
@@ -144,6 +145,7 @@ const editor = useEditor({
   extensions: [
     StarterKit,
     Underline,
+    QuoteCommentMark,
     TextAlign.configure({ types: ["heading", "paragraph"] }),
     Color,
     Highlight.configure({ multicolor: true }),

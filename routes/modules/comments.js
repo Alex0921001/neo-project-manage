@@ -27,7 +27,8 @@ export function registerCommentsRoutes(app, data) {
     const body = await c.req.json();
     try {
       const comment = data.addComment(
-        c.req.param("projectId"), body.targetType, body.targetId, body.content, body.quote ?? null
+        c.req.param("projectId"), body.targetType, body.targetId, body.content,
+        body.quote ?? null, body.quoteAnchor ?? null
       );
       return c.json({ ok: true, data: comment });
     } catch (e) {

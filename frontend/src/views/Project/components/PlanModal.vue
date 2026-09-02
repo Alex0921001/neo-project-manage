@@ -36,6 +36,7 @@
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
             <!-- 克隆：无权限控制，复制当前方案到新建编辑弹窗（保存即新建） -->
+            <button class="pm-btn" title="版本历史（每次保存自动存版）" @click="versionShow = true">版本</button>
             <button class="pm-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">克隆</button>
             <button
               v-if="plan?.status === '已采纳'"
@@ -64,13 +65,13 @@
               <path v-else d="M9 18l6-6-6-6"></path>
             </svg>
           </button>
-          <!-- 左 7：方案内容（富文本只读渲染） -->
-          <div class="pm-content">
+          <!-- 左 7：方案内容（富文本只读渲染 + 划词引用气泡） -->
+          <div class="pm-content" ref="richContainer" @mouseup="onSelectionMouseup">
             <div
               v-if="plan?.content"
               class="rich-view pm-rich"
               v-html="formatDescription(plan.content)"
-              @click="onRichClick"
+              @click="onRichViewClick"
             ></div>
             <div v-else class="pm-content-empty">暂无内容</div>
             <div v-if="plan?.taskName" class="pm-task-link">
@@ -87,29 +88,23 @@
                 <span class="pm-req-status">{{ r.status }}</span>
               </div>
             </div>
-          </div>
-          <!-- 右 3：评论（任何状态可评论） -->
-          <div class="pm-comments" v-show="!commentsCollapsed">
-            <div class="pm-comments-title">评论</div>
-            <div class="pm-comment-list">
-              <div v-if="comments.length === 0" class="pm-comments-empty">暂无评论</div>
-              <div v-for="c in comments" :key="c.id" class="pm-comment">
-                <div class="pm-comment-meta">
-                  <span>{{ formatTime(c.createdAt) }}</span>
-                  <span class="pm-comment-del" title="删除评论" @click="confirmDeleteComment(c)">×</span>
-                </div>
-                <div class="pm-comment-body">{{ c.content }}</div>
-              </div>
-            </div>
-            <div class="pm-comment-input">
-              <textarea
-                v-model="commentDraft"
-                rows="3"
-                placeholder="输入评论，回车发送"
-                @keydown.enter.prevent="sendComment"
-              ></textarea>
+            <!-- 划词引用气泡（V2.6）：选中文字后弹出 -->
+            <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
+              <button class="quote-bubble-btn" @click="quoteNow">引用</button>
             </div>
           </div>
+          <!-- 右：评论（公共 CommentPanel，V2.6：编辑/输入框放大/分栏宽度拖拽） -->
+          <CommentPanel
+            v-show="!commentsCollapsed"
+            ref="commentPanel"
+            :project-id="projectId"
+            target-type="plan"
+            :target-id="planId || ''"
+            @loaded="onCommentsLoaded"
+            @changed="emit('changed')"
+            @quoted="onQuoted"
+            @locate-quote="locateQuoteInBody"
+          />
         </div>
       </div>
     </template>
@@ -176,17 +171,28 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
+  <!-- 版本历史弹窗（V2.6） -->
+  <VersionModal
+    :show="versionShow"
+    :project-id="projectId"
+    target-type="plan"
+    :target-id="planId || ''"
+    @update:show="versionShow = $event"
+    @close="versionShow = false"
+    @restored="onVersionRestored"
+  />
+
   <ConfirmModal
     :show="confirm.show"
     :message="confirm.message"
     :confirm-text="confirm.confirmText"
-    @close="confirm.show = false"
+    @close="settleCommentConfirm(false); confirm.show = false"
     @confirm="doConfirm"
   />
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import { api, apiUpload } from "../../../api.js";
@@ -195,6 +201,10 @@ import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 import { PLAN_STATUS_OPTIONS, planStatusKey } from "../../../utils/planStatus.js";
+import CommentPanel from "./CommentPanel.vue";
+import VersionModal from "./VersionModal.vue";
+import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
+import { applyQuoteToDom, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -211,11 +221,17 @@ const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
 
 const plan = ref(null);
-const comments = ref([]);
+const commentPanel = ref(null); // V2.6 公共评论面板（数据内聚）
 const statusVal = ref("草稿");
 const statusSaving = ref(false);
-const commentDraft = ref("");
 const commentsCollapsed = ref(true); // 评论折叠：加载详情后按评论数初始化（有评论展开，无评论闭合）
+const versionShow = ref(false); // V2.6 版本历史弹窗
+
+/** 版本还原后刷新详情（内容可能已变） */
+function onVersionRestored() {
+  loadDetail();
+  emit("changed");
+}
 
 // 编辑态（状态默认草稿，创建后由阅读模式头部切换，编辑弹窗不设状态）
 const editTitle = ref("");
@@ -291,8 +307,83 @@ function formatTime(iso) {
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+// CommentPanel 挂载后注入删除确认回调（数据内聚，确认弹窗用本弹窗的 ConfirmModal）
+watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
+
+// ===== 划词引用评论（V2.6）=====
+const richContainer = ref(null);
+const { bubble: quoteBubble, onSelectionMouseup, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
+  enabled: () => mode.value === "read" && !saving.value,
+});
+
+/** 气泡【引用】：展开评论面板，输入框挂起引用锚，用户输入后提交 */
+function quoteNow() {
+  const anchor = takeAnchor();
+  if (!anchor) return;
+  commentsCollapsed.value = false;
+  nextTick(() => commentPanel.value?.beginQuote(anchor));
+}
+
+/** 评论提交成功（带引用）：DOM 立即打高亮 → 把带 span 的 HTML 持久化到方案 */
+async function onQuoted({ comment, anchor }) {
+  const container = richContainer.value?.querySelector(".rich-view");
+  const ok = container ? applyQuoteToDom(container, anchor, comment.id) : false;
+  const newHtml = ok
+    ? container.innerHTML
+    : wrapQuoteInHtml(plan.value?.content, anchor, comment.id);
+  if (newHtml === plan.value?.content) return;
+  const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
+    method: "PUT",
+    body: JSON.stringify({ content: newHtml }),
+  });
+  if (res?.ok) plan.value = { ...plan.value, content: newHtml };
+}
+
+/** 点击正文高亮 → 评论面板定位到对应评论 */
+function locateCommentFromQuote(e) {
+  const id = quoteIdFromEvent(e);
+  if (!id) return;
+  commentsCollapsed.value = false;
+  nextTick(() => commentPanel.value?.scrollToComment(id));
+}
+
+/** 点击正文富文本：引用高亮 → 定位评论；图片 → 预览 */
+function onRichViewClick(e) {
+  locateCommentFromQuote(e);
+  onRichClick(e);
+}
+
+/** 点击评论引用块 → 正文高亮定位 + 闪烁；孤立引用提示 */
+function locateQuoteInBody(c) {
+  const container = richContainer.value;
+  if (!container) return;
+  const marks = container.querySelectorAll(`[data-quote-comment="${c.id}"]`);
+  if (!marks.length) {
+    toast("原文已修改或删除，无法定位", "error");
+    return;
+  }
+  marks[0].scrollIntoView({ behavior: "smooth", block: "center" });
+  marks.forEach((m) => m.classList.add("qc-flash"));
+  setTimeout(() => marks.forEach((m) => m.classList.remove("qc-flash")), 1400);
+}
+
 function ask(msg, confirmText, action, payload) {
   confirm.value = { show: true, message: msg, confirmText, action, payload };
+}
+
+// ===== 评论删除确认（CommentPanel 回调）：Promise 化，确认/取消都能收口 =====
+let commentConfirmResolve = null;
+function onCommentAsk() {
+  return new Promise((resolve) => {
+    commentConfirmResolve = resolve;
+    ask("删除这条评论？", "删除", "comment-delete", null);
+  });
+}
+function settleCommentConfirm(ok) {
+  if (commentConfirmResolve) {
+    commentConfirmResolve(ok);
+    commentConfirmResolve = null;
+  }
 }
 
 // ===== 加载 =====
@@ -324,9 +415,8 @@ async function loadDetail() {
   if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     plan.value = res.data;
-    comments.value = res.data.comments || [];
-    // 评论折叠默认态：有评论默认展开，无评论默认闭合
-    commentsCollapsed.value = comments.value.length === 0;
+    // 评论折叠默认态：有评论默认展开，无评论默认闭合（评论数据由 CommentPanel 自拉）
+    commentsCollapsed.value = (res.data.comments || []).length === 0;
     statusVal.value = res.data.status || "草稿";
     // 编辑模式直接打开（不经 read）时，加载完成后再预填
     if (props.mode === "edit") initEdit();
@@ -404,22 +494,9 @@ async function onStatusChange(v) {
   }
 }
 
-// 评论
-async function sendComment() {
-  const content = commentDraft.value.trim();
-  if (!content) return;
-  const res = await api(`api/projects/${props.projectId}/plans/${props.planId}/comments`, {
-    method: "POST",
-    body: JSON.stringify({ content }),
-  });
-  if (res?.ok) {
-    commentDraft.value = "";
-    toast("已评论");
-    loadDetail();
-    emit("changed");
-  } else {
-    toast(res?.error || "评论失败", "error");
-  }
+// 评论（V2.6：数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
+function onCommentsLoaded(count) {
+  commentsCollapsed.value = count === 0;
 }
 
 // 克隆：通知父级以当前方案为克隆源重开新建编辑态（planId 置空，保存走新建）
@@ -455,9 +532,6 @@ async function copyPlan() {
   }
 }
 
-function confirmDeleteComment(c) {
-  ask(`删除这条评论？`, "删除", "delete-comment", c);
-}
 function confirmDelete() {
   ask(`确认删除方案「${plan.value?.title}」？评论将一并删除，转出的任务不受影响。`, "删除方案", "delete", null);
 }
@@ -472,13 +546,8 @@ async function doConfirm() {
   confirm.value.show = false;
   const action = confirm.value.action;
   const c = confirm.value.payload;
-  if (action === "delete-comment") {
-    const res = await api(`api/projects/${props.projectId}/plans/${props.planId}/comments/${c.id}`, { method: "DELETE" });
-    if (res?.ok) {
-      toast("已删除评论");
-      loadDetail();
-      emit("changed");
-    } else toast(res?.error || "删除失败", "error");
+  if (action === "comment-delete") {
+    settleCommentConfirm(true);
   } else if (action === "delete") {
     const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, { method: "DELETE" });
     if (res?.ok) {
@@ -679,16 +748,13 @@ watch(() => props.mode, (m) => {
   color: var(--status-delay-text);
 }
 .pm-grid {
-  display: grid;
-  grid-template-columns: 7fr 3fr;
+  /* V2.6：改 flex，评论面板宽度由 CommentPanel 自控（拖拽 260~480） */
+  display: flex;
   gap: 0;
   flex: 1;
   min-height: 0;
 }
 /* V2.1.3 评论折叠：评论栏隐藏时内容区占满 */
-.pm-grid-folded {
-  grid-template-columns: 1fr;
-}
 .pm-grid-folded .pm-content {
   border-right: none;
 }
@@ -697,6 +763,7 @@ watch(() => props.mode, (m) => {
   overflow-y: auto;
   padding-right: 16px;
   border-right: 0.5px solid var(--border);
+  position: relative; /* 划词引用气泡定位基准 */
 }
 .pm-rich {
   font-size: 13px;

@@ -34,6 +34,9 @@
             >
               <el-option v-for="s in REQUIREMENT_STATUSES" :key="s" :label="s" :value="s" />
             </el-select>
+            <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="版本历史" @click="versionShow = true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </button>
             <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="编辑" @click="enterEdit">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
@@ -42,14 +45,14 @@
             </button>
           </div>
         </div>
-        <div class="rq-grid">
-          <!-- 需求内容（富文本只读渲染），关联方案同方案详情的关联需求一致，收在内容底部 -->
-          <div class="rq-content">
+        <div class="rq-grid" :class="{ 'rq-grid-folded': commentsCollapsed }">
+          <!-- 左：需求内容（富文本只读渲染 + 划词引用气泡），关联方案收在内容底部 -->
+          <div class="rq-content" ref="richContainer" @mouseup="onSelectionMouseup">
             <div
               v-if="req?.description"
               class="rich-view rq-rich"
               v-html="formatDescription(req.description)"
-              @click="onRichClick"
+              @click="onRichViewClick"
             ></div>
             <div v-else class="rq-content-empty">暂无内容</div>
             <!-- 关联方案（需求↔方案多对多）：样式对齐方案详情的关联需求（内容底部区块） -->
@@ -63,10 +66,21 @@
               </div>
             </div>
           </div>
+          <!-- 右：评论（公共 CommentPanel，V2.6） -->
+          <CommentPanel
+            v-show="!commentsCollapsed"
+            ref="commentPanel"
+            :project-id="projectId"
+            target-type="requirement"
+            :target-id="currentId || ''"
+            @loaded="onCommentsLoaded"
+            @changed="emit('changed')"
+            @quoted="onQuoted"
+            @locate-quote="locateQuoteInBody"
+          />
         </div>
       </div>
     </template>
-
     <!-- ===== 编辑模式（新建 / 编辑共用） =====
          布局：标题 + 优先级同行（优先级居右）；富文本撑满剩余；关联方案最后一行 -->
     <template v-else>
@@ -109,17 +123,28 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
+  <!-- 版本历史弹窗（V2.6） -->
+  <VersionModal
+    :show="versionShow"
+    :project-id="projectId"
+    target-type="requirement"
+    :target-id="currentId || ''"
+    @update:show="versionShow = $event"
+    @close="versionShow = false"
+    @restored="onVersionRestored"
+  />
+
   <ConfirmModal
     :show="confirm.show"
     :message="confirm.message"
     :confirm-text="confirm.confirmText"
-    @close="confirm.show = false"
+    @close="settleCommentConfirm(false); confirm.show = false"
     @confirm="doConfirm"
   />
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, nextTick } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import { api } from "../../../api.js";
@@ -128,6 +153,10 @@ import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
+import CommentPanel from "./CommentPanel.vue";
+import VersionModal from "./VersionModal.vue";
+import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
+import { applyQuoteToDom, wrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -149,6 +178,9 @@ const mode = ref(props.mode);
 const currentId = ref(props.requirementId);
 const req = ref(null);
 const saving = ref(false);
+const commentPanel = ref(null); // V2.6 公共评论面板
+const commentsCollapsed = ref(true); // 评论折叠：有评论展开，无评论闭合
+const versionShow = ref(false); // V2.6 版本历史弹窗
 
 // 状态（阅读模式头部下拉切换：待处理可流转，终态冻结）
 const REQUIREMENT_STATUSES = ["待处理", "已完成", "已取消"];
@@ -185,10 +217,93 @@ async function loadPlans() {
   if (res?.ok) plans.value = res.data.items || [];
 }
 
+/** 版本还原后刷新详情（内容可能已变） */
+function onVersionRestored() {
+  loadDetail();
+  emit("changed");
+}
+
 const panelTitle = computed(() => {
   if (mode.value === "edit") return req.value ? "编辑需求" : "新建需求";
   return "需求详情";
 });
+
+// ===== 评论（V2.6：数据内聚在 CommentPanel）=====
+function onCommentsLoaded(count) {
+  commentsCollapsed.value = count === 0;
+}
+let commentConfirmResolve = null;
+function onCommentAsk() {
+  return new Promise((resolve) => {
+    commentConfirmResolve = resolve;
+    ask(`删除这条评论？`, "删除", "comment-delete");
+  });
+}
+function settleCommentConfirm(ok) {
+  if (commentConfirmResolve) {
+    commentConfirmResolve(ok);
+    commentConfirmResolve = null;
+  }
+}
+watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
+
+// ===== 划词引用评论（V2.6）=====
+const richContainer = ref(null);
+const { bubble: quoteBubble, onSelectionMouseup, takeAnchor } = useQuoteSelection(richContainer, {
+  enabled: () => mode.value === "read",
+});
+
+/** 气泡【引用】：展开评论面板，输入框挂起引用锚 */
+function quoteNow() {
+  const anchor = takeAnchor();
+  if (!anchor) return;
+  commentsCollapsed.value = false;
+  nextTick(() => commentPanel.value?.beginQuote(anchor));
+}
+
+/** 评论提交成功（带引用）：DOM 立即打高亮 → 把带 span 的 HTML 持久化到需求描述 */
+async function onQuoted({ comment, anchor }) {
+  const container = richContainer.value?.querySelector(".rich-view");
+  const ok = container ? applyQuoteToDom(container, anchor, comment.id) : false;
+  const newHtml = ok
+    ? container.innerHTML
+    : wrapQuoteInHtml(req.value?.description, anchor, comment.id);
+  if (newHtml === req.value?.description) return;
+  const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`, {
+    method: "PUT",
+    body: JSON.stringify({ description: newHtml }),
+  });
+  if (res?.ok) req.value = { ...req.value, description: newHtml };
+}
+
+/** 点击正文高亮 → 评论面板定位到对应评论 */
+function locateCommentFromQuote(e) {
+  const id = quoteIdFromEvent(e);
+  if (!id) return;
+  commentsCollapsed.value = false;
+  nextTick(() => commentPanel.value?.scrollToComment(id));
+}
+
+/** 点击评论引用块 → 正文高亮定位 + 闪烁；孤立引用提示 */
+function locateQuoteInBody(c) {
+  const container = richContainer.value;
+  if (!container) return;
+  const marks = container.querySelectorAll(`[data-quote-comment="${c.id}"]`);
+  if (!marks.length) {
+    toast("原文已修改或删除，无法定位", "error");
+    return;
+  }
+  commentsCollapsed.value = false;
+  marks[0].scrollIntoView({ behavior: "smooth", block: "center" });
+  marks.forEach((m) => m.classList.add("qc-flash"));
+  setTimeout(() => marks.forEach((m) => m.classList.remove("qc-flash")), 1400);
+}
+
+/** 点击正文富文本：引用高亮 → 定位评论；图片 → 预览 */
+function onRichViewClick(e) {
+  locateCommentFromQuote(e);
+  onRichClick(e);
+}
 
 let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响应可写入
 async function loadDetail() {
@@ -198,6 +313,8 @@ async function loadDetail() {
   if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     req.value = res.data;
+    // 评论折叠默认态：有评论默认展开，无评论默认闭合（评论数据由 CommentPanel 自拉）
+    commentsCollapsed.value = (res.data.comments || []).length === 0;
     form.value = {
       name: res.data.name || "",
       description: res.data.description || "",
@@ -261,16 +378,18 @@ function enterEdit() {
 
 // ===== 删除 =====
 const confirm = ref({ show: false, message: "", confirmText: "删除", action: "" });
+function ask(message, confirmText, action) {
+  confirm.value = { show: true, message, confirmText, action };
+}
 function askDelete() {
-  confirm.value = {
-    show: true,
-    message: `确认删除需求「${req.value?.name}」？关联方案不受影响。`,
-    confirmText: "删除",
-    action: "delete",
-  };
+  ask(`确认删除需求「${req.value?.name}」？关联方案不受影响。`, "删除", "delete");
 }
 async function doConfirm() {
   confirm.value.show = false;
+  if (confirm.value.action === "comment-delete") {
+    settleCommentConfirm(true);
+    return;
+  }
   if (confirm.value.action !== "delete" || !currentId.value) return;
   const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`, { method: "DELETE" });
   if (res?.ok) {
@@ -369,20 +488,24 @@ defineExpose({ loadDetail });
   color: var(--status-delay-text);
 }
 
-/* 单栏（关联方案收在内容底部） */
+/* V2.6：横向分栏（内容 + 评论面板），折叠时评论隐藏内容占满 */
 .rq-grid {
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
   padding: 16px;
 }
+.rq-grid-folded .rq-content { border-right: none; }
 .rq-content {
+  flex: 1;
   min-width: 0;
   overflow-y: auto;
   font-size: 13px;
   color: var(--text);
   line-height: 1.7;
+  padding-right: 16px;
+  border-right: 0.5px solid var(--border);
+  position: relative; /* 划词引用气泡定位基准 */
 }
 .rq-rich { padding-right: 4px; }
 .rq-content-empty {
