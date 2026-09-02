@@ -313,7 +313,7 @@ watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immed
 // ===== 划词引用评论（V2.6）=====
 const richContainer = ref(null);
 const { bubble: quoteBubble, onSelectionMouseup, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
-  enabled: () => mode.value === "read" && !saving.value,
+  enabled: () => props.mode === "read" && !saving.value,
 });
 
 /** 气泡【引用】：展开评论面板，输入框挂起引用锚，用户输入后提交 */

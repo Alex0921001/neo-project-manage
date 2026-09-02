@@ -386,12 +386,15 @@ function readTabConfig() {
 }
 const tabConfig = ref(readTabConfig());
 // 可见 tab（按配置顺序渲染）
-const tabList = computed(() =>
-  tabConfig.value.order
+// V2.6：配置 order 未包含的新增 tab（如「验证」）追加到末尾，避免老配置吞掉新 tab
+const tabList = computed(() => {
+  const configured = tabConfig.value.order
     // 过滤已删除/无效 tab（如历史配置里残留的 knowledge）
-    .filter((k) => TAB_DEFS.some((d) => d.key === k))
-    .filter((k) => !(tabConfig.value.hidden || []).includes(k))
-);
+    .filter((k) => TAB_DEFS.some((d) => d.key === k));
+  const missing = TAB_DEFS.filter((d) => !configured.includes(d.key)).map((d) => d.key);
+  return [...configured, ...missing]
+    .filter((k) => !(tabConfig.value.hidden || []).includes(k));
+});
 // 拖拽用可变数组（v-model 绑定），配置变化时同步
 const tabDragList = ref([]);
 watch(tabConfig, () => { tabDragList.value = tabList.value; }, { immediate: true });

@@ -196,6 +196,7 @@ watch(() => [props.show, props.targetId], () => {
   display: flex;
   gap: 0;
   box-sizing: border-box;
+  padding: 12px 16px;
 }
 /* 左：列表 */
 .vh-list {

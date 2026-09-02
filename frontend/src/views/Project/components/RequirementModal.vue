@@ -46,6 +46,18 @@
           </div>
         </div>
         <div class="rq-grid" :class="{ 'rq-grid-folded': commentsCollapsed }">
+          <!-- 评论折叠切换（对齐方案弹窗）：无评论时默认折叠，右上角开关展开 -->
+          <button
+            class="rq-comments-toggle"
+            :class="{ folded: commentsCollapsed }"
+            :title="commentsCollapsed ? '展开评论' : '收起评论'"
+            @click="commentsCollapsed = !commentsCollapsed"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <path v-if="!commentsCollapsed" d="M15 18l-6-6 6-6"></path>
+              <path v-else d="M9 18l6-6-6-6"></path>
+            </svg>
+          </button>
           <!-- 左：需求内容（富文本只读渲染 + 划词引用气泡），关联方案收在内容底部 -->
           <div class="rq-content" ref="richContainer" @mouseup="onSelectionMouseup">
             <div
@@ -64,6 +76,10 @@
                 <span class="rq-plan-title" :title="pl.title">{{ pl.title }}</span>
                 <span class="rq-plan-status">{{ pl.status }}</span>
               </div>
+            </div>
+            <!-- 划词引用气泡（V2.6）：选中文字后弹出 -->
+            <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
+              <button class="quote-bubble-btn" @click="quoteNow">引用</button>
             </div>
           </div>
           <!-- 右：评论（公共 CommentPanel，V2.6） -->
@@ -494,7 +510,28 @@ defineExpose({ loadDetail });
   min-height: 0;
   display: flex;
   padding: 16px;
+  position: relative; /* 评论折叠按钮定位基准 */
 }
+.rq-comments-toggle {
+  position: absolute;
+  top: 48px;
+  right: 6px;
+  z-index: 20;
+  width: 26px;
+  height: 26px;
+  border: 0.5px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.rq-comments-toggle:hover { color: var(--text); background: var(--bg-hover); }
+.rq-comments-toggle.folded { right: 12px; }
 .rq-grid-folded .rq-content { border-right: none; }
 .rq-content {
   flex: 1;
