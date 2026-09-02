@@ -196,12 +196,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { CircleCheck, Close, FullScreen, RefreshLeft } from "@element-plus/icons-vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import AnnotationManagerModal from "./AnnotationManagerModal.vue";
+// 打破 AnnotationPanel <-> AnnotationManagerModal 编译期循环依赖（TDZ）
+const AnnotationManagerModal = defineAsyncComponent(() => import("./AnnotationManagerModal.vue"));
 import { formatDescription } from "../../../utils/text.js";
 import { highlightRichText } from "../../../utils/highlight.js";
 

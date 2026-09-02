@@ -59,7 +59,11 @@ export function registerCommentsRoutes(app, data) {
   app.post("/api/projects/:projectId/comments/:commentId/anchor", async (c) => {
     const body = await c.req.json();
     try {
-      data.applyQuoteAnchor(c.req.param("projectId"), c.req.param("commentId"), body.content);
+      // 清理上下文（V2.6.1）：评论已删除后的高亮清理场景，由前端回传目标归属
+      const cleanup = body.targetType && body.targetId
+        ? { targetType: body.targetType, targetId: body.targetId }
+        : null;
+      data.applyQuoteAnchor(c.req.param("projectId"), c.req.param("commentId"), body.content, cleanup);
       return c.json({ ok: true });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);

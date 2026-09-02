@@ -8,12 +8,6 @@
       @dblclick="resetWidth"
     ></div>
     <div class="cp-title">评论（{{ comments.length }}）</div>
-    <!-- 引用挂起提示：让用户知道当前输入是针对选中文字的引用评论 -->
-    <div v-if="pendingQuote" class="cp-pending">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-      <span class="cp-pending-text" :title="pendingQuote.text">引用：{{ pendingQuote.text }}</span>
-      <button class="cp-pending-cancel" title="取消引用" @click="cancelQuote">×</button>
-    </div>
     <div class="cp-list" ref="listEl">
       <div v-if="comments.length === 0" class="cp-empty">暂无评论</div>
       <div
@@ -51,8 +45,19 @@
         </template>
       </div>
     </div>
-    <!-- 输入区：默认两行高，右下角手柄拖拽放大（长内容阅读），提交后复位；Esc 清空 -->
+    <!-- 引用挂起提示：紧贴输入框上方，让用户知道当前输入是针对选中文字的引用评论 -->
+    <div v-if="pendingQuote" class="cp-pending">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="cp-pending-text" :title="pendingQuote.text">引用：{{ pendingQuote.text }}</span>
+      <button class="cp-pending-cancel" title="取消引用" @click="cancelQuote">×</button>
+    </div>
+    <!-- 输入区：默认两行高，拖拽上边框调整高度（长内容阅读），提交后复位；Esc 清空 -->
     <div class="cp-input-wrap">
+      <div
+        class="cp-input-resize"
+        title="拖拽调整输入框高度"
+        @pointerdown="onInputResizeStart"
+      ></div>
       <textarea
         ref="inputEl"
         v-model="draft"
@@ -61,11 +66,6 @@
         placeholder="输入评论，回车发送（Shift + 回车换行）"
         @keydown="onInputKeydown"
       ></textarea>
-      <div
-        class="cp-input-resize"
-        title="拖拽放大输入框"
-        @pointerdown="onInputResizeStart"
-      ></div>
     </div>
   </div>
 </template>
@@ -164,6 +164,19 @@ function resetInputHeight() {
   try { localStorage.removeItem(INPUT_HEIGHT_KEY); } catch {}
 }
 
+// ===== 划词引用（父级选中文字后调 beginQuote，提交时携带锚，Esc 取消）=====
+// 注意：pendingQuote 必须声明在下方 immediate watch 之前，否则 setup 阶段
+// watch 回调调 cancelQuote() 会触发 TDZ（Cannot access before initialization），
+// 导致 load() 永远不执行 → 评论面板恒为 0 条（V2.6.1 修复）
+const pendingQuote = ref(null);
+function beginQuote(anchor) {
+  pendingQuote.value = anchor;
+  inputEl.value?.focus();
+}
+function cancelQuote() {
+  pendingQuote.value = null;
+}
+
 // ===== 数据 =====
 let loadSeq = 0;
 async function load() {
@@ -173,6 +186,10 @@ async function load() {
   if (res?.ok) {
     comments.value = res.data || [];
     emit("loaded", comments.value.length);
+  } else {
+    // 诊断：此前失败静默导致「评论 0 条」无提示（临时排查用）
+    console.warn("[comment-panel] load failed:", props.projectId, props.targetType, props.targetId, res);
+    toast(res?.error || "加载评论失败", "error");
   }
 }
 
@@ -235,16 +252,7 @@ async function send() {
   }
 }
 
-// ===== 划词引用（父级选中文字后调 beginQuote，提交时携带锚，Esc 取消）=====
-const pendingQuote = ref(null);
-function beginQuote(anchor) {
-  pendingQuote.value = anchor;
-  inputEl.value?.focus();
-}
-function cancelQuote() {
-  pendingQuote.value = null;
-}
-/** 点击评论引用块 → 通知父级定位正文高亮 */
+// 点击评论引用块 → 通知父级定位正文高亮
 function locateQuote(c) {
   emit("locate-quote", c);
 }
@@ -298,14 +306,14 @@ async function askDelete(c) {
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);
     emit("changed");
-    // 带引用的评论删除后通知父级清理正文高亮（unwrap + 持久化）
-    if (c.quoteText) emit("quote-removed", c.id);
+    // 删除评论后通知父级清理正文高亮（unwrap + 持久化），避免孤儿引用残留（V2.6 划词引用）
+    emit("quote-removed", c.id);
     toast("已删除评论");
   } else {
     // 已被删（并发）：提示后本地移除
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);
-    if (c.quoteText) emit("quote-removed", c.id);
+    emit("quote-removed", c.id);
     toast(res?.error || "已删除");
   }
 }
@@ -501,25 +509,26 @@ defineExpose({ load, scrollToComment, beginQuote, focusInput: () => inputEl.valu
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 .cp-input:focus { border-color: var(--text); }
-/* 输入框右下角放大手柄 */
+/* 输入框上边框拖拽柄：贴顶 6px 热区，上下拖调整高度 */
 .cp-input-resize {
   position: absolute;
+  left: 0;
   right: 0;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  cursor: nwse-resize;
+  top: -3px;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 2;
 }
 .cp-input-resize::after {
   content: "";
   position: absolute;
-  right: 3px;
-  bottom: 3px;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--text-tertiary);
-  border-bottom: 1.5px solid var(--text-tertiary);
-  border-radius: 0;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: var(--text-tertiary);
 }
-.cp-input-resize:hover::after { border-color: var(--text); }
+.cp-input-resize:hover::after { background: var(--text); }
 </style>

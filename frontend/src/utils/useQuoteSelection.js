@@ -8,7 +8,7 @@
  *   </div>
  * 需求：容器 position:relative；气泡内点击后调 hideBubble()。
  */
-import { ref } from "vue";
+import { ref, onScopeDispose } from "vue";
 import { getSelectionAnchor } from "./quoteComment.js";
 
 export function useQuoteSelection(containerRef, { enabled } = {}) {
@@ -47,6 +47,24 @@ export function useQuoteSelection(containerRef, { enabled } = {}) {
     bubble.value = null;
     pendingAnchor = null;
   }
+
+  // 气泡显隐与选区联动（V2.6.1）：选区被清空或点击容器外 → 气泡立即隐藏，
+  // 避免「气泡悬空指向已不存在的选区」（容器内的点击仍由 mouseup 逻辑重算）
+  function onDocSelectionChange() {
+    const sel = window.getSelection();
+    if ((!sel || sel.isCollapsed) && bubble.value) hideBubble();
+  }
+  function onDocPointerDown(e) {
+    if (e.target.closest?.(".quote-bubble")) return;
+    if (containerRef.value?.contains(e.target)) return;
+    hideBubble();
+  }
+  window.addEventListener("selectionchange", onDocSelectionChange);
+  window.addEventListener("pointerdown", onDocPointerDown, true);
+  onScopeDispose(() => {
+    window.removeEventListener("selectionchange", onDocSelectionChange);
+    window.removeEventListener("pointerdown", onDocPointerDown, true);
+  });
 
   return { bubble, onSelectionMouseup, takeAnchor, hideBubble };
 }

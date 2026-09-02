@@ -303,7 +303,8 @@ async function onQuoteRemoved(commentId) {
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
   const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
     method: "POST",
-    body: JSON.stringify({ content: newHtml }),
+    // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
+    body: JSON.stringify({ content: newHtml, targetType: "requirement", targetId: req.value?.id }),
   });
   if (res?.ok) req.value = { ...req.value, description: newHtml };
 }

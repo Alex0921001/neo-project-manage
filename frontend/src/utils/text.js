@@ -7,8 +7,9 @@ import { sanitizeHtml } from "./sanitize.js";
 
 export function formatDescription(text) {
   if (!text) return "";
-  // 富文本（含块级标签或图片）：直接返回原文，v-html 渲染（服务端入库时已白名单清洗）
-  if (/(<\/?(?:p|div|br|ul|ol|li|h[1-6]|strong|em|u|b|i|img|a)\b)/i.test(text)) {
+  // 富文本（含块级标签、图片，或已带引用标注 span）→ 直接返回 v-html 渲染（服务端入库时已白名单清洗）
+  // V2.6 划词引用：data-quote-comment 的 span 计入富文本，避免被当纯文本 escape 显示成源码
+  if (/(<\/?(?:p|div|br|ul|ol|li|h[1-6]|strong|em|u|b|i|img|a)\b|data-quote-comment)/i.test(text)) {
     return text;
   }
   // 否则当作纯文本：先 escape，然后 \n → <br>，连续 \n 之间补一个 <br>

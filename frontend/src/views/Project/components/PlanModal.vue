@@ -36,8 +36,12 @@
               <el-option v-for="s in PLAN_STATUS_OPTIONS" :key="s" :label="s" :value="s" />
             </el-select>
             <!-- 克隆：无权限控制，复制当前方案到新建编辑弹窗（保存即新建） -->
-            <button class="pm-btn" title="版本历史（每次保存自动存版）" @click="versionShow = true">版本</button>
-            <button class="pm-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">克隆</button>
+            <button class="pm-icon-btn" title="版本历史（每次保存自动存版）" @click="versionShow = true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+            <button class="pm-icon-btn" title="克隆方案（复制到新建编辑弹窗）" @click="startClone">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
             <button
               v-if="plan?.status === '已采纳'"
               class="pm-btn pm-btn-primary"
@@ -349,7 +353,8 @@ async function onQuoteRemoved(commentId) {
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
   const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
     method: "POST",
-    body: JSON.stringify({ content: newHtml }),
+    // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
+    body: JSON.stringify({ content: newHtml, targetType: "plan", targetId: plan.value?.id }),
   });
   if (res?.ok) plan.value = { ...plan.value, content: newHtml };
 }
@@ -774,6 +779,7 @@ watch(() => props.mode, (m) => {
   border-right: none;
 }
 .pm-content {
+  flex: 1 1 auto; /* 撑满剩余宽度：短内容时评论区仍固定右侧，右侧不漏空 */
   min-width: 0;
   overflow-y: auto;
   padding-right: 16px;
