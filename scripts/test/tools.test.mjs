@@ -1,0 +1,313 @@
+/**
+ * neo-project-manage 工具层冒烟测试（node:test）
+ *
+ * 用法：node --test scripts/test/
+ * 说明：临时数据库目录，覆盖 22 个工具的全链路调用（创建→查询→更新→删除+清理）。
+ * 工具返回文本中解析 ID 用于后续步骤（比 scenario 的静态 input 更灵活）。
+ */
+import { test, before, after } from "node:test";
+import assert from "node:assert/strict";
+import os from "node:os";
+import path from "node:path";
+import fs from "node:fs";
+import { createDataAccess } from "../../lib/data.js";
+
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "neo-pm-tools-"));
+const toolCtx = { dataDir: tmpDir, log: console };
+
+// 动态加载全部工具
+const TOOL_FILES = [
+  "list-project-sets", "list-projects",
+  "create-project-set", "create-project", "create-task", "create-tasks",
+  "create-annotation", "create-annotations",
+  "get-project", "get-task", "list-tasks", "list-annotations",
+  "update-project-set", "update-project", "update-task", "update-annotation",
+  "delete-annotations", "delete-tasks", "delete-task", "delete-annotation",
+  "delete-project", "delete-project-set",
+  // V2.0 新工具
+  "list-project-files", "get-project-file",
+  "link-project-session", "list-project-sessions", "unlink-project-session",
+  "get-project-summaries", "summarize-project", "ask-project",
+  // V2.0 成员管理
+  "list-members", "create-member", "update-member", "delete-member",
+  // V2.1 方案 + 审计
+  "list-audit-logs", "create-plan", "update-plan", "delete-plan",
+  "list-plans", "get-plan", "add-plan-comment", "delete-plan-comment", "convert-plan-to-task",
+  // V2.1 备注三工具
+  "create-note", "update-note", "delete-note",
+  // V2.1 风险只读工具
+  "get-project-risks",
+  // V2.1.2 工具类
+  "list-project-risks", "import-plan-file", "confirm-annotations", "register-project-file",
+];
+const tools = {};
+before(async () => {
+  for (const f of TOOL_FILES) {
+    const mod = await import(`../../tools/${f}.js`);
+    tools[mod.name] = mod.execute;
+  }
+});
+after(() => {
+  try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
+});
+
+// 工具返回文本中解析第一个 ID（8 位短 ID）
+function firstId(text) {
+  const m = String(text).match(/ID:\s*([a-z0-9]{6,12})/i);
+  assert.ok(m, `返回文本应包含 ID，实际: ${String(text).slice(0, 120)}`);
+  return m[1];
+}
+
+async function run(toolName, input) {
+  const res = await tools[toolName](input, toolCtx);
+  assert.ok(res?.content?.[0]?.text, `${toolName} 应返回文本内容`);
+  return res.content[0].text;
+}
+
+test("工具全链路：集→项目→任务→批注→更新→删除+清理", async () => {
+  // 1. 只读（无参）
+  const sets0 = await run("list_project_sets", {});
+  const projs0 = await run("list_projects", {});
+  assert.ok(typeof sets0 === "string" && typeof projs0 === "string");
+
+  // 2. 创建项目集
+  const setTxt = await run("create_project_set", { name: "AT-工具测试集" });
+  const setId = firstId(setTxt);
+  assert.match(setTxt, /AT-工具测试集/);
+
+  // 3. 创建项目（入集 + 成员）
+  const projTxt = await run("create_project", {
+    name: "AT-工具测试项目", projectSetId: setId,
+    members: ["测试员"], planStart: "2026-08-01", planEnd: "2026-08-31", status: "进行中",
+  });
+  const projId = firstId(projTxt);
+  assert.match(projTxt, /AT-工具测试项目/);
+
+  // 4. 创建任务（成员 + 日期）
+  const taskTxt = await run("create_task", {
+    projectId: projId, name: "任务A", assignees: ["测试员"],
+    startDate: "2026-08-05", endDate: "2026-08-10",
+  });
+  const taskId = firstId(taskTxt);
+
+  // 5. 批量创建（含父任务）
+  const tasksTxt = await run("create_tasks", {
+    projectId: projId,
+    tasks: [
+      { name: "子任务1", parentTaskId: taskId },
+      { name: "子任务2", parentTaskId: taskId },
+    ],
+  });
+  assert.match(tasksTxt, /批量创建/);
+  const subTaskIds = [...tasksTxt.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
+  assert.equal(subTaskIds.length, 2);
+
+  // 6. 批注（单条 + 批量）
+  const annTxt = await run("create_annotation", { projectId: projId, taskId, content: "第一条批注" });
+  const annId = firstId(annTxt);
+  const annsTxt = await run("create_annotations", {
+    projectId: projId, taskId,
+    items: [{ content: "批量1" }, { content: "批量2" }],
+  });
+  assert.match(annsTxt, /批量创建/);
+  const annIds = [...annsTxt.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
+  assert.equal(annIds.length, 2);
+
+  // 7. 查询
+  const gotProj = await run("get_project", { id: projId });
+  assert.match(gotProj, /AT-工具测试项目/);
+  const gotTask = await run("get_task", { taskId });
+  assert.match(gotTask, /任务A/);
+  const tasksList = await run("list_tasks", { projectId: projId, status: "all" });
+  assert.match(tasksList, /任务A/);
+  const annsList = await run("list_annotations", { taskId });
+  assert.match(annsList, /第一条批注/);
+  // 项目级查询：带任务名 + kind 筛选 + 关键词（补一条 decision 便于验证 kind 筛选）
+  await run("create_annotation", { projectId: projId, taskId, content: "决策批注", kind: "decision" });
+  const projAnns = await run("list_annotations", { projectId: projId });
+  assert.match(projAnns, /@/); // 带任务名标注
+  const projAnnDec = await run("list_annotations", { projectId: projId, kind: "decision" });
+  assert.match(projAnnDec, /决策批注/);
+  assert.ok(!projAnnDec.includes("第一条批注"), "kind 筛选应排除其他类型");
+  const projAnnKw = await run("list_annotations", { projectId: projId, keyword: "第一条" });
+  assert.match(projAnnKw, /第一条批注/);
+
+  // 8. 更新
+  const upSet = await run("update_project_set", { id: setId, name: "AT-改名集" });
+  assert.match(upSet, /AT-改名集/);
+  const upProj = await run("update_project", { id: projId, name: "AT-改名项目", status: "已完成" });
+  assert.match(upProj, /AT-改名项目/);
+  // V2.1 规则：便利贴需在任务未完成时可改；完成任务前全部便利贴须确认
+  const upAnn = await run("update_annotation", { taskId, annotationId: annId, content: "改后内容", confirmed: true });
+  assert.match(upAnn, /改后内容/);
+  const allAnns = await run("list_annotations", { taskId });
+  const toConfirm = [...allAnns.matchAll(/ID:\s*([a-z0-9]{6,12})/gi)].map((m) => m[1]);
+  for (const aid of toConfirm) {
+    await run("update_annotation", { taskId, annotationId: aid, confirmed: true });
+  }
+  // V2.2 R7 后端兜底：完成任务前需先完成其后代（父完成 + 子未完成会被拒绝）
+  for (const sid of subTaskIds) {
+    await run("update_task", { projectId: projId, id: sid, done: true });
+  }
+  const upTask = await run("update_task", { projectId: projId, id: taskId, name: "AT-改名任务", done: true });
+  assert.match(upTask, /AT-改名任务/);
+
+  // 9. 删除（子任务→批注→任务→项目→集）
+  await run("delete_task", { projectId: projId, id: taskId }); // 级联删子任务
+  const annsAfter = await run("list_annotations", { taskId });
+  assert.ok(annsAfter.includes("暂无可批注") || annsAfter.includes("暂无"), "任务删除后批注级联清理");
+  await run("delete_project", { id: projId });
+  await run("delete_project_set", { id: setId });
+
+  // 10. 清理后只读为空
+  const setsAfter = await run("list_project_sets", {});
+  assert.ok(!setsAfter.includes("AT-工具测试集"), "项目集已清理");
+});
+
+test("工具错误场景：非法输入应抛错", async () => {
+  await assert.rejects(
+    () => tools["create_project"]({ name: "" }, toolCtx),
+    /不能为空|名称/
+  );
+  await assert.rejects(
+    () => tools["create_task"]({ projectId: "nonexist", name: "X" }, toolCtx),
+    /不存在/
+  );
+  await assert.rejects(
+    () => tools["create_annotation"]({ projectId: "nonexist", taskId: "nonexist", content: "x" }, toolCtx),
+    /不存在/
+  );
+});
+
+// ===== V2.0 新工具冒烟（总结/会话/文件/批注 kind） =====
+test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", async () => {
+  // 建集→项目→任务→批注（含 kind）→总结
+  const setTxt = await run("create_project_set", { name: "V2工具集" });
+  const setId = firstId(setTxt);
+  const projTxt = await run("create_project", { name: "V2工具项目", projectSetId: setId });
+  const projId = firstId(projTxt);
+  const taskTxt = await run("create_task", { projectId: projId, name: "任务V2", endDate: "2026-01-01" });
+  const taskId = firstId(taskTxt);
+  await run("create_annotation", { projectId: projId, taskId, content: "决策V2", kind: "decision" });
+  await run("create_annotation", { projectId: projId, taskId, content: "备注V2", kind: "note" });
+
+  // summarize_project
+  const sumTxt = await run("summarize_project", { projectId: projId });
+  assert.match(sumTxt, /V2工具项目/);
+  assert.match(sumTxt, /风险|延期/);
+
+  // ask_project（all）
+  const askTxt = await run("ask_project", { projectId: projId, scope: "all" });
+  assert.match(askTxt, /决策V2/);
+  assert.match(askTxt, /备注V2/);
+
+  // get_project_risks（V2.1：只读风险，JSON 结构化，不触发存档）
+  const risksTxt = await run("get_project_risks", { projectId: projId });
+  const risksJson = JSON.parse(risksTxt);
+  assert.ok(Array.isArray(risksJson.risks), "risks 应为 JSON 数组");
+  assert.ok(risksJson.riskConfig?.delayed, "应返回当前项目风险配置（含 delayed 规则）");
+  assert.ok(risksJson.risks.some((r) => /延期|到期|风险批注/.test(r.desc)), "应含规则计算出的风险条目");
+
+  // 会话关联
+  const linkTxt = await run("link_project_session", { projectId: projId, sessionId: "sess-v2-test" });
+  assert.match(linkTxt, /sess-v2-test/);
+  const sessListTxt = await run("list_project_sessions", { projectId: projId });
+  assert.match(sessListTxt, /sess-v2-test/);
+  const unlinkTxt = await run("unlink_project_session", { projectId: projId, sessionId: "sess-v2-test" });
+  assert.match(unlinkTxt, /解除|移除|成功/);
+
+  // 文件资产（登记真实文件）
+  const realFile = path.join(tmpDir, "v2-report.PDF");
+  fs.writeFileSync(realFile, Buffer.alloc(800));
+  // addFile 是 data 层，工具层用登记接口不存在，直接验证文件工具对已有文件（空项目）友好
+  const filesTxt = await run("list_project_files", { projectId: projId });
+  assert.match(filesTxt, /暂无|清单/);
+
+  // 备注 CRUD（V2.1 工具补齐）
+  const noteTxt = await run("create_note", { projectId: projId, content: "备注-测试内容" });
+  const noteId = firstId(noteTxt);
+  const upNote = await run("update_note", { projectId: projId, noteId, content: "备注-改后内容" });
+  assert.match(upNote, /已更新备注/);
+  const gotProj2 = await run("get_project", { id: projId });
+  assert.match(gotProj2, /备注-改后内容/);
+
+  // ===== V2.1.2 工具类 =====
+  // get_project view=summary：轻量模式应省略批注明细
+  const sumViewTxt = await run("get_project", { id: projId, view: "summary" });
+  assert.match(sumViewTxt, /任务/);
+  assert.ok(!sumViewTxt.includes("批注 ("), "summary 模式不应含批注明细");
+
+  // list_tasks nearDeadlineDays：任务 endDate 2026-01-01 已过期，不在近截止窗口内
+  const nearTxt = await run("list_tasks", { projectId: projId, nearDeadlineDays: 7 });
+  assert.match(nearTxt, /暂无任务/, "过期任务不应命中近截止窗口");
+
+  // list_project_risks：跨项目汇总 JSON
+  const lprTxt = await run("list_project_risks", { projectSetId: setId });
+  const lprJson = JSON.parse(lprTxt);
+  assert.ok(lprJson.summary?.projectCount >= 1, "应返回项目数统计");
+  assert.ok(Array.isArray(lprJson.projects), "projects 应为数组");
+
+  // register_project_file：登记临时文件
+  const regFile = path.join(tmpDir, "register-test.txt");
+  fs.writeFileSync(regFile, "hello register");
+  const regTxt = await run("register_project_file", { projectId: projId, filePath: regFile });
+  assert.match(regTxt, /已登记文件/);
+  const regId = firstId(regTxt);
+  assert.ok(regId, "应返回文件 ID");
+
+  // confirm_annotations：先造未确认批注，批量确认后完成前置校验放行
+  const t5 = await run("create_task", { projectId: projId, name: "待确认任务" });
+  const t5Id = firstId(t5);
+  const a1 = await run("create_annotation", { projectId: projId, taskId: t5Id, content: "待确认A", kind: "note" });
+  const a1Id = firstId(a1);
+  const a2 = await run("create_annotation", { projectId: projId, taskId: t5Id, content: "待确认B", kind: "note" });
+  const a2Id = firstId(a2);
+  const cfTxt = await run("confirm_annotations", { projectId: projId, ids: [a1Id, a2Id] });
+  assert.match(cfTxt, /已批量确认 2 条批注/);
+  // 确认后任务可完成（完成前置校验通过）
+  await run("update_task", { projectId: projId, id: t5Id, done: true });
+  // 已完成任务冻结：再确认其批注应报错（无未确认则不报，此处验证范围为空时幂等）
+  const cf2Txt = await run("confirm_annotations", { projectId: projId, taskId: t5Id });
+  assert.match(cf2Txt, /0 条批注/);
+
+  // import_plan_file：解析 md 预览（autoCreate=false）
+  const mdFile = path.join(tmpDir, "plan-demo.md");
+  fs.writeFileSync(mdFile, "# 标题\n\n正文内容。", "utf8");
+  const impTxt = await run("import_plan_file", { projectId: projId, filePath: mdFile });
+  const impJson = JSON.parse(impTxt);
+  assert.equal(impJson.title, "plan-demo", "标题应为文件名去扩展名");
+  assert.ok(impJson.content.includes("<h1>标题</h1>"), "md 应解析为 HTML");
+  // autoCreate=true 直接建方案
+  const imp2Txt = await run("import_plan_file", { projectId: projId, filePath: mdFile, autoCreate: true });
+  assert.match(imp2Txt, /已从文件创建方案/);
+
+  // 清理
+  await run("delete_task", { projectId: projId, id: t5Id }); // 已完成任务需先删（项目删除限制）
+  await run("delete_project", { id: projId });
+  await run("delete_project_set", { id: setId });
+});
+
+test("成员工具：创建 / 重名拒绝 / 改名 / 过滤 / 删除", async () => {
+  const t1 = await run("create_member", { name: "AT-成员甲" });
+  const id = firstId(t1);
+  assert.match(t1, /AT-成员甲/);
+
+  // 重名拒绝
+  await assert.rejects(() => tools.create_member({ name: " AT-成员甲 " }, toolCtx), /已存在/);
+  await assert.rejects(() => tools.create_member({ name: "  " }, toolCtx), /不能为空/);
+
+  // 改名
+  const t2 = await run("update_member", { id, name: "AT-成员乙" });
+  assert.match(t2, /AT-成员乙/);
+
+  // 列表 + keyword 过滤
+  const t3 = await run("list_members", { keyword: "AT-成员乙" });
+  assert.match(t3, /AT-成员乙/);
+  const t3b = await run("list_members", { keyword: "不存在的名字XYZ" });
+  assert.match(t3b, /暂无|没有/);
+
+  // 删除 + 删除后列表为空
+  await run("delete_member", { id });
+  const t4 = await run("list_members", { keyword: "AT-成员乙" });
+  assert.match(t4, /暂无|没有/);
+});
