@@ -15,8 +15,11 @@
         </button>
       </div>
       <div v-for="v in items" :key="v.id" class="vcard" @click="openDetail(v)">
-        <!-- 右上角：编辑 / 删除（图标） -->
+        <!-- 右上角：复制 / 编辑 / 删除（图标） -->
         <span class="vcard-ops">
+          <button class="vcard-op" title="复制搜索语句" @click.stop="copySearch(v)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
           <button class="vcard-op" title="编辑" @click.stop="openEdit(v)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
@@ -316,6 +319,28 @@ function openCreate() {
   loadPlans();
   formShow.value = true;
 }
+// ===== 复制搜索语句（对齐任务/方案：textarea + execCommand） =====
+function copyText(text) {
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    if (ok) toast("已复制");
+    else toast("复制失败", "error");
+  } catch (err) {
+    toast("复制失败", "error");
+  }
+}
+function copySearch(v) {
+  copyText(`使用项目管理插件工具搜索：【验证 id:${v.id}】 【${v.name || ""}】 的具体内容。`);
+}
+
 function openEdit(v) {
   formId.value = v.id;
   form.name = v.name;

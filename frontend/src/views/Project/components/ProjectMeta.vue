@@ -28,7 +28,7 @@
             </template>
           </el-dropdown>
         </div>
-        <button class="icon-btn" v-if="project" title="复制 id: 名称" @click="copyProject">
+        <button class="icon-btn" v-if="project" title="复制搜索语句" @click="copyProject">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
         <!-- V2.3 精修：项目内全文搜索（编辑按钮左侧，小图标） -->
