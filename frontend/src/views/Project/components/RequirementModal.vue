@@ -47,7 +47,7 @@
             >
               <el-option v-for="s in REQUIREMENT_STATUSES" :key="s" :label="s" :value="s" />
             </el-select>
-            <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="版本历史" @click="versionShow = true">
+            <button class="pm-icon-btn" title="版本历史" @click="versionShow = true">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </button>
             <button v-if="req?.status === '待处理'" class="pm-icon-btn" title="编辑" @click="enterEdit">
