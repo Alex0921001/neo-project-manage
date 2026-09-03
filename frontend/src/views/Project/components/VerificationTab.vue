@@ -166,6 +166,7 @@
               </span>
               <span class="vgroup-name">{{ g.name }}</span>
               <span class="vgroup-count" :class="{ 'vgroup-count-done': g.done === g.total && g.total > 0 }">{{ g.done }}/{{ g.total }}{{ g.done === g.total && g.total > 0 ? " ✓" : "" }}</span>
+              <button class="vgroup-clear" title="清空本组全部验证项" @click.stop="askClearGroup(g)">清空本组</button>
             </div>
             <div v-show="!foldedGroups.has(g.name)" class="vgroup-body">
               <div v-for="it in g.items" :key="it.id" class="vitem">
