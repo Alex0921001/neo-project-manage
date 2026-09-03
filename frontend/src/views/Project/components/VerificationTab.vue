@@ -166,7 +166,9 @@
               </span>
               <span class="vgroup-name">{{ g.name }}</span>
               <span class="vgroup-count" :class="{ 'vgroup-count-done': g.done === g.total && g.total > 0 }">{{ g.done }}/{{ g.total }}{{ g.done === g.total && g.total > 0 ? " ✓" : "" }}</span>
-              <button class="vgroup-clear" title="清空本组全部验证项" @click.stop="askClearGroup(g)">清空本组</button>
+              <button class="vgroup-clear" title="清空本组全部验证项" @click.stop="askClearGroup(g)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
             </div>
             <div v-show="!foldedGroups.has(g.name)" class="vgroup-body">
               <div v-for="it in g.items" :key="it.id" class="vitem">
@@ -905,12 +907,8 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
   transition: transform var(--duration-fast) var(--ease-out);
 }
 .vgroup-arrow.folded { transform: rotate(-90deg); }
-.vgroup-name { font-size: 12.5px; font-weight: 500; color: var(--text); }
-.vgroup-count {
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
+.vgroup-name { font-size: 12.5px; font-weight: 500; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vgroup-count { font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .vgroup-count-done { color: var(--status-done-text); }
 .vgroup-body {
   border: 0.5px solid var(--border-light);
@@ -1112,16 +1110,17 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
 .cat-add { display: flex; gap: 8px; flex-shrink: 0; }
 /* 分组头清空按钮：常显，hover 变红 */
 .vgroup-clear {
-  margin-left: auto;
   border: none;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 11px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 2px;
   border-radius: 4px;
   visibility: visible;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 .vgroup-clear:hover { color: var(--danger); background: var(--bg-card); }
-.vgroup-count + .vgroup-clear { margin-left: 0; }
 </style>
