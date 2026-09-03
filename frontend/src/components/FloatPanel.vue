@@ -21,9 +21,17 @@
         </button>
         <button class="float-panel-close" title="关闭" @click="close">✕</button>
       </div>
-      <!-- 内容区（slot） -->
-      <div class="float-panel-body" :class="{ 'float-panel-no-select': dragging || resizing }">
+      <!-- 内容区（slot）：Ctrl + 滚轮缩放 50%~300%，右上角实时比例提示 -->
+      <div
+        class="float-panel-body"
+        :class="{ 'float-panel-no-select': dragging || resizing }"
+        :style="{ zoom: zoom / 100 }"
+        @wheel="onBodyWheel"
+      >
         <slot />
+        <div v-if="zoomBadge" class="float-panel-zoom-badge" :title="'双击重置为 100%'" @dblclick="resetZoom">
+          {{ zoom }}%
+        </div>
       </div>
       <!-- 底部操作区（可选，表单弹窗用） -->
       <div v-if="$slots.footer" class="float-panel-footer">
@@ -146,6 +154,27 @@ onBeforeUnmount(() => {
 function close() {
   emit("update:modelValue", false);
   emit("close");
+}
+
+// ===== Ctrl + 滚轮缩放内容（50%~300%，右上角实时比例，双击提示重置）=====
+const zoom = ref(100);
+const zoomBadge = ref(false);
+let zoomTimer = null;
+function onBodyWheel(e) {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  const step = e.deltaY < 0 ? 10 : -10;
+  const next = Math.min(300, Math.max(50, zoom.value + step));
+  if (next === zoom.value) return;
+  zoom.value = next;
+  zoomBadge.value = true;
+  if (zoomTimer) clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => { zoomBadge.value = false; }, 1500);
+}
+function resetZoom() {
+  zoom.value = 100;
+  zoomBadge.value = false;
+  if (zoomTimer) clearTimeout(zoomTimer);
 }
 
 // ===== 双击标题栏：撑满整页 / 恢复 =====
@@ -320,6 +349,26 @@ function startResize(e, dir = "se") {
   background: var(--accent-light);
   color: var(--accent);
   border-color: var(--accent);
+}
+/* Ctrl+滚轮缩放比例提示（内容区右上角悬浮） */
+.float-panel-zoom-badge {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  z-index: 40;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent-warm-hover);
+  background: var(--accent-warm-subtle);
+  border: 1px solid var(--accent-warm);
+  border-radius: 10px;
+  padding: 2px 10px;
+  pointer-events: auto;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.float-panel-body {
+  position: relative;
 }
 .float-panel-close:hover {
   background: var(--bg-hover);

@@ -56,8 +56,18 @@ export function useQuoteSelection(containerRef, { enabled } = {}) {
   }
 
   document.addEventListener("selectionchange", onSelectionChange);
+  // 三击选段保险：浏览器在 mousedown(detail=3) 时立即扩展为段落选区，跳过防抖即时显示
+  function onMouseDown(e) {
+    if (e.target.closest?.(".quote-bubble")) return;
+    if (e.detail === 3) {
+      if (changeTimer) clearTimeout(changeTimer);
+      changeTimer = setTimeout(compute, 60);
+    }
+  }
+  document.addEventListener("mousedown", onMouseDown, true);
   onBeforeUnmount(() => {
     document.removeEventListener("selectionchange", onSelectionChange);
+    document.removeEventListener("mousedown", onMouseDown, true);
     if (changeTimer) clearTimeout(changeTimer);
   });
 

@@ -337,7 +337,7 @@ watch(tab, (v) => {
   // 各 tab 均为 v-if 按需渲染：切回时组件重建，内部 watch(projectId, immediate) 自动拉取最新数据
 });
 
-// tab 定义：默认顺序即用户指定顺序 任务》需求》方案》文件》备注》审计
+// tab 定义：默认顺序即用户指定顺序 任务》需求》方案》验证》备注》文件》审计（V2.6.1）
 const TAB_DEFS = [
   {
     key: "tasks", label: "任务", svg: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 12l2 2 4-4"/>',
@@ -349,13 +349,13 @@ const TAB_DEFS = [
     key: "plans", label: "方案", svg: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>',
   },
   {
-    key: "files", label: "文件", svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+    key: "verification", label: "验证", svg: '<path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
   },
   {
     key: "notes", label: "备注", svg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   },
   {
-    key: "verification", label: "验证", svg: '<path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+    key: "files", label: "文件", svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
   },
   {
     key: "audit", label: "审计", svg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
