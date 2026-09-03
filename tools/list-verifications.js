@@ -9,7 +9,7 @@ export const parameters = {
     projectId: { type: "string", description: "项目 ID" },
     page: { type: "number", description: "页码（默认 1）" },
     pageSize: { type: "number", description: "每页条数（默认 20，最大 100）" },
-    keyword: { type: "string", description: "按名称/备注模糊搜索（可选）" },
+    keyword: { type: "string", description: "按名称/备注模糊搜索，或按 id 精确/前缀匹配（可选）" },
   },
 };
 

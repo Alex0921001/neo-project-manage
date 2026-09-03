@@ -135,7 +135,7 @@
           <!-- 验证搜索（tab 栏新建按钮左侧，与文件搜索同形态） -->
           <div v-if="tab === 'verification'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="verificationSearch" class="task-search-input" placeholder="搜索验证名称/备注" @click.stop />
+            <input v-model="verificationSearch" class="task-search-input" placeholder="搜索验证名称/备注/id" @click.stop />
             <button v-if="verificationSearch" class="task-search-clear" title="清空" @click="verificationSearch = ''">×</button>
           </div>
           <button v-if="tab === 'verification'" class="header-btn" @click="verificationTabRef?.openCategoryManager()">分组管理</button>
