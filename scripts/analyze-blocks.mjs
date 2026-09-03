@@ -11,8 +11,7 @@ const fnRe = /^  function (\w+)/;
 const fns = [];
 lines.forEach((l, i) => { const m = l.match(fnRe); if (m) fns.push({ name: m[1], line: i }); });
 
-const targets = ["设置（V2.3 精修 #7：消息提醒配置等）", "消息中心（V2.3 R1）", "Members（V2.0 成员管理）",
-  "Notes", "Quick Tasks（临时任务）", "会话关联（V2.0 S7）", "日历任务（任务日历 tab 数据源）", "图片上传（富文本内嵌图，存 plugin-data/uploads/）"];
+const targets = process.argv[2] ? process.argv[2].split("|") : marks.map((m) => m.title);
 
 for (const t of targets) {
   const mi = marks.findIndex((m) => m.title.startsWith(t));
@@ -32,7 +31,10 @@ for (const t of targets) {
   }
   const builtin = new Set(["if","for","while","switch","catch","return","function","typeof","String","Number","Boolean","Date","Array","Object","JSON","Math","parseInt","parseFloat","encodeURIComponent","decodeURIComponent","require"]);
   const ext = [...externals].filter((x) => !builtin.has(x));
-  console.log(`\n### ${t} (L${start + 1}~L${end + 1})`);
+  console.log(`\n### ${t} (L${start + 1}~L${end + 1}, ${block.length}行)`);
   console.log("函数:", blockFns.join(", "));
   console.log("外部引用:", ext.join(", "));
 }
+if (process.argv[2]) process.exit(0);
+console.log("\n=== 全部区块 ===");
+marks.forEach((m) => console.log(`L${m.line + 1}  ${m.title}`));
