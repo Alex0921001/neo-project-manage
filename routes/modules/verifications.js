@@ -22,6 +22,8 @@ export function registerVerificationsRoutes(app, data) {
           page: Number(c.req.query("page")) || 1,
           pageSize: Number(c.req.query("pageSize")) || 20,
           keyword: c.req.query("keyword") || undefined,
+          planId: c.req.query("planId") || undefined,
+          taskId: c.req.query("taskId") || undefined,
         }),
       });
     } catch (e) {

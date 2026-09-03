@@ -132,6 +132,38 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             对比选中{{ compareCount > 0 ? `（${compareCount}/2）` : "" }}
           </button>
+          <!-- 验证搜索（tab 栏新建按钮左侧，与文件搜索同形态） -->
+          <div v-if="tab === 'verification'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="verificationSearch" class="task-search-input" placeholder="搜索验证名称/备注" @click.stop />
+            <button v-if="verificationSearch" class="task-search-clear" title="清空" @click="verificationSearch = ''">×</button>
+          </div>
+          <!-- 验证筛选（只图标，点击弹出筛选气泡） -->
+          <div v-if="tab === 'verification'" style="position: relative">
+            <button class="header-btn vfilter-btn" :class="{ 'vfilter-active': hasVerificationFilter }" title="筛选" @click.stop="toggleVerificationFilter($event)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </button>
+            <teleport to="body">
+              <div v-if="verificationFilterShow" class="vfilter-pop" :style="{ left: verificationFilterPos.x + 'px', top: verificationFilterPos.y + 'px' }" @click.stop>
+                <div class="vfilter-row">
+                  <span class="vfilter-label">关联方案</span>
+                  <el-select v-model="vFilterDraft.planIds" multiple filterable placeholder="全部方案" size="small" style="width: 100%">
+                    <el-option v-for="pl in verificationFilterSource.plans" :key="pl.id" :label="pl.title" :value="pl.id" />
+                  </el-select>
+                </div>
+                <div class="vfilter-row">
+                  <span class="vfilter-label">关联任务</span>
+                  <el-select v-model="vFilterDraft.taskIds" multiple filterable placeholder="全部任务" size="small" style="width: 100%">
+                    <el-option v-for="t in verificationFilterSource.tasks" :key="t.id" :label="t.name" :value="t.id" />
+                  </el-select>
+                </div>
+                <div class="vfilter-ops">
+                  <button class="vfilter-reset" @click="resetVerificationFilter">重置</button>
+                  <button class="vfilter-apply" @click="applyVerificationFilter">搜索</button>
+                </div>
+              </div>
+            </teleport>
+          </div>
           <button v-if="tab !== 'calendar' && tab !== 'audit'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             新建
@@ -223,7 +255,15 @@
           @changed="loadProject"
         />
         <!-- 验证 tab（V2.6）：验证卡列表 + 详情弹窗 -->
-        <VerificationTab v-if="tab === 'verification'" ref="verificationTabRef" :project-id="p?.id || ''" @changed="loadProject" />
+        <VerificationTab
+          v-if="tab === 'verification'"
+          ref="verificationTabRef"
+          :project-id="p?.id || ''"
+          :search-query="verificationSearch"
+          :plan-filter="verificationFilters.planIds"
+          :task-filter="verificationFilters.taskIds"
+          @changed="loadProject"
+        />
       </div>
     </section>
 
@@ -619,6 +659,79 @@ function onTabAction() {
   else if (tab.value === 'verification') verificationTabRef.value?.openCreate();
 }
 
+// ===== 验证 tab 搜索 + 筛选（V2.6.1）：筛选条件按项目持久化 =====
+const verificationSearch = ref("");
+const verificationFilters = ref({ planIds: [], taskIds: [] });
+const verificationFilterShow = ref(false);
+const verificationFilterPos = ref({ x: 0, y: 0 });
+const vFilterDraft = reactive({ planIds: [], taskIds: [] });
+const verificationFilterSource = ref({ plans: [], tasks: [] });
+const hasVerificationFilter = computed(() =>
+  verificationFilters.value.planIds.length > 0 || verificationFilters.value.taskIds.length > 0
+);
+const VERIFICATION_FILTER_KEY = computed(() => `neo-pm-verification-filter-${props.projectId}`);
+
+function readVerificationFilter() {
+  try {
+    const raw = localStorage.getItem(VERIFICATION_FILTER_KEY.value);
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      if (Array.isArray(cfg.planIds) || Array.isArray(cfg.taskIds)) {
+        verificationFilters.value = { planIds: cfg.planIds || [], taskIds: cfg.taskIds || [] };
+        return;
+      }
+    }
+  } catch { /* ignore */ }
+  verificationFilters.value = { planIds: [], taskIds: [] };
+}
+watch(VERIFICATION_FILTER_KEY, () => readVerificationFilter(), { immediate: true });
+
+async function toggleVerificationFilter(e) {
+  verificationFilterShow.value = !verificationFilterShow.value;
+  if (!verificationFilterShow.value) return;
+  // 气泡定位：按钮下方右对齐
+  const rect = e.currentTarget.getBoundingClientRect();
+  verificationFilterPos.value = {
+    x: Math.max(8, rect.right - 280),
+    y: rect.bottom + 6,
+  };
+  // 气泡内草稿 = 当前已应用筛选
+  vFilterDraft.planIds = [...verificationFilters.value.planIds];
+  vFilterDraft.taskIds = [...verificationFilters.value.taskIds];
+  // 下拉数据源（懒加载）
+  if (!verificationFilterSource.value.plans.length) {
+    const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+    if (res?.ok) verificationFilterSource.value.plans = res.data.items || [];
+  }
+  if (!verificationFilterSource.value.tasks.length) {
+    const res = await api(`api/projects/${props.projectId}/tasks`);
+    if (res?.ok) verificationFilterSource.value.tasks = (res.data || []).filter((t) => !t.parentId);
+  }
+}
+function applyVerificationFilter() {
+  verificationFilters.value = {
+    planIds: [...vFilterDraft.planIds],
+    taskIds: [...vFilterDraft.taskIds],
+  };
+  try { localStorage.setItem(VERIFICATION_FILTER_KEY.value, JSON.stringify(verificationFilters.value)); } catch {}
+  verificationFilterShow.value = false;
+}
+function resetVerificationFilter() {
+  vFilterDraft.planIds = [];
+  vFilterDraft.taskIds = [];
+  verificationFilters.value = { planIds: [], taskIds: [] };
+  try { localStorage.removeItem(VERIFICATION_FILTER_KEY.value); } catch {}
+  verificationFilterShow.value = false;
+}
+// 点击气泡外关闭
+function closeVerificationFilter(e) {
+  if (!verificationFilterShow.value) return;
+  if (e.target.closest?.(".vfilter-pop") || e.target.closest?.(".vfilter-btn")) return;
+  verificationFilterShow.value = false;
+}
+onMounted(() => document.addEventListener("click", closeVerificationFilter));
+onUnmounted(() => document.removeEventListener("click", closeVerificationFilter));
+
 // 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）
 watch(fileSearch, (v) => { fileTabRef.value?.setSearch?.(v); });
 // 文件搜索恢复后切到文件 tab 时同步初始值（FileTab 挂载前 watch 不生效）
@@ -943,6 +1056,60 @@ async function doConfirm() {
 /* 更窄：右侧仅保留新建按钮，其余工具/搜索隐藏 */
 .tab-bar.mini .tab-bar-right > :not(.header-btn-primary) { display: none; }
 .tab-bar.mini .tab-bar-tabs { flex: 1; min-width: 0; }
+/* 验证筛选按钮 + 气泡（V2.6.1） */
+.vfilter-btn.vfilter-active {
+  color: var(--accent-hover);
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+.vfilter-pop {
+  position: fixed;
+  z-index: 4000;
+  width: 280px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 6px 20px rgba(0, 0, 0, 0.15));
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.vfilter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.vfilter-label {
+  flex: none;
+  width: 58px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.vfilter-row .el-select { flex: 1; min-width: 0; }
+.vfilter-ops {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.vfilter-reset,
+.vfilter-apply {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 12px;
+  padding: 4px 14px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.vfilter-reset:hover { color: var(--text); background: var(--bg-hover); }
+.vfilter-apply {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg-card);
+  font-weight: 600;
+}
+.vfilter-apply:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 /* 任务排序下拉（V2.1.2，对齐 tab-bar 31px 高度，与方案/审计筛选下拉一致） */
 .sort-select {
   width: 100px;

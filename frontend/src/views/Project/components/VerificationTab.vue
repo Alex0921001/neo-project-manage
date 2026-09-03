@@ -15,10 +15,14 @@
         </button>
       </div>
       <div v-for="v in items" :key="v.id" class="vcard" @click="openDetail(v)">
-        <!-- 右上角：编辑 / 删除 -->
+        <!-- 右上角：编辑 / 删除（图标） -->
         <span class="vcard-ops">
-          <button class="vcard-op" title="编辑" @click.stop="openEdit(v)">编辑</button>
-          <button class="vcard-op vcard-op-danger" title="删除" @click.stop="askDelete(v)">删除</button>
+          <button class="vcard-op" title="编辑" @click.stop="openEdit(v)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="vcard-op vcard-op-danger" title="删除" @click.stop="askDelete(v)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
         </span>
         <!-- 左上角：名称 -->
         <div class="vcard-name" :title="v.name">{{ v.name }}</div>
@@ -26,12 +30,10 @@
         <div class="vcard-bar"><div :style="{ width: pct(v) + '%' }"></div></div>
         <!-- 进度条下：备注 -->
         <div class="vcard-note" :title="v.note || ''">{{ v.note || "无备注" }}</div>
-        <!-- 底部行：左进度数字 / 右关联任务 -->
+        <!-- 底部行：左进度数字 / 右关联任务·关联方案 -->
         <div class="vcard-foot">
           <span class="vcard-count">{{ v.progress.done }}/{{ v.progress.total }}</span>
-          <span class="vcard-tasks" :title="v.taskNames.map((t) => t.name).join('、')">
-            {{ v.taskNames.length ? v.taskNames.map((t) => t.name).join("、") : "未关联任务" }}
-          </span>
+          <span class="vcard-tasks" :title="relatedLine(v)">{{ relatedLine(v) }}</span>
         </div>
       </div>
     </div>
@@ -66,6 +68,11 @@
           <el-option v-for="t in tasks" :key="t.id" :label="t.name" :value="t.id" />
         </el-select>
       </el-form-item>
+      <el-form-item label="关联方案">
+        <el-select v-model="form.planIds" multiple filterable placeholder="选择关联方案（可多选）" style="width: 100%">
+          <el-option v-for="pl in plans" :key="pl.id" :label="pl.title" :value="pl.id" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="备注" class="form-stretch">
         <el-input v-model="form.note" type="textarea" :rows="3" placeholder="备注信息（可选）" style="height: 100%" />
       </el-form-item>
@@ -80,9 +87,26 @@
       @close="detailShow = false"
     >
       <div class="vd-body" v-if="detail">
+        <!-- 基础信息区：关联方案/任务/备注/进度 -->
         <div class="vd-meta">
-          <span class="vd-progress-num">{{ detail.progress.done }}/{{ detail.progress.total }}</span>
-          <div class="vd-progress-bar"><div :style="{ width: pct(detail) + '%' }"></div></div>
+          <div class="vd-info">
+            <div class="vd-info-row" v-if="detail.planNames.length">
+              <span class="vd-info-label">关联方案</span>
+              <span class="vd-info-value">{{ detail.planNames.map((x) => x.name).join("、") }}</span>
+            </div>
+            <div class="vd-info-row" v-if="detail.taskNames.length">
+              <span class="vd-info-label">关联任务</span>
+              <span class="vd-info-value">{{ detail.taskNames.map((x) => x.name).join("、") }}</span>
+            </div>
+            <div class="vd-info-row">
+              <span class="vd-info-label">备注</span>
+              <span class="vd-info-value">{{ detail.note || "—" }}</span>
+            </div>
+            <div class="vd-info-row">
+              <span class="vd-info-label">进度</span>
+              <span class="vd-info-value vd-progress-num">{{ detail.progress.done }}/{{ detail.progress.total }}</span>
+            </div>
+          </div>
         </div>
         <div class="vd-groups">
           <div v-for="g in groupedItems" :key="g.name" class="vgroup">
@@ -113,8 +137,12 @@
                   <span v-if="it.note" class="vitem-note" :title="it.note">备注: {{ it.note }}</span>
                   <span v-if="it.status && it.checkedAt" class="vitem-time">{{ fmtTime(it.checkedAt) }}</span>
                   <span class="vitem-ops">
-                    <button class="vitem-op" @click="startEdit(it)">编辑</button>
-                    <button class="vitem-op vitem-op-danger" @click="askDeleteItem(it)">删除</button>
+                    <button class="vitem-op" title="编辑" @click="startEdit(it)">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </button>
+                    <button class="vitem-op vitem-op-danger" title="删除" @click="askDeleteItem(it)">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+                    </button>
                   </span>
                 </template>
               </div>
@@ -151,6 +179,9 @@ import FloatPanel from "../../../components/FloatPanel.vue";
 
 const props = defineProps({
   projectId: { type: String, required: true },
+  searchQuery: { type: String, default: "" },
+  planFilter: { type: Array, default: () => [] },
+  taskFilter: { type: Array, default: () => [] },
 });
 const emit = defineEmits(["changed"]);
 
@@ -167,13 +198,22 @@ const progressPct = computed(() => (summaryTotal.value ? Math.round((summaryDone
 function pct(v) {
   return v.progress.total ? Math.round((v.progress.done / v.progress.total) * 100) : 0;
 }
+/** 卡片底部：关联任务 · 关联方案（· 分隔） */
+function relatedLine(v) {
+  const names = [...v.taskNames.map((t) => t.name), ...v.planNames.map((pl) => pl.name)];
+  return names.length ? names.join(" · ") : "未关联任务";
+}
 
 let loadSeq = 0;
 async function load() {
   if (!props.projectId) return; // 项目对象未就绪（刷新恢复 tab 的瞬态）不发请求
   const seq = ++loadSeq;
   loading.value = true;
-  const res = await api(`api/projects/${props.projectId}/verifications?page=${page.value}&pageSize=${pageSize}`);
+  const qs = new URLSearchParams({ page: page.value, pageSize });
+  if (props.searchQuery.trim()) qs.set("keyword", props.searchQuery.trim());
+  if (props.planFilter.length) qs.set("planId", props.planFilter[0]);
+  if (props.taskFilter.length) qs.set("taskId", props.taskFilter[0]);
+  const res = await api(`api/projects/${props.projectId}/verifications?${qs}`);
   loading.value = false;
   if (seq !== loadSeq || !res?.ok) return;
   items.value = res.data.items || [];
@@ -181,13 +221,13 @@ async function load() {
   // 当前页超出总页数（删除后）回退一页
   if (!items.value.length && page.value > 1) { page.value = Math.max(1, Math.ceil(total.value / pageSize)); }
 }
-watch(() => props.projectId, () => { page.value = 1; load(); }, { immediate: true });
+watch(() => [props.projectId, props.searchQuery, props.planFilter, props.taskFilter], () => { page.value = 1; load(); }, { immediate: true });
 watch(page, load);
 
 // ===== 新建 / 编辑（公共 FormDialog）=====
 const formShow = ref(false);
 const formId = ref("");
-const form = reactive({ name: "", taskIds: [], note: "" });
+const form = reactive({ name: "", taskIds: [], planIds: [], note: "" });
 const tasks = ref([]);
 const saving = ref(false);
 
@@ -196,27 +236,38 @@ async function loadTasks() {
   if (res?.ok) tasks.value = (res.data || []).filter((t) => !t.parentId);
 }
 
+// 关联方案数据源（新建/编辑弹窗）
+const plans = ref([]);
+async function loadPlans() {
+  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+  if (res?.ok) plans.value = res.data.items || [];
+}
+
 function openCreate() {
   formId.value = "";
   form.name = "";
   form.taskIds = [];
+  form.planIds = [];
   form.note = "";
   loadTasks();
+  loadPlans();
   formShow.value = true;
 }
 function openEdit(v) {
   formId.value = v.id;
   form.name = v.name;
   form.taskIds = [...v.taskIds];
+  form.planIds = [...v.planIds];
   form.note = v.note;
   loadTasks();
+  loadPlans();
   formShow.value = true;
 }
 async function saveForm() {
   const name = form.name.trim();
   if (!name) return toast("请输入验证名称", "error");
   saving.value = true;
-  const body = JSON.stringify({ name, taskIds: form.taskIds, note: form.note.trim() });
+  const body = JSON.stringify({ name, taskIds: form.taskIds, planIds: form.planIds, note: form.note.trim() });
   const res = formId.value
     ? await api(`api/projects/${props.projectId}/verifications/${formId.value}`, { method: "PUT", body })
     : await api(`api/projects/${props.projectId}/verifications`, { method: "POST", body });
@@ -478,10 +529,12 @@ defineExpose({ reload: load, openCreate });
   border: none;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 11px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 3px 5px;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .vcard-op:hover { color: var(--text); background: var(--bg-hover); }
 .vcard-op-danger:hover { color: var(--status-delay-text); }
@@ -611,27 +664,33 @@ defineExpose({ reload: load, openCreate });
   padding: 14px 16px;
 }
 .vd-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   flex-shrink: 0;
 }
-.vd-progress-num {
+.vd-info {
+  border: 0.5px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vd-info-row {
+  display: flex;
+  gap: 10px;
   font-size: 12px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
 }
-.vd-progress-bar {
+.vd-info-label {
+  flex: none;
+  width: 58px;
+  color: var(--text-tertiary);
+}
+.vd-info-value {
   flex: 1;
-  height: 6px;
-  background: var(--bg-hover);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.vd-progress-bar > div {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 3px;
+  min-width: 0;
+  color: var(--text);
+  word-break: break-word;
 }
 .vd-groups {
   flex: 1;
@@ -699,6 +758,8 @@ defineExpose({ reload: load, openCreate });
   font-size: 12.5px;
   color: var(--text);
   line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 .vitem-content.done {
   color: var(--text-tertiary);
@@ -723,16 +784,18 @@ defineExpose({ reload: load, openCreate });
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-.vitem-ops { flex: none; display: flex; gap: 2px; visibility: hidden; }
+.vitem-ops { flex: none; display: flex; gap: 2px; visibility: hidden; align-items: center; }
 .vitem:hover .vitem-ops { visibility: visible; }
 .vitem-op {
   border: none;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 11px;
   cursor: pointer;
-  padding: 1px 4px;
+  padding: 3px 5px;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .vitem-op:hover { color: var(--text); background: var(--bg-hover); }
 .vitem-op-danger:hover { color: var(--status-delay-text); }
