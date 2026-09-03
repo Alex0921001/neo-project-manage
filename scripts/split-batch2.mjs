@@ -147,6 +147,13 @@ for (let k = markIdx; k < retIdx; k++) del.add(k);
 const kept = lines.filter((l, i) => !del.has(i));
 const keptRet = kept.findIndex((l) => l === "  return {");
 if (keptRet < 0) throw new Error("kept 中未找到导出 return");
+// 批1模块函数也纳入解构（导出对象引用全部模块绑定）
+const batch1Fns = [];
+for (const bf of ["settings.js", "messages.js", "members.js", "notes.js", "quick-tasks.js", "sessions.js", "calendar.js", "uploads.js"]) {
+  const c = fs.readFileSync(path.join("lib/domain", bf), "utf8");
+  const m = c.match(/\n  return \{\n    ([\s\S]+?)\n  \};\n\}\s*$/);
+  if (m) m[1].split(",").map((s) => s.trim().replace(/,$/, "")).filter(Boolean).forEach((x) => batch1Fns.push(x));
+}
 const assembly = [
   "  // ===== V2.6.1 批2拆分：模块组装（顺序 assign；跨模块依赖走转发箭头，顺序仅影响可读性）=====",
   `  const ctx = { ${CTX_BASE.join(", ")} };`,
@@ -156,7 +163,7 @@ const assembly = [
   "  Object.assign(ctx, createAuditModule(ctx));",
   "  Object.assign(ctx, createSettingsModule(ctx), createMessagesModule(ctx), createMembersModule(ctx), createNotesModule(ctx), createQuickTasksModule(ctx), createSessionsModule(ctx), createCalendarModule(ctx), createUploadsModule(ctx));",
   `  Object.assign(ctx, ${MODULES.slice(3).map((m) => `${m.fn}(ctx)`).join(", ")});`,
-  `  const { ${made.flatMap((m) => m.blockFns).join(", ")} } = ctx;`,
+  `  const { ${[...batch1Fns, ...made.flatMap((m) => m.blockFns)].join(", ")} } = ctx;`,
   "",
 ];
 kept.splice(keptRet, 0, ...assembly);
