@@ -670,7 +670,6 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 16px;
   gap: 12px;
   box-sizing: border-box;
 }
