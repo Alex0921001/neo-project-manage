@@ -308,7 +308,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRefs } from "vue";
+import { ref, computed, watch, nextTick, reactive, onMounted, onUnmounted, toRefs } from "vue";
 import { api } from "../../api.js";
 import { usePersistedTabState } from "../../utils/usePersistedTabState.js";
 import { toast } from "../../toast.js";
