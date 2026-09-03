@@ -138,6 +138,12 @@
             <input v-model="verificationSearch" class="task-search-input" placeholder="搜索验证名称/备注/id" @click.stop />
             <button v-if="verificationSearch" class="task-search-clear" title="清空" @click="verificationSearch = ''">×</button>
           </div>
+          <!-- 备注搜索（tab 栏新建按钮左侧，与验证搜索同形态） -->
+          <div v-if="tab === 'notes'" class="task-search">
+            <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input v-model="noteSearch" class="task-search-input" placeholder="搜索备注内容" @click.stop />
+            <button v-if="noteSearch" class="task-search-clear" title="清空" @click="noteSearch = ''">×</button>
+          </div>
           <button v-if="tab === 'verification'" class="header-btn" @click="verificationTabRef?.openCategoryManager()">分组管理</button>
           <button v-if="tab !== 'calendar' && tab !== 'audit'" class="header-btn header-btn-primary" @click="onTabAction">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -196,6 +202,7 @@
           ref="noteTabRef"
           :project-id="p?.id || ''"
           :notes="p?.notes || []"
+          :search-query="noteSearch"
           @changed="loadProject"
           @confirm-ask="onConfirm"
         />
@@ -672,6 +679,7 @@ function onTabAction() {
 
 // ===== 验证 tab 搜索（V2.6.1）：方案/任务筛选下拉已按验收反馈移除，保留状态结构供 props 传递 =====
 const verificationSearch = ref("");
+const noteSearch = ref("");
 const verificationFilters = ref({ planIds: [], taskIds: [] });
 
 // 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）

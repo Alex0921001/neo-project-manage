@@ -19,7 +19,7 @@
       </el-form-item>
     </FormDialog>
 
-    <!-- 列表模式 -->
+    <!-- 列表模式：搜索态显示内容匹配片段 + 关键词高亮 -->
     <div v-if="!notes.length" class="notes-empty">
       <div class="notes-empty-deco">
         <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
@@ -31,17 +31,25 @@
         <span>添加第一条备注</span>
       </button>
     </div>
+    <div v-else-if="searchQuery && !filteredNotes.length" class="notes-empty">
+      <div class="notes-empty-deco">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <p class="notes-empty-title">没有匹配的备注</p>
+      <p class="notes-empty-sub">换个关键词或清空搜索框试试</p>
+    </div>
 
     <div v-else class="notes-list">
       <div
-        v-for="(n, i) in notes.slice().reverse()"
+        v-for="(n, i) in visibleNotes"
         :key="n.id"
         class="note-card"
         :style="{ '--accent': palette[i % palette.length] }"
       >
         <span class="note-card-accent" aria-hidden="true"></span>
         <span class="note-card-quote" aria-hidden="true">❝</span>
-        <p class="note-content rich-view" v-html="formatDescription(n.content)" @click="onRichClick"></p>
+        <p v-if="searchQuery" class="note-content rich-view" v-html="highlightSnippet(n)"></p>
+        <p v-else class="note-content rich-view" v-html="formatDescription(n.content)" @click="onRichClick"></p>
         <teleport to="body">
           <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
         </teleport>
@@ -65,11 +73,12 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 import { api } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import { formatDescription, normalizeRichText } from "../../../utils/text.js";
+import { highlightKeyword } from "../../../utils/jump.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { createRichEditor } from "../../../utils/asyncEditor.js";
 // 富文本编辑器异步加载（含 loading/error/重试）
@@ -78,6 +87,7 @@ const RichEditor = createRichEditor();
 const props = defineProps({
   projectId: String,
   notes: { type: Array, default: () => [] },
+  searchQuery: { type: String, default: "" },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
@@ -96,6 +106,32 @@ const rules = {
 const palette = [
   "oklch(0.88 0.14 85 / 0.55)",
 ];
+
+// ===== 备注内容搜索（V2.6.1）：剥 HTML 后匹配 + 命中片段高亮（先转义再包 <mark>，防 XSS） =====
+const kw = computed(() => props.searchQuery.trim());
+function plainOf(html) {
+  const d = document.createElement("div");
+  d.innerHTML = html || "";
+  return (d.textContent || "").replace(/\s+/g, " ").trim();
+}
+const filteredNotes = computed(() => {
+  const k = kw.value;
+  if (!k) return props.notes.slice().reverse();
+  return props.notes
+    .slice()
+    .reverse()
+    .filter((n) => plainOf(n.content).toLowerCase().includes(k.toLowerCase()));
+});
+const visibleNotes = computed(() => (kw.value ? filteredNotes.value : props.notes.slice().reverse()));
+function highlightSnippet(n) {
+  const k = kw.value;
+  const plain = plainOf(n.content);
+  const idx = k ? plain.toLowerCase().indexOf(k.toLowerCase()) : -1;
+  let snippet = plain;
+  if (idx > 30) snippet = "…" + plain.slice(idx - 30);
+  if (snippet.length > 140) snippet = snippet.slice(0, 140) + "…";
+  return highlightKeyword(snippet, k);
+}
 
 function load() { emit("changed"); }
 
