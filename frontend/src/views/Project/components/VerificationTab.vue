@@ -168,6 +168,7 @@ function pct(v) {
 
 let loadSeq = 0;
 async function load() {
+  if (!props.projectId) return; // 项目对象未就绪（刷新恢复 tab 的瞬态）不发请求
   const seq = ++loadSeq;
   loading.value = true;
   const res = await api(`api/projects/${props.projectId}/verifications?page=${page.value}&pageSize=${pageSize}`);
