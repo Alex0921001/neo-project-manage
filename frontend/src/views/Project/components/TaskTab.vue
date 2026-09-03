@@ -1092,13 +1092,13 @@ defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation, scrollToAnnotation
 }
 .tasks-empty-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 .tasks-empty-sub {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 .tasks-empty-add {
@@ -1107,12 +1107,12 @@ defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation, scrollToAnnotation
   align-items: center;
   gap: 5px;
   padding: 8px 20px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   border: 1px solid var(--text);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--text);
-  color: #fff;
+  color: var(--bg-card);
   cursor: pointer;
   font-family: inherit;
   transition: all var(--duration-fast) var(--ease-out);

@@ -172,8 +172,9 @@ defineExpose({ openAdd: startAdd });
   color: var(--bg-card);
   border: 1px solid var(--text);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: all var(--duration-fast) var(--ease-out);
@@ -212,19 +213,19 @@ defineExpose({ openAdd: startAdd });
 }
 .notes-empty-title {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 .notes-empty-sub {
   margin: 0;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-tertiary);
 }
 .notes-add.notes-add-large {
   margin-top: 14px;
   padding: 8px 20px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* ============ 备注卡片 ============ */
