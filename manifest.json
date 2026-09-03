@@ -112,6 +112,7 @@
       "./tools/quick-task-delete.js",
       "./tools/quick-task-convert.js",
       "./tools/list-verifications.js",
+      "./tools/get-verification.js",
       "./tools/create-verification.js",
       "./tools/update-verification.js",
       "./tools/delete-verification.js",
