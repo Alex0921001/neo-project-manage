@@ -70,7 +70,7 @@
             </svg>
           </button>
           <!-- 左 7：方案内容（富文本只读渲染 + 划词引用气泡） -->
-          <div class="pm-content" ref="richContainer" @mouseup="onSelectionMouseup">
+          <div class="pm-content" ref="richContainer">
             <div
               v-if="plan?.content"
               class="rich-view pm-rich"
@@ -92,9 +92,9 @@
                 <span class="pm-req-status">{{ r.status }}</span>
               </div>
             </div>
-            <!-- 划词引用气泡（V2.6）：选中文字后弹出 -->
+            <!-- 划词引用气泡（V2.6）：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
             <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
-              <button class="quote-bubble-btn" @click="quoteNow">引用</button>
+              <button class="quote-bubble-btn" @mousedown.prevent @click="quoteNow">引用</button>
             </div>
           </div>
           <!-- 右：评论（公共 CommentPanel，V2.6：编辑/输入框放大/分栏宽度拖拽） -->
@@ -317,7 +317,7 @@ watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immed
 
 // ===== 划词引用评论（V2.6）=====
 const richContainer = ref(null);
-const { bubble: quoteBubble, onSelectionMouseup, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
+const { bubble: quoteBubble, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
   enabled: () => props.mode === "read" && !saving.value,
 });
 

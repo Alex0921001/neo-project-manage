@@ -60,7 +60,7 @@
         </div>
         <div class="rq-grid" :class="{ 'rq-grid-folded': commentsCollapsed }">
           <!-- 左：需求内容（富文本只读渲染 + 划词引用气泡），关联方案收在内容底部 -->
-          <div class="rq-content" ref="richContainer" @mouseup="onSelectionMouseup">
+          <div class="rq-content" ref="richContainer">
             <div
               v-if="req?.description"
               class="rich-view rq-rich"
@@ -78,9 +78,9 @@
                 <span class="rq-plan-status">{{ pl.status }}</span>
               </div>
             </div>
-            <!-- 划词引用气泡（V2.6）：选中文字后弹出 -->
+            <!-- 划词引用气泡（V2.6）：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
             <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
-              <button class="quote-bubble-btn" @click="quoteNow">引用</button>
+              <button class="quote-bubble-btn" @mousedown.prevent @click="quoteNow">引用</button>
             </div>
           </div>
           <!-- 右：评论（公共 CommentPanel，V2.6） -->
@@ -267,7 +267,7 @@ watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immed
 
 // ===== 划词引用评论（V2.6）=====
 const richContainer = ref(null);
-const { bubble: quoteBubble, onSelectionMouseup, takeAnchor } = useQuoteSelection(richContainer, {
+const { bubble: quoteBubble, takeAnchor } = useQuoteSelection(richContainer, {
   enabled: () => mode.value === "read",
 });
 
