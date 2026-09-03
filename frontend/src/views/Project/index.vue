@@ -1056,7 +1056,11 @@ async function doConfirm() {
 /* 更窄：右侧仅保留新建按钮，其余工具/搜索隐藏 */
 .tab-bar.mini .tab-bar-right > :not(.header-btn-primary) { display: none; }
 .tab-bar.mini .tab-bar-tabs { flex: 1; min-width: 0; }
-/* 验证筛选按钮 + 气泡（V2.6.1） */
+/* 验证筛选按钮 + 气泡（V2.6.1）——高度与两侧按钮对齐（31px） */
+.vfilter-btn {
+  min-height: 31px;
+  padding: 0 10px;
+}
 .vfilter-btn.vfilter-active {
   color: var(--accent-hover);
   border-color: var(--accent);

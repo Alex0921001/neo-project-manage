@@ -24,16 +24,16 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </span>
-        <!-- 左上角：名称 -->
-        <div class="vcard-name" :title="v.name">{{ v.name }}</div>
+        <!-- 左上角：名称（两行截断，不用原生 tooltip） -->
+        <div class="vcard-name" >{{ v.name }}</div>
         <!-- 名称下：进度条 -->
         <div class="vcard-bar"><div :style="{ width: pct(v) + '%' }"></div></div>
         <!-- 进度条下：备注 -->
-        <div class="vcard-note" :title="v.note || ''">{{ v.note || "无备注" }}</div>
+        <div class="vcard-note" >{{ v.note || "无备注" }}</div>
         <!-- 底部行：左进度数字 / 右关联任务·关联方案 -->
         <div class="vcard-foot">
           <span class="vcard-count">{{ v.progress.done }}/{{ v.progress.total }}</span>
-          <span class="vcard-tasks" :title="relatedLine(v)">{{ relatedLine(v) }}</span>
+          <span class="vcard-tasks">{{ relatedLine(v) }}</span>
         </div>
       </div>
     </div>
@@ -544,9 +544,12 @@ defineExpose({ reload: load, openCreate });
   color: var(--text);
   margin-bottom: 8px;
   padding-right: 60px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  min-height: 38px;
 }
 .vcard-bar {
   height: 6px;
