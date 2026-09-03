@@ -1064,7 +1064,7 @@ async function doConfirm() {
 }
 .vfilter-pop {
   position: fixed;
-  z-index: 4000;
+  z-index: 9999;
   width: 280px;
   background: var(--bg-card);
   border: 0.5px solid var(--border);
