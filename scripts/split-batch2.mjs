@@ -6,17 +6,18 @@ import fs from "fs";
 import path from "path";
 
 const FILE = "lib/data.js";
-const lines = fs.readFileSync(FILE, "utf8").split("\n");
+const lines = fs.readFileSync(FILE, "utf8").replace(/\r\n/g, "\n").split("\n");
 
 // ---- 常量 ----
 const SHARED = new Set(["db","shortId","escapeLike","htmlToPlain","truncateText","sanitizeHtml","richTextEmpty",
-  "normalizeDate","localToday","localNowIso","addDays","diffDays","parseAssignees","parseMembers","parseSessionIds"]);
+  "normalizeDate","localToday","localNowIso","addDays","diffDays","parseAssignees","parseMembers","parseSessionIds","computeStatus","normalizeMembers"]);
 const EXTRACT = ["normalizeDate","htmlToPlain","truncateText","localToday","localNowIso","addDays","diffDays"]; // 从区块剥离保留闭包
 const CTX_BASE = ["db","shortId","escapeLike","htmlToPlain","truncateText","sanitizeHtml","richTextEmpty",
-  "normalizeDate","localToday","localNowIso","addDays","diffDays","parseAssignees","parseMembers","parseSessionIds"];
+  "normalizeDate","localToday","localNowIso","addDays","diffDays","parseAssignees","parseMembers","parseSessionIds","computeStatus","normalizeMembers",
+  "buildTaskTree","getTaskPlanRefsMap","getTaskFileRefsMap","getTaskAnnotationsMap","getProjectTasks","getProjectFull","getProjectStats","collectDescendantIds","countIncompleteDescendants"];
 
 const MODULES = [
-  { title: ["status 计算"], file: "core.js", fn: "createCoreModule" },
+  { title: ["status 计算"], file: "core.js", fn: "createCoreModule", custom: "core" },
   { title: ["全文检索"], file: "fts.js", fn: "createFtsModule" },
   { title: ["审计日志"], file: "audit.js", fn: "createAuditModule" },
   { title: ["Project Sets"], file: "project-sets.js", fn: "createProjectSetsModule" },
@@ -79,11 +80,23 @@ fs.mkdirSync("lib/domain", { recursive: true });
 const extractedShared = [];
 
 for (const mod of MODULES) {
-  let pieces = [];
-  const ranges = mod.title.map((t) => findBlock(t));
-  const start = ranges[0].start;
-  const end = ranges[ranges.length - 1].end;
-  let blockLines = lines.slice(start, end + 1);
+  let ranges;
+  if (mod.custom === "core") {
+    // core 特殊：只要闭包内的 healDanglingReferences/resolveRowById（顶层定义与 createDataAccess 开头留在 data.js）
+    const healIdx = lines.findIndex((l) => l.startsWith("  function healDanglingReferences"));
+    const auditMi = marks.findIndex((m) => m.title.startsWith("审计日志"));
+    if (healIdx < 0 || auditMi < 0) throw new Error("core 锚点未找到");
+    let st = healIdx;
+    while (st > 0 && lines[st - 1].trim().startsWith("//")) st--; // 吞紧邻注释
+    ranges = [{ start: st, end: marks[auditMi].line - 1 }];
+  } else {
+    ranges = mod.title.map((t) => findBlock(t));
+  }
+  let blockLines = [];
+  for (const r of ranges) {
+    if (blockLines.length) blockLines.push("");
+    blockLines.push(...lines.slice(r.start, r.end + 1));
+  }
   // 剥离共享工具
   for (const fn of EXTRACT) {
     if (mod.file === "tasks.js" && fn === "normalizeDate" || mod.file === "insights.js" && fn !== "normalizeDate") {
@@ -109,57 +122,48 @@ for (const mod of MODULES) {
   const src = header + blockLines.join("\n") + `\n  return {\n    ${blockFns.join(",\n    ")},\n  };\n}\n`;
   fs.writeFileSync(path.join("lib/domain", mod.file), src, "utf8");
   made.push({ mod, blockFns });
-  cuts.push([start, end]);
-  console.log(`${mod.file}: L${start + 1}~L${end + 1} (${blockLines.length} 行, ${blockFns.length} 函数, 解构${destruct.size} 转发${forward.size})`);
+  for (const r of ranges) cuts.push([r.start, r.end]);
+  console.log(`${mod.file}: ${ranges.map((r) => `L${r.start + 1}~L${r.end + 1}`).join("+")} (${blockLines.length} 行, ${blockFns.length} 函数, 解构${destruct.size} 转发${forward.size})`);
 }
 
-// ---- data.js 重组 ----
-// 1) 删除批2区块（从后往前）
-cuts.sort((a, b) => b[0] - a[0]);
+// ---- data.js 重组：初始行号打标 + 一次性过滤（无漂移）----
+const del = new Set();
 for (const [s, e] of cuts) {
-  let sp = s;
-  if (sp > 0 && lines[sp - 1].trim() === "") sp--;
-  lines.splice(sp, e - sp + 1);
+  if (s > 0 && lines[s - 1].trim() === "") del.add(s - 1);
+  for (let k = s; k <= e; k++) del.add(k);
 }
-// 2) 旧组装块定位（mark "V2.6.1 拆分：低耦合域模块组装"）
-const ai = marks.findIndex((m) => m.title.startsWith("V2.6.1 拆分：低耦合域模块组装"));
-let aStart = -1, aReturnIdx = -1;
+// 旧组装块定位：标记行与导出 return（初始行号）
+let markIdx = -1, retIdx = -1;
 for (let i = lines.length - 1; i >= 0; i--) {
-  if (lines[i].includes("低耦合域模块组装")) { aStart = i; break; }
+  if (lines[i].includes("低耦合域模块组装")) { markIdx = i; break; }
 }
-if (aStart < 0) throw new Error("旧组装块未找到");
-for (let i = aStart; i < lines.length; i++) {
-  if (lines[i] === "  return {") { aReturnIdx = i; break; }
+if (markIdx < 0) throw new Error("旧组装块未找到");
+for (let i = markIdx; i < lines.length; i++) {
+  if (lines[i] === "  return {") { retIdx = i; break; }
 }
-if (aReturnIdx < 0) throw new Error("导出 return 未找到");
-// return 导出对象原文（含结尾）
-let depth = 0, retEnd = -1;
-for (let i = aReturnIdx; i < lines.length; i++) {
-  depth += (lines[i].match(/\{/g) || []).length - (lines[i].match(/\}/g) || []).length;
-  if (depth === 0 && i > aReturnIdx) { retEnd = i; break; }
-}
-const exportBlockLines = lines.slice(aReturnIdx, retEnd + 1);
-// 3) 删除旧组装块（aStart 到文件尾），换成新组装
-const tail = [
+if (retIdx < 0) throw new Error("导出 return 未找到");
+// 组装块头部删除，导出对象保留
+for (let k = markIdx; k < retIdx; k++) del.add(k);
+const kept = lines.filter((l, i) => !del.has(i));
+const keptRet = kept.findIndex((l) => l === "  return {");
+if (keptRet < 0) throw new Error("kept 中未找到导出 return");
+const assembly = [
   "  // ===== V2.6.1 批2拆分：模块组装（顺序 assign；跨模块依赖走转发箭头，顺序仅影响可读性）=====",
   `  const ctx = { ${CTX_BASE.join(", ")} };`,
   ...extractedShared.length ? ["  // ===== 共享工具（剥离自各区块，闭包内提升）=====", ...extractedShared] : [],
-  `  Object.assign(ctx, createCoreModule(ctx));`,
-  `  Object.assign(ctx, createFtsModule(ctx));`,
-  `  Object.assign(ctx, createAuditModule(ctx));`,
-  `  Object.assign(ctx, createSettingsModule(ctx), createMessagesModule(ctx), createMembersModule(ctx), createNotesModule(ctx), createQuickTasksModule(ctx), createSessionsModule(ctx), createCalendarModule(ctx), createUploadsModule(ctx));`,
+  "  Object.assign(ctx, createCoreModule(ctx));",
+  "  Object.assign(ctx, createFtsModule(ctx));",
+  "  Object.assign(ctx, createAuditModule(ctx));",
+  "  Object.assign(ctx, createSettingsModule(ctx), createMessagesModule(ctx), createMembersModule(ctx), createNotesModule(ctx), createQuickTasksModule(ctx), createSessionsModule(ctx), createCalendarModule(ctx), createUploadsModule(ctx));",
   `  Object.assign(ctx, ${MODULES.slice(3).map((m) => `${m.fn}(ctx)`).join(", ")});`,
   `  const { ${made.flatMap((m) => m.blockFns).join(", ")} } = ctx;`,
   "",
-  ...exportBlockLines,
 ];
-lines.splice(aStart);
-lines.push(...tail);
+kept.splice(keptRet, 0, ...assembly);
 // 4) 顶部 import 追加批2模块
-const srcNow = lines.join("\n").split("\n");
-const lastImport = srcNow.reduce((acc, l, i) => (l.startsWith("import ") ? i : acc), -1);
+const lastImport = kept.reduce((acc, l, i) => (l.startsWith("import ") ? i : acc), -1);
 const imports2 = MODULES.map((m) => `import { ${m.fn} } from "./domain/${m.file}";`).join("\n");
-srcNow.splice(lastImport + 1, 0, imports2);
-fs.writeFileSync(FILE, srcNow.join("\n"), "utf8");
-console.log("data.js 重写完成，新行数:", srcNow.length);
+kept.splice(lastImport + 1, 0, imports2);
+fs.writeFileSync(FILE, kept.join("\n"), "utf8");
+console.log("data.js 重写完成，新行数:", kept.length);
 console.log("剥离共享函数:", extractedShared.filter((l) => l.startsWith("  function")).map((l) => l.match(/function (\w+)/)[1]).join(", "));

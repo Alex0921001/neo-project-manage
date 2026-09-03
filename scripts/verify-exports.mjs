@@ -1,6 +1,6 @@
-// 拆分后导出名单一致性校验：必须与拆分前快照 100% 一致
+﻿// 拆分后导出名单一致性校验：必须与拆分前快照 100% 一致
 import fs from "fs";
-const lines = fs.readFileSync("lib/data.js", "utf8").split("\n");
+const lines = fs.readFileSync("lib/data.js", "utf8").replace(/\r\n/g, "\n").split("\n");
 const retIdx = lines.findIndex((l) => l === "  return {");
 let depth = 0, retEnd = -1;
 for (let i = retIdx; i < lines.length; i++) {
