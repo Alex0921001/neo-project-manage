@@ -2,6 +2,18 @@
   <div class="vtab">
     <!-- ===== 卡片列表页 ===== -->
     <div class="vtab-cards">
+      <div v-if="loading" class="vempty">加载中…</div>
+      <div v-else-if="!items.length" class="vempty">
+        <div class="vempty-deco">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3 8-8"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <p class="vempty-title">还没有验证记录</p>
+        <p class="vempty-sub">为功能测试建一张验证卡，逐项打勾记录验收进度</p>
+        <button class="vempty-add" @click="openCreate">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>添加第一个验证</span>
+        </button>
+      </div>
       <div v-for="v in items" :key="v.id" class="vcard" @click="openDetail(v)">
         <!-- 右上角：编辑 / 删除 -->
         <span class="vcard-ops">
@@ -112,14 +124,14 @@
               </div>
             </div>
           </div>
-          <div v-if="!items.length" class="vtab-empty">还没有验证项，在下方录入</div>
-        </div>
-        <div class="vtab-input">
-          <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
-            <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />
-          </el-select>
-          <input v-model="draft" placeholder="输入验证项内容，回车即存…" @keydown.enter="addItem" />
-        </div>
+      <div v-if="!items.length && !loading" class="vtab-empty">该对象还没有验证项，在下方录入</div>
+    </div>
+    <div class="vtab-input">
+      <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
+        <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />
+      </el-select>
+      <input v-model="draft" placeholder="输入验证项内容，回车即存…" @keydown.enter="addItem" />
+    </div>
       </div>
     </FloatPanel>
 
@@ -380,7 +392,7 @@ async function doConfirm() {
   }
 }
 
-defineExpose({ reload: refresh, openCreate });
+defineExpose({ reload: load, openCreate });
 </script>
 
 <style scoped>
@@ -533,19 +545,59 @@ defineExpose({ reload: refresh, openCreate });
   justify-content: flex-end;
   flex-shrink: 0;
 }
-.vtab-empty {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  text-align: center;
-  padding: 24px 0;
+/* 空态（对齐方案列表） */
+.vempty {
   grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  gap: 6px;
 }
-.vtab-empty-title {
-  font-size: 13px;
+.vempty-deco {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.vempty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--text-secondary);
-  margin: 0 0 4px;
 }
-.vtab-empty-sub { margin: 0; font-size: 11.5px; }
+.vempty-sub {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+.vempty-add {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-light);
+  color: var(--accent-hover);
+  font-size: 13px;
+  padding: 8px 20px;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.vempty-add:hover { background: var(--accent); color: #fff; }
+.vempty-add span { font-weight: 500; }
 
 /* 详情弹窗内清单 */
 .vd-body {
