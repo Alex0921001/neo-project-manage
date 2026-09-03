@@ -119,6 +119,9 @@ export default function registerPluginUiRoutes(app, ctx) {
   app.get("/page", (c) => {
     const hanaCss = c.req.query("hana-css") || "";
     const theme = c.req.query("hana-theme") || "inherit";
+    // JS/CSS 全部内联进 HTML，必须禁缓存：否则 WebView 缓存旧 HTML = 旧代码，
+    // 无论 dist 怎么更新用户都拿不到新版（V2.6.1 验收期实锢问题）
+    c.header("Cache-Control", "no-store, no-cache, must-revalidate");
     return c.html(buildHtml(ctx.pluginId, hanaCss, theme));
   });
 
