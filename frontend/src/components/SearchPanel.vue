@@ -293,11 +293,8 @@ onUnmounted(() => clearTimeout(timer));
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
-.result-group { display: flex; flex-direction: column; gap: 6px; }
+.result-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .group-head {
   font-size: 13px;
   font-weight: 700;
