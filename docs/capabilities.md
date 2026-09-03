@@ -19,7 +19,7 @@
 | 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；评论（增删改 + 引用）；版本管理；筛选/搜索/分页/排序 |
 | 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
 | 版本管理 | 需求/方案共用：每次保存内容实际变化自动存版（创建存 v1，保留最近 50 版）；版本历史弹窗任选两版对比（逐字段 + 块级 LCS + 字符级高亮，自写不引依赖）；还原 = 旧内容存为新版本（版本链不断）；版本可标记重要备注 |
-| 验证模块 | 项目「验证」tab：看板（总进度 + 各需求/方案卡片进度 + 通用横切项）→ 点卡片进对象清单；一句话检查项 + 自由分类分组（组内进度、整组 ✓、可折叠）；打勾即落库（记勾选时间/人）+ 退回；模板一键生成（标准三件套 / UI 走查 / 兼容性）；增删改/勾选全量审计；内容进全文检索 |
+| 验证模块 | 项目「验证」tab：验证卡列表（小卡片：名称/备注/关联任务/进度条，每页 20 条）→ 点卡片开弹窗编辑验证项清单（分类分组 + 打勾落库）；新建/编辑走公共 FormDialog（名称 + 关联任务多选 + 备注）；进度 = 卡内验证项完成度，不做状态流转；增删改/勾选全量审计；名称与备注进全文检索 |
 | tab 栏 | 7 tab 数据驱动 + 拖拽调序 + 右键设置；项目级 > 全局级 > 默认顺序；tab 顺序与显隐持久化 |
 | 批注（便利贴） | 四类：`note` 备注 / `decision` 决策 / `risk` 风险 / `milestone` 节点；待确认 / 已确认两种状态；任务级与项目级筛选；批注管理大屏（可折叠任务树 + 全部任务视图 + 关键字搜索）；已完成任务冻结（不可挂载/修改，可删除） |
 | 成员 | 全局成员表（name 唯一）；项目/任务人员下拉统一走成员体系，支持快捷新增与管理；历史人名自动聚合补录 |
@@ -59,8 +59,8 @@
 - 「把「给王总发合同」那条标记完成 / 退回」→ `quick_task_update`（action）
 - 「把那条临时任务转成瑞联SIP的正式任务」→ `quick_task_convert`（id + projectId）
 - 「临时任务里搜一下域名」→ `quick_task_list`（keyword）或 `search_all`（type=quick-task）
-- 「这个需求的验证项都过了吗」→ `verification_summary`（projectId）或 `list_verifications`（targetType+targetId）
-- 「把验证项 [xxxx] 标记通过」→ `toggle_verification`
+- 「这个验证卡的验证项都过了吗」→ `list_verification_items`（projectId+verificationId）；总进度看 `list_verifications`
+- 「把验证项 [xxxx] 标记通过」→ `toggle_verification_item`
 - 「方案的上一版改了什么」→ `list_versions` 查版本列表，可视化 diff 在弹窗中查看；「还原到上一版」→ `restore_version`
 
 ### Agent 工具（91 个）
@@ -81,7 +81,7 @@
 | 消息 | `list_messages` `mark_message_read` `delete_message` `get_message_unread_count` `get_message_config` `update_message_config` | 消息中心（到期/风险提醒聚合）；提醒配置（提前天数 1-14 + 开关） |
 | 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/评论/验证项/临时任务/文件名；FTS5 trigram + 高亮 snippet |
 | 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增 / 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入） |
-| 验证 | `list_verifications` `create_verification` `update_verification` `toggle_verification` `delete_verification` `generate_verification_template` `verification_summary` | 验证清单全生命周期：查询（对象/分类/状态筛选）/ 新增（可挂需求/方案或通用）/ 编辑 / 勾选退回（打勾即落库 + 审计）/ 删除 / 模板生成（standard/ui/compat）/ 看板进度聚合 |
+| 验证 | `list_verifications` `create_verification` `update_verification` `delete_verification` `list_verification_items` `add_verification_item` `update_verification_item` `toggle_verification_item` `delete_verification_item` | 验证卡（名称/关联任务/备注）全生命周期 + 卡内验证项清单（增删改查 / 勾选退回落库 + 审计），进度按验证项完成度计算 |
 | 版本 | `list_versions` `restore_version` `set_version_label` | 需求/方案版本快照：查询 / 还原（旧内容存为新版本）/ 备注标记 |
 | 备注 | `create_note` `update_note` `delete_note` | 项目备注管理 |
 | 审计 | `list_audit_logs` | 审计日志查询（行为/类型/关键词/时间筛选，分页） |
