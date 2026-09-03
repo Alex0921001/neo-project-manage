@@ -24,16 +24,20 @@
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </span>
-        <!-- 左上角：名称（两行截断，不用原生 tooltip） -->
-        <div class="vcard-name" >{{ v.name }}</div>
+        <!-- 左上角：名称（两行截断；超长时用 el-tooltip 悬浮看全文） -->
+        <el-tooltip :content="v.name" placement="top" :show-after="400" :disabled="v.name.length <= 26">
+          <div class="vcard-name">{{ v.name }}</div>
+        </el-tooltip>
         <!-- 名称下：进度条 -->
         <div class="vcard-bar"><div :style="{ width: pct(v) + '%' }"></div></div>
         <!-- 进度条下：备注 -->
-        <div class="vcard-note" >{{ v.note || "无备注" }}</div>
+        <div class="vcard-note" :class="{ 'vcard-note-long': (v.note || '').length > 20 }">{{ v.note || "无备注" }}</div>
         <!-- 底部行：左进度数字 / 右关联任务·关联方案 -->
         <div class="vcard-foot">
           <span class="vcard-count">{{ v.progress.done }}/{{ v.progress.total }}</span>
-          <span class="vcard-tasks">{{ relatedLine(v) }}</span>
+          <el-tooltip :content="relatedLine(v)" placement="top" :show-after="400" :disabled="relatedLine(v).length <= 30">
+            <span class="vcard-tasks">{{ relatedLine(v) }}</span>
+          </el-tooltip>
         </div>
       </div>
     </div>
@@ -572,6 +576,7 @@ defineExpose({ reload: load, openCreate });
   white-space: nowrap;
   min-height: 15px;
 }
+.vcard-note-long { color: var(--text-secondary); }
 .vcard-foot {
   display: flex;
   align-items: center;
