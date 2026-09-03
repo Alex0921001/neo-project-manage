@@ -586,18 +586,24 @@ defineExpose({ reload: load, openCreate });
   margin-top: 14px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--accent-light);
-  color: var(--accent-hover);
-  font-size: 13px;
+  gap: 5px;
   padding: 8px 20px;
+  background: var(--text);
+  color: var(--bg-card);
+  border: 1px solid var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
 }
-.vempty-add:hover { background: var(--accent); color: #fff; }
-.vempty-add span { font-weight: 500; }
+.vempty-add:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg-card);
+}
 
 /* 详情弹窗内清单 */
 .vd-body {
@@ -606,6 +612,7 @@ defineExpose({ reload: load, openCreate });
   flex-direction: column;
   gap: 10px;
   box-sizing: border-box;
+  padding: 14px 16px;
 }
 .vd-meta {
   display: flex;
