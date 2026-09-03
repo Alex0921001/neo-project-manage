@@ -247,25 +247,7 @@
             </div>
           </div>
 
-          <!-- 列 4：验证进度（V2.6.1 速查弹窗遗漏检查补）：点击跳验证 tab 并开详情 -->
-          <div class="ov-col">
-            <div class="ov-label">验证进度</div>
-            <div v-if="verifs.length" class="ov-verifs">
-              <div
-                v-for="v in verifs"
-                :key="v.id"
-                class="ov-verif"
-                :title="`${v.progress.done}/${v.progress.total} 项完成`"
-                @click="jumpVerification(v)"
-              >
-                <span class="ov-verif-name">{{ v.name }}</span>
-                <span class="ov-verif-progress" :class="{ done: v.progress.total > 0 && v.progress.done === v.progress.total }">{{ v.progress.done }}/{{ v.progress.total }}</span>
-              </div>
-            </div>
-            <div v-else class="ov-verif-empty">暂无验证卡</div>
-          </div>
-
-          <!-- 列 5：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新 -->
+          <!-- 列 4：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新 -->
           <div class="ov-col ov-col-tl">
             <div v-if="tlLoading" class="ov-empty">加载中…</div>
             <el-empty v-else-if="!summaries.length" description="暂无数据" :image-size="80" />
@@ -350,7 +332,6 @@ import { api, resolveAssetUrl } from "../../../api.js";
 import { toast } from "../../../toast.js";
 import RiskConfigModal from "./RiskConfigModal.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import { jumpToResult } from "../../../utils/jump.js";
 
 // V2.2：周报 Markdown 轻量渲染（内置，零依赖——避免第三方 md 库在构建产物中的 interop 风险）
 // 覆盖周报固定格式：标题 / 列表 / 表格 / 粗体 / 行内代码；未知内容转义后按文本输出
@@ -444,17 +425,6 @@ const loading = ref(false);
 const s = ref(null); // summary data
 const riskConfigShow = ref(false); // 风险规则配置弹窗
 
-// ===== 验证进度（V2.6.1 速查遗漏检查补）：随概览刷新拉取验证卡列表，点击跳验证详情 =====
-const verifs = ref([]);
-async function loadVerifs() {
-  if (!props.projectId) return verifs.value = [];
-  const res = await api(`api/projects/${props.projectId}/verifications?page=1&pageSize=100`, { silent: true });
-  if (res?.ok) verifs.value = res.data.items || [];
-}
-function jumpVerification(v) {
-  jumpToResult({ type: "verification", projectId: props.projectId, refId: v.id });
-}
-
 // ===== 生成周报（V2.2 R3 + 改造）：自动生成（打开/切换范围即拉取），md 渲染预览 =====
 const reportShow = ref(false);
 const reportRange = ref("thisWeek");
@@ -537,7 +507,6 @@ async function refresh() {
   loading.value = false;
   // 接口异常时优雅降级：置 null，面板显示「暂无数据」，不抛错
   s.value = res?.ok ? (res.data || null) : null;
-  loadVerifs(); // V2.6.1：验证进度随概览刷新联动
   // P1-2：刷新总结后联动失效时间线缓存并重拉，否则新总结永远不可见
   if (res?.ok) {
     tlLoaded.value = false;
@@ -923,38 +892,6 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   color: color-mix(in oklch, var(--text-tertiary) 60%, transparent);
 }
 
-/* 验证进度列（V2.6.1） */
-.ov-verifs {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ov-verif {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-.ov-verif:hover { background: var(--bg-hover); }
-.ov-verif-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 12.5px;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ov-verif-progress {
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.ov-verif-progress.done { color: var(--status-done-text); }
-.ov-verif-empty { font-size: 12px; color: var(--text-tertiary); padding: 4px 0; }
 .ov-label {
   display: inline-flex;
   align-items: center;
