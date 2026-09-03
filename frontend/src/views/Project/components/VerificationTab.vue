@@ -34,10 +34,6 @@
           </span>
         </div>
       </div>
-      <div v-if="!items.length && !loading" class="vtab-empty">
-        <p class="vtab-empty-title">还没有验证记录</p>
-        <p class="vtab-empty-sub">点击右上角「新建验证」，为功能测试建一张验证卡</p>
-      </div>
     </div>
     <div v-if="total > pageSize" class="vtab-pager">
       <el-pagination
