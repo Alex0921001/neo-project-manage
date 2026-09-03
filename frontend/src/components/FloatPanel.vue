@@ -14,6 +14,11 @@
         @dblclick="toggleFullscreen"
       >
         <span class="float-panel-title">{{ title }}</span>
+        <!-- 全屏/还原切换（关闭按钮左侧） -->
+        <button class="float-panel-fs" :title="fullscreen ? '还原' : '全屏'" @mousedown.stop @click.stop="toggleFullscreen">
+          <svg v-if="!fullscreen" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+          <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+        </button>
         <button class="float-panel-close" title="关闭" @click="close">✕</button>
       </div>
       <!-- 内容区（slot） -->
@@ -297,6 +302,24 @@ function startResize(e, dir = "se") {
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: all var(--duration-fast) var(--ease-out);
+}
+.float-panel-fs {
+  width: 24px; height: 24px;
+  margin-right: 4px;
+  border: 1px solid var(--border-light);
+  background: var(--bg-card);
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.float-panel-fs:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 .float-panel-close:hover {
   background: var(--bg-hover);
