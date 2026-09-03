@@ -57,7 +57,7 @@
       v-model:show="formShow"
       :title="formId ? '编辑验证' : '新建验证'"
       :width="440"
-      :height="480"
+      :height="560"
       :form="form"
       :rules="formRules"
       :saving="saving"
@@ -65,7 +65,7 @@
       @save="saveForm"
     >
       <el-form-item label="名称" prop="name">
-        <el-input v-model="form.name" placeholder="验证名称，如：评论功能测试" maxlength="60" />
+        <el-input v-model="form.name" placeholder="验证名称，如：评论功能测试" maxlength="20" show-word-limit />
       </el-form-item>
       <el-form-item label="关联任务">
         <el-select v-model="form.taskIds" multiple filterable placeholder="选择关联任务（可多选）" style="width: 100%">
@@ -78,8 +78,51 @@
         </el-select>
       </el-form-item>
       <el-form-item label="备注" class="form-stretch">
-        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="备注信息（可选）" style="height: 100%" />
+        <el-input v-model="form.note" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="备注信息（可选）" style="height: 100%" />
       </el-form-item>
+    </FormDialog>
+
+    <!-- 分组管理（分类字典增删改） -->
+    <FormDialog
+      v-model:show="catShow"
+      title="分组管理"
+      :width="380"
+      :height="440"
+      @close="catShow = false"
+      @save="catShow = false"
+    >
+      <div class="cat-body">
+        <div class="cat-add">
+          <el-input
+            v-model="catName"
+            placeholder="新分类名称"
+            maxlength="20"
+            size="small"
+            @keydown.enter.prevent="addCategory"
+          />
+          <el-button type="primary" size="small" :disabled="!catName.trim()" @click="addCategory">添加</el-button>
+        </div>
+        <div class="cat-list">
+          <div v-for="c in catList" :key="c.id" class="cat-item">
+            <template v-if="catEditingId === c.id">
+              <el-input v-model="catEditName" size="small" maxlength="20" @keydown.enter.prevent="saveCatRename(c)" />
+              <button class="cat-op" @click="saveCatRename(c)">保存</button>
+              <button class="cat-op" @click="cancelCatRename">取消</button>
+            </template>
+            <template v-else>
+              <span class="cat-name">{{ c.name }}</span>
+              <span class="cat-ops">
+                <button class="cat-op" title="重命名" @click="startCatRename(c)">重命名</button>
+                <button class="cat-op cat-op-danger" title="删除（该分类下验证项将归入通用）" @click="deleteCat(c)">删除</button>
+              </span>
+            </template>
+          </div>
+          <div v-if="!catList.length" class="cat-empty">暂无分类，添加后可在录入时选择</div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button class="form-dialog-save" @click="catShow = false">完成</el-button>
+      </template>
     </FormDialog>
 
     <!-- 验证详情弹窗（公共 FloatPanel）：卡内验证项清单 -->
@@ -158,7 +201,17 @@
       <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
         <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />
       </el-select>
-      <input v-model="draft" placeholder="输入验证项内容，回车即存…" @keydown.enter="addItem" />
+      <div class="vt-input-wrap">
+        <div class="vt-input-resize" title="拖动扩大输入面积" @pointerdown="onInputResizeStart"></div>
+        <textarea
+          ref="draftInputEl"
+          v-model="draft"
+          class="vt-input"
+          rows="1"
+          placeholder="输入验证项内容，回车即存…"
+          @keydown.enter="onDraftKeydown"
+        ></textarea>
+      </div>
     </div>
       </div>
     </FloatPanel>
@@ -267,6 +320,70 @@ function openEdit(v) {
   loadPlans();
   formShow.value = true;
 }
+
+// ===== 分组管理（分类字典）=====
+const catShow = ref(false);
+const catList = ref([]);
+const catName = ref("", );
+const catEditingId = ref("");
+const catEditName = ref("");
+
+async function openCategoryManager() {
+  catShow.value = true;
+  await loadCategories();
+}
+async function loadCategories() {
+  const res = await api(`api/projects/${props.projectId}/verification-categories`);
+  if (res?.ok) catList.value = res.data.items || [];
+}
+async function addCategory() {
+  const name = catName.value.trim();
+  if (!name) return;
+  const res = await api(`api/projects/${props.projectId}/verification-categories`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+  if (res?.ok) {
+    catList.value.push(res.data);
+    catName.value = "";
+  } else {
+    toast(res?.error || "添加失败", "error");
+  }
+}
+function startCatRename(c) {
+  catEditingId.value = c.id;
+  catEditName.value = c.name;
+}
+function cancelCatRename() {
+  catEditingId.value = "";
+  catEditName.value = "";
+}
+async function saveCatRename(c) {
+  const name = catEditName.value.trim();
+  if (!name || name === c.name) return cancelCatRename();
+  const res = await api(`api/projects/${props.projectId}/verification-categories/${c.id}`, {
+    method: "PUT",
+    body: JSON.stringify({ name }),
+  });
+  if (res?.ok) {
+    c.name = name;
+    // 同步详情内已加载验证项的分类显示（后端已同步库内同分类项）
+    detailItems.value.forEach((i) => { if (i.category === catEditName.value) i.category = name; });
+    cancelCatRename();
+  } else {
+    toast(res?.error || "重命名失败", "error");
+  }
+}
+async function deleteCat(c) {
+  const res = await api(`api/projects/${props.projectId}/verification-categories/${c.id}`, { method: "DELETE" });
+  if (res?.ok) {
+    catList.value = catList.value.filter((x) => x.id !== c.id);
+    loadDetail();
+    toast("已删除，该分类下验证项已归入通用");
+  } else {
+    toast(res?.error || "删除失败", "error");
+  }
+}
 async function saveForm() {
   const name = form.name.trim();
   if (!name) return toast("请输入验证名称", "error");
@@ -287,7 +404,7 @@ async function saveForm() {
 }
 
 // ===== 删除卡 =====
-const confirm = reactive({ show: false, message: "", payload: null });
+const confirm = reactive({ show: false, message: "", payload: null, itemMode: false, clearMode: false });
 function askDelete(v) {
   confirm.payload = v;
   confirm.itemMode = false;
@@ -363,11 +480,55 @@ async function addItem() {
   if (res?.ok) {
     detailItems.value.push(res.data);
     draft.value = "";
+    resetDraftInputHeight();
     syncCardProgress();
     emit("changed");
   } else {
     toast(res?.error || "录入失败", "error");
   }
+}
+// IME 选词回车不当提交
+function onDraftKeydown(e) {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  if (e.isComposing || e.keyCode === 229) return;
+  e.preventDefault();
+  addItem();
+}
+
+// 输入框拖动上边框扩大输入面积（提交后复位）
+const draftInputEl = ref(null);
+let draftResizing = false;
+function onInputResizeStart(e) {
+  e.preventDefault();
+  draftResizing = true;
+  const el = draftInputEl.value;
+  const startY = e.clientY;
+  const startH = el.offsetHeight;
+  const onMove = (ev) => {
+    if (!draftResizing) return;
+    const h = Math.min(240, Math.max(36, startH + (startY - ev.clientY)));
+    el.style.height = h + "px";
+  };
+  const onUp = () => {
+    draftResizing = false;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+}
+function resetDraftInputHeight() {
+  if (draftInputEl.value) draftInputEl.value.style.height = "";
+}
+
+// 分组头批量清空
+function askClearGroup(g) {
+  if (!detail.value) return;
+  confirm.payload = { cardId: detail.value.id, category: g.name === "通用" ? "" : g.name, name: g.name, total: g.total };
+  confirm.itemMode = false;
+  confirm.clearMode = true;
+  confirm.message = `清空分组「${g.name}」下的全部 ${g.total} 条验证项？此操作不可恢复。`;
+  confirm.show = true;
 }
 function syncCardProgress() {
   const card = items.value.find((x) => x.id === detail.value?.id);
@@ -420,7 +581,22 @@ function askDeleteItem(it) {
 }
 async function doConfirm() {
   confirm.show = false;
-  const it = confirm.payload;
+  const payload = confirm.payload;
+  if (confirm.clearMode) {
+    const res = await api(
+      `api/projects/${props.projectId}/verifications/${payload.cardId}/items?category=${encodeURIComponent(payload.category)}`,
+      { method: "DELETE" }
+    );
+    if (res?.ok) {
+      toast(`已清空 ${res.data.deleted} 条`);
+      loadDetail();
+      emit("changed");
+    } else {
+      toast(res?.error || "清空失败", "error");
+    }
+    return;
+  }
+  const it = payload;
   if (confirm.itemMode) {
     const res = await api(`api/projects/${props.projectId}/verifications/items/${it.id}`, { method: "DELETE" });
     if (res?.ok) {
@@ -443,7 +619,7 @@ async function doConfirm() {
   }
 }
 
-defineExpose({ reload: load, openCreate });
+defineExpose({ reload: load, openCreate, openCategoryManager });
 </script>
 
 <style scoped>

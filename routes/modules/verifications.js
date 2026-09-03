@@ -112,4 +112,52 @@ export function registerVerificationsRoutes(app, data) {
       return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
     }
   });
+
+  // ===== 分类字典（分组管理）=====
+  app.get("/api/projects/:projectId/verification-categories", (c) => {
+    try {
+      return c.json({ ok: true, data: data.listVerificationCategories(c.req.param("projectId")) });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.post("/api/projects/:projectId/verification-categories", async (c) => {
+    const body = await c.req.json();
+    try {
+      return c.json({ ok: true, data: data.createVerificationCategory(c.req.param("projectId"), body.name) });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
+  app.put("/api/projects/:projectId/verification-categories/:id", async (c) => {
+    const body = await c.req.json();
+    try {
+      return c.json({ ok: true, data: data.renameVerificationCategory(c.req.param("projectId"), c.req.param("id"), body.name) });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
+    }
+  });
+
+  app.delete("/api/projects/:projectId/verification-categories/:id", (c) => {
+    try {
+      data.deleteVerificationCategory(c.req.param("projectId"), c.req.param("id"));
+      return c.json({ ok: true });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
+    }
+  });
+
+  // 批量清空某验证卡某分类的验证项
+  app.delete("/api/projects/:projectId/verifications/:id/items", (c) => {
+    try {
+      const result = data.clearVerificationItems(
+        c.req.param("projectId"), c.req.param("id"), c.req.query("category") || ""
+      );
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, e.message.includes("不存在") ? 404 : 400);
+    }
+  });
 }
