@@ -505,6 +505,29 @@ function handleJump({ type, refId }) {
     toast("备注内容请在项目概览查看");
   } else if (type === "file") {
     tab.value = "files";
+  } else if (type === "verification") {
+    tab.value = "verification";
+    nextTick(() => verificationTabRef.value?.openDetailById?.(refId));
+  } else if (type === "verification_item") {
+    // FTS ref_id = 所属验证卡 id
+    tab.value = "verification";
+    nextTick(() => verificationTabRef.value?.openDetailById?.(refId));
+  } else if (type === "verification_category") {
+    // ref_id = 分类名：打开验证 tab（不定位具体卡片）
+    tab.value = "verification";
+    toast(`命中的是验证分组「${refId}」，已打开验证列表`);
+  } else if (type === "comment") {
+    // FTS ref_id = target_type|target_id：定位到所属方案/需求详情
+    const sep = String(refId).indexOf("|");
+    const tt = sep > 0 ? refId.slice(0, sep) : "";
+    const tid = sep > 0 ? refId.slice(sep + 1) : "";
+    if (tt === "plan") {
+      tab.value = "plans";
+      nextTick(() => planTabRef.value?.openDetailById?.(tid));
+    } else if (tt === "requirement") {
+      tab.value = "requirements";
+      nextTick(() => requirementTabRef.value?.openDetailById?.(tid));
+    }
   }
 }
 
@@ -519,10 +542,23 @@ function onGlobalJump(e) {
 
 onMounted(() => {
   window.addEventListener("neo-pm:jump", onGlobalJump);
+  // V2.6.1：项目内 Ctrl+F 打开项目内搜索（输入态放行；宿主拦截时自然降级）
+  window.addEventListener("keydown", onProjectKeydown);
 });
 onUnmounted(() => {
   window.removeEventListener("neo-pm:jump", onGlobalJump);
+  window.removeEventListener("keydown", onProjectKeydown);
 });
+
+function onProjectKeydown(e) {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.ctrlKey && (e.key === "f" || e.key === "F")) {
+    e.preventDefault();
+    e.stopPropagation();
+    searchShow.value = true;
+  }
+}
 
 onMounted(() => {
   barObs = new ResizeObserver((entries) => {

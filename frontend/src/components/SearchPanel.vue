@@ -16,7 +16,7 @@
           ref="inputRef"
           v-model="keyword"
           class="search-input"
-          placeholder="搜索项目 / 任务 / 批注 / 方案 / 需求 / 备注 / 文件（中文 3 字以上全量检索，1~2 字模糊匹配）"
+          placeholder="搜索项目 / 任务 / 批注 / 方案 / 需求 / 评论 / 验证 / 备注 / 文件 / 临时任务（中文 3 字以上全量检索，1~2 字模糊匹配）"
         />
         <button v-if="keyword" class="search-clear" title="清空" @click="keyword = ''">×</button>
       </div>
@@ -30,7 +30,7 @@
       <!-- 结果区 -->
       <div v-if="!keyword.trim()" class="search-hint">
         <p>输入关键词开始搜索</p>
-        <p class="hint-sub">支持项目名、任务名 / 描述、批注内容、方案标题与内容、需求、备注、文件名；回车或输入即搜</p>
+        <p class="hint-sub">支持项目名 / 描述、任务名 / 描述 / 批注、方案标题 / 内容、需求、评论、验证卡 / 验证项 / 验证分组、备注、文件名、临时任务；回车或输入即搜</p>
       </div>
       <div v-else-if="loading" class="search-state">搜索中…</div>
       <div v-else-if="!hasResults" class="search-state">未找到相关内容</div>
@@ -83,15 +83,20 @@ const indexed = ref(0);
 const projectCount = ref(0);
 const indexing = ref(false);
 
-// ===== 分组定义（展示顺序固定：项目组最前） =====
+// ===== 分组定义（展示顺序固定：项目组最前；V2.6.1 补评论/验证体系/临时任务） =====
 const TYPE_GROUPS = [
   { type: "project", label: "项目" },
   { type: "task", label: "任务" },
   { type: "annotation", label: "批注" },
   { type: "plan", label: "方案" },
   { type: "requirement", label: "需求" },
+  { type: "comment", label: "评论" },
+  { type: "verification", label: "验证卡" },
+  { type: "verification_item", label: "验证项" },
+  { type: "verification_category", label: "验证分组" },
   { type: "note", label: "备注" },
   { type: "file", label: "文件" },
+  { type: "quick-task", label: "临时任务" },
 ];
 // 项目内搜索：目标项目就是当前项目，搜出「项目自身」一条无意义，隐藏项目组
 const groups = computed(() =>
@@ -156,7 +161,7 @@ function go(r) {
  * 标题高亮由 highlightKeyword 渲染：keyword 命中位置包 <mark>，与内容行同款样式。
  */
 function displayTitle(r) {
-  if (r.type === "annotation" || r.type === "note") {
+  if (r.type === "annotation" || r.type === "note" || r.type === "comment" || r.type === "verification_item") {
     const t = String(r.title ?? "");
     return t.length > 20 ? `${t.slice(0, 20)}…` : t;
   }
@@ -165,17 +170,17 @@ function displayTitle(r) {
 
 /**
  * 按类型自适应三段式（用户方案 A）：
- * 任务/方案/需求/项目：标题 + 内容 + 所属项目；
- * 批注/备注：内容 + 所属项目（无独立标题，避免截断标题与内容重复）；
- * 文件：标题 + 所属项目（仅名称，无内容行）。
+ * 任务/方案/需求/项目/验证卡/验证分组：标题 + 内容 + 所属项目；
+ * 批注/备注/评论/验证项：内容 + 所属项目（无独立标题，避免截断标题与内容重复）；
+ * 文件/临时任务：标题 + 所属项目（临时任务无项目归属）。
  */
 function showTitle(r) {
-  return r.type !== "annotation" && r.type !== "note";
+  return r.type !== "annotation" && r.type !== "note" && r.type !== "comment" && r.type !== "verification_item";
 }
 function showContent(r) {
-  if (r.type === "file") return false;
-  if (r.type === "annotation" || r.type === "note") return true; // 正文即内容，始终显示
-  if (r.type === "project") return !!r.snippet && r.snippet !== r.title; // 名称命中时不重复内容行
+  if (r.type === "file" || r.type === "verification_category" || r.type === "quick-task") return false;
+  if (r.type === "annotation" || r.type === "note" || r.type === "comment" || r.type === "verification_item") return true;
+  if (r.type === "project") return !!r.snippet && r.snippet !== r.title;
   return !!r.snippet;
 }
 function renderContent(r) {

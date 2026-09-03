@@ -481,6 +481,16 @@ function openDetail(v) {
   loadDetail();
   loadCategories(); // 字典加载：录入下拉与分组管理共用
 }
+/** 搜索/跳转定位：按 id 打开验证卡详情 */
+function openDetailById(id) {
+  const v = items.value.find((x) => x.id === id);
+  if (v) return openDetail(v);
+  // 不在当前页：先拉一次（临时切到第 1 页全量找，找不到静默）
+  api(`api/projects/${props.projectId}/verifications?keyword=${encodeURIComponent(id)}&pageSize=1`)
+    .then((res) => {
+      if (res?.ok && res.data.items?.length) openDetail(res.data.items[0]);
+    });
+}
 async function loadDetail() {
   if (!detail.value) return;
   const res = await api(`api/projects/${props.projectId}/verifications/${detail.value.id}/items`);
@@ -652,7 +662,7 @@ async function doConfirm() {
   }
 }
 
-defineExpose({ reload: load, openCreate, openCategoryManager });
+defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
 </script>
 
 <style scoped>
