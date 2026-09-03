@@ -1065,6 +1065,7 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
   height: 100%;
   box-sizing: border-box;
   min-height: 0;
+  padding: 14px 16px;
 }
 .cat-list {
   flex: 1;
@@ -1108,7 +1109,7 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
 .cat-danger:hover { background: #fdecec; color: var(--danger); }
 .cat-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--text-tertiary); }
 .cat-add { display: flex; gap: 8px; flex-shrink: 0; }
-/* 分组头清空按钮：hover 出现 */
+/* 分组头清空按钮：常显，hover 变红 */
 .vgroup-clear {
   margin-left: auto;
   border: none;
@@ -1118,9 +1119,8 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
-  visibility: hidden;
+  visibility: visible;
 }
-.vgroup-head:hover .vgroup-clear { visibility: visible; }
 .vgroup-clear:hover { color: var(--danger); background: var(--bg-card); }
 .vgroup-count + .vgroup-clear { margin-left: 0; }
 </style>
