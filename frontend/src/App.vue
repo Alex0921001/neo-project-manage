@@ -204,6 +204,8 @@ function onGlobalKeydown(e) {
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey && (e.key === "f" || e.key === "F")) {
+    // V2.6.1：项目详情页内交给项目内搜索（index.vue 自己处理），避免双弹窗
+    if (view.value === "project") return;
     e.preventDefault();
     globalSearchShow.value = true;
   }

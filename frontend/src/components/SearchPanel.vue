@@ -35,8 +35,9 @@
       <div v-else-if="loading" class="search-state">搜索中…</div>
       <div v-else-if="!hasResults" class="search-state">未找到相关内容</div>
       <div v-else class="search-results">
-        <div v-for="g in groups" :key="g.type" class="result-group">
-          <div v-if="g.items.length" class="group-head">{{ g.label }}（{{ g.items.length }}）</div>
+        <template v-for="g in groups" :key="g.type">
+          <div v-if="g.items.length" class="result-group">
+            <div class="group-head">{{ g.label }}（{{ g.items.length }}）</div>
           <div
             v-for="r in g.items"
             :key="r.type + '|' + r.refId"
@@ -57,6 +58,7 @@
             </div>
           </div>
         </div>
+        </template>
       </div>
     </div>
   </FloatPanel>

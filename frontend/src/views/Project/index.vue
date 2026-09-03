@@ -562,7 +562,8 @@ function onProjectKeydown(e) {
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey && (e.key === "f" || e.key === "F")) {
     e.preventDefault();
-    e.stopPropagation();
+    // stopImmediatePropagation：App 与本组件的监听同挂 window，仅 stopPropagation 拦不住同节点的后续监听
+    e.stopImmediatePropagation();
     searchShow.value = true;
   }
 }
