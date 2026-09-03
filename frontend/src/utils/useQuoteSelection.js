@@ -7,32 +7,53 @@
  *     <button @click="onQuoteClick">引用</button>
  *   </div>
  * 需求：容器 position:relative；气泡内点击后调 hideBubble()。
+ *
+ * 多击防抖：浏览器双击/三击的选区是分步扩展的（词 → 段落），每次 mouseup 都立即
+ * 计算会让气泡在中间态闪烁（出现又消失）。改为 mouseup 后延迟 180ms 等选区稳定
+ * 再计算锚点；期间任何 mousedown（新选择开始）都会取消等待并收起气泡。
  */
-import { ref, onScopeDispose } from "vue";
+import { ref, onBeforeUnmount } from "vue";
 import { getSelectionAnchor } from "./quoteComment.js";
 
 export function useQuoteSelection(containerRef, { enabled } = {}) {
   const bubble = ref(null); // { x, y }
   let pendingAnchor = null;
+  let stableTimer = null;
+
+  function onMouseDownDocument(e) {
+    // 点气泡自身不收起（否则引用按钮点不到）
+    if (e.target.closest?.(".quote-bubble")) return;
+    hideBubble();
+  }
+  document.addEventListener("mousedown", onMouseDownDocument, true);
+  onBeforeUnmount(() => {
+    document.removeEventListener("mousedown", onMouseDownDocument, true);
+    if (stableTimer) clearTimeout(stableTimer);
+  });
 
   function onSelectionMouseup(e) {
     // 点在气泡自身上不重算
     if (e.target.closest?.(".quote-bubble")) return;
-    bubble.value = null;
-    pendingAnchor = null;
+    hideBubble();
     if (enabled && !enabled()) return;
     const container = containerRef.value;
     if (!container) return;
-    const anchor = getSelectionAnchor(container);
-    if (!anchor) return;
-    const sel = window.getSelection();
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    const host = container.getBoundingClientRect();
-    pendingAnchor = anchor;
-    // 气泡置于选区上方居中（贴近视口顶部时翻转到下方）
-    const x = Math.max(0, rect.left - host.left + rect.width / 2 - 28);
-    const y = rect.top - host.top < 40 ? rect.bottom - host.top + 6 : rect.top - host.top - 34;
-    bubble.value = { x, y };
+    // 防抖：等浏览器完成多击选区扩展后再计算
+    if (stableTimer) clearTimeout(stableTimer);
+    stableTimer = setTimeout(() => {
+      stableTimer = null;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+      const anchor = getSelectionAnchor(container);
+      if (!anchor) return;
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      const host = container.getBoundingClientRect();
+      pendingAnchor = anchor;
+      // 气泡置于选区上方居中（贴近视口顶部时翻转到下方）
+      const x = Math.max(0, rect.left - host.left + rect.width / 2 - 28);
+      const y = rect.top - host.top < 40 ? rect.bottom - host.top + 6 : rect.top - host.top - 34;
+      bubble.value = { x, y };
+    }, 180);
   }
 
   function takeAnchor() {
@@ -44,27 +65,10 @@ export function useQuoteSelection(containerRef, { enabled } = {}) {
   }
 
   function hideBubble() {
+    if (stableTimer) { clearTimeout(stableTimer); stableTimer = null; }
     bubble.value = null;
     pendingAnchor = null;
   }
-
-  // 气泡显隐与选区联动（V2.6.1）：选区被清空或点击容器外 → 气泡立即隐藏，
-  // 避免「气泡悬空指向已不存在的选区」（容器内的点击仍由 mouseup 逻辑重算）
-  function onDocSelectionChange() {
-    const sel = window.getSelection();
-    if ((!sel || sel.isCollapsed) && bubble.value) hideBubble();
-  }
-  function onDocPointerDown(e) {
-    if (e.target.closest?.(".quote-bubble")) return;
-    if (containerRef.value?.contains(e.target)) return;
-    hideBubble();
-  }
-  window.addEventListener("selectionchange", onDocSelectionChange);
-  window.addEventListener("pointerdown", onDocPointerDown, true);
-  onScopeDispose(() => {
-    window.removeEventListener("selectionchange", onDocSelectionChange);
-    window.removeEventListener("pointerdown", onDocPointerDown, true);
-  });
 
   return { bubble, onSelectionMouseup, takeAnchor, hideBubble };
 }
