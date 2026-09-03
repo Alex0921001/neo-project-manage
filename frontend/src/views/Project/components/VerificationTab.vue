@@ -82,48 +82,51 @@
       </el-form-item>
     </FormDialog>
 
-    <!-- 分组管理（分类字典增删改） -->
-    <FormDialog
-      v-model:show="catShow"
+    <!-- 分组管理（对齐项目集管理风格：FloatPanel + 图标操作行 + 底部录入） -->
+    <FloatPanel
+      v-model="catShow"
       title="分组管理"
-      :width="380"
-      :height="440"
-      @close="catShow = false"
-      @save="catShow = false"
+      :default-width="360"
+      :default-height="380"
+      :min-width="300"
+      :min-height="260"
     >
       <div class="cat-body">
+        <div class="cat-list">
+          <div v-for="c in catList" :key="c.id" class="cat-row">
+            <el-input
+              v-if="catEditingId === c.id"
+              v-model="catEditName"
+              size="small"
+              maxlength="20"
+              class="cat-edit"
+              @keyup.enter="saveCatRename(c)"
+              @keyup.esc="cancelCatRename"
+              @blur="saveCatRename(c)"
+            />
+            <span v-else class="cat-name">{{ c.name }}</span>
+            <div class="cat-ops">
+              <button class="cat-op" title="重命名" @click="startCatRename(c)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </button>
+              <button class="cat-op cat-danger" title="删除（该分类下验证项归入通用）" @click="deleteCat(c)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div v-if="!catList.length" class="cat-empty">还没有分类，在下方输入名称回车新增</div>
+        </div>
         <div class="cat-add">
           <el-input
             v-model="catName"
-            placeholder="新分类名称"
+            placeholder="输入分类名称，回车立即新增"
             maxlength="20"
-            size="small"
-            @keydown.enter.prevent="addCategory"
+            clearable
+            @keyup.enter="addCategory"
           />
-          <el-button type="primary" size="small" :disabled="!catName.trim()" @click="addCategory">添加</el-button>
-        </div>
-        <div class="cat-list">
-          <div v-for="c in catList" :key="c.id" class="cat-item">
-            <template v-if="catEditingId === c.id">
-              <el-input v-model="catEditName" size="small" maxlength="20" @keydown.enter.prevent="saveCatRename(c)" />
-              <button class="cat-op" @click="saveCatRename(c)">保存</button>
-              <button class="cat-op" @click="cancelCatRename">取消</button>
-            </template>
-            <template v-else>
-              <span class="cat-name">{{ c.name }}</span>
-              <span class="cat-ops">
-                <button class="cat-op" title="重命名" @click="startCatRename(c)">重命名</button>
-                <button class="cat-op cat-op-danger" title="删除（该分类下验证项将归入通用）" @click="deleteCat(c)">删除</button>
-              </span>
-            </template>
-          </div>
-          <div v-if="!catList.length" class="cat-empty">暂无分类，添加后可在录入时选择</div>
         </div>
       </div>
-      <template #footer>
-        <el-button class="form-dialog-save" @click="catShow = false">完成</el-button>
-      </template>
-    </FormDialog>
+    </FloatPanel>
 
     <!-- 验证详情弹窗（公共 FloatPanel）：卡内验证项清单 -->
     <FloatPanel
@@ -422,8 +425,9 @@ const editingId = ref("");
 const editDraft = ref("");
 const foldedGroups = ref(new Set());
 
+// 录入下拉：分组管理字典 + 当前验证项已有分类（字典为主，不再硬编码）
 const knownCategories = computed(() => {
-  const set = new Set(["功能验证", "边界与异常", "回归验证"]);
+  const set = new Set(catList.value.map((c) => c.name));
   detailItems.value.forEach((i) => i.category && set.add(i.category));
   return [...set];
 });
@@ -447,6 +451,7 @@ function openDetail(v) {
   detailShow.value = true;
   foldedGroups.value = new Set();
   loadDetail();
+  loadCategories(); // 字典加载：录入下拉与分组管理共用
 }
 async function loadDetail() {
   if (!detail.value) return;
@@ -1005,7 +1010,8 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
   border-radius: 6px;
   background: var(--bg);
 }
-.vtab-input input {
+.vtab-input input,
+.vtab-input .vt-input {
   flex: 1;
   min-width: 0;
   border: none;
@@ -1013,5 +1019,108 @@ defineExpose({ reload: load, openCreate, openCategoryManager });
   font-size: 12.5px;
   color: var(--text);
   outline: none;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.5;
 }
+/* 录入输入框：textarea + 顶部拖拽柄（评论面板同款：贴顶热区 + 横条提示） */
+.vt-input {
+  min-height: 36px;
+  max-height: 320px;
+  padding: 7px 2px;
+  box-sizing: border-box;
+}
+.vt-input-wrap {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+}
+.vt-input-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.vt-input-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  border-radius: 1px;
+  background: var(--text-tertiary);
+}
+.vt-input-resize:hover::after { background: var(--text); }
+/* 分组管理（项目集管理同款风格） */
+.cat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+}
+.cat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.cat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-md);
+}
+.cat-row:hover { background: var(--bg-hover); }
+.cat-edit { flex: 1; min-width: 0; }
+.cat-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cat-ops { display: flex; gap: 2px; flex-shrink: 0; }
+.cat-op {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.cat-op:hover { background: var(--bg-hover); color: var(--text); }
+.cat-danger:hover { background: #fdecec; color: var(--danger); }
+.cat-empty { padding: 16px; text-align: center; font-size: 12px; color: var(--text-tertiary); }
+.cat-add { display: flex; gap: 8px; flex-shrink: 0; }
+/* 分组头清空按钮：hover 出现 */
+.vgroup-clear {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  visibility: hidden;
+}
+.vgroup-head:hover .vgroup-clear { visibility: visible; }
+.vgroup-clear:hover { color: var(--danger); background: var(--bg-card); }
+.vgroup-count + .vgroup-clear { margin-left: 0; }
 </style>
