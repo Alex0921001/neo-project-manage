@@ -24,7 +24,7 @@ const MODULES = [
   { title: ["Tasks", "旧版 SubTask API 兼容"], file: "tasks.js", fn: "createTasksModule", extra: `  const PRIORITY_LEVELS = ["P0", "P1", "P2", "P3", "P4", "P5"];` },
   { title: ["Annotations"], file: "annotations.js", fn: "createAnnotationsModule" },
   { title: ["Projects", "项目总结持久化"], file: "projects.js", fn: "createProjectsModule" },
-  { title: ["Files", "Folders"], file: "files.js", fn: "createFilesModule" },
+  { title: ["Files", "Folders"], file: "files.js", fn: "createFilesModule", imports: ["import fs from \"node:fs\";", "import path from \"node:path\";"] },
   { title: ["方案管理", "方案↔需求反向挂载", "方案↔任务反向挂载"], file: "plans.js", fn: "createPlansModule" },
   { title: ["版本管理"], file: "versions.js", fn: "createVersionsModule" },
   { title: ["验证模块", "验证分类字典"], file: "verifications.js", fn: "createVerificationsModule" },
@@ -40,6 +40,14 @@ lines.forEach((l, i) => {
   if (m) marks.push({ line: i, title: m[1] });
 });
 const allFns = new Set(lines.map((l) => (l.match(/^  function (\w+)/) || [])[1]).filter(Boolean));
+// 批1模块导出名（纳入跨模块转发检测，避免 regenerate 冲掉手补绑定）
+const BATCH1_EXPORTS = new Set();
+for (const bf of ["settings.js", "messages.js", "members.js", "notes.js", "quick-tasks.js", "sessions.js", "calendar.js", "uploads.js"]) {
+  const c = fs.readFileSync(path.join("lib/domain", bf), "utf8");
+  const m = c.match(/\n  return \{\n    ([\s\S]+?)\n  \};\n\}\s*$/);
+  if (m) m[1].split(",").map((s) => s.trim().replace(/,$/, "")).filter(Boolean).forEach((x) => BATCH1_EXPORTS.add(x));
+}
+const allFns2 = new Set([...allFns, ...BATCH1_EXPORTS]);
 
 // ---- 函数体剥离（括号深度定界）----
 function extractFn(blockLines, name) {
@@ -109,11 +117,12 @@ for (const mod of MODULES) {
   // deps：SHARED → 解构；其他已知函数（非本模块）→ 转发
   const destruct = new Set(), forward = new Set();
   for (const s of SHARED) if (new RegExp("\\b" + s + "\\b").test(text)) destruct.add(s);
-  for (const f of allFns) {
+  for (const f of allFns2) {
     if (blockFns.includes(f) || SHARED.has(f)) continue;
     if (new RegExp("\\b" + f + "\\s*\\(").test(text)) forward.add(f);
   }
-  const header = `// ${mod.title[0]}（V2.6.1 批2拆分自 data.js，机械搬移不改逻辑）\n` +
+  const header = (mod.imports ? mod.imports.join("\n") + "\n" : "") +
+    `// ${mod.title[0]}（V2.6.1 批2拆分自 data.js，机械搬移不改逻辑）\n` +
     `// 初始共享经 ctx 解构；跨模块函数经转发箭头运行时解引用，无循环 import\n` +
     `export function ${mod.fn}(ctx) {\n` +
     (destruct.size ? `  const { ${[...destruct].join(", ")} } = ctx;\n` : "") +
@@ -161,7 +170,14 @@ const assembly = [
   "  Object.assign(ctx, createCoreModule(ctx));",
   "  Object.assign(ctx, createFtsModule(ctx));",
   "  Object.assign(ctx, createAuditModule(ctx));",
-  "  Object.assign(ctx, createSettingsModule(ctx), createMessagesModule(ctx), createMembersModule(ctx), createNotesModule(ctx), createQuickTasksModule(ctx), createSessionsModule(ctx), createCalendarModule(ctx), createUploadsModule(ctx));",
+  "  Object.assign(ctx, createSettingsModule(ctx));",
+  "  Object.assign(ctx, createMessagesModule(ctx));",
+  "  Object.assign(ctx, createMembersModule(ctx));",
+  "  Object.assign(ctx, createNotesModule(ctx));",
+  "  Object.assign(ctx, createQuickTasksModule(ctx));",
+  "  Object.assign(ctx, createSessionsModule(ctx));",
+  "  Object.assign(ctx, createCalendarModule(ctx));",
+  "  Object.assign(ctx, createUploadsModule(ctx));",
   `  Object.assign(ctx, ${MODULES.slice(3).map((m) => `${m.fn}(ctx)`).join(", ")});`,
   `  const { ${[...batch1Fns, ...made.flatMap((m) => m.blockFns)].join(", ")} } = ctx;`,
   "",
