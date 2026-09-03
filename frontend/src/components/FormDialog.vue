@@ -55,8 +55,9 @@ function emitCancel() {
 }
 
 async function handleSubmit() {
-  // 有 form 校验则先校验；无 form（如纯项目集名称）则直接提交，由父级做校验
-  if (formRef.value) {
+  // 传了 form 才走 el-form 校验；未传（如纯备注式弹窗）直接提交，由父级自行校验。
+  // el-form 无 :model 时 validate 会报 "model is required"，必须跳过
+  if (formRef.value && props.form) {
     const valid = await formRef.value.validate().catch(() => false);
     if (!valid) return;
   }

@@ -222,8 +222,8 @@
           :sort-query="requirementSort"
           @changed="loadProject"
         />
-        <!-- 验证 tab（V2.6）：看板 + 对象清单 -->
-        <VerificationTab v-if="tab === 'verification'" :project-id="p?.id || ''" @changed="loadProject" />
+        <!-- 验证 tab（V2.6）：验证卡列表 + 详情弹窗 -->
+        <VerificationTab v-if="tab === 'verification'" ref="verificationTabRef" :project-id="p?.id || ''" @changed="loadProject" />
       </div>
     </section>
 
@@ -301,6 +301,7 @@ const noteTabRef = ref(null);
 const auditTabRef = ref(null);
 const planTabRef = ref(null);
 const requirementTabRef = ref(null);
+const verificationTabRef = ref(null);
 const compareCount = ref(0);
 const overviewRef = ref(null);
 
@@ -615,6 +616,7 @@ function onTabAction() {
   else if (tab.value === 'notes') noteTabRef.value?.openAdd();
   else if (tab.value === 'plans') planTabRef.value?.openCreate();
   else if (tab.value === 'requirements') requirementTabRef.value?.openCreate();
+  else if (tab.value === 'verification') verificationTabRef.value?.openCreate();
 }
 
 // 文件搜索同步到 FileTab（搜索框在 tab 栏，状态在组件内）

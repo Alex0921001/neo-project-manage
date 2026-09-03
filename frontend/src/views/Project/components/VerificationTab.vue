@@ -1,13 +1,6 @@
 <template>
   <div class="vtab">
     <!-- ===== 卡片列表页 ===== -->
-    <div class="vtab-head">
-      <div class="vtab-progress">
-        <div class="vtab-progress-bar"><div class="vtab-progress-fill" :style="{ width: progressPct + '%' }"></div></div>
-        <span class="vtab-progress-num">{{ summaryDone }}/{{ summaryTotal }}</span>
-      </div>
-      <button class="vtab-new-btn" @click="openCreate">＋ 新建验证</button>
-    </div>
     <div class="vtab-cards">
       <div v-for="v in items" :key="v.id" class="vcard" @click="openDetail(v)">
         <!-- 右上角：编辑 / 删除 -->
@@ -45,28 +38,29 @@
       />
     </div>
 
-    <!-- 新建 / 编辑验证（公共 FormDialog） -->
+    <!-- 新建 / 编辑验证（公共 FormDialog）：名称 + 关联任务 + 备注（自适应填充） -->
     <FormDialog
       v-model:show="formShow"
       :title="formId ? '编辑验证' : '新建验证'"
       :width="440"
-      :height="360"
+      :height="480"
+      :form="form"
+      :rules="formRules"
+      :saving="saving"
       @close="formShow = false"
       @save="saveForm"
     >
-      <el-form label-position="top">
-        <el-form-item label="名称" required>
-          <el-input v-model="form.name" placeholder="验证名称，如：评论功能测试" maxlength="60" />
-        </el-form-item>
-        <el-form-item label="关联任务">
-          <el-select v-model="form.taskIds" multiple filterable placeholder="选择关联任务（可多选）" style="width: 100%">
-            <el-option v-for="t in tasks" :key="t.id" :label="t.name" :value="t.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.note" type="textarea" :rows="3" placeholder="备注信息（可选）" />
-        </el-form-item>
-      </el-form>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="form.name" placeholder="验证名称，如：评论功能测试" maxlength="60" />
+      </el-form-item>
+      <el-form-item label="关联任务">
+        <el-select v-model="form.taskIds" multiple filterable placeholder="选择关联任务（可多选）" style="width: 100%">
+          <el-option v-for="t in tasks" :key="t.id" :label="t.name" :value="t.id" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="备注" class="form-stretch">
+        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="备注信息（可选）" style="height: 100%" />
+      </el-form-item>
     </FormDialog>
 
     <!-- 验证详情弹窗（公共 FloatPanel）：卡内验证项清单 -->
@@ -385,6 +379,8 @@ async function doConfirm() {
     toast(res?.error || "删除失败", "error");
   }
 }
+
+defineExpose({ reload: refresh, openCreate });
 </script>
 
 <style scoped>
