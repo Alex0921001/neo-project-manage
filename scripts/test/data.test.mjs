@@ -1052,3 +1052,74 @@ test("文件夹：审计日志（创建/更新/删除 + folder targetType）", (
   const folderLogs = audit.items.filter((x) => x.targetType === "folder");
   assert.ok(folderLogs.length >= 3, "文件夹操作应记 targetType=folder");
 });
+
+// ===== 方案批量（V2.6.2）=====
+test("方案批量：create 整体回滚 / update·delete 逐条独立 + 状态冻结", () => {
+  const proj = data.createProject({ name: "方案批量测试项目" });
+  const pid = proj.id;
+  const req = data.createRequirement(pid, { name: "关联需求" });
+  const task = data.createTask(pid, { name: "关联任务" });
+
+  // 1. 批量创建：全成（含关联）
+  const created = data.createPlans(pid, [
+    { title: "批量方案一", content: "<p>一</p>", requirementIds: [req.id] },
+    { title: "批量方案二", taskIds: [task.id] },
+    { title: "批量方案三" },
+  ]);
+  assert.equal(created.length, 3);
+  assert.equal(created[0].status, "草稿");
+  assert.deepEqual(created[0].requirements.map((r) => r.id), [req.id]);
+
+  // 2. 批量创建：标题缺失 → 整体回滚
+  assert.throws(() => data.createPlans(pid, [
+    { title: "会回滚的方案" },
+    { title: "  " },
+  ]), /第 2 个方案/);
+  assert.equal(data.listPlans(pid, {}).total, 3, "整体回滚后不应产生新方案");
+
+  // 3. 批量创建：空列表 / 超 50 拒绝
+  assert.throws(() => data.createPlans(pid, []), /不能为空/);
+  assert.throws(() => data.createPlans(pid, Array.from({ length: 51 }, (_, i) => ({ title: `t${i}` }))), /50/);
+
+  // 4. 批量更新：状态流转全成 + 编辑约束逐条生效
+  const [p1, p2, p3] = created;
+  const upd = data.updatePlans(pid, [
+    { id: p1.id, status: "已采纳" },
+    { id: p2.id, title: "批量方案二改" },
+    { id: p3.id, status: "非法状态" },
+  ]);
+  assert.equal(upd.success.length, 2);
+  assert.equal(upd.failed.length, 1);
+  assert.match(upd.failed[0].error, /非法方案状态/);
+  assert.equal(data.getPlan(pid, p1.id).status, "已采纳");
+  assert.equal(data.getPlan(pid, p2.id).title, "批量方案二改");
+
+  // 4.5 p1 已采纳 → 一键转任务（制造「已转任务 + 任务存在」的冻结前提）
+  data.convertPlanToTask(pid, p1.id);
+
+  // 5. 状态冻结逐条生效：p1 已转任务，编辑标题/改状态都应失败，但不影响 p3 流转
+  const frozen = data.updatePlans(pid, [
+    { id: p1.id, title: "不应生效", content: "<p>x</p>" },
+    { id: p1.id, status: "草稿" },
+    { id: p3.id, status: "已废弃" },
+  ]);
+  assert.equal(frozen.success.length, 1);
+  assert.equal(frozen.failed.length, 2);
+  assert.match(frozen.failed[0].error, /仅「草稿 \/ 进行中」/);
+  assert.match(frozen.failed[1].error, /冻结/);
+  assert.equal(data.getPlan(pid, p1.id).title, "批量方案一", "冻结方案标题不应被改动");
+  assert.equal(data.getPlan(pid, p3.id).status, "已废弃");
+
+  // 6. 批量删除：仅草稿/已废弃可删，限制逐条生效
+  const del = data.deletePlans(pid, [p1.id, p2.id, p3.id, p3.id]);
+  assert.equal(del.success.length, 2);
+  assert.equal(del.failed.length, 2);
+  assert.match(del.failed[0].error, /仅「草稿 \/ 已废弃」/);
+  assert.match(del.failed[1].error, /不存在/); // 重复删除
+  assert.equal(data.listPlans(pid, {}).total, 1); // 仅剩 p1
+
+  // 7. 边界：空列表 / 超 50 拒绝
+  assert.throws(() => data.updatePlans(pid, []), /不能为空/);
+  assert.throws(() => data.deletePlans(pid, []), /不能为空/);
+  assert.throws(() => data.deletePlans(pid, Array.from({ length: 51 }, () => "x")), /50/);
+});

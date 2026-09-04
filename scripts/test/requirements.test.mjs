@@ -152,3 +152,88 @@ test("需求：非法参数返回 ok=false 而非 500", async () => {
   assert.equal(parsed.ok, false);
   assert.ok(parsed.error);
 });
+
+// ===== 批量操作（V2.6.2）=====
+test("需求批量：create 整体回滚 / update·status·delete 逐条独立", () => {
+  const proj = data.createProject({ name: "需求批量测试项目" });
+  const pid = proj.id;
+  const planA = data.createPlan(pid, "关联方案", "<p>甲</p>");
+
+  // 1. 批量创建：全成（含关联方案 + 优先级）
+  const created = data.createRequirements(pid, [
+    { name: "批量需求一", priority: "P1", planIds: [planA.id] },
+    { name: "批量需求二", description: "<p>描述</p>" },
+    { name: "批量需求三" },
+  ]);
+  assert.equal(created.length, 3);
+  assert.equal(created[0].priority, "P1");
+  assert.deepEqual(created[0].planIds, [planA.id]);
+  assert.equal(created[2].status, "待处理");
+
+  // 2. 批量创建：名称缺失 → 整体回滚（对齐 createTasks 范式），库里不产生半批数据
+  assert.throws(() => data.createRequirements(pid, [
+    { name: "会回滚的需求" },
+    { name: "  " },
+  ]), /第 2 个需求/);
+  const listAfterRollback = data.listRequirements(pid, {});
+  assert.equal(listAfterRollback.total, 3, "整体回滚后不应产生新需求");
+
+  // 3. 批量创建：空列表 / 超 50 拒绝
+  assert.throws(() => data.createRequirements(pid, []), /不能为空/);
+  assert.throws(() => data.createRequirements(pid, Array.from({ length: 51 }, (_, i) => ({ name: `n${i}` }))), /50/);
+
+  // 4. 批量编辑：全成 + 部分失败（已完成不可改）逐条生效
+  const [r1, r2] = created;
+  data.updateRequirementStatus(pid, r2.id, "已完成");
+  const upd = data.updateRequirements(pid, [
+    { id: r1.id, name: "批量需求一改", priority: "P0" },
+    { id: r2.id, name: "不应生效" },      // 已完成 → 失败
+    { id: "不存在id", name: "x" },        // 不存在 → 失败
+    {},                                     // 缺 ID → 失败
+  ]);
+  assert.equal(upd.success.length, 1);
+  assert.equal(upd.success[0].name, "批量需求一改");
+  assert.equal(upd.failed.length, 3);
+  assert.match(upd.failed[0].error, /不可修改/);
+  assert.match(upd.failed[1].error, /不存在/);
+  assert.match(upd.failed[2].error, /缺少需求 ID/);
+  assert.equal(data.getRequirement(pid, r1.id).priority, "P0");
+  assert.equal(data.getRequirement(pid, r2.id).name, "批量需求二", "失败条不应被改动");
+
+  // 5. 批量流转：全成 + 非法状态失败 + 同目标态幂等
+  const st = data.updateRequirementStatuses(pid, [
+    { id: r1.id, status: "已完成" },
+    { id: r1.id, status: "已完成" }, // 幂等：相同状态直接成功
+    { id: r2.id, status: "非法状态" },
+  ]);
+  assert.equal(st.success.length, 2);
+  assert.equal(st.success[1].status, "已完成");
+  assert.equal(st.failed.length, 1);
+  assert.match(st.failed[0].error, /无效需求状态/);
+
+  // 6. 批量删除：部分失败（已完成不可删）逐条生效 + 重复 ID 二次删报不存在
+  const r3 = created[2];
+  const del = data.deleteRequirements(pid, [r1.id, r2.id, r3.id, r3.id, ""]);
+  assert.equal(del.success.length, 1);
+  assert.equal(del.success[0].id, r3.id);
+  assert.equal(del.failed.length, 4);
+  assert.match(del.failed[0].error, /不可删除/); // r1 已完成
+  assert.match(del.failed[1].error, /不可删除/); // r2 已完成
+  assert.match(del.failed[2].error, /不存在/);   // r3 重复删除
+  assert.match(del.failed[3].error, /缺少需求 ID/);
+  assert.equal(data.listRequirements(pid, {}).total, 2, "r1/r2 已完成不可删，应保留");
+
+  // 8. 已完成批量流转为已取消后可删（三态自由切换 + 交付记录保留语义）
+  const reopen = data.updateRequirementStatuses(pid, [
+    { id: r1.id, status: "已取消" },
+    { id: r2.id, status: "已取消" },
+  ]);
+  assert.equal(reopen.success.length, 2);
+  const del2 = data.deleteRequirements(pid, [r1.id, r2.id]);
+  assert.equal(del2.success.length, 2);
+  assert.equal(data.listRequirements(pid, {}).total, 0);
+
+  // 7. 批量删除：空列表 / 超 50 拒绝
+  assert.throws(() => data.deleteRequirements(pid, []), /不能为空/);
+  assert.throws(() => data.deleteRequirements(pid, Array.from({ length: 51 }, () => "x")), /50/);
+});
