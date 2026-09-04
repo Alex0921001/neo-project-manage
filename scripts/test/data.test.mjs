@@ -760,12 +760,13 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   data.deletePlan(proj.id, p1.id);
   expectThrow(() => data.getPlan(proj.id, p1.id), /不存在/);
 
-  // 审计联动：6 种动作全部留痕
+  // 审计联动：方案 CRUD/转任务留痕；V2.6.1 统一评论表后，评论动作记为「添加评论」「删除评论」（targetType=comment）
   const audit = data.listAuditLogs(proj.id, {});
   const actions = audit.items.map((a) => a.action);
-  for (const act of ["创建方案", "更新方案", "方案评论", "方案转任务", "删除方案评论", "删除方案"]) {
+  for (const act of ["创建方案", "更新方案", "添加评论", "方案转任务", "删除评论", "删除方案"]) {
     assert.ok(actions.includes(act), `审计应包含 ${act}`);
   }
+  assert.ok(audit.items.some((a) => a.action === "添加评论" && a.targetType === "comment"), "评论审计应指向 comment 对象");
 });
 
 
