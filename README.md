@@ -1,8 +1,8 @@
 # neo-project-manage（项目管理）
 
-面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、任务日历、自动总结、风险识别与周报生成的完整闭环。
+面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、统一评论、版本管理、验证模块、临时任务、任务日历、自动总结、风险识别与周报生成的完整闭环，五大模块（需求/方案/评论/验证/临时任务）提供批量操作能力。
 
-> 当前版本：**V2.4.0**（项目卡片对齐反馈传真单样式）
+> 当前版本：**V2.6.2**（五大模块批量操作）
 
 ## 快速使用
 
@@ -41,7 +41,7 @@
 10. list_messages { } / get_message_config { } → 消息中心 / 提醒配置
 ```
 
-## 工具清单（75 个）
+## 工具清单（123 个）
 
 ### 创建
 
@@ -57,6 +57,9 @@
 | `create_plan` | 创建方案（标题 + 富文本内容 + 可选关联需求）|
 | `create_requirement` | 创建需求（名称/简述/优先级/关联方案）|
 | `create_note` | 添加项目备注 |
+| `create_verification` | 创建验证卡（名称 + 关联任务多选 + 备注）|
+| `add_verification_item` | 给验证卡新增验证项 |
+| `quick_task_add` | 新增临时任务（随手记，不关联项目）|
 
 ### 更新
 
@@ -73,6 +76,12 @@
 | `update_requirement` | 编辑需求（仅待处理：名称/简述/优先级/关联方案）|
 | `update_requirement_status` | 需求三态流转（待处理/已完成/已取消，自由互转）|
 | `update_note` | 编辑项目备注 |
+| `update_verification` | 编辑验证卡（名称/关联任务/备注）|
+| `update_verification_item` | 编辑验证项（内容/分类/备注）|
+| `toggle_verification_item` | 勾选/退回验证项（打勾落库：写勾选时间/操作人 + 审计）|
+| `quick_task_update` | 更新临时任务（编辑内容 / 标记完成 / 退回）|
+| `update_comment` | 编辑统一评论（需求/方案通用，保留「已编辑」标记）|
+| `restore_version` | 还原需求/方案到指定历史版本（版本链不断）|
 
 ### 删除
 
@@ -86,6 +95,11 @@
 | `delete_plan` | 删除方案（仅草稿/已废弃，级联删评论）|
 | `delete_plan_comment` | 删除方案评论 |
 | `delete_requirement` | 删除需求（已完成禁止删除，级联清关联）|
+| `delete_verification` | 删除验证卡（级联删卡内验证项，审计留痕）|
+| `delete_verification_item` | 删除验证项（内容快照审计）|
+| `quick_task_delete` | 删除临时任务（未完成/已完成/已转化均可直删）|
+| `quick_task_archive` | 归档临时任务（单条/批量/全部已完成已转化）|
+| `delete_comment` | 删除统一评论（删除留审计）|
 | `delete_project_file` | 删除文件登记（不影响磁盘文件）|
 | `delete_project_folder` | 删除文件夹（真删除：递归删子孙夹+文件登记，磁盘不碰）|
 | `delete_note` | 删除项目备注 |
@@ -139,6 +153,44 @@
 | `confirm_annotations` | 批量确认便利贴（ids/taskId/项目三范围）|
 | `import_plan_file` | 导入 txt/md/docx 成方案（预览或 autoCreate）|
 
+### 批量操作（V2.6.2，19 个）
+
+统一范式：批量新增 = 事务包裹整体回滚（对齐 `create_tasks`）；批量编辑/删除/流转 = 逐条独立校验（对齐 `update_tasks`），单条失败不影响其他条，返回成功/失败清单及原因；items 上限 50。
+
+| 模块 | 工具 | 说明 |
+| --- | --- | --- |
+| 需求 | `create_requirements` `update_requirements` `update_requirement_statuses` `delete_requirements` | 批量新建 / 批量编辑（仅待处理可改逐条生效）/ 批量三态流转 / 批量删除（已完成不可删逐条生效）|
+| 方案 | `create_plans` `update_plans` `delete_plans` | 批量新建 / 批量编辑与流转（状态冻结逐条生效，内容变更自动存版本）/ 批量删除（仅草稿已废弃可删，级联删评论）|
+| 评论 | `add_comments` `update_comments` `delete_comments` | 同目标批量加评论（支持划词引用透传）/ 批量编辑 / 批量删除 |
+| 验证 | `create_verifications` `create_verification_items` `update_verification_items` `toggle_verification_items` `delete_verification_items` `delete_verifications` | 批量建卡 / 单卡批量灌检查项 / 批量编辑 / 批量勾选退回（目标态 + 幂等，逐条审计）/ 批量删项 / 批量删卡 |
+| 临时任务 | `create_quick_tasks` `update_quick_tasks` `delete_quick_tasks` | 批量随手记 / 批量完成退回编辑 / 批量删除（归档态防呆）|
+
+### 临时任务（V2.5）
+
+| 工具 | 说明 |
+| --- | --- |
+| `quick_task_list` | 临时任务列表（status/keyword 筛选，归档态分页）|
+| `quick_task_add` / `quick_task_update` / `quick_task_delete` | 随手记新增 / 编辑与完成退回 / 删除 |
+| `quick_task_archive` | 归档（单条 / ids 批量 / all=true 全部已完成已转化）|
+| `quick_task_convert` | 转正式任务（事务内建任务 + 回写转化去向，任一步失败整体回滚）|
+
+### 验证模块（V2.6）
+
+| 工具 | 说明 |
+| --- | --- |
+| `list_verifications` / `get_verification` | 验证卡列表（分页/搜索） / 详情（关联任务与方案 + 完成进度）|
+| `create_verification` / `update_verification` / `delete_verification` | 验证卡增改删（删除级联删项）|
+| `list_verification_items` / `add_verification_item` / `update_verification_item` / `toggle_verification_item` / `delete_verification_item` | 卡内验证项增删改查 + 勾选退回落库（写勾选时间/操作人 + 审计），进度按项完成度计算 |
+| `list_verification_categories` / `create_verification_category` / `rename_verification_category` / `delete_verification_category` / `clear_verification_group` | 验证分类字典（新项目预置三分类；改名自动同步项；删分类项归入通用组；按组清空验证项）|
+
+### 统一评论与版本管理（V2.6）
+
+| 工具 | 说明 |
+| --- | --- |
+| `list_comments` | 统一评论列表（需求/方案共用一表，targetType 过滤，项目级全览）|
+| `add_comment` / `update_comment` / `delete_comment` | 评论增改删（支持划词引用 quoteText/quoteAnchor；编辑保留已编辑标记；删除带内容快照审计）|
+| `list_versions` / `restore_version` / `set_version_label` | 需求/方案版本快照：查询（新→旧，保留 50 版）/ 还原（旧内容存为新版本）/ 重要备注标记 |
+
 ## 关键用法示例
 
 ```jsonc
@@ -166,6 +218,15 @@ generate_report { "projectId": "xxx", "range": "last7days" }
 
 // 批量更新任务（逐条独立，返回成功/失败清单）
 update_tasks { "projectId": "xxx", "tasks": [{ "id": "t1", "priority": "P1" }, { "id": "t2", "done": true }] }
+
+// 批量新建需求（事务包裹：任一条失败整体回滚）
+create_requirements { "projectId": "xxx", "items": [{ "name": "需求A", "priority": "P1" }, { "name": "需求B" }] }
+
+// 批量勾选验证项（done 为目标态，幂等）
+toggle_verification_items { "projectId": "xxx", "items": [{ "id": "v1", "done": true }, { "id": "v2", "done": true }] }
+
+// 同目标批量加评论
+add_comments { "projectId": "xxx", "targetType": "plan", "targetId": "方案ID", "items": [{ "content": "意见一" }, { "content": "意见二" }] }
 
 // 批量确认便利贴（项目全部未确认）
 confirm_annotations { "projectId": "xxx" }
@@ -213,11 +274,11 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 - SQLite（better-sqlite3，原生绑定 vendor 在 `lib/vendor/`），WAL 模式 + 外键级联
 - 位置：`ctx.dataDir/projects.sqlite`（卸载插件不删数据）
 - schema 版本 **12**，启动自动幂等迁移（老数据兼容）+ 悬空引用自愈（plans.task_id / requirement_plans / task_plans）
-- 表：projects / project_sets / tasks（自引用）/ files / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / messages / fts_entries / fts_dirty / fts_meta / settings / schema_meta
+- 表：projects / project_sets / tasks（自引用）/ files / file_folders / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / messages / fts_entries / fts_dirty / fts_meta / settings / schema_meta / versions / verifications / verification_items / verification_categories / quick_tasks
 
 ## 开发指南
 
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
-- **测试**：`node --test scripts/test/*.test.mjs`（99 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`
+- **测试**：`node --test scripts/test/*.test.mjs`（104 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置/五模块批量操作）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`；本机 Node 跑测试需 `NVM_SKIP_VENDOR=1`（vendor 原生模块为 Hana 宿主 ABI 编译）

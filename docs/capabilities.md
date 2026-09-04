@@ -1,6 +1,6 @@
 # 项目管理 · 功能速查
 
-项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产（多级文件夹）、方案管理、需求管理、消息提醒、全文检索、分析总结、周报生成、临时任务与会话关联。人工端在「项目管理」页面操作，Agent 端通过 81 个工具读写数据，两侧数据实时互通。
+项目管理插件为 **Agent 与人工** 双端提供项目全生命周期管理：项目集分组、树形任务、批注（便利贴）、文件资产（多级文件夹）、方案管理、需求管理、消息提醒、全文检索、分析总结、周报生成、临时任务与会话关联。人工端在「项目管理」页面操作，Agent 端通过 123 个工具读写数据，两侧数据实时互通；需求/方案/评论/验证/临时任务五大模块支持批量操作（批量新增整体回滚、批量编辑删除逐条独立、部分失败不影响其他条）。
 
 ---
 
@@ -15,11 +15,11 @@
 | 树形任务 | 父子孙多级结构，删除父任务**级联删除**子孙，转化来源的临时任务自动回退为已完成并清除转化标记；批量创建（≤50 条，中途失败整体回滚）；编辑支持改父任务；等级 P0~P5；里程碑旗帜标记；三种排序模式（默认可拖拽 / 时间 / 等级）；关键词搜索命中任务名 / 描述 / 批注内容 |
 | 多级文件夹 | file_folders 无限层级树 + 文件归属；新建/重命名（同级重名校验）/ 拖拽换父级（防环）/ 删除真删除（递归删子孙夹+夹内文件登记，磁盘不碰）；拖拽防环禁用提示；左侧空白=根目录；框选（AABB 实时碰撞）+ Ctrl/Shift 多选 + Delete 批量删除；分割线可拖（双击复位）+ 文件夹/树宽持久化；hover 气泡；桌面拖入文件登记；右键打开文件夹 |
 | 文件资产 | 资产化登记：大小、类型、摘要（digest）；路径失效防御（文件被移动/删除不报错）；上传与桌面文件选取；文件内容提取（txt/docx/pdf） |
-| 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论（增删改 + 引用）；版本管理；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求 |
-| 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；评论（增删改 + 引用）；版本管理；筛选/搜索/分页/排序 |
-| 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
+| 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论（增删改 + 引用）；版本管理；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求；**批量**：新建（整体回滚）/ 编辑与流转（冻结逐条生效，变更自动存版）/ 删除 |
+| 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；评论（增删改 + 引用）；版本管理；筛选/搜索/分页/排序；**批量**：新建 / 编辑（仅待处理可改逐条生效）/ 状态流转 / 删除 |
+| 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；**批量**：同目标批量加评论 / 批量编辑 / 批量删除；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
 | 版本管理 | 需求/方案共用：每次保存内容实际变化自动存版（创建存 v1，保留最近 50 版）；版本历史弹窗任选两版对比（逐字段 + 块级 LCS + 字符级高亮，自写不引依赖）；还原 = 旧内容存为新版本（版本链不断）；版本可标记重要备注 |
-| 验证模块 | 项目「验证」tab：验证卡列表（小卡片：名称/备注/关联任务·关联方案/进度条，每页 20 条）+ tab 行搜索框与筛选气泡（关联方案/关联任务，条件按项目持久化）→ 点卡片开弹窗：顶部基础信息区（方案/任务/备注/进度）+ 验证项清单（分类分组 + 打勾落库）；新建/编辑走公共 FormDialog（名称 + 关联任务/方案多选 + 备注）；进度 = 卡内验证项完成度；增删改/勾选全量审计 |
+| 验证模块 | 项目「验证」tab：验证卡列表（小卡片：名称/备注/关联任务·关联方案/进度条，每页 20 条）+ tab 行搜索框与筛选气泡（关联方案/关联任务，条件按项目持久化）→ 点卡片开弹窗：顶部基础信息区（方案/任务/备注/进度）+ 验证项清单（分类分组 + 打勾落库）；新建/编辑走公共 FormDialog（名称 + 关联任务/方案多选 + 备注）；进度 = 卡内验证项完成度；增删改/勾选全量审计；**批量**：建卡 / 单卡批量灌检查项 / 批量编辑 / 批量勾选退回（目标态幂等，逐条审计）/ 批量删项删卡 |
 | tab 栏 | 7 tab 数据驱动 + 拖拽调序 + 右键设置；项目级 > 全局级 > 默认顺序；tab 顺序与显隐持久化 |
 | 批注（便利贴） | 四类：`note` 备注 / `decision` 决策 / `risk` 风险 / `milestone` 节点；待确认 / 已确认两种状态；任务级与项目级筛选；批注管理大屏（可折叠任务树 + 全部任务视图 + 关键字搜索）；已完成任务冻结（不可挂载/修改，可删除） |
 | 成员 | 全局成员表（name 唯一）；项目/任务人员下拉统一走成员体系，支持快捷新增与管理；历史人名自动聚合补录 |
@@ -33,7 +33,7 @@
 | 详情弹窗导航 | 需求/方案/任务详情右上导航（上一条/下一条），点击列表行预览，编辑/删除在弹窗内 |
 | 公共表单弹窗 | 新建/编辑项目集、项目、任务、备注统一使用 FormDialog（基于 FloatPanel）：可拖拽移动、右下角缩放、双击标题栏撑满整页；自带表单校验与统一 footer；富文本编辑区随弹窗大小自适应，小窗长表单可滚动 |
 | 项目卡片 | 传真单风格：白纸底、装订孔 + 撕口虚线、横格下划线、衬线字体 + 等宽编号；固定四行项目描述区，成员单行省略 |
-| 临时任务 | 项目集 Tab 栏最前的独立页签（传真单风格）：点击条目原位编辑（光标落在点击处），回车保存并唤出末尾新增框，清空内容回车/outside 即删；↑↓ 逐视觉行移动光标、首末行跨任务（仿 Word）；快捷气泡点击常驻（完成/转正式/删除，已完成行为退回/转正式/归档/删除）；转正式任务（选项目插入）；归档（后端分页 + 搜索高亮 + 删除）；正式任务/项目删除时自动回退转化标记；四态流转 active → done → archived，converted 平行路径；全局搜索可命中（含归档） |
+| 临时任务 | 项目集 Tab 栏最前的独立页签（传真单风格）：点击条目原位编辑（光标落在点击处），回车保存并唤出末尾新增框，清空内容回车/outside 即删；↑↓ 逐视觉行移动光标、首末行跨任务（仿 Word）；快捷气泡点击常驻（完成/转正式/删除，已完成行为退回/转正式/归档/删除）；转正式任务（选项目插入）；归档（后端分页 + 搜索高亮 + 删除）；正式任务/项目删除时自动回退转化标记；四态流转 active → done → archived，converted 平行路径；全局搜索可命中（含归档）；**批量**：随手记批量新增（整体回滚）/ 批量完成退回编辑 / 批量删除（归档态防呆） |
 | 功能速查弹窗 | 右下角 `?` 按钮，运行时读取本文档渲染 |
 | 安全与校验 | 服务端 XSS 清洗（零依赖白名单）；非法成员 / 非法日期拒绝，日期越界软提示（warnings） |
 
@@ -63,7 +63,17 @@
 - 「把验证项 [xxxx] 标记通过」→ `toggle_verification_item`
 - 「方案的上一版改了什么」→ `list_versions` 查版本列表，可视化 diff 在弹窗中查看；「还原到上一版」→ `restore_version`
 
-### Agent 工具（91 个）
+### 批量操作（典型话术，V2.6.2）
+
+- 「把这 5 条需求都标成已完成」→ `update_requirement_statuses`（items[{id, status}]）
+- 「帮我把这几条随手记一次录进去」→ `create_quick_tasks`（items[{content}]）
+- 「把攒的这些临时任务都标完成」→ `update_quick_tasks`（items[{id, action:"complete"}]）
+- 「建一张发版验证卡，把这些检查项一次灌进去」→ `create_verification` + `create_verification_items`（items[{content, category?}]）
+- 「这轮验收全部验证项都打勾」→ `toggle_verification_items`（全部 done:true，幂等可重复执行）
+- 「这条方案提三条修改意见」→ `add_comments`（targetType:plan + items）
+- 「把这 10 条已废弃方案清掉」→ `delete_plans`（planIds[]，仅草稿/已废弃可删逐条生效）
+
+### Agent 工具（123 个）
 
 | 类别 | 工具 | 说明 |
 | --- | --- | --- |
@@ -76,12 +86,13 @@
 | 成员 | `list_members` `create_member` `update_member` `delete_member` | 全局成员管理 |
 | 会话 | `link_project_session` `list_project_sessions` `unlink_project_session` | 项目与会话双向关联 |
 | 总结 | `summarize_project` `ask_project` `get_project_summaries` `generate_report` | 项目总结 / 问答 / 历史总结 / 周报生成（本周/上周/近7天/自定义） |
-| 方案 | `create_plan` `update_plan` `delete_plan` `list_plans` `get_plan` `add_plan_comment` `update_plan_comment` `delete_plan_comment` `convert_plan_to_task` `import_plan_file` | 方案全生命周期 + 评论（含编辑）+ 文件导入 |
-| 需求 | `create_requirement` `update_requirement` `update_requirement_status` `delete_requirement` `list_requirements` `get_requirement` `link_requirement_plans` `unlink_requirement_plans` | 需求增删改查 + 三态流转 + 方案双向挂载 |
+| 方案 | `create_plan` `update_plan` `delete_plan` `list_plans` `get_plan` `add_plan_comment` `update_plan_comment` `delete_plan_comment` `convert_plan_to_task` `import_plan_file` `create_plans` `update_plans` `delete_plans` | 方案全生命周期 + 评论（含编辑）+ 文件导入 + 批量新建（整体回滚）/批量编辑流转/批量删除 |
+| 需求 | `create_requirement` `update_requirement` `update_requirement_status` `delete_requirement` `list_requirements` `get_requirement` `link_requirement_plans` `unlink_requirement_plans` `create_requirements` `update_requirements` `update_requirement_statuses` `delete_requirements` | 需求增删改查 + 三态流转 + 方案双向挂载 + 批量新建/编辑/流转/删除（限制逐条生效）|
 | 消息 | `list_messages` `mark_message_read` `delete_message` `get_message_unread_count` `get_message_config` `update_message_config` | 消息中心（到期/风险提醒聚合）；提醒配置（提前天数 1-14 + 开关） |
 | 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/评论/验证项/临时任务/文件名；FTS5 trigram + 高亮 snippet |
-| 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增 / 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入） |
-| 验证 | `list_verifications` `create_verification` `update_verification` `delete_verification` `list_verification_items` `add_verification_item` `update_verification_item` `toggle_verification_item` `delete_verification_item` | 验证卡（名称/关联任务/备注）全生命周期 + 卡内验证项清单（增删改查 / 勾选退回落库 + 审计），进度按验证项完成度计算 |
+| 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` `create_quick_tasks` `update_quick_tasks` `delete_quick_tasks` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增（单条与批量）/ 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入）|
+| 验证 | `list_verifications` `get_verification` `create_verification` `update_verification` `delete_verification` `list_verification_items` `add_verification_item` `update_verification_item` `toggle_verification_item` `delete_verification_item` `create_verifications` `create_verification_items` `update_verification_items` `toggle_verification_items` `delete_verification_items` `delete_verifications` `list_verification_categories` `create_verification_category` `rename_verification_category` `delete_verification_category` `clear_verification_group` | 验证卡（名称/关联任务/备注）全生命周期 + 卡内验证项清单（增删改查 / 勾选退回落库 + 审计），进度按验证项完成度计算；批量：建卡/灌项（整体回滚）、编辑/勾选（目标态幂等）/删项删卡（逐条独立）；分类字典管理 |
+| 评论 | `list_comments` `add_comment` `update_comment` `delete_comment` `add_comments` `update_comments` `delete_comments` | 统一评论（需求/方案共用一表）：列表/增删改（编辑留已编辑标记、删除带快照审计）+ 同目标批量加评论/批量编辑/批量删除 |
 | 版本 | `list_versions` `restore_version` `set_version_label` | 需求/方案版本快照：查询 / 还原（旧内容存为新版本）/ 备注标记 |
 | 备注 | `create_note` `update_note` `delete_note` | 项目备注管理 |
 | 审计 | `list_audit_logs` | 审计日志查询（行为/类型/关键词/时间筛选，分页） |
