@@ -276,6 +276,28 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 - schema 版本 **12**，启动自动幂等迁移（老数据兼容）+ 悬空引用自愈（plans.task_id / requirement_plans / task_plans）
 - 表：projects / project_sets / tasks（自引用）/ files / file_folders / task_file_refs / notes / annotations / members / audit_logs / plans / plan_comments / comments / requirements / requirement_plans / task_plans / project_summaries / risk_config / messages / fts_entries / fts_dirty / fts_meta / settings / schema_meta / versions / verifications / verification_items / verification_categories / quick_tasks
 
+## MCP Server（外部 harness 接入）
+
+插件自带零依赖 MCP server（`mcp-server/index.js`），动态扫描 `tools/` 目录（新增工具自动纳入），数据与 Hana 插件共享同一份 SQLite（WAL 多进程安全，已配 busy_timeout）。
+
+- **传输**：stdio 双 framing 自动兼容（MCP 官方换行分隔 JSON + 既有 Content-Length 分帧，响应跟随请求格式）；另支持 HTTP 模式（设 `MCP_PORT` 环境变量，POST `/mcp`）
+- **ABI 自动探测**：启动时检测 vendor 原生模块与本机 Node ABI，不匹配自动降级 `node_modules` 版（需先在插件根目录 `npm install`）
+- **环境变量**：`MCP_DATA_DIR` 数据目录（默认 `%USERPROFILE%/.hanako/plugin-data/neo-project-manage`，与 Hana 正式插件同源）；`MCP_PORT` HTTP 模式端口（可选）
+
+接入示例：
+
+```jsonc
+// Claude Code（项目根 .mcp.json 或 claude mcp add）
+{ "mcpServers": { "neo-pm": { "command": "node", "args": ["<插件根>/mcp-server/index.js"] } } }
+
+// Codex CLI（~/.codex/config.toml）
+// [mcp_servers.neo-pm]
+// command = "node"
+// args = ["<插件根>/mcp-server/index.js"]
+```
+
+> 提示：运行目录需有 `node_modules`（源码目录已具备）；server 与 Hana 插件双写同一份数据，属特性也需注意误操作风险。
+
 ## 开发指南
 
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
