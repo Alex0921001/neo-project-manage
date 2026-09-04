@@ -39,8 +39,14 @@
               <button class="cp-op cp-op-danger" title="删除" @click="askDelete(c)">删除</button>
             </span>
           </div>
-          <!-- 引用块（划词引用）：单行截断，点击定位到正文高亮处 -->
-          <div v-if="c.quoteText" class="cp-quote" :title="c.quoteText" @click="locateQuote(c)">{{ c.quoteText }}</div>
+          <!-- 引用块（划词引用）：单行截断，点击定位到正文高亮处；无正文标注的纯文字引用（Agent 添加）灰显不可定位 -->
+          <div
+            v-if="c.quoteText"
+            class="cp-quote"
+            :class="{ 'cp-quote-plain': !isLocatable(c) }"
+            :title="isLocatable(c) ? c.quoteText : `${c.quoteText}（纯文字引用，无正文标注）`"
+            @click="locateQuote(c)"
+          >{{ c.quoteText }}</div>
           <div class="cp-body">{{ c.content }}</div>
         </template>
       </div>
@@ -80,6 +86,8 @@ const props = defineProps({
   projectId: { type: String, required: true },
   targetType: { type: String, required: true }, // 'plan' | 'requirement'
   targetId: { type: String, required: true },
+  // 正文中有引用标注的评论 id 集合（父级扫描 richContainer 得出）；null = 未提供，保持全部可点击（兼容旧用法）
+  locatableIds: { type: Array, default: null },
 });
 const emit = defineEmits(["loaded", "changed", "quoted", "locate-quote", "quote-removed"]);
 
@@ -252,8 +260,16 @@ async function send() {
   }
 }
 
-// 点击评论引用块 → 通知父级定位正文高亮
+// 点击评论引用块 → 通知父级定位正文高亮；纯文字引用（无正文标注）提示后不定位
+function isLocatable(c) {
+  if (!props.locatableIds) return true;
+  return props.locatableIds.includes(c.id);
+}
 function locateQuote(c) {
+  if (!isLocatable(c)) {
+    toast("该引用为纯文字引用（无正文标注），不可定位", "error");
+    return;
+  }
   emit("locate-quote", c);
 }
 
@@ -462,6 +478,14 @@ defineExpose({ load, scrollToComment, beginQuote, focusInput: () => inputEl.valu
   text-overflow: ellipsis;
 }
 .cp-quote:hover { color: var(--text-secondary); }
+/* 纯文字引用（无正文标注，如 Agent 批量添加）：灰显不可定位 */
+.cp-quote-plain {
+  cursor: default;
+  color: var(--text-tertiary);
+  background: var(--bg-hover);
+  border-left: 2px solid var(--border);
+}
+.cp-quote-plain:hover { color: var(--text-tertiary); }
 .cp-body {
   font-size: 13px;
   color: var(--text);

@@ -90,6 +90,7 @@
             :project-id="projectId"
             target-type="requirement"
             :target-id="currentId || ''"
+            :locatable-ids="locatableIds"
             @loaded="onCommentsLoaded"
             @changed="emit('changed')"
             @quoted="onQuoted"
@@ -249,6 +250,14 @@ const panelTitle = computed(() => {
 // ===== 评论（V2.6：数据内聚在 CommentPanel）=====
 function onCommentsLoaded(count) {
   commentsCollapsed.value = count === 0;
+  // 扫描正文引用标注：无标注的引用退化为纯文字引用（灰显不可定位）
+  nextTick(() => {
+    const container = richContainer.value;
+    if (!container) { locatableIds.value = []; return; }
+    const ids = new Set();
+    container.querySelectorAll("[data-quote-comment]").forEach((el) => ids.add(el.getAttribute("data-quote-comment")));
+    locatableIds.value = [...ids];
+  });
 }
 let commentConfirmResolve = null;
 function onCommentAsk() {
@@ -267,6 +276,8 @@ watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immed
 
 // ===== 划词引用评论（V2.6）=====
 const richContainer = ref(null);
+// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（V2.6.2 Agent 批量加评论场景）
+const locatableIds = ref(null);
 const { bubble: quoteBubble, takeAnchor } = useQuoteSelection(richContainer, {
   enabled: () => mode.value === "read",
 });

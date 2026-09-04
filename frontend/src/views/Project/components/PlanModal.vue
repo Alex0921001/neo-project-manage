@@ -104,6 +104,7 @@
             :project-id="projectId"
             target-type="plan"
             :target-id="planId || ''"
+            :locatable-ids="locatableIds"
             @loaded="onCommentsLoaded"
             @changed="emit('changed')"
             @quoted="onQuoted"
@@ -317,6 +318,8 @@ watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immed
 
 // ===== 划词引用评论（V2.6）=====
 const richContainer = ref(null);
+// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（V2.6.2 Agent 批量加评论场景）
+const locatableIds = ref(null);
 const { bubble: quoteBubble, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
   enabled: () => props.mode === "read" && !saving.value,
 });
@@ -517,6 +520,14 @@ async function onStatusChange(v) {
 // 评论（V2.6：数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
 function onCommentsLoaded(count) {
   commentsCollapsed.value = count === 0;
+  // 扫描正文引用标注：无标注的引用退化为纯文字引用（灰显不可定位）
+  nextTick(() => {
+    const container = richContainer.value;
+    if (!container) { locatableIds.value = []; return; }
+    const ids = new Set();
+    container.querySelectorAll("[data-quote-comment]").forEach((el) => ids.add(el.getAttribute("data-quote-comment")));
+    locatableIds.value = [...ids];
+  });
 }
 
 // 克隆：通知父级以当前方案为克隆源重开新建编辑态（planId 置空，保存走新建）
