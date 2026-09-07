@@ -163,8 +163,7 @@ async function load() {
   const id = ++loadId;
   loading.value = true;
   const sid = filSetId.value;
-  const q = sid !== null && sid !== undefined ? `?projectSetId=${encodeURIComponent(sid)}&_t=${Date.now()}` : `?_t=${Date.now()}`;
-  const res = await listProjects({}, q ? undefined : {});
+  const res = await listProjects({ projectSetId: sid || undefined, _t: Date.now() });
   if (id === loadId) {
     loading.value = false;
     if (res && res.ok) {
