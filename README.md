@@ -41,7 +41,7 @@
 10. list_messages { } / get_message_config { } → 消息中心 / 提醒配置
 ```
 
-## 工具清单（123 个）
+## 工具清单（124 个）
 
 ### 创建
 
@@ -307,4 +307,5 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
-- **测试**：`node --test scripts/test/*.test.mjs`（114 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置/五模块批量操作/评论自动补锚）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`；本机 Node 跑测试需 `NVM_SKIP_VENDOR=1`（vendor 原生模块为 Hana 宿主 ABI 编译）
+- **新增前端接口**：`src/api/modules/` 下新建路由对齐模块（`import http from "../index.js"`），返回业务 JSON `{ ok, data?, error? }`；页面统一走模块函数，禁止直连旧 `api()`（仅保留 resolveAssetUrl/reportHeight/getVersion）；Hana 宿主 iframe 凭据链路由 `src/api/index.js` 的自定义 adapter 承接
+- **测试**：`node --test scripts/test/*.test.mjs`（124 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置/五模块批量操作/评论自动补锚/验证证据回填/评论删除旧表同步）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`；本机 Node 跑测试需 `NVM_SKIP_VENDOR=1`（vendor 原生模块为 Hana 宿主 ABI 编译）
