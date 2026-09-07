@@ -63,7 +63,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from "vue";
-import { api } from "../api.js";
+import { listMembers, createMember, updateMember, deleteMember } from "../api/modules/member.js";
 import { toast } from "../toast.js";
 
 const props = defineProps({ show: Boolean });
@@ -83,7 +83,7 @@ const filteredMembers = computed(() => {
 });
 
 async function load() {
-  const res = await api("api/members");
+  const res = await listMembers();
   if (res?.ok && Array.isArray(res.data)) members.value = res.data;
 }
 
@@ -95,7 +95,7 @@ watch(() => props.show, (v) => {
 async function addMember() {
   const name = newName.value.trim();
   if (!name) return;
-  const res = await api("api/members", { method: "POST", body: JSON.stringify({ name }) });
+  const res = await createMember({ name });
   if (res?.ok) {
     newName.value = "";
     await load();
@@ -125,7 +125,7 @@ async function saveEdit(m) {
   editingId.value = ""; // 先退出编辑态，避免 blur 重复触发
   if (curId !== m.id) return;
   if (!name || name === m.name) return;
-  const res = await api(`api/members/${m.id}`, { method: "PUT", body: JSON.stringify({ name }) });
+  const res = await updateMember(m.id, { name });
   if (res?.ok) {
     toast("已更新");
     await load();
@@ -135,7 +135,7 @@ async function saveEdit(m) {
 
 // ===== 删除（不二次确认）=====
 async function removeMember(m) {
-  const res = await api(`api/members/${m.id}`, { method: "DELETE" });
+  const res = await deleteMember(m.id);
   if (res?.ok) {
     toast("已删除");
     await load();

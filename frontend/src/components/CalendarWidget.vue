@@ -31,7 +31,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import zhCn from "@fullcalendar/core/locales/zh-cn";
 import dayjs from "dayjs";
-import { api } from "../api.js";
+import { listCalendarTasks } from "../api/modules/calendar.js";
 import { candyPalette as palette, pickPaletteColor } from "../utils/palette.js";
 
 const props = defineProps({
@@ -70,10 +70,7 @@ async function loadTaskEvents() {
   try {
     // 按当前筛选拉取（后端按 status 过滤），避免拉回全量再本地过滤
     const status = calFilter.value;
-    const url = props.projectId
-      ? `api/projects/${props.projectId}/calendar-tasks?status=${encodeURIComponent(status)}`
-      : `api/calendar-tasks?status=${encodeURIComponent(status)}`;
-    const res = await api(url);
+    const res = await listCalendarTasks({ projectId: props.projectId, status });
     if (res?.ok && Array.isArray(res.data)) {
       taskEvents.value = res.data;
     } else {

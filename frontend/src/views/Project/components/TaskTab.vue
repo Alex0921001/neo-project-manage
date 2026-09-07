@@ -253,7 +253,8 @@
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import draggable from "vuedraggable";
-import { api } from "../../../api.js";
+import { listPlans } from "../../../api/modules/plan.js";
+import { listTasks, createTask, updateTask, moveTask, reorderTasks } from "../../../api/modules/task.js";
 import { toast } from "../../../toast.js";
 import TaskCard from "./TaskCard.vue";
 import MilestoneTimeline from "./MilestoneTimeline.vue";
@@ -554,11 +555,7 @@ async function handleCrossMove(event) {
   const parentCard = toEl.closest(".task-card");
   const parentTaskId = parentCard ? parentCard.getAttribute("data-task-id") : null;
   const index = event.newIndex ?? 0;
-  const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
-    method: "POST",
-    body: JSON.stringify({ parentTaskId, index }),
-    silent: true,
-  });
+  const res = await moveTask(props.projectId, taskId, { parentTaskId, index }, { silent: true });
   if (!res?.ok) toast(res?.error || "移动失败", "error");
   emit("changed");
 }
@@ -573,10 +570,7 @@ function scheduleSave(taskIds) {
   saveTimer = setTimeout(async () => {
     saveTimer = null;
     console.log("[neo-pm] saving reorder, taskIds:", JSON.stringify(taskIds));
-    const res = await api(`api/projects/${props.projectId}/reorder-tasks`, {
-      method: "POST",
-      body: JSON.stringify({ taskIds }),
-    });
+    const res = await reorderTasks(props.projectId, { taskIds });
     console.log("[neo-pm] reorder response:", res);
     if (!res?.ok) {
       console.error("[reorder-tasks] failed:", res);
@@ -631,7 +625,7 @@ const submitErr = ref(false);
 const plans = ref([]);
 async function loadPlans() {
   if (!props.projectId) return;
-  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+  const res = await listPlans(props.projectId, { limit: 100 });
   if (res?.ok) plans.value = (res.data.items || []).filter((p) => p.status === "已采纳"); // V2.2：仅已采纳方案可挂载
 }
 // 打开任务表单弹窗时预加载方案选项（关联方案多选数据源）
@@ -827,23 +821,17 @@ async function submitInline() {
   try {
     if (editingSubId.value) {
       // 子/孙任务 id 全局唯一，直接按任务 id 更新（后端已无 /tasks/:id/subtasks/:sid 子路由）
-      const res = await api(`api/projects/${props.projectId}/tasks/${editingSubId.value}`, {
-        method: "PUT", body: JSON.stringify(payload), silent: true,
-      });
+      const res = await updateTask(props.projectId, editingSubId.value, payload, { silent: true });
       if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
       else toast(res.error || "更新失败", "error");
     } else if (editingId.value) {
-      const res = await api(`api/projects/${props.projectId}/tasks/${editingId.value}`, {
-        method: "PUT", body: JSON.stringify(payload), silent: true,
-      });
+      const res = await updateTask(props.projectId, editingId.value, payload, { silent: true });
       if (res.ok) { showWarnings(res); toast("已更新"); closeInline(); load(); }
       else toast(res.error || "更新失败", "error");
     } else if (subtaskParent.value) {
       // 子任务 / 孙任务创建（统一路径：POST tasks + parentTaskId）
       const payloadWithParent = { ...payload, parentTaskId: subtaskParent.value.id };
-      const res = await api(`api/projects/${props.projectId}/tasks`, {
-        method: "POST", body: JSON.stringify(payloadWithParent), silent: true,
-      });
+      const res = await createTask(props.projectId, payloadWithParent, { silent: true });
       if (res.ok) {
         showWarnings(res);
         toast("子任务已创建");
@@ -853,9 +841,7 @@ async function submitInline() {
         load();
       } else toast(res.error || "创建失败", "error");
     } else {
-      const res = await api(`api/projects/${props.projectId}/tasks`, {
-        method: "POST", body: JSON.stringify(payload), silent: true,
-      });
+      const res = await createTask(props.projectId, payload, { silent: true });
       if (res.ok) {
         showWarnings(res);
         toast("已创建");
@@ -976,11 +962,7 @@ async function markTaskDone({ task, done }) {  if (!task) return;
       }
     }
   }
-  const res = await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
-    method: "PUT",
-    body: JSON.stringify({ done }),
-    silent: true,  // 手动 toast 错误，避免与 api 拦截重复弹
-  });
+  const res = await updateTask(props.projectId, task.id, { done }, { silent: true });
   if (res?.ok) {
     load();
   } else {
@@ -994,11 +976,7 @@ async function markTaskDone({ task, done }) {  if (!task) return;
  */
 async function toggleMilestone(task) {
   if (!task) return;
-  const res = await api(`api/projects/${props.projectId}/tasks/${task.id}`, {
-    method: "PUT",
-    body: JSON.stringify({ isMilestone: !task.isMilestone }),
-    silent: true,
-  });
+  const res = await updateTask(props.projectId, task.id, { isMilestone: !task.isMilestone }, { silent: true });
   if (res?.ok) {
     toast(task.isMilestone ? "已取消里程碑" : "已标记为里程碑");
     load();

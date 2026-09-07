@@ -77,7 +77,7 @@
 <script setup>
 import { ref, watch, computed } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import { api } from "../../../api.js";
+import { getRiskConfig, updateRiskConfig } from "../../../api/modules/system.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({
@@ -167,7 +167,7 @@ const groupedRules = computed(() => {
 async function load() {
   if (!props.projectId) return;
   loading.value = true;
-  const res = await api(`api/projects/${props.projectId}/risk-config`, { silent: true });
+  const res = await getRiskConfig(props.projectId);
   loading.value = false;
   if (res?.ok && res.data?.rules) {
     const r = JSON.parse(JSON.stringify(res.data.rules));
@@ -209,7 +209,7 @@ async function save() {
   saving.value = true;
   const payload = JSON.parse(JSON.stringify(rules.value));
   if (typeof payload.noDateTasks?.ratio === "number") payload.noDateTasks.ratio = Math.max(0, Math.min(100, payload.noDateTasks.ratio)) / 100;
-  const res = await api(`api/projects/${props.projectId}/risk-config`, { method: "PUT", body: JSON.stringify({ rules: payload }) });
+  const res = await updateRiskConfig(props.projectId, { rules: payload });
   saving.value = false;
   if (res?.ok) {
     toast("风险规则已保存");

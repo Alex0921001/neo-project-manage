@@ -91,7 +91,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
-import { api } from "../../../api.js";
+import { listProjects, createProject, updateProject } from "../../../api/modules/project.js";
 import { toast } from "../../../toast.js";
 import { computeDisplayStatus } from "../../../utils/status.js";
 import ProjectCard from "./ProjectCard.vue";
@@ -164,7 +164,7 @@ async function load() {
   loading.value = true;
   const sid = filSetId.value;
   const q = sid !== null && sid !== undefined ? `?projectSetId=${encodeURIComponent(sid)}&_t=${Date.now()}` : `?_t=${Date.now()}`;
-  const res = await api(`api/projects${q}`);
+  const res = await listProjects({}, q ? undefined : {});
   if (id === loadId) {
     loading.value = false;
     if (res && res.ok) {
@@ -191,11 +191,11 @@ async function saveProject(d) {
   if (!d.name.trim()) return toast("请输入项目名称", "error");
   const body = { name: d.name, description: d.description, planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members: d.members };
   if (d.id) {
-    const res = await api(`api/projects/${d.id}`, { method: "PUT", body: JSON.stringify(body), silent: true });
+    const res = await updateProject(d.id, body, { silent: true });
     if (res.ok) { toast("已更新"); form.show = false; load(); emit("changed"); }
     else toast(res.error || "更新失败", "error");
   } else {
-    const res = await api("api/projects", { method: "POST", body: JSON.stringify(body), silent: true });
+    const res = await createProject(body, { silent: true });
     if (res.ok) { toast("已创建"); form.show = false; load(); emit("changed"); }
     else toast(res.error || "创建失败", "error");
   }
@@ -228,7 +228,7 @@ function archiveProj(p) {
   });
 }
 async function unarchiveProj(p) {
-  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  const res = await updateProject(p.id, { archived: false }, { silent: true });
   if (res?.ok) { toast("已取消归档"); load(); emit("changed"); }
   else toast(res.error || "操作失败", "error");
 }
@@ -239,7 +239,7 @@ async function togglePin(p) {
   const next = !p.pinned;
   const prev = p.pinned;
   p.pinned = next; // 星星视觉即时反馈（排序不受影响，读 pinSnapshot）
-  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ pinned: next }), silent: true });
+  const res = await updateProject(p.id, { pinned: next }, { silent: true });
   if (res?.ok) {
     toast(next ? "已收藏置顶" : "已取消收藏");
   } else {
@@ -252,7 +252,7 @@ async function togglePin(p) {
 const archivedShow = ref(false);
 const archivedProjects = computed(() => groupedProjects.value.find((g) => g.key === "archived")?.items || []);
 async function restoreFromModal(p) {
-  const res = await api(`api/projects/${p.id}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  const res = await updateProject(p.id, { archived: false }, { silent: true });
   if (res?.ok) { toast("已恢复"); load(); emit("changed"); }
   else toast(res.error || "操作失败", "error");
 }

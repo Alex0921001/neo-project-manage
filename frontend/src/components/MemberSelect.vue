@@ -44,7 +44,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { api } from "../api.js";
+import { listAllKnownNames } from "../api/modules/member.js";
 import MemberManageModal from "./MemberManageModal.vue";
 
 const props = defineProps({
@@ -66,7 +66,7 @@ const manageShow = ref(false);
 // 全部已知人名：GET /api/members/all-known → [{ name, isHistoric }]
 const options = ref([]);
 async function loadAll() {
-  const res = await api("api/members/all-known");
+  const res = await listAllKnownNames();
   if (res?.ok && Array.isArray(res.data)) options.value = res.data;
 }
 onMounted(loadAll);

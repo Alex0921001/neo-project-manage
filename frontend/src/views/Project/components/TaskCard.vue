@@ -193,7 +193,8 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { api } from "../../../api.js";
+import { reorderSubtasks, moveTask } from "../../../api/modules/task.js";
+import { openFile as openFileApi } from "../../../api/modules/file.js";
 import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 import { highlight, highlightRichText } from "../../../utils/highlight.js";
@@ -283,9 +284,10 @@ function scheduleSave() {
   subSaveTimer = setTimeout(async () => {
     subSaveTimer = null;
     const ids = subtasksLocal.value.map(s => s.id);
-    const res = await api(
-      `api/projects/${props.projectId}/tasks/${props.task.id}/reorder-subtasks`,
-      { method: "POST", body: JSON.stringify({ subtaskIds: ids }) }
+    const res = await reorderSubtasks(
+      props.projectId,
+      props.task.id,
+      { subtaskIds: ids }
     );
     if (!res?.ok) {
       toast(`子任务排序保存失败：${res?.error || "未知错误"}`, "error");
@@ -313,11 +315,7 @@ async function handleCrossMove(event) {
   const parentCard = toEl.closest(".task-card");
   const parentTaskId = parentCard ? parentCard.getAttribute("data-task-id") : null;
   const index = event.newIndex ?? 0;
-  const res = await api(`api/projects/${props.projectId}/tasks/${taskId}/move`, {
-    method: "POST",
-    body: JSON.stringify({ parentTaskId, index }),
-    silent: true,
-  });
+  const res = await moveTask(props.projectId, taskId, { parentTaskId, index }, { silent: true });
   if (!res?.ok) toast(res?.error || "移动失败", "error");
   emit("changed");
 }
@@ -337,7 +335,7 @@ function openPlan(planId) {
 
 async function openFile(f) {
   if (!f?.path) return;
-  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`, { silent: true });
+  const res = await openFileApi(f.path);
   if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 

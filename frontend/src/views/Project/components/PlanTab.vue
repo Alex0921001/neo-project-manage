@@ -95,7 +95,7 @@
 
 <script setup>
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
-import { api } from "../../../api.js";
+import { listPlans, deletePlan, convertPlan } from "../../../api/modules/plan.js";
 import { toast } from "../../../toast.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
 import { highlight } from "../../../utils/highlight.js";
@@ -218,13 +218,13 @@ async function doCtxConfirm() {
   }
   if (!plan) return;
   if (action === "delete") {
-    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}`, { method: "DELETE" });
+    const res = await deletePlan(props.projectId, plan.id);
     if (res?.ok) {
       toast("已删除方案");
       onChanged();
     } else toast(res?.error || "删除失败", "error");
   } else if (action === "convert") {
-    const res = await api(`api/projects/${props.projectId}/plans/${plan.id}/convert`, { method: "POST" });
+    const res = await convertPlan(props.projectId, plan.id);
     if (res?.ok) {
       toast("已转为任务");
       onChanged();
@@ -249,7 +249,7 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
     const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
     if (keyword.trim()) params.set("keyword", keyword.trim());
     if (status && status !== "全部") params.set("status", status);
-    const res = await api(`api/projects/${props.projectId}/plans?${params}`);
+    const res = await listPlans(props.projectId, params);
     if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
       plans.value = res.data.items || [];

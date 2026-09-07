@@ -165,7 +165,9 @@
 <script setup>
 import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import draggable from "vuedraggable";
-import { api } from "../../../api.js";
+import { getUnreadCount } from "../../../api/modules/message.js";
+import { listQuickTasks } from "../../../api/modules/quickTask.js";
+import { createProjectSet, updateProjectSet } from "../../../api/modules/projectSet.js";
 import { toast } from "../../../toast.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
@@ -223,7 +225,7 @@ const unread = ref(0);
 /** 拉取未读数（挂载 / 面板打开 / 读删后刷新；静默失败不影响 UI） */
 async function loadUnread() {
   try {
-    const res = await api("api/messages/unread-count", { silent: true });
+    const res = await getUnreadCount({}, { silent: true });
     if (res?.ok) unread.value = res.data.unread || 0;
   } catch { /* ignore */ }
 }
@@ -234,7 +236,7 @@ watch(msgShow, (v) => { if (v) loadUnread(); });
 const quickCount = ref(0);
 async function loadQuickCount() {
   try {
-    const res = await api("api/quick-tasks", { silent: true });
+    const res = await listQuickTasks({}, { silent: true });
     if (res?.ok) quickCount.value = (res.data || []).filter((t) => t.status === "active").length;
   } catch { /* ignore */ }
 }
@@ -332,11 +334,11 @@ async function doSave() {
   saving.value = true;
   try {
     if (editMode.value === "add") {
-      const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }), silent: true });
+      const res = await createProjectSet({ name }, { silent: true });
       if (res.ok) { toast("已创建"); editShow.value = false; emit("changed"); }
       else toast(res.error || "创建失败", "error");
     } else {
-      const res = await api(`api/project-sets/${editTargetId.value}`, { method: "PUT", body: JSON.stringify({ name }), silent: true });
+      const res = await updateProjectSet(editTargetId.value, { name }, { silent: true });
       if (res.ok) { toast("已更新"); editShow.value = false; emit("changed"); }
       else toast(res.error || "更新失败", "error");
     }
@@ -399,7 +401,7 @@ async function mgrSaveEdit(s) {
   }
   saving.value = true;
   try {
-    const res = await api(`api/project-sets/${s.id}`, { method: "PUT", body: JSON.stringify({ name }), silent: true });
+    const res = await updateProjectSet(s.id, { name }, { silent: true });
     if (res.ok) toast("已更新");
     else toast(res.error || "更新失败", "error");
     emit("changed");
@@ -418,7 +420,7 @@ async function mgrAdd() {
   if (props.sets.some((s) => s.name.trim() === name)) return toast(`项目集名称「${name}」已存在`, "error");
   saving.value = true;
   try {
-    const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }), silent: true });
+    const res = await createProjectSet({ name }, { silent: true });
     if (res.ok) { toast("已创建"); mgrName.value = ""; emit("changed"); }
     else toast(res.error || "创建失败", "error");
   } finally {

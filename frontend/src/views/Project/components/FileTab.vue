@@ -181,7 +181,8 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount, toRefs } from "vue";
-import { api, resolveAssetUrl } from "../../../api.js";
+import { resolveAssetUrl } from "../../../api.js";
+import { listFiles, registerFile, deleteFile, listFolders, createFolder, updateFolder, deleteFolder, openFile as openFileApi, openFolder as openFolderApi, pickFile as pickFileApi } from "../../../api/modules/file.js";
 import { toast } from "../../../toast.js";
 import { usePersistedTabState } from "../../../utils/usePersistedTabState.js";
 import FolderNode from "./FolderNode.vue";
@@ -667,9 +668,7 @@ async function commitEdit() {
   names.delete(name); // 排除自身旧名
   if (names.has(val)) { toast(`同级已存在「${val}」，不能重名`, "error"); return; }
   cancelEdit();
-  const res = await api(`api/projects/${props.projectId}/folders/${id}`, {
-    method: "PUT", body: JSON.stringify({ name: val }), silent: true,
-  });
+  const res = await updateFolder(props.projectId, id, { name: val }, { silent: true });
   if (res?.ok) { emit("changed"); }
   else toast(res?.error || "保存失败", "error");
 }
@@ -683,9 +682,7 @@ async function commitNew() {
   const pid = parentId === "root" ? "" : parentId;
   if (siblingNames(pid).has(val)) { toast(`同级已存在「${val}」，不能重名`, "error"); return; }
   cancelNew();
-  const res = await api(`api/projects/${props.projectId}/folders`, {
-    method: "POST", body: JSON.stringify({ name: val, parentId: pid }), silent: true,
-  });
+  const res = await createFolder(props.projectId, { name: val, parentId: pid }, { silent: true });
   if (res?.ok) { emit("changed"); }
   else toast(res?.error || "创建失败", "error");
 }
@@ -767,9 +764,7 @@ async function moveDragFolderTo(targetId) {
   // 拖到当前父级 = 无意义操作，直接忽略（不发请求）
   const curParent = parentIdOf(props.folders, id);
   if (tid === (curParent || "")) return;
-  const res = await api(`api/projects/${props.projectId}/folders/${id}`, {
-    method: "PUT", body: JSON.stringify({ parentId: tid }), silent: true,
-  });
+  const res = await updateFolder(props.projectId, id, { parentId: tid }, { silent: true });
   if (res?.ok) { emit("changed"); }
   else toast(res?.error || "移动失败", "error");
 }
@@ -821,7 +816,7 @@ async function pickFile() {
     if (picking.value) toast("如果系统弹窗已打开，请完成选择；否则请重试", "warn");
   }, 12000);
   try {
-    res = await api("api/pick-file", { silent: true });
+    res = await pickFileApi();
   } catch (err) {
     res = { ok: false, error: err.message };
   } finally {
@@ -844,9 +839,7 @@ async function confirmAdd() {
   const folderId = addFolderOverride.value || (selectedFolder.value !== "all" && selectedFolder.value !== "root" ? selectedFolder.value : "");
   const results = [];
   for (const p of pending.value) {
-    const res = await api(`api/projects/${props.projectId}/files`, {
-      method: "POST", body: JSON.stringify({ path: p, folderId }), silent: true,
-    });
+    const res = await registerFile(props.projectId, { path: p, folderId }, { silent: true });
     results.push(res?.ok ? { ok: true, name: res.data?.name } : { ok: false, error: res?.error });
   }
   adding.value = false;
@@ -863,7 +856,7 @@ async function confirmAdd() {
 
 async function openFile(f) {
   if (!f.path) { toast("无文件路径", "error"); return; }
-  const res = await api(`api/open-file?path=${encodeURIComponent(f.path)}`, { silent: true });
+  const res = await openFileApi(f.path);
   if (!res?.ok) toast(res?.error || "打开文件失败", "error");
 }
 
@@ -897,7 +890,7 @@ async function menuOpenFolder() {
   closeMenu();
   for (const f of files) {
     if (!f?.path) { toast("无文件路径", "error"); continue; }
-    const res = await api(`api/open-folder?path=${encodeURIComponent(f.path)}`, { silent: true });
+    const res = await openFolderApi(f.path);
     if (!res?.ok) toast(res?.error || "打开文件夹失败", "error");
   }
 }
@@ -970,7 +963,7 @@ async function registerDroppedFiles(files) {
   const list = [...files];
   const folderId = selectedFolder.value !== "root" ? selectedFolder.value : null;
   const results = await Promise.all(
-    list.map((f) => api(`api/projects/${props.projectId}/files`, {
+    list.map((f) => registerFile(props.projectId, {
       method: "POST", body: JSON.stringify({ path: f?.path || "", folderId }), silent: true,
     }))
   );
@@ -989,7 +982,7 @@ async function moveDragFilesTo(target) {
   dragIds.value = [];
   if (!ids.length) return;
   const results = await Promise.all(
-    ids.map((id) => api(`api/projects/${props.projectId}/files/${id}`, {
+    ids.map((id) => deleteFile(props.projectId, id, {
       method: "PUT", body: JSON.stringify({ folderId: target || "" }), silent: true,
     }))
   );

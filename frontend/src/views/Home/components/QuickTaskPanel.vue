@@ -212,7 +212,8 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { Search as SearchIcon } from "@element-plus/icons-vue";
-import { api } from "../../../api.js";
+import { listQuickTasks, createQuickTask, updateQuickTask, deleteQuickTask, archiveQuickTask, convertQuickTask, listArchivedQuickTasks, deleteArchivedQuickTasks } from "../../../api/modules/quickTask.js";
+import { listProjects } from "../../../api/modules/project.js";
 import { toast } from "../../../toast.js";
 import { highlightKeyword } from "../../../utils/jump.js";
 import FormDialog from "../../../components/FormDialog.vue";
@@ -234,7 +235,7 @@ const activeList = computed(() => tasks.value.filter((t) => t.status === "active
 const doneList = computed(() => tasks.value.filter((t) => t.status === "done" || t.status === "converted"));
 
 async function load() {
-  const res = await api("api/quick-tasks");
+  const res = await listQuickTasks();
   if (res?.ok) {
     tasks.value = res.data || [];
   }
@@ -295,7 +296,7 @@ function onEditEnter(t, e) {
 async function addTask(refocus = true) {
   const v = inputText.value.trim();
   if (!v) return false;
-  const res = await api("api/quick-tasks", { method: "POST", body: JSON.stringify({ content: v }) });
+  const res = await createQuickTask({ content: v });
   if (res?.ok) {
     inputText.value = "";
     await load(); // 立即拉取新数据，否则要等下一次 load 才出现
@@ -314,12 +315,12 @@ async function addTask(refocus = true) {
 
 // ===== 完成 / 退回（完成后通知父级刷新 tab 角标数字） =====
 async function markDone(t) {
-  const res = await api(`api/quick-tasks/${t.id}`, { method: "PUT", body: JSON.stringify({ action: "complete" }) });
+  const res = await updateQuickTask(t.id, { action: "complete" });
   if (res?.ok) { await load(); emit("changed"); }
   else toast(res?.error || "操作失败", "error");
 }
 async function reopenTask(t) {
-  const res = await api(`api/quick-tasks/${t.id}`, { method: "PUT", body: JSON.stringify({ action: "reopen" }) });
+  const res = await updateQuickTask(t.id, { action: "reopen" });
   if (res?.ok) { await load(); emit("changed"); }
   else toast(res?.error || "操作失败", "error");
 }
@@ -438,7 +439,7 @@ async function saveEdit(id, val) {
   const target = tasks.value.find((t) => t.id === id);
   const prevContent = target?.content;
   if (target) target.content = v;
-  const res = await api(`api/quick-tasks/${id}`, { method: "PUT", body: JSON.stringify({ content: v }) });
+  const res = await updateQuickTask(id, { content: v });
   if (!res?.ok) {
     if (target && prevContent !== undefined) target.content = prevContent;
     toast(res?.error || "保存失败", "error");
@@ -458,7 +459,7 @@ async function removeEmpty(id) {
   activeDoneId.value = null;
   const prev = tasks.value;
   tasks.value = tasks.value.filter((t) => t.id !== id);
-  const res = await api(`api/quick-tasks/${id}`, { method: "DELETE" });
+  const res = await deleteQuickTask(id);
   if (!res?.ok) {
     tasks.value = prev;
     toast(res?.error || "删除失败", "error");
@@ -482,14 +483,14 @@ async function doConfirmDelete() {
 
 // ===== 归档 =====
 async function archiveOne(t) {
-  const res = await api(`api/quick-tasks/${t.id}/archive`, { method: "POST" });
+  const res = await archiveQuickTask(t.id);
   if (res?.ok) { await load(); loadArchCount(); emit("changed"); }
   else toast(res?.error || "归档失败", "error");
 }
 async function archiveAll() {
   const n = doneList.value.length;
   if (!n) { toast("没有可归档的数据", "error"); return; }
-  const res = await api("api/quick-tasks/archive", { method: "POST", body: JSON.stringify({ all: true }) });
+  const res = await archiveQuickTasks({ all: true });
   if (res?.ok) { await load(); loadArchCount(); emit("changed"); }
   else toast(res?.error || "归档失败", "error");
 }
@@ -512,7 +513,7 @@ async function openConvert(t) {
   convForm.priority = "P3";
   convShow.value = true;
   // 全量项目，排除已归档
-  const res = await api("api/projects");
+  const res = await listProjects();
   if (res?.ok) {
     projectOptions.value = (res.data || []).filter((p) => !p.archived);
   }
@@ -520,10 +521,7 @@ async function openConvert(t) {
 async function doConvert() {
   convSaving.value = true;
   try {
-    const res = await api(`api/quick-tasks/${convTarget.value.id}/convert`, {
-      method: "POST",
-      body: JSON.stringify({ projectId: convForm.projectId, name: convForm.name, priority: convForm.priority }),
-    });
+    const res = await convertQuickTask(convTarget.value.id, { projectId: convForm.projectId, name: convForm.name, priority: convForm.priority });
     if (res?.ok) {
       convShow.value = false;
       await load();
@@ -570,13 +568,13 @@ const archPages = computed(() => Math.max(1, Math.ceil(archTotal.value / archPag
 
 function loadArchCount() {
   // 复用归档接口取 total 做角标
-  api("api/quick-tasks/archived?page=1&pageSize=1").then((res) => {
+  listArchivedQuickTasks({ page: 1, pageSize: 1 }).then((res) => {
     if (res?.ok) archTotal.value = res.data.total || 0;
   });
 }
 async function loadArchived() {
   const kw = encodeURIComponent(archKeyword.value.trim());
-  const res = await api(`api/quick-tasks/archived?page=${archPage.value}&pageSize=${archPageSize}&keyword=${kw}`);
+  const res = await listArchivedQuickTasks({ page: archPage.value, pageSize: archPageSize, keyword: kw });
   if (res?.ok) {
     archItems.value = res.data.items || [];
     archTotal.value = res.data.total || 0;
@@ -598,7 +596,7 @@ function archGo(p) {
 }
 async function deleteArch(t) {
   askDelete("确认删除该条归档？", async () => {
-    const res = await api("api/quick-tasks/archived", { method: "DELETE", body: JSON.stringify({ id: t.id }) });
+    const res = await deleteArchivedQuickTasks({ id: t.id });
     if (res?.ok) await loadArchived();
     else toast(res?.error || "删除失败", "error");
   });
@@ -606,7 +604,7 @@ async function deleteArch(t) {
 async function deleteAllArch() {
   if (!archTotal.value) { toast("没有可删除的数据", "error"); return; }
   askDelete(`确认删除全部 ${archTotal.value} 条归档？`, async () => {
-    const res = await api("api/quick-tasks/archived?all=1", { method: "DELETE" });
+    const res = await deleteArchivedAll();
     if (res?.ok) { archPage.value = 1; await loadArchived(); }
     else toast(res?.error || "删除失败", "error");
   });

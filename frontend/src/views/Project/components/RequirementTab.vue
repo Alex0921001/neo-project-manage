@@ -83,7 +83,7 @@
 
 <script setup>
 import { ref, computed, watch, reactive, nextTick, onMounted, onBeforeUnmount } from "vue";
-import { api } from "../../../api.js";
+import { listRequirements, deleteRequirement } from "../../../api/modules/requirement.js";
 import { toast } from "../../../toast.js";
 import { highlight } from "../../../utils/highlight.js";
 import RequirementModal from "./RequirementModal.vue";
@@ -116,11 +116,11 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
   const seq = ++loadSeq;
   loading.value = true;
   try {
-    const q = new URLSearchParams({ limit: String(pageSize), offset: String((p - 1) * pageSize) });
-    if (status !== "全部") q.set("status", status);
-    if (keyword.trim()) q.set("keyword", keyword.trim());
-    if (sort && sort !== "default") q.set("sort", sort);
-    const res = await api(`api/projects/${props.projectId}/requirements?${q}`);
+    const params = { limit: String(pageSize), offset: String((p - 1) * pageSize) };
+    if (status !== "全部") params.status = status;
+    if (keyword.trim()) params.keyword = keyword.trim();
+    if (sort && sort !== "default") params.sort = sort;
+    const res = await listRequirements(props.projectId, params);
     if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
       list.value = res.data.items || [];
@@ -353,7 +353,7 @@ async function doCtxConfirm() {
     return;
   }
   if (!req || action !== "delete") return;
-  const res = await api(`api/projects/${props.projectId}/requirements/${req.id}`, { method: "DELETE" });
+  const res = await deleteRequirement(props.projectId, req.id);
   if (res?.ok) {
     toast("已删除需求");
     load();

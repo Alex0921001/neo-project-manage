@@ -40,7 +40,8 @@
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from "vue";
-import { api } from "../../api.js";
+import { listProjectSets, createProjectSet, deleteProjectSet } from "../../api/modules/projectSet.js";
+import { deleteProject, updateProject } from "../../api/modules/project.js";
 import { toast } from "../../toast.js";
 import ProjectSetTabs from "./components/ProjectSetTabs.vue";
 import ProjectPanel from "./components/ProjectPanel.vue";
@@ -63,7 +64,7 @@ const selSetId = ref(null);
 const projPanel = ref(null);
 
 async function load() {
-  const res = await api("api/project-sets");
+  const res = await listProjectSets();
   if (res && res.ok) sets.value = res.data || [];
 }
 
@@ -84,7 +85,7 @@ function onSelectSet(id) {
 async function onReorder(ids) {
   const map = new Map(sets.value.map((s) => [s.id, s]));
   sets.value = ids.map((id) => map.get(id)).filter(Boolean);
-  const res = await api("api/project-sets/reorder", { method: "POST", body: JSON.stringify({ ids }), silent: true });
+  const res = await reorderProjectSets({ ids }, { silent: true });
   if (res?.ok) {
     load(); // 刷新拿到后端最新 sort，保持顺序
   } else {
@@ -102,15 +103,15 @@ async function doConfirm() {
   const { action, payload } = confirm.value;
   confirm.value.show = false;
   if (action === "delete-set") {
-    const res = await api(`api/project-sets/${payload}`, { method: "DELETE", silent: true });
+    const res = await deleteProjectSet(payload, { silent: true });
     if (res.ok) { toast("已删除"); if (selSetId.value === payload) { selSetId.value = null; projPanel.value?.setFilter(null); } load(); }
     else toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
   } else if (action === "delete-project") {
-    const res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
+    const res = await deleteProject(payload, { silent: true });
     if (res.ok) { toast("已删除"); load(); projPanel.value?.load(); }
     else toast(res.error || "删除失败", "error");  // 重复 toast 被 toast.js 内容去重
   } else if (action === "archive-project") {
-    const res = await api(`api/projects/${payload}`, { method: "PUT", body: JSON.stringify({ archived: true }), silent: true });
+    const res = await updateProject(payload, { archived: true }, { silent: true });
     if (res.ok) { toast("已归档"); load(); projPanel.value?.load(); }
     else toast(res.error || "归档失败", "error");
   }

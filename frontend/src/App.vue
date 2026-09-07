@@ -26,7 +26,7 @@
       @select-task="(payload) => { calendarShow = false; openTaskFromCalendar(payload) }"
     />
 
-    <!-- V2.3 R2：全局搜索（Home 放大镜 / Ctrl+F 触发） -->
+    <!-- V2.3 R2：全局搜索（Home 放大�?/ Ctrl+F 触发�?-->
     <SearchPanel v-model="globalSearchShow" />
 
     <div
@@ -39,14 +39,16 @@
       <span class="sep">·</span>
       <span class="t">FE {{ formatTime(versionInfo.frontendBuiltAt) }}</span>
       <span class="sep">·</span>
-      <span class="t">BE {{ versionInfo.loadedAt ? formatTime(versionInfo.loadedAt) : '—' }}</span>
+      <span class="t">BE {{ versionInfo.loadedAt ? formatTime(versionInfo.loadedAt) : '？' }}</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from "vue";
-import { api, reportHeight, getVersion } from "./api.js";
+import { reportHeight, getVersion } from "./api.js";
+import { listProjects, getProject } from "./api/modules/project.js";
+import { listProjectSets } from "./api/modules/projectSet.js";
 import HomeView from "./views/Home/index.vue";
 import ProjectDetail from "./views/Project/index.vue";
 import CalendarModal from "./components/CalendarModal.vue";
@@ -59,9 +61,9 @@ const allProjects = ref([]);
 const allSets = ref([]);
 const historyStack = ref([]); // [{ view, projectId }]
 const versionInfo = ref(null);
-const calendarShow = ref(false); // 全项目日历弹窗
-const calendarSetId = ref(null); // 打开日历时携带的当前项目集 id（null=全部项目集）
-const globalSearchShow = ref(false); // V2.3 R2：全局搜索弹窗（Home 放大镜 / Ctrl+F）
+const calendarShow = ref(false); // 全项目日历弹�?
+const calendarSetId = ref(null); // 打开日历时携带的当前项目�?id（null=全部项目集）
+const globalSearchShow = ref(false); // V2.3 R2：全局搜索弹窗（Home 放大�?/ Ctrl+F�?
 
 function formatTime(iso) {
   if (!iso) return "-";
@@ -75,8 +77,8 @@ function formatTime(iso) {
 
 async function loadAllProjects() {
   const [pr, sr] = await Promise.all([
-    api("api/projects"),
-    api("api/project-sets"),
+    listProjects(),
+    listProjectSets(),
   ]);
   if (pr?.ok) allProjects.value = pr.data || [];
   if (sr?.ok) allSets.value = sr.data || [];
@@ -99,7 +101,7 @@ function goCalendar(setId) {
 }
 
 function openProject(id) {
-  // 记录当前状态，返回时跳转
+  // 记录当前状态，返回时跳�?
   if (view.value !== "project" || projectId.value !== id) {
     historyStack.value.push({ view: view.value, projectId: projectId.value });
   }
@@ -109,7 +111,7 @@ function openProject(id) {
 }
 
 function openTaskFromCalendar({ projectId: pid, taskId }) {
-  // 先记录待滚动任务，项目详情加载完成后由 ProjectDetail 消费
+  // 先记录待滚动任务，项目详情加载完成后�?ProjectDetail 消费
   if (taskId) {
     try { sessionStorage.setItem("neo-pm-scroll-task", taskId); } catch { /* ignore */ }
   }
@@ -117,7 +119,7 @@ function openTaskFromCalendar({ projectId: pid, taskId }) {
 }
 
 function goBack() {
-  // V2.3 精修：详情页返回按钮固定回项目列表页（Home），不再回上一次路由
+  // V2.3 精修：详情页返回按钮固定回项目列表页（Home），不再回上一次路�?
   goHome();
 }
 
@@ -150,15 +152,15 @@ async function restoreState() {
   } catch { return; }
   if (!state) return;
 
-  // 恢复路由栈
+  // 恢复路由�?
   if (Array.isArray(state.historyStack)) {
     historyStack.value = state.historyStack.filter(s => s && typeof s.view === "string");
   }
 
-  // 恢复视图；项目详情页需校验项目是否还存在
+  // 恢复视图；项目详情页需校验项目是否还存�?
   if (state.view === "project" && state.projectId) {
     try {
-      const res = await api(`api/projects/${state.projectId}`);
+      const res = await getProject(state.projectId);
       if (res?.ok) {
         projectId.value = state.projectId;
         view.value = "project";
@@ -186,12 +188,12 @@ onMounted(async () => {
   reportHeight();
   const ro = new ResizeObserver(() => reportHeight());
   ro.observe(document.body);
-  // 异步拉版本号，不阻塞主流程；失败时静态注入值兜底
+  // 异步拉版本号，不阻塞主流程；失败时静态注入值兜�?
   getVersion().then((v) => { if (v) versionInfo.value = v; }).catch(() => {});
 
-  // V2.3 R2：Ctrl+F 全局搜索（插件 iframe 内，若宿主拦截该快捷键则事件不达，自然降级为不拦截）
+  // V2.3 R2：Ctrl+F 全局搜索（插�?iframe 内，若宿主拦截该快捷键则事件不达，自然降级为不拦截）
   window.addEventListener("keydown", onGlobalKeydown);
-  // V2.3 R2：搜索/消息跳转事件（跨项目时切到目标项目；同项目由项目页自行处理）
+  // V2.3 R2：搜�?消息跳转事件（跨项目时切到目标项目；同项目由项目页自行处理）
   window.addEventListener("neo-pm:jump", onGlobalJump);
 });
 onUnmounted(() => {
@@ -200,11 +202,11 @@ onUnmounted(() => {
 });
 
 function onGlobalKeydown(e) {
-  // 输入态放行：焦点在输入框/文本域/可编辑区时不劫持 Ctrl+F（浏览器默认查找仍可用）
+  // 输入态放行：焦点在输入框/文本�?可编辑区时不劫持 Ctrl+F（浏览器默认查找仍可用）
   const t = e.target;
   if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
   if (e.ctrlKey && (e.key === "f" || e.key === "F")) {
-    // V2.6.1：项目详情页内交给项目内搜索（index.vue 自己处理），避免双弹窗
+    // V2.6.1：项目详情页内交给项目内搜索（index.vue 自己处理），避免双弹�?
     if (view.value === "project") return;
     e.preventDefault();
     globalSearchShow.value = true;
@@ -214,7 +216,7 @@ function onGlobalKeydown(e) {
 function onGlobalJump(e) {
   const { projectId: pid } = e.detail || {};
   if (!pid) return;
-  // 已在目标项目页：项目页自己的监听处理定位，这里不再重复切换
+  // 已在目标项目页：项目页自己的监听处理定位，这里不再重复切�?
   if (view.value === "project" && projectId.value === pid) return;
   openProject(pid);
 }
@@ -236,7 +238,7 @@ function onGlobalJump(e) {
   --accent-warm-hover: #b45309;
   --accent-warm-subtle: oklch(0.95 0.03 75);
 
-  /* 链接/可点击名称（归档表格项目名等） */
+  /* 链接/可点击名称（归档表格项目名等�?*/
   --link: oklch(0.5 0.19 255);
 
   --bg: oklch(0.975 0 0);
@@ -254,7 +256,7 @@ function onGlobalJump(e) {
   --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.06);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.08);
   --shadow-lg: 0 8px 30px oklch(0 0 0 / 0.1);
-  --shadow-raised: 0 4px 16px oklch(0 0 0 / 0.14);  /* 浮起层级（编辑态便利贴） */
+  --shadow-raised: 0 4px 16px oklch(0 0 0 / 0.14);  /* 浮起层级（编辑态便利贴�?*/
 
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -266,7 +268,7 @@ function onGlobalJump(e) {
   --duration-fast: 150ms;
   --duration-normal: 250ms;
 
-  /* === 间距体系（4/8/12/16/24/32） === */
+  /* === 间距体系�?/8/12/16/24/32�?=== */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -274,26 +276,26 @@ function onGlobalJump(e) {
   --space-5: 24px;
   --space-6: 32px;
 
-  /* === 状态语义色（鲜亮糖果色） === */
+  /* === 状态语义色（鲜亮糖果色�?=== */
   --status-todo-text: oklch(0.77 0.19 70);
   --status-doing-text: oklch(0.62 0.21 255);
   --status-done-text: oklch(0.70 0.17 162);
   --status-delay-text: oklch(0.64 0.24 25);
-  --status-cancel-text: oklch(0.52 0 0);   /* 已取消：中性灰（标识不做的项目） */
+  --status-cancel-text: oklch(0.52 0 0);   /* 已取消：中性灰（标识不做的项目�?*/
 
-  /* === 危险操作 / 错误提示（删除 hover、错误文字、逾期强调） === */
+  /* === 危险操作 / 错误提示（删�?hover、错误文字、逾期强调�?=== */
   --danger: oklch(0.55 0.22 25);
 
-  /* === 便利贴（批注卡片）专用底色：黄=待确认，绿=已确认 === */
+  /* === 便利贴（批注卡片）专用底色：�?待确认，�?已确�?=== */
   --sticky-bg: oklch(0.95 0.10 90);
   --sticky-bg-confirmed: oklch(0.93 0.10 145);
 
   /* === 固定前景/表层色（不随主题翻转，因对应底色为固定色板或第三方组件） === */
   --on-avatar: oklch(0.28 0 0);        /* 成员头像前景（头像底色为 script 固定调色板） */
-  --calendar-bg: oklch(0.98 0 0);      /* 日历表层（FullCalendar 文字色不随主题翻转，表层独立） */
+  --calendar-bg: oklch(0.98 0 0);      /* 日历表层（FullCalendar 文字色不随主题翻转，表层独立�?*/
 }
 
-/* === 暗色主题预留框架（启用：根元素加 data-theme="dark"） === */
+/* === 暗色主题预留框架（启用：根元素加 data-theme="dark"�?=== */
 [data-theme="dark"] {
   --accent: oklch(0.75 0 0);
   --accent-hover: oklch(0.85 0 0);
@@ -361,7 +363,7 @@ input, textarea, select { font-family: inherit; }
   border-color: var(--accent);
 }
 
-/* === Status Text Colors（圆点/文字风格，无底色） === */
+/* === Status Text Colors（圆�?文字风格，无底色�?=== */
 .status-todo { color: var(--status-todo-text); }
 .status-doing { color: var(--status-doing-text); }
 .status-done { color: var(--status-done-text); }
@@ -384,8 +386,8 @@ input, textarea, select { font-family: inherit; }
 }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0 0); }
 
-/* 弹窗正文/评论区滚动条：默认隐藏，hover 所在容器时显示（V2.6.4 需求 1f46dd76）
-   轨道保持占位，只切滑块透明度，布局零跳动 */
+/* 弹窗正文/评论区滚动条：默认隐藏，hover 所在容器时显示（V2.6.4 需�?1f46dd76�?
+   轨道保持占位，只切滑块透明度，布局零跳�?*/
 .sb-hover::-webkit-scrollbar-thumb { background: transparent; }
 .sb-hover:hover::-webkit-scrollbar-thumb { background: oklch(0.85 0 0); }
 .sb-hover::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0 0); }

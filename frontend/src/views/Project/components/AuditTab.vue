@@ -54,7 +54,7 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { api } from "../../../api.js";
+import { listAuditLogs } from "../../../api/modules/system.js";
 
 const props = defineProps({
   projectId: String,
@@ -311,7 +311,7 @@ async function loadPage(p) {
     if (props.actionFilter) params.set("action", props.actionFilter);
     if (props.dateFrom) params.set("dateFrom", props.dateFrom);
     if (props.dateTo) params.set("dateTo", props.dateTo);
-    const res = await api(`api/projects/${props.projectId}/audit-logs?${params}`, { silent: true });
+    const res = await listAuditLogs(props.projectId, params, { silent: true });
     if (res?.ok) {
       logs.value = res.data.items || [];
       total.value = res.data.total || 0;

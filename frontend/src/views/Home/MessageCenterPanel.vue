@@ -172,7 +172,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import FloatPanel from "../../components/FloatPanel.vue";
 import ConfirmModal from "../../components/ConfirmModal.vue";
-import { api } from "../../api.js";
+import { listMessages, deleteMessage, markMessagesRead, getMessageConfig, updateMessageConfig } from "../../api/modules/message.js";
 import { toast } from "../../toast.js";
 import { jumpToResult, highlightKeyword } from "../../utils/jump.js";
 import { nextZIndex } from "../../utils/zIndex.js";
@@ -227,7 +227,7 @@ async function loadMore() {
   loading.value = true;
   try {
     const offset = items.value.length;
-    const res = await api(`api/messages?limit=${PAGE_SIZE}&offset=${offset}`, { silent: true });
+    const res = await listMessages({ limit: PAGE_SIZE, offset }, { silent: true });
     if (res?.ok) {
       const page = res.data.items || [];
       if (!page.length) {
@@ -269,11 +269,7 @@ function select(m) {
 
 // ===== 已读 / 删除 =====
 async function markRead(id) {
-  const res = await api("api/messages/read", {
-    method: "PUT",
-    body: JSON.stringify({ ids: [id] }),
-    silent: true,
-  });
+  const res = await markMessagesRead({ ids: [id] }, { silent: true });
   if (res?.ok) {
     const m = items.value.find((x) => x.id === id);
     if (m) m.read = true;
@@ -289,7 +285,7 @@ async function markAllRead() {
   let allMsgs = [];
   let offset = 0;
   while (true) {
-    const res = await api(`api/messages?limit=100&offset=${offset}`, { silent: true });
+    const res = await listMessages({ limit: 100, offset }, { silent: true });
     if (!res?.ok) break;
     const page = res.data.items || [];
     allMsgs = allMsgs.concat(page);
@@ -301,11 +297,7 @@ async function markAllRead() {
   if (!unreadIds.length) return toast("没有未读消息", "info");
   // 分批标记（后端批量上限 50）
   for (let i = 0; i < unreadIds.length; i += 50) {
-    await api("api/messages/read", {
-      method: "PUT",
-      body: JSON.stringify({ ids: unreadIds.slice(i, i + 50) }),
-      silent: true,
-    });
+    await markMessagesRead({ ids: unreadIds.slice(i, i + 50) }, { silent: true });
   }
   for (const m of items.value) m.read = true;
   emit("changed");
@@ -373,7 +365,7 @@ async function doDelete() {
   if (!m) return;
   confirmShow.value = false;
   pendingDelete.value = null;
-  const res = await api(`api/messages/${m.id}`, { method: "DELETE", silent: true });
+  const res = await deleteMessage(m.id, { silent: true });
   if (res?.ok) {
     toast("已删除");
     items.value = items.value.filter((x) => x.id !== m.id);
@@ -406,7 +398,7 @@ async function doDeleteAll() {
   let allMsgs = [];
   let offset = 0;
   while (true) {
-    const res = await api(`api/messages?limit=100&offset=${offset}`, { silent: true });
+    const res = await listMessages({ limit: 100, offset }, { silent: true });
     if (!res?.ok) break;
     const page = res.data.items || [];
     allMsgs = allMsgs.concat(page);
@@ -421,7 +413,7 @@ async function doDeleteAll() {
   // 逐个删除（后端无批量删除接口，逐个删更可靠）
   let deleted = 0;
   for (const m of allMsgs) {
-    const res = await api(`api/messages/${m.id}`, { method: "DELETE", silent: true });
+    const res = await deleteMessage(m.id, { silent: true });
     if (res?.ok) deleted++;
   }
   items.value = [];
@@ -437,7 +429,7 @@ const configSaving = ref(false);
 const cfgForm = ref({ deadlineDays: 3, deadlineEnabled: true, riskEnabled: true });
 
 async function openConfig() {
-  const res = await api("api/messages/config", { silent: true });
+  const res = await getMessageConfig({ silent: true });
   if (res?.ok && res.data?.config) cfgForm.value = { ...res.data.config };
   configShow.value = true;
 }
@@ -445,15 +437,11 @@ async function openConfig() {
 async function saveConfig() {
   configSaving.value = true;
   try {
-    const res = await api("api/messages/config", {
-      method: "PUT",
-      body: JSON.stringify({
-        deadlineDays: Number(cfgForm.value.deadlineDays),
+    const res = await updateMessageConfig({
+      deadlineDays: Number(cfgForm.value.deadlineDays),
         deadlineEnabled: !!cfgForm.value.deadlineEnabled,
         riskEnabled: !!cfgForm.value.riskEnabled,
-      }),
-      silent: true,
-    });
+  }, { silent: true });
     if (res?.ok) {
       cfgForm.value = { ...res.data.config };
       toast("配置已保存");

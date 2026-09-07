@@ -198,7 +198,7 @@
 <script setup>
 import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { CircleCheck, Close, FullScreen, RefreshLeft } from "@element-plus/icons-vue";
-import { api } from "../../../api.js";
+import { createAnnotation, updateAnnotation, deleteAnnotation } from "../../../api/modules/annotation.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 // 打破 AnnotationPanel <-> AnnotationManagerModal 编译期循环依赖（TDZ）
@@ -312,11 +312,7 @@ async function saveInline(ann) {
   if (!content) return; // 空内容不保存，回退显示原文
   editingSaving.value = true;
   try {
-    const res = await api(buildUrl(ann), {
-      method: "PUT",
-      body: JSON.stringify({ content, kind: kindOf(ann) }),
-      silent: true,
-    });
+    const res = await updateAnnotation(props.projectId, taskIdOf(ann), ann.id, { content, kind: kindOf(ann) }, { silent: true });
     if (res?.ok) {
       emit("changed");
     } else {
@@ -334,11 +330,7 @@ function cancelInline() {
 // 类型下拉直接改（选择即保存）
 async function changeKind(ann, v) {
   if (kindOf(ann) === v) return;
-  const res = await api(buildUrl(ann), {
-    method: "PUT",
-    body: JSON.stringify({ kind: v }),
-    silent: true,
-  });
+  const res = await updateAnnotation(props.projectId, taskIdOf(ann), ann.id, { kind: v }, { silent: true });
   if (res?.ok) emit("changed");
   else toast(res.error || "更新失败", "error");
 }
@@ -424,9 +416,8 @@ function formatDate(iso) {
 }
 
 // 操作 URL：全部模式用批注自带 taskId（跨任务），单任务模式用当前任务
-function buildUrl(ann) {
-  const taskId = props.allMode ? ann.taskId : props.task.id;
-  return `api/projects/${props.projectId}/tasks/${taskId}/annotations/${ann.id}`;
+function taskIdOf(ann) {
+  return props.allMode ? ann.taskId : props.task.id;
 }
 
 // ===== S9：里程碑快捷按钮 =====
@@ -436,8 +427,7 @@ async function add() {
   if (!content || !props.task) return;
   saving.value = true;
   try {
-    const url = `api/projects/${props.projectId}/tasks/${props.task.id}/annotations`;
-    const res = await api(url, { method: "POST", body: JSON.stringify({ content, kind: inputKind.value }) });
+    const res = await createAnnotation(props.projectId, props.task.id, { content, kind: inputKind.value });
     if (res?.ok) {
       input.value = "";
       emit("changed");
@@ -450,7 +440,7 @@ async function add() {
 }
 
 async function remove(ann) {
-  const res = await api(buildUrl(ann), { method: "DELETE", silent: true });
+  const res = await deleteAnnotation(props.projectId, taskIdOf(ann), ann.id, { silent: true });
   if (res?.ok) emit("changed");
   else toast(res.error || "删除失败", "error");
 }
@@ -471,11 +461,7 @@ async function doRemove() {
 async function toggleConfirm(ann) {
   if (targetDone.value) return; // V2.1 规则：任务已完成便利贴冻结，不可切换确认状态
   const target = !effectiveConfirmed(ann);
-  const res = await api(buildUrl(ann), {
-    method: "PUT",
-    body: JSON.stringify({ confirmed: target }),
-    silent: true,
-  });
+  const res = await updateAnnotation(props.projectId, taskIdOf(ann), ann.id, { confirmed: target }, { silent: true });
   if (res?.ok) {
     // 本地乐观更新：立即划线/变绿且保持原位；同时同步全局数据（大屏/小屏/角标一致）
     localOverride.value.set(ann.id, target);

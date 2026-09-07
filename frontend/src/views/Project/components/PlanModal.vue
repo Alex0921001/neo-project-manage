@@ -201,7 +201,11 @@
 import { ref, computed, watch, nextTick } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { api, apiUpload } from "../../../api.js";
+import { apiUpload } from "../../../api/upload.js";
+import { listPlans, getPlan, createPlan, updatePlan, deletePlan, convertPlan, importPlanFile } from "../../../api/modules/plan.js";
+import { listRequirements } from "../../../api/modules/requirement.js";
+import { listTasks } from "../../../api/modules/task.js";
+import { applyQuoteAnchor } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
 import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
@@ -248,7 +252,7 @@ const requirements = ref([]);
 const editRequirementIds = ref([]);
 async function loadRequirements() {
   if (!props.projectId) return;
-  const res = await api(`api/projects/${props.projectId}/requirements?limit=100`);
+  const res = await listRequirements(props.projectId, { limit: 100 });
   if (res?.ok) requirements.value = res.data.items || [];
 }
 
@@ -257,7 +261,7 @@ const taskTree = ref([]);
 const editTaskIds = ref([]);
 async function loadTasks() {
   if (!props.projectId) return;
-  const res = await api(`api/projects/${props.projectId}/tasks`);
+  const res = await listTasks(props.projectId);
   if (res?.ok) taskTree.value = buildTaskTreeFromFlat(res.data || []);
 }
 // 扁平任务（listTasks 含 parent_task_id）→ 树（id 唯一，子任务挂到父节点 children）
@@ -339,10 +343,7 @@ async function onQuoted({ comment, anchor }) {
   const newHtml = ok
     ? container.innerHTML
     : wrapQuoteInHtml(plan.value?.content, anchor, comment.id);
-  const res = await api(`api/projects/${props.projectId}/comments/${comment.id}/anchor`, {
-    method: "POST",
-    body: JSON.stringify({ content: newHtml }),
-  });
+  const res = await applyQuoteAnchor(props.projectId, comment.id, { content: newHtml });
   if (res?.ok) plan.value = { ...plan.value, content: newHtml };
   else toast(res?.error || "引用标注保存失败", "error");
 }
@@ -354,10 +355,9 @@ async function onQuoteRemoved(commentId) {
   const had = unwrapQuoteFromDom(container, commentId);
   if (!had) return; // 孤立引用（正文已无标注）无需清理
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
-  const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
-    method: "POST",
+  const res = await applyQuoteAnchor(props.projectId, commentId, {
     // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
-    body: JSON.stringify({ content: newHtml, targetType: "plan", targetId: plan.value?.id }),
+    content: newHtml, targetType: "plan", targetId: plan.value?.id,
   });
   if (res?.ok) plan.value = { ...plan.value, content: newHtml };
 }
@@ -434,7 +434,7 @@ let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响�
 async function loadDetail() {
   if (!props.show || !props.planId) return;
   const seq = ++loadSeq;
-  const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`);
+  const res = await getPlan(props.projectId, props.planId);
   if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     plan.value = res.data;
@@ -467,19 +467,13 @@ async function savePlan() {
   saving.value = true;
   try {
     if (props.planId) {
-      const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
-        method: "PUT",
-        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value }),
-      });
+      const res = await updatePlan(props.projectId, props.planId, { title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value });
       if (!res?.ok) return toast(res?.error || "保存失败", "error");
       toast("已保存");
       // R15：编辑保存不再直接关弹窗，交给父级决定「回落详情」或「关弹窗刷新列表」
       emit("saved", props.planId);
     } else {
-      const res = await api(`api/projects/${props.projectId}/plans`, {
-        method: "POST",
-        body: JSON.stringify({ title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value }),
-      });
+      const res = await createPlan(props.projectId, { title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value });
       if (!res?.ok) return toast(res?.error || "创建失败", "error");
       toast("已创建方案");
       // 新建保存：通知父级关弹窗 + 刷新列表
@@ -500,10 +494,7 @@ async function onStatusChange(v) {
   if (!plan.value || v === plan.value.status) return;
   statusSaving.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, {
-      method: "PUT",
-      body: JSON.stringify({ status: v }),
-    });
+    const res = await updatePlan(props.projectId, props.planId, { status: v });
     if (res?.ok) {
       plan.value.status = v;
       toast(`已切换为「${v}」`);
@@ -588,14 +579,14 @@ async function doConfirm() {
   if (action === "comment-delete") {
     settleCommentConfirm(true);
   } else if (action === "delete") {
-    const res = await api(`api/projects/${props.projectId}/plans/${props.planId}`, { method: "DELETE" });
+    const res = await deletePlan(props.projectId, props.planId);
     if (res?.ok) {
       toast("已删除方案");
       emit("changed");
       emit("close");
     } else toast(res?.error || "删除失败", "error");
   } else if (action === "convert") {
-    const res = await api(`api/projects/${props.projectId}/plans/${props.planId}/convert`, { method: "POST" });
+    const res = await convertPlan(props.projectId, props.planId);
     if (res?.ok) {
       toast("已转为任务");
       loadDetail();

@@ -291,7 +291,11 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, reactive, onMounted, onUnmounted, toRefs } from "vue";
-import { api } from "../../api.js";
+import { getProject, updateProject, deleteProject } from "../../api/modules/project.js";
+import { listProjectSets } from "../../api/modules/projectSet.js";
+import { deleteTask } from "../../api/modules/task.js";
+import { deleteFile, deleteFolder } from "../../api/modules/file.js";
+import { deleteNote } from "../../api/modules/note.js";
 import { usePersistedTabState } from "../../utils/usePersistedTabState.js";
 import { toast } from "../../toast.js";
 import ProjectMeta from "./components/ProjectMeta.vue";
@@ -637,7 +641,7 @@ const filteredTasks = computed(() => {
 // ===== Load =====
 async function loadProject() {
   if (!props.projectId) return;
-  const res = await api(`api/projects/${props.projectId}`);
+  const res = await getProject(props.projectId);
   if (!res?.ok) { toast("项目不存在", "error"); emit("back"); return; }
   p.value = res.data;
   // S13：项目数据变化（任务/文件/批注变更）后联动刷新概览总结
@@ -654,7 +658,7 @@ async function loadProject() {
   if (j && j.projectId === props.projectId) handleJump(j);
 }
 async function loadSets() {
-  const res = await api("api/project-sets");
+  const res = await listProjectSets();
   if (res?.ok) allSets.value = res.data || [];
 }
 watch(() => props.projectId, () => { loadProject(); loadSets(); }, { immediate: true });
@@ -664,7 +668,7 @@ const showEditModal = ref(false);
 
 async function changeStatus(status) {
   if (!p.value) return;
-  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ status }), silent: true });
+  const res = await updateProject(props.projectId, { status }, { silent: true });
   if (res.ok) { toast(`状态已切换为「${status}」`); loadProject(); }
   else toast(res.error || "状态切换失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
@@ -714,7 +718,7 @@ function onArchiveProject() {
   });
 }
 async function onUnarchiveProject() {
-  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ archived: false }), silent: true });
+  const res = await updateProject(props.projectId, { archived: false }, { silent: true });
   if (res.ok) { toast("已恢复归档"); loadProject(); }
   else toast(res.error || "操作失败", "error");
 }
@@ -739,7 +743,7 @@ function onDeleteProject() {
 async function doEditProject(d) {
   if (!d.name.trim()) return toast("请输入名称", "error");
   const members = d.members || [];
-  const res = await api(`api/projects/${props.projectId}`, { method: "PUT", body: JSON.stringify({ name: d.name.trim(), description: d.description.trim(), planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members }), silent: true });
+  const res = await updateProject(props.projectId, { name: d.name.trim(), description: d.description.trim(), planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members }, { silent: true });
   if (res.ok) { toast("已更新"); showEditModal.value = false; loadProject(); }
   else toast(res.error || "更新失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
@@ -752,28 +756,28 @@ async function doConfirm() {
   confirm.value.show = false;
   let res;
   if (action === "delete-task") {
-    res = await api(`api/projects/${props.projectId}/tasks/${payload}`, { method: "DELETE", silent: true });
+    res = await deleteTask(props.projectId, payload, { silent: true });
   } else if (action === "delete-file") {
     // 支持单个 id 与批量数组（V2.1.4 文件系统重构：多选 Delete 批量删除登记）
     if (Array.isArray(payload)) {
       const rs = [];
       for (const fid of payload) {
-        rs.push(await api(`api/projects/${props.projectId}/files/${fid}`, { method: "DELETE", silent: true }));
+        rs.push(await deleteFile(props.projectId, fid, { silent: true }));
       }
       const failed = rs.find((r) => !r?.ok);
       res = failed ? failed : { ok: true };
     } else {
-      res = await api(`api/projects/${props.projectId}/files/${payload}`, { method: "DELETE", silent: true });
+      res = await deleteFile(props.projectId, payload, { silent: true });
     }
   } else if (action === "delete-folder") {
     // 删除文件夹：真删除（递归删子孙夹 + 其下文件登记；磁盘文件不动，V2.1.4 精修拍板）
-    res = await api(`api/projects/${props.projectId}/folders/${payload}`, { method: "DELETE", silent: true });
+    res = await deleteFolder(props.projectId, payload, { silent: true });
   } else if (action === "delete-note") {
-    res = await api(`api/projects/${props.projectId}/notes/${payload}`, { method: "DELETE", silent: true });
+    res = await deleteNote(props.projectId, payload, { silent: true });
   } else if (action === "delete-project") {
-    res = await api(`api/projects/${payload}`, { method: "DELETE", silent: true });
+    res = await deleteProject(payload, { silent: true });
   } else if (action === "archive-project") {
-    res = await api(`api/projects/${payload}`, { method: "PUT", body: JSON.stringify({ archived: true }), silent: true });
+    res = await updateProject(payload, { archived: true }, { silent: true });
   }
   if (res?.ok) {
     if (action === "archive-project") toast("已归档");

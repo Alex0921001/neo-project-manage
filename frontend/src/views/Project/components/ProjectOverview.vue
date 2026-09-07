@@ -328,7 +328,8 @@
 
 <script setup>
 import { ref, computed, watch } from "vue";
-import { api, resolveAssetUrl } from "../../../api.js";
+import { resolveAssetUrl } from "../../../api.js";
+import { getSummary, listSummaries, generateReport as generateReportApi } from "../../../api/modules/system.js";
 import { toast } from "../../../toast.js";
 import RiskConfigModal from "./RiskConfigModal.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
@@ -463,9 +464,7 @@ async function generateReport() {
   }
   reportLoading.value = true;
   try {
-    const res = await api(`api/projects/${props.projectId}/report`, {
-      method: "POST", body: JSON.stringify(body), silent: true,
-    });
+    const res = await generateReportApi(props.projectId, body);
     if (res?.ok) {
       reportMarkdown.value = res.data?.markdown || "";
     } else {
@@ -502,7 +501,7 @@ async function refresh() {
   if (!props.projectId) return;
   if (inflight) return inflight;
   loading.value = true;
-  const p = (inflight = api(`api/projects/${props.projectId}/summary`, { silent: true }).finally(() => { inflight = null; }));
+  const p = (inflight = getSummary(props.projectId).finally(() => { inflight = null; }));
   const res = await p;
   loading.value = false;
   // 接口异常时优雅降级：置 null，面板显示「暂无数据」，不抛错
@@ -519,7 +518,7 @@ async function refresh() {
 async function loadSummaries() {
   if (!props.projectId || tlLoaded.value || tlLoading.value) return;
   tlLoading.value = true;
-  const res = await api(`api/projects/${props.projectId}/summaries`, { silent: true });
+  const res = await listSummaries(props.projectId);
   tlLoading.value = false;
   tlLoaded.value = true;
   // 接口异常降级为空列表，显示「暂无历史总结」

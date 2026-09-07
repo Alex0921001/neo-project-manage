@@ -67,7 +67,8 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
 import FloatPanel from "./FloatPanel.vue";
-import { api } from "../api.js";
+import { listProjects } from "../api/modules/project.js";
+import { searchAll } from "../api/modules/system.js";
 import { jumpToResult, renderSnippet, highlightKeyword } from "../utils/jump.js";
 
 const props = defineProps({
@@ -122,7 +123,7 @@ watch(keyword, () => {
 async function loadProjectCount() {
   // 全局搜索：拉项目总数判断索引进度；项目内搜索不依赖（索引已含本项目）
   if (isProject.value) return;
-  const res = await api("api/projects", { silent: true });
+  const res = await listProjects({}, { silent: true });
   if (res?.ok) projectCount.value = (res.data || []).length;
 }
 
@@ -134,7 +135,7 @@ async function search() {
   try {
     const params = new URLSearchParams({ keyword: kw, limit: "20" });
     if (isProject.value) params.set("projectId", props.projectId);
-    const res = await api(`api/search?${params.toString()}`, { silent: true });
+    const res = await searchAll(params, { silent: true });
     if (seq !== reqSeq) return; // 已有后发请求，丢弃本次旧响应
     if (res?.ok) {
       results.value = res.data.results || [];

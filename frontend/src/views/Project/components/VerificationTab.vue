@@ -282,7 +282,9 @@
 
 <script setup>
 import { ref, computed, reactive, watch } from "vue";
-import { api } from "../../../api.js";
+import { listPlans } from "../../../api/modules/plan.js";
+import { listTasks } from "../../../api/modules/task.js";
+import { listVerifications, createVerification, updateVerification, deleteVerification, listVerificationItems, createVerificationItems, updateVerificationItem, toggleVerificationItem, deleteVerificationItem, clearVerificationGroup, listVerificationCategories, createVerificationCategory, updateVerificationCategory, deleteVerificationCategory } from "../../../api/modules/verification.js";
 import { toast } from "../../../toast.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import FormDialog from "../../../components/FormDialog.vue";
@@ -324,7 +326,7 @@ async function load() {
   if (props.searchQuery.trim()) qs.set("keyword", props.searchQuery.trim());
   if (props.planFilter.length) qs.set("planId", props.planFilter[0]);
   if (props.taskFilter.length) qs.set("taskId", props.taskFilter[0]);
-  const res = await api(`api/projects/${props.projectId}/verifications?${qs}`);
+  const res = await listVerifications(props.projectId, params);
   loading.value = false;
   if (seq !== loadSeq || !res?.ok) return;
   items.value = res.data.items || [];
@@ -343,14 +345,14 @@ const tasks = ref([]);
 const saving = ref(false);
 
 async function loadTasks() {
-  const res = await api(`api/projects/${props.projectId}/tasks`);
+  const res = await listTasks(props.projectId);
   if (res?.ok) tasks.value = (res.data || []).filter((t) => !t.parentId);
 }
 
 // 关联方案数据源（新建/编辑弹窗）
 const plans = ref([]);
 async function loadPlans() {
-  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+  const res = await listPlans(props.projectId, { limit: 100 });
   if (res?.ok) plans.value = res.data.items || [];
 }
 
@@ -409,16 +411,13 @@ async function openCategoryManager() {
   await loadCategories();
 }
 async function loadCategories() {
-  const res = await api(`api/projects/${props.projectId}/verification-categories`);
+  const res = await listVerificationCategories(props.projectId);
   if (res?.ok) catList.value = res.data.items || [];
 }
 async function addCategory() {
   const name = catName.value.trim();
   if (!name) return;
-  const res = await api(`api/projects/${props.projectId}/verification-categories`, {
-    method: "POST",
-    body: JSON.stringify({ name }),
-  });
+  const res = await createVerificationCategory(props.projectId, { name });
   if (res?.ok) {
     catList.value.push(res.data);
     catName.value = "";
@@ -437,10 +436,7 @@ function cancelCatRename() {
 async function saveCatRename(c) {
   const name = catEditName.value.trim();
   if (!name || name === c.name) return cancelCatRename();
-  const res = await api(`api/projects/${props.projectId}/verification-categories/${c.id}`, {
-    method: "PUT",
-    body: JSON.stringify({ name }),
-  });
+  const res = await updateVerificationCategory(props.projectId, c.id, { name });
   if (res?.ok) {
     c.name = name;
     // 同步详情内已加载验证项的分类显示（后端已同步库内同分类项）
@@ -451,7 +447,7 @@ async function saveCatRename(c) {
   }
 }
 async function deleteCat(c) {
-  const res = await api(`api/projects/${props.projectId}/verification-categories/${c.id}`, { method: "DELETE" });
+  const res = await deleteVerificationCategory(props.projectId, c.id);
   if (res?.ok) {
     catList.value = catList.value.filter((x) => x.id !== c.id);
     loadDetail();
@@ -464,10 +460,9 @@ async function saveForm() {
   const name = form.name.trim();
   if (!name) return toast("请输入验证名称", "error");
   saving.value = true;
-  const body = JSON.stringify({ name, taskIds: form.taskIds, planIds: form.planIds, note: form.note.trim() });
   const res = formId.value
-    ? await api(`api/projects/${props.projectId}/verifications/${formId.value}`, { method: "PUT", body })
-    : await api(`api/projects/${props.projectId}/verifications`, { method: "POST", body });
+    ? await updateVerification(props.projectId, formId.value, { name, taskIds: form.taskIds, planIds: form.planIds, note: form.note.trim() })
+    : await createVerification(props.projectId, { name, taskIds: form.taskIds, planIds: form.planIds, note: form.note.trim() });
   saving.value = false;
   if (res?.ok) {
     formShow.value = false;
@@ -534,14 +529,14 @@ function openDetailById(id) {
   const v = items.value.find((x) => x.id === id);
   if (v) return openDetail(v);
   // 不在当前页：先拉一次（临时切到第 1 页全量找，找不到静默）
-  api(`api/projects/${props.projectId}/verifications?keyword=${encodeURIComponent(id)}&pageSize=1`)
+  listVerifications(props.projectId, { keyword: id, pageSize: 1 })
     .then((res) => {
       if (res?.ok && res.data.items?.length) openDetail(res.data.items[0]);
     });
 }
 async function loadDetail() {
   if (!detail.value) return;
-  const res = await api(`api/projects/${props.projectId}/verifications/${detail.value.id}/items`);
+  const res = await listVerificationItems(props.projectId, detail.value.id);
   if (res?.ok) detailItems.value = res.data.items || [];
   // 同步卡片进度
   const card = items.value.find((x) => x.id === detail.value.id);
@@ -569,10 +564,7 @@ async function addItem() {
     body.kind = draftKind.value;
     if (draftInstruction.value.trim()) body.instruction = draftInstruction.value.trim();
   }
-  const res = await api(`api/projects/${props.projectId}/verifications/${detail.value.id}/items`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const res = await createVerificationItems(props.projectId, detail.value.id, body);
   if (res?.ok) {
     detailItems.value.push(res.data);
     draft.value = "";
@@ -638,7 +630,7 @@ function syncCardProgress() {
 async function toggleItem(it) {
   const prev = it.status;
   it.status = !prev;
-  const res = await api(`api/projects/${props.projectId}/verifications/items/${it.id}/toggle`, { method: "POST" });
+  const res = await toggleVerificationItem(props.projectId, it.id);
   if (res?.ok) {
     Object.assign(it, res.data);
     syncCardProgress();
@@ -663,10 +655,7 @@ async function saveEdit(it) {
   if (!content) return;
   const body = { content };
   if (it.kind === "agent") body.instruction = editInstruction.value.trim();
-  const res = await api(`api/projects/${props.projectId}/verifications/items/${it.id}`, {
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
+  const res = await updateVerificationItem(props.projectId, it.id, body);
   if (res?.ok) {
     Object.assign(it, res.data);
     cancelEdit();
@@ -684,10 +673,7 @@ async function doConfirm() {
   confirm.show = false;
   const payload = confirm.payload;
   if (confirm.clearMode) {
-    const res = await api(
-      `api/projects/${props.projectId}/verifications/${payload.cardId}/items?category=${encodeURIComponent(payload.category)}`,
-      { method: "DELETE" }
-    );
+    const res = await clearVerificationGroup(props.projectId, payload.cardId, payload.category);
     if (res?.ok) {
       toast(`已清空 ${res.data.deleted} 条`);
       loadDetail();
@@ -699,7 +685,7 @@ async function doConfirm() {
   }
   const it = payload;
   if (confirm.itemMode) {
-    const res = await api(`api/projects/${props.projectId}/verifications/items/${it.id}`, { method: "DELETE" });
+    const res = await deleteVerificationItem(props.projectId, it.id);
     if (res?.ok) {
       detailItems.value = detailItems.value.filter((x) => x.id !== it.id);
       syncCardProgress();
@@ -710,7 +696,7 @@ async function doConfirm() {
     return;
   }
   const v = it;
-  const res = await api(`api/projects/${props.projectId}/verifications/${v.id}`, { method: "DELETE" });
+  const res = await deleteVerification(props.projectId, v.id);
   if (res?.ok) {
     toast("已删除验证");
     load();

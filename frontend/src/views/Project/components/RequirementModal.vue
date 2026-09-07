@@ -166,7 +166,9 @@
 import { ref, computed, watch, nextTick } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { api } from "../../../api.js";
+import { listPlans } from "../../../api/modules/plan.js";
+import { listRequirements, getRequirement, createRequirement, updateRequirement, updateRequirementStatus, deleteRequirement } from "../../../api/modules/requirement.js";
+import { applyQuoteAnchor } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
 import { formatDescription } from "../../../utils/text.js";
 import { useRichImagePreview } from "../../../utils/richImagePreview.js";
@@ -209,10 +211,7 @@ watch(req, (v) => { if (v) statusVal.value = v.status; });
 async function onStatusChange(status) {
   if (!currentId.value || status === req.value?.status) return;
   statusSaving.value = true;
-  const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status }),
-  });
+  const res = await updateRequirementStatus(props.projectId, currentId.value, { status });
   statusSaving.value = false;
   if (res?.ok) {
     toast(`已标记为「${status}」`);
@@ -232,7 +231,7 @@ const form = ref({ name: "", description: "", priority: "P3", planIds: [] });
 const plans = ref([]);
 async function loadPlans() {
   if (!props.projectId) return;
-  const res = await api(`api/projects/${props.projectId}/plans?limit=100`);
+  const res = await listPlans(props.projectId, { limit: 100 });
   if (res?.ok) plans.value = res.data.items || [];
 }
 
@@ -305,10 +304,7 @@ async function onQuoted({ comment, anchor }) {
   const newHtml = ok
     ? container.innerHTML
     : wrapQuoteInHtml(req.value?.description, anchor, comment.id);
-  const res = await api(`api/projects/${props.projectId}/comments/${comment.id}/anchor`, {
-    method: "POST",
-    body: JSON.stringify({ content: newHtml }),
-  });
+  const res = await applyQuoteAnchor(props.projectId, comment.id, { content: newHtml });
   if (res?.ok) req.value = { ...req.value, description: newHtml };
   else toast(res?.error || "引用标注保存失败", "error");
 }
@@ -320,10 +316,9 @@ async function onQuoteRemoved(commentId) {
   const had = unwrapQuoteFromDom(container, commentId);
   if (!had) return;
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
-  const res = await api(`api/projects/${props.projectId}/comments/${commentId}/anchor`, {
-    method: "POST",
+  const res = await applyQuoteAnchor(props.projectId, commentId, {
     // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
-    body: JSON.stringify({ content: newHtml, targetType: "requirement", targetId: req.value?.id }),
+    content: newHtml, targetType: "requirement", targetId: req.value?.id,
   });
   if (res?.ok) req.value = { ...req.value, description: newHtml };
 }
@@ -361,7 +356,7 @@ let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响�
 async function loadDetail() {
   if (!currentId.value) return;
   const seq = ++loadSeq;
-  const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`);
+  const res = await getRequirement(props.projectId, currentId.value);
   if (seq !== loadSeq) return; // 过期响应丢弃，避免旧请求覆盖新结果
   if (res?.ok) {
     req.value = res.data;
@@ -407,8 +402,9 @@ async function save() {
     planIds: form.value.planIds,
   };
   const isEdit = !!currentId.value;
-  const url = `api/projects/${props.projectId}/requirements${isEdit ? `/${currentId.value}` : ""}`;
-  const res = await api(url, { method: isEdit ? "PUT" : "POST", body: JSON.stringify(body) });
+  const res = isEdit
+    ? await updateRequirement(props.projectId, currentId.value, body)
+    : await createRequirement(props.projectId, body);
   saving.value = false;
   if (!res?.ok) return toast(res?.error || "保存失败", "error");
   toast(isEdit ? "已更新需求" : "已创建需求");
@@ -443,7 +439,7 @@ async function doConfirm() {
     return;
   }
   if (confirm.value.action !== "delete" || !currentId.value) return;
-  const res = await api(`api/projects/${props.projectId}/requirements/${currentId.value}`, { method: "DELETE" });
+  const res = await deleteRequirement(props.projectId, currentId.value);
   if (res?.ok) {
     toast("已删除需求");
     emit("changed");

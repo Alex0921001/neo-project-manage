@@ -78,7 +78,7 @@
 
 <script setup>
 import { ref, watch } from "vue";
-import { api } from "../../../api.js";
+import { listComments, addComment, updateComment, deleteComment } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({
@@ -189,7 +189,7 @@ function cancelQuote() {
 let loadSeq = 0;
 async function load() {
   const seq = ++loadSeq;
-  const res = await api(`api/projects/${props.projectId}/comments?targetType=${props.targetType}&targetId=${props.targetId}`);
+  const res = await listComments(props.projectId, { targetType: props.targetType, targetId: props.targetId });
   if (seq !== loadSeq) return; // 过期响应丢弃
   if (res?.ok) {
     comments.value = res.data || [];
@@ -238,10 +238,7 @@ async function send() {
     body.quoteAnchor = JSON.stringify({ start: pendingQuote.value.start, end: pendingQuote.value.end });
   }
   saving.value = true;
-  const res = await api(`api/projects/${props.projectId}/comments`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  const res = await addComment(props.projectId, body);
   saving.value = false;
   if (res?.ok) {
     // 乐观插入列表顶部（服务端排序新→旧）
@@ -292,10 +289,7 @@ async function saveEdit() {
   const content = editDraft.value.trim();
   if (!content) return;
   saving.value = true;
-  const res = await api(`api/projects/${props.projectId}/comments/${editingId.value}`, {
-    method: "PUT",
-    body: JSON.stringify({ content }),
-  });
+  const res = await updateComment(props.projectId, editingId.value, { content });
   saving.value = false;
   if (res?.ok) {
     // 乐观更新本地条目
@@ -317,7 +311,7 @@ async function askDelete(c) {
     const ok = await askHandler(c);
     if (!ok) return;
   }
-  const res = await api(`api/projects/${props.projectId}/comments/${c.id}`, { method: "DELETE" });
+  const res = await deleteComment(props.projectId, c.id);
   if (res?.ok) {
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);

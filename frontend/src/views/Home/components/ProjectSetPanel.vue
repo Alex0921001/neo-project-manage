@@ -79,7 +79,7 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { api } from "../../../api.js";
+import { createProjectSet, updateProjectSet } from "../../../api/modules/projectSet.js";
 import { toast } from "../../../toast.js";
 import { pickPaletteColor } from "../../../utils/palette.js";
 import FormDialog from "../../../components/FormDialog.vue";
@@ -149,11 +149,11 @@ async function doSave() {
   saving.value = true;
   try {
     if (dialogMode.value === "add") {
-      const res = await api("api/project-sets", { method: "POST", body: JSON.stringify({ name }), silent: true });
+      const res = await createProjectSet({ name }, { silent: true });
       if (res.ok) { toast("已创建"); dialogShow.value = false; emit("changed"); }
       else toast(res.error || "创建失败", "error");
     } else {
-      const res = await api(`api/project-sets/${editTargetId.value}`, { method: "PUT", body: JSON.stringify({ name }), silent: true });
+      const res = await updateProjectSet(editTargetId.value, { name }, { silent: true });
       if (res.ok) { toast("已更新"); dialogShow.value = false; emit("changed"); }
       else toast(res.error || "更新失败", "error");
     }

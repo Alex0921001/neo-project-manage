@@ -85,7 +85,7 @@
 import { ref, computed, watch } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { api } from "../../../api.js";
+import { listVersions, restoreVersion } from "../../../api/modules/version.js";
 import { toast } from "../../../toast.js";
 import { renderDiff } from "../../../utils/versionDiff.js";
 
@@ -147,7 +147,7 @@ let loadSeq = 0;
 async function load() {
   const seq = ++loadSeq;
   loading.value = true;
-  const res = await api(`api/projects/${props.projectId}/versions?targetType=${props.targetType}&targetId=${props.targetId}`);
+  const res = await listVersions(props.projectId, { targetType: props.targetType, targetId: props.targetId });
   loading.value = false;
   if (seq !== loadSeq || !props.show) return;
   if (res?.ok) {
@@ -171,9 +171,10 @@ function askRestore() {
 async function doRestore() {
   confirmShow.value = false;
   restoring.value = true;
-  const res = await api(
-    `api/projects/${props.projectId}/versions/${compareVersion.value.id}/restore?targetType=${props.targetType}&targetId=${props.targetId}`,
-    { method: "POST" }
+  const res = await restoreVersion(
+    props.projectId,
+    compareVersion.value.id,
+    { targetType: props.targetType, targetId: props.targetId }
   );
   restoring.value = false;
   if (res?.ok) {

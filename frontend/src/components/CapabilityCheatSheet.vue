@@ -26,7 +26,7 @@
 <script setup>
 import { ref } from "vue";
 import MarkdownIt from "markdown-it";
-import { api } from "../api.js";
+import { getCapabilities } from "../api/modules/system.js";
 import FloatPanel from "./FloatPanel.vue";
 
 // 内容为插件自带 capabilities.md（可信），html:false 保持默认转义防御
@@ -56,7 +56,7 @@ async function load() {
   state.value = "loading";
   error.value = "";
   try {
-    const res = await api("api/capabilities", { silent: true });
+    const res = await getCapabilities({ silent: true });
     if (res?.ok && res.data?.markdown) {
       html.value = md.render(res.data.markdown);
       version.value = res.data.version || "?";

@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { api } from "../../../api.js";
+import { listNotes, createNote, updateNote, deleteNote } from "../../../api/modules/note.js";
 import { toast } from "../../../toast.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import { formatDescription, normalizeRichText } from "../../../utils/text.js";
@@ -166,15 +166,11 @@ async function submit() {
   saving.value = true;
   try {
     if (editingId.value) {
-      const res = await api(`api/projects/${props.projectId}/notes/${editingId.value}`, {
-        method: "PUT", body: JSON.stringify({ content }), silent: true,
-      });
+      const res = await updateNote(props.projectId, editingId.value, { content }, { silent: true });
       if (res.ok) { toast("已更新"); dialogShow.value = false; load(); }
       else toast(res.error || "更新失败", "error");
     } else {
-      const res = await api(`api/projects/${props.projectId}/notes`, {
-        method: "POST", body: JSON.stringify({ content }), silent: true,
-      });
+      const res = await createNote(props.projectId, { content }, { silent: true });
       if (res.ok) { toast("已添加"); dialogShow.value = false; load(); }
       else toast(res.error || "添加失败", "error");
     }
