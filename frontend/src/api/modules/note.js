@@ -2,10 +2,6 @@ import http from "../index.js";
 
 /** 项目备注接口模块；返回业务 JSON { ok, data?, error? } */
 
-export function listNotes(projectId, params = {}, opts = {}) {
-  return http.get(`api/projects/${projectId}/notes`, { params, ...opts });
-}
-
 export function createNote(projectId, data, opts = {}) {
   return http.post(`api/projects/${projectId}/notes`, data, opts);
 }

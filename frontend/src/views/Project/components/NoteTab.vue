@@ -74,7 +74,7 @@
 
 <script setup>
 import { ref, reactive, computed } from "vue";
-import { listNotes, createNote, updateNote, deleteNote } from "../../../api/modules/note.js";
+import { createNote, updateNote, deleteNote } from "../../../api/modules/note.js";
 import { toast } from "../../../toast.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import { formatDescription, normalizeRichText } from "../../../utils/text.js";

@@ -19,6 +19,11 @@ export function deleteFile(projectId, id, opts = {}) {
   return http.delete(`api/projects/${projectId}/files/${id}`, opts);
 }
 
+/** 移动文件到文件夹（folderId 空串=根目录） */
+export function moveFile(projectId, id, data, opts = {}) {
+  return http.put(`api/projects/${projectId}/files/${id}`, data, opts);
+}
+
 // ===== 文件夹 =====
 
 export function listFolders(projectId, params = {}, opts = {}) {

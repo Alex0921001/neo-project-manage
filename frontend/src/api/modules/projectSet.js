@@ -6,10 +6,6 @@ export function listProjectSets(params = {}, opts = {}) {
   return http.get("api/project-sets", { params, ...opts });
 }
 
-export function getProjectSet(id, opts = {}) {
-  return http.get(`api/project-sets/${id}`, opts);
-}
-
 export function createProjectSet(data, opts = {}) {
   return http.post("api/project-sets", data, opts);
 }

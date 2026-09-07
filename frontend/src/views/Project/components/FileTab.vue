@@ -182,7 +182,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount, toRefs } from "vue";
 import { resolveAssetUrl } from "../../../api.js";
-import { listFiles, registerFile, deleteFile, listFolders, createFolder, updateFolder, deleteFolder, openFile as openFileApi, openFolder as openFolderApi, pickFile as pickFileApi } from "../../../api/modules/file.js";
+import { listFiles, registerFile, deleteFile, moveFile, listFolders, createFolder, updateFolder, deleteFolder, openFile as openFileApi, openFolder as openFolderApi, pickFile as pickFileApi } from "../../../api/modules/file.js";
 import { toast } from "../../../toast.js";
 import { usePersistedTabState } from "../../../utils/usePersistedTabState.js";
 import FolderNode from "./FolderNode.vue";
@@ -963,9 +963,7 @@ async function registerDroppedFiles(files) {
   const list = [...files];
   const folderId = selectedFolder.value !== "root" ? selectedFolder.value : null;
   const results = await Promise.all(
-    list.map((f) => registerFile(props.projectId, {
-      method: "POST", body: JSON.stringify({ path: f?.path || "", folderId }), silent: true,
-    }))
+    list.map((f) => registerFile(props.projectId, { path: f?.path || "", folderId }, { silent: true }))
   );
   const okCount = results.filter((r) => r?.ok).length;
   if (okCount) emit("changed"); // 成功静默；失败也静默（拖入路径不可用，不打扰）
@@ -982,9 +980,7 @@ async function moveDragFilesTo(target) {
   dragIds.value = [];
   if (!ids.length) return;
   const results = await Promise.all(
-    ids.map((id) => deleteFile(props.projectId, id, {
-      method: "PUT", body: JSON.stringify({ folderId: target || "" }), silent: true,
-    }))
+    ids.map((id) => moveFile(props.projectId, id, { folderId: target || "" }, { silent: true }))
   );
   const ok = results.filter((r) => r?.ok).length;
   if (ok) {
