@@ -17,7 +17,7 @@
 | 文件资产 | 资产化登记：大小、类型、摘要（digest）；路径失效防御（文件被移动/删除不报错）；上传与桌面文件选取；文件内容提取（txt/docx/pdf） |
 | 方案 | 标题 + 富文本内容；状态流转与业务校验（已转任务冻结）；评论（增删改 + 引用）；版本管理；一键转任务；方案对比；文件导入（txt/md/docx）；反向展示满足的需求；**批量**：新建（整体回滚）/ 编辑与流转（冻结逐条生效，变更自动存版）/ 删除 |
 | 需求 | 三态流转（待处理→已完成/已取消，冻结）；优先级 P0~P5；需求↔方案多对多双向挂载；评论（增删改 + 引用）；版本管理；筛选/搜索/分页/排序；**批量**：新建 / 编辑（仅待处理可改逐条生效）/ 状态流转 / 删除 |
-| 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；**批量**：同目标批量加评论 / 批量编辑 / 批量删除；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
+| 统一评论 | 需求/方案共用 comments 表；增删改全量审计（删除带内容快照）；**批量**：同目标批量加评论 / 批量编辑 / 批量删除；划词引用评论：阅读模式选中文字 → 气泡【引用】→ 评论挂引用锚（Tiptap Mark 数据内锚），被引用文字高亮（虚线下划线 + 琥珀底），点高亮↔点评论双向定位，原文被删则退化为孤立评论（灰显）；**Agent 引用自动补锚（V2.6.3）**：工具侧只传 quoteText，后台自动在正文定位并包裹标注，与划词同效可点击定位，找不到时降级灰显；输入框可拖拽放大（提交复位）；评论面板宽度可拖拽（260~480，双击复位，localStorage 记忆）+ 可折叠 |
 | 版本管理 | 需求/方案共用：每次保存内容实际变化自动存版（创建存 v1，保留最近 50 版）；版本历史弹窗任选两版对比（逐字段 + 块级 LCS + 字符级高亮，自写不引依赖）；还原 = 旧内容存为新版本（版本链不断）；版本可标记重要备注 |
 | 验证模块 | 项目「验证」tab：验证卡列表（小卡片：名称/备注/关联任务·关联方案/进度条，每页 20 条）+ tab 行搜索框与筛选气泡（关联方案/关联任务，条件按项目持久化）→ 点卡片开弹窗：顶部基础信息区（方案/任务/备注/进度）+ 验证项清单（分类分组 + 打勾落库）；新建/编辑走公共 FormDialog（名称 + 关联任务/方案多选 + 备注）；进度 = 卡内验证项完成度；增删改/勾选全量审计；**批量**：建卡 / 单卡批量灌检查项 / 批量编辑 / 批量勾选退回（目标态幂等，逐条审计）/ 批量删项删卡 |
 | tab 栏 | 7 tab 数据驱动 + 拖拽调序 + 右键设置；项目级 > 全局级 > 默认顺序；tab 顺序与显隐持久化 |
@@ -92,7 +92,7 @@
 | 搜索 | `search_all` | 全类型全文检索：项目/任务/批注/方案/需求/评论/验证项/临时任务/文件名；FTS5 trigram + 高亮 snippet |
 | 临时任务 | `quick_task_list` `quick_task_add` `quick_task_update` `quick_task_archive` `quick_task_delete` `quick_task_convert` `create_quick_tasks` `update_quick_tasks` `delete_quick_tasks` | 随手记全生命周期：查询（状态/关键词筛选，归档态分页）/ 新增（单条与批量）/ 编辑与完成退回 / 归档（单条/批量/全部）/ 删除（未完成/已完成/已转化均可直删 + 归档删除）/ 转正式任务（选项目插入）|
 | 验证 | `list_verifications` `get_verification` `create_verification` `update_verification` `delete_verification` `list_verification_items` `add_verification_item` `update_verification_item` `toggle_verification_item` `delete_verification_item` `create_verifications` `create_verification_items` `update_verification_items` `toggle_verification_items` `delete_verification_items` `delete_verifications` `list_verification_categories` `create_verification_category` `rename_verification_category` `delete_verification_category` `clear_verification_group` | 验证卡（名称/关联任务/备注）全生命周期 + 卡内验证项清单（增删改查 / 勾选退回落库 + 审计），进度按验证项完成度计算；批量：建卡/灌项（整体回滚）、编辑/勾选（目标态幂等）/删项删卡（逐条独立）；分类字典管理 |
-| 评论 | `list_comments` `add_comment` `update_comment` `delete_comment` `add_comments` `update_comments` `delete_comments` | 统一评论（需求/方案共用一表）：列表/增删改（编辑留已编辑标记、删除带快照审计）+ 同目标批量加评论/批量编辑/批量删除 |
+| 评论 | `list_comments` `add_comment` `update_comment` `delete_comment` `add_comments` `update_comments` `delete_comments` | 统一评论（需求/方案共用一表）：列表/增删改（编辑留已编辑标记、删除带快照审计）+ 同目标批量加评论/批量编辑/批量删除；引用评论传 `quoteText` 即可，后台自动补锚（正文标注 + 可定位），无需传锚点 |
 | 版本 | `list_versions` `restore_version` `set_version_label` | 需求/方案版本快照：查询 / 还原（旧内容存为新版本）/ 备注标记 |
 | 备注 | `create_note` `update_note` `delete_note` | 项目备注管理 |
 | 审计 | `list_audit_logs` | 审计日志查询（行为/类型/关键词/时间筛选，分页） |

@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、统一评论、版本管理、验证模块、临时任务、任务日历、自动总结、风险识别与周报生成的完整闭环，五大模块（需求/方案/评论/验证/临时任务）提供批量操作能力。
 
-> 当前版本：**V2.6.2**（五大模块批量操作）
+> 当前版本：**V2.6.3**（Agent 引用评论后台自动补锚：工具侧引用自动定位正文包裹标注，与划词同效）
 
 ## 快速使用
 
@@ -303,4 +303,4 @@ list_audit_logs { "projectId": "xxx", "dateFrom": "2026-08-01", "dateTo": "2026-
 - **新增工具**：`tools/` 下新建文件，导出 `name / description / parameters(JSON Schema) / execute(input, toolCtx)`，并在 `manifest.json` 注册；`toolCtx.dataDir` 拿数据访问
 - **新增路由**：`routes/modules/` 下新建文件，导出 `registerXxxRoutes(app, data)`，到 `routes/ui.js` import 注册；静态路径先于 `:id` 动态路由
 - **新增数据访问**：`lib/data.js` 的 `createDataAccess(dataDir)` 内写函数并加入 return 导出；错误用 `throw new Error`，写入用事务，ID 用 `shortId()`
-- **测试**：`node --test scripts/test/*.test.mjs`（104 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置/五模块批量操作）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`；本机 Node 跑测试需 `NVM_SKIP_VENDOR=1`（vendor 原生模块为 Hana 宿主 ABI 编译）
+- **测试**：`node --test scripts/test/*.test.mjs`（114 项：数据层/工具层/方案导入/任务方案关联/消息/全文检索/配置/五模块批量操作/评论自动补锚）；拦截规则回归：`node scripts/smoke-intercept-check.mjs`；本机 Node 跑测试需 `NVM_SKIP_VENDOR=1`（vendor 原生模块为 Hana 宿主 ABI 编译）
