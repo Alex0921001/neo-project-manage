@@ -384,6 +384,12 @@ input, textarea, select { font-family: inherit; }
 }
 ::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0 0); }
 
+/* 弹窗正文/评论区滚动条：默认隐藏，hover 所在容器时显示（V2.6.4 需求 1f46dd76）
+   轨道保持占位，只切滑块透明度，布局零跳动 */
+.sb-hover::-webkit-scrollbar-thumb { background: transparent; }
+.sb-hover:hover::-webkit-scrollbar-thumb { background: oklch(0.85 0 0); }
+.sb-hover::-webkit-scrollbar-thumb:hover { background: oklch(0.75 0 0); }
+
 /* === Selection === */
 ::selection { background: oklch(0.88 0 0 / 0.35); }
 

@@ -8,7 +8,7 @@
       @dblclick="resetWidth"
     ></div>
     <div class="cp-title">评论（{{ comments.length }}）</div>
-    <div class="cp-list" ref="listEl">
+    <div class="cp-list sb-hover" ref="listEl">
       <div v-if="comments.length === 0" class="cp-empty">暂无评论</div>
       <div
         v-for="c in comments"

@@ -70,7 +70,7 @@
             </svg>
           </button>
           <!-- 左 7：方案内容（富文本只读渲染 + 划词引用气泡） -->
-          <div class="pm-content" ref="richContainer">
+          <div class="pm-content sb-hover" ref="richContainer">
             <div
               v-if="plan?.content"
               class="rich-view pm-rich"

@@ -60,7 +60,7 @@
         </div>
         <div class="rq-grid" :class="{ 'rq-grid-folded': commentsCollapsed }">
           <!-- 左：需求内容（富文本只读渲染 + 划词引用气泡），关联方案收在内容底部 -->
-          <div class="rq-content" ref="richContainer">
+          <div class="rq-content sb-hover" ref="richContainer">
             <div
               v-if="req?.description"
               class="rich-view rq-rich"
