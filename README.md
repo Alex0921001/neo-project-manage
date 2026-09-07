@@ -58,7 +58,7 @@
 | `create_requirement` | 创建需求（名称/简述/优先级/关联方案）|
 | `create_note` | 添加项目备注 |
 | `create_verification` | 创建验证卡（名称 + 关联任务多选 + 备注）|
-| `add_verification_item` | 给验证卡新增验证项 |
+| `add_verification_item` | 给验证卡新增验证项（可带 kind：human 人工 / agent 由 Agent 执行后回填证据；agent 项可附 instruction 指令）|
 | `quick_task_add` | 新增临时任务（随手记，不关联项目）|
 
 ### 更新
@@ -77,8 +77,9 @@
 | `update_requirement_status` | 需求三态流转（待处理/已完成/已取消，自由互转）|
 | `update_note` | 编辑项目备注 |
 | `update_verification` | 编辑验证卡（名称/关联任务/备注）|
-| `update_verification_item` | 编辑验证项（内容/分类/备注）|
+| `update_verification_item` | 编辑验证项（内容/分类/备注/执行方式/Agent 指令）|
 | `toggle_verification_item` | 勾选/退回验证项（打勾落库：写勾选时间/操作人 + 审计）|
+| `report_verification_result` | Agent 证据回填：仅接受 agent 项，回填后自动勾选并留审计；已勾选项幂等重跑仅更新证据（记「验证证据更新」），human 项拒绝 |
 | `quick_task_update` | 更新临时任务（编辑内容 / 标记完成 / 退回）|
 | `update_comment` | 编辑统一评论（需求/方案通用，保留「已编辑」标记）|
 | `restore_version` | 还原需求/方案到指定历史版本（版本链不断）|
@@ -162,7 +163,7 @@
 | 需求 | `create_requirements` `update_requirements` `update_requirement_statuses` `delete_requirements` | 批量新建 / 批量编辑（仅待处理可改逐条生效）/ 批量三态流转 / 批量删除（已完成不可删逐条生效）|
 | 方案 | `create_plans` `update_plans` `delete_plans` | 批量新建 / 批量编辑与流转（状态冻结逐条生效，内容变更自动存版本）/ 批量删除（仅草稿已废弃可删，级联删评论）|
 | 评论 | `add_comments` `update_comments` `delete_comments` | 同目标批量加评论（支持划词引用透传）/ 批量编辑 / 批量删除 |
-| 验证 | `create_verifications` `create_verification_items` `update_verification_items` `toggle_verification_items` `delete_verification_items` `delete_verifications` | 批量建卡 / 单卡批量灌检查项 / 批量编辑 / 批量勾选退回（目标态 + 幂等，逐条审计）/ 批量删项 / 批量删卡 |
+| 验证 | `create_verifications` `create_verification_items` `update_verification_items` `toggle_verification_items` `delete_verification_items` `delete_verifications` `report_verification_result` | 批量建卡 / 单卡批量灌检查项（V2.6.4 起支持 kind/instruction）/ 批量编辑 / 批量勾选退回（目标态 + 幂等，逐条审计）/ 批量删项 / 批量删卡 / Agent 证据回填（仅 agent 项，逐条独立）|
 | 临时任务 | `create_quick_tasks` `update_quick_tasks` `delete_quick_tasks` | 批量随手记 / 批量完成退回编辑 / 批量删除（归档态防呆）|
 
 ### 临时任务（V2.5）
@@ -180,7 +181,7 @@
 | --- | --- |
 | `list_verifications` / `get_verification` | 验证卡列表（分页/搜索） / 详情（关联任务与方案 + 完成进度）|
 | `create_verification` / `update_verification` / `delete_verification` | 验证卡增改删（删除级联删项）|
-| `list_verification_items` / `add_verification_item` / `update_verification_item` / `toggle_verification_item` / `delete_verification_item` | 卡内验证项增删改查 + 勾选退回落库（写勾选时间/操作人 + 审计），进度按项完成度计算 |
+| `list_verification_items` / `add_verification_item` / `update_verification_item` / `toggle_verification_item` / `delete_verification_item` / `report_verification_result` | 卡内验证项增删改查 + 勾选退回落库（写勾选时间/操作人 + 审计）+ Agent 证据回填（V2.6.4，仅 agent 项），进度按项完成度计算 |
 | `list_verification_categories` / `create_verification_category` / `rename_verification_category` / `delete_verification_category` / `clear_verification_group` | 验证分类字典（新项目预置三分类；改名自动同步项；删分类项归入通用组；按组清空验证项）|
 
 ### 统一评论与版本管理（V2.6）
@@ -224,6 +225,9 @@ create_requirements { "projectId": "xxx", "items": [{ "name": "需求A", "priori
 
 // 批量勾选验证项（done 为目标态，幂等）
 toggle_verification_items { "projectId": "xxx", "items": [{ "id": "v1", "done": true }, { "id": "v2", "done": true }] }
+
+// Agent 执行验证项后回填证据（仅 agent 项；自动勾选，幂等重跑仅更新证据）
+report_verification_result { "projectId": "xxx", "items": [{ "id": "v1", "evidence": { "runner": "agent:common", "summary": "npm test 123/123 通过", "detail": "fail=0" } }] }
 
 // 同目标批量加评论
 add_comments { "projectId": "xxx", "targetType": "plan", "targetId": "方案ID", "items": [{ "content": "意见一" }, { "content": "意见二" }] }
