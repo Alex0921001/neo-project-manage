@@ -111,7 +111,7 @@ test("需求：全接口链路", async () => {
   const r2 = data.createRequirement(pid, { name: "需求二", description: "", priority: "P3", planIds: [] });
   const canceled = await call(app, "PUT", `/api/projects/${pid}/requirements/${r2.id}/status`, {}, { status: "已取消" });
   assert.equal(canceled.status, "已取消");
-  // 终态可切回待处理（V2.1.4 放开状态机）
+ // 终态可切回待处理（放开状态机）
   const backTodo = await call(app, "PUT", `/api/projects/${pid}/requirements/${rid}/status`, {}, { status: "待处理" });
   assert.equal(backTodo.status, "待处理");
 
@@ -153,7 +153,7 @@ test("需求：非法参数返回 ok=false 而非 500", async () => {
   assert.ok(parsed.error);
 });
 
-// ===== 批量操作（V2.6.2）=====
+// ===== 批量操作=====
 test("需求批量：create 整体回滚 / update·status·delete 逐条独立", () => {
   const proj = data.createProject({ name: "需求批量测试项目" });
   const pid = proj.id;

@@ -21,7 +21,7 @@ const baseProject = {
   description: "",
 };
 
-describe("ProjectCard 统计行（V2.3.2：图标改文字）", () => {
+describe("ProjectCard 统计行", () => {
   it("渲染 任务/需求/方案/备注/文件 五个文字统计", () => {
     const wrapper = mount(ProjectCard, { props: { project: baseProject, setLabel: "" } });
     const stats = wrapper.find(".card-stats");

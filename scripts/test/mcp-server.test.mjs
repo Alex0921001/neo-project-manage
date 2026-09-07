@@ -1,5 +1,5 @@
 /**
- * MCP Server 集成测试（V2.6.2，子进程 + 临时数据目录，不触碰真实数据）
+ * MCP Server 集成测试（子进程 + 临时数据目录，不触碰真实数据）
  * 覆盖：line framing（MCP 官方 stdio 标准）/ Content-Length framing 兼容 / 工具动态加载 / 版本号来自 manifest / tools/call 链路
  */
 import { test, before, after } from "node:test";
@@ -98,7 +98,7 @@ test("MCP line framing（官方 stdio 标准）：initialize / tools/list / tool
   assert.equal(init.result.serverInfo.name, MANIFEST.id);
   assert.equal(init.result.protocolVersion, "2025-03-26");
 
-  // 2. tools/list：动态扫描 tools/，数量与 manifest 注册一致，且包含 V2.6.2 批量工具
+ // 2. tools/list：动态扫描 tools/，数量与 manifest 注册一致，且包含 批量工具
   const list = await callLine(lineChild, { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
   const names = list.result.tools.map((t) => t.name);
   assert.equal(names.length, MANIFEST.contributes.tools.length);

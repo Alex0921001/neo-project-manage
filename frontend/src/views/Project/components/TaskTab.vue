@@ -276,7 +276,7 @@ const props = defineProps({
   planEnd: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   expandAll: { type: Boolean, default: null },
-  // V2.1.2 任务排序：default=默认（拖拽序）/ priority=等级 / startDate=开始时间
+ // 任务排序：default=默认（拖拽序）/ priority=等级 / startDate=开始时间
   sortMode: { type: String, default: "default" },
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
@@ -341,7 +341,7 @@ function onSelectAnnotation({ taskId, subtaskId }) {
   emit("changed");
 }
 
-// V2.3 R2：按批注 ID 定位（全文搜索跳转）：找到含该批注的任务 → 打开批注面板并定位
+// 按批注 ID 定位（全文搜索跳转）：找到含该批注的任务 → 打开批注面板并定位
 function scrollToAnnotationById(annotationId) {
   if (!annotationId) return;
   const found = findTaskByAnnotation(props.tasks, annotationId);
@@ -478,7 +478,7 @@ onUnmounted(() => {
   stopTaskWatcher();
 });
 
-// ===== 任务排序（V2.1.2）：default 保持拖拽序；priority/startDate 递归排序（不改原对象） =====
+// ===== 任务排序：default 保持拖拽序；priority/startDate 递归排序（不改原对象） =====
 function sortTree(tasks, mode) {
   if (mode === "default") return tasks;
   const arr = (tasks || []).map((t) => ({ ...t, subtasks: t.subtasks ? [...t.subtasks] : [] }));
@@ -621,17 +621,17 @@ const editingSubId = ref(null);
 const form = reactive({ name: "", description: "", assignees: [], startDate: "", endDate: "", priority: "P3", isMilestone: false, fileRefs: [], planIds: [] });
 const submitErr = ref(false);
 
-// V2.2 R14：关联方案数据源（任务表单多选下拉）
+// 关联方案数据源（任务表单多选下拉）
 const plans = ref([]);
 async function loadPlans() {
   if (!props.projectId) return;
   const res = await listPlans(props.projectId, { limit: 100 });
-  if (res?.ok) plans.value = (res.data.items || []).filter((p) => p.status === "已采纳"); // V2.2：仅已采纳方案可挂载
+ if (res?.ok) plans.value = (res.data.items || []).filter((p) => p.status === "已采纳"); // 仅已采纳方案可挂载
 }
 // 打开任务表单弹窗时预加载方案选项（关联方案多选数据源）
 watch(dialogShow, (v) => { if (v) loadPlans(); });
 
-// V2.2 R14：任务条目点击关联方案标签 → 打开方案详情（read 模式），不跳转方案 tab
+// 任务条目点击关联方案标签 → 打开方案详情（read 模式），不跳转方案 tab
 const planDetailShow = ref(false);
 const planDetailId = ref(null);
 const planDetailMode = ref("read");
@@ -665,7 +665,7 @@ function toLocalMidnight(str) {
 }
 function disabledTaskDate(date) {
   const t = date.getTime();
-  // v1.3.1：子任务模式日期范围收紧到父任务（前端控制，后端不动）
+ // 子任务模式日期范围收紧到父任务（前端控制，后端不动）
   if (subtaskParent.value) {
     const ps = subtaskParent.value.startDate ? toLocalMidnight(subtaskParent.value.startDate) : -Infinity;
     const pe = subtaskParent.value.endDate ? toLocalMidnight(subtaskParent.value.endDate) : Infinity;
@@ -871,7 +871,7 @@ function scrollToTask(taskId) {
 
 /**
  * 按任务 id 定位任意层级任务（顶层 / 子任务 / 孙任务），日历跳转使用
- * V2.1.2 修复：目标在内层且祖先未展开（DOM 未渲染）时，先强制展开祖先链再滚动
+ * 修复：目标在内层且祖先未展开（DOM 未渲染）时，先强制展开祖先链再滚动
  * TaskCard 所有层级都有 data-task-id 与 data-connector-id="task-{id}"
  */
 function scrollToTaskById(taskId) {
@@ -952,7 +952,7 @@ async function markTaskDone({ task, done }) {  if (!task) return;
       return;
     }
   } else {
-    // v1.3.1：父任务仍为完成时不能激活子任务（未完成状态只能从父任务向下同步）
+ // 父任务仍为完成时不能激活子任务（未完成状态只能从父任务向下同步）
     // 树节点字段为 parent_task_id（snake_case，buildTaskTree 原样保留）
     if (task.parent_task_id) {
       const parent = findTaskInTree(props.tasks, task.parent_task_id);
@@ -1197,7 +1197,7 @@ defineExpose({ openAdd, scrollToTaskById, scrollToAnnotation, scrollToAnnotation
 </style>
 
 <style>
-/* V2.2 R14 关联方案下拉：限高 + 滚动，防溢出 */
+/* 关联方案下拉：限高 + 滚动，防溢出 */
 .task-plan-popper .el-select-dropdown__wrap {
   max-height: 260px;
 }

@@ -2,7 +2,7 @@
  * 审计日志：GET /api/projects/:projectId/audit-logs
  */
 export function registerAuditRoutes(app, data) {
-  // V2.1 审计追踪：按项目查审计日志（倒序分页，可选筛选）
+ // 审计追踪：按项目查审计日志（倒序分页，可选筛选）
   // P1-1：limit/offset 仅接收正整数/非负整数，非法回退默认（50/0），避免 data 层抛错裸 500
   app.get("/api/projects/:projectId/audit-logs", (c) => {
     try {

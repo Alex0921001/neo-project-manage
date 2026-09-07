@@ -130,7 +130,7 @@ function onCloneFromDetail(p) {
 const selectedMap = ref(new Map());
 const modal = ref({ show: false, planId: null, mode: "read", clonePlan: null });
 const compareShow = ref(false);
-// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+// 记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
 // 编辑保存/取消后据此决定「回落详情」还是「关弹窗刷新列表」
 const editingFromDetail = ref(false);
 
@@ -240,7 +240,7 @@ const selectedCount = computed(() => selectedMap.value.size);
 // 对比数据：从跨页 Map 取完整方案（不依赖当前页）
 const comparePlans = computed(() => [...selectedMap.value.values()].slice(0, 2));
 
-let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
+let loadSeq = 0; // 列表加载竞态防护：仅最新一次请求的响应可写入
 async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery) {
   if (!props.projectId) return;
   const seq = ++loadSeq;
@@ -299,7 +299,7 @@ function toggleSelect(pl) {
 function openDetail(pl, globalIdx) {
   modal.value = { show: true, planId: pl.id, mode: "read" };
   editingFromDetail.value = false;
-  // R10 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
+ // 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
   if (typeof globalIdx === "number") {
     detailGlobalIndex.value = globalIdx;
   } else {
@@ -312,7 +312,7 @@ function openCreate() {
   editingFromDetail.value = false;
 }
 
-// V2.3 R2：按方案 ID 打开详情（全文搜索跳转；列表未加载到该条时 PlanModal 按 planId 直开）
+// 按方案 ID 打开详情（全文搜索跳转；列表未加载到该条时 PlanModal 按 planId 直开）
 function openDetailById(planId) {
   if (!planId) return;
   const pl = plans.value.find((x) => x.id === planId);
@@ -328,7 +328,7 @@ function openCompare() {
   compareShow.value = true;
 }
 
-// ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
+// ===== 详情快速切换（上一条 / 下一条，跨页补拉） =====
 const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
 const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
 // 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
@@ -374,7 +374,7 @@ function onChanged() {
   emit("changed");
 }
 
-// ===== V2.2 R15：编辑保存/取消回落详情 =====
+// ===== 编辑保存/取消回落详情 =====
 // 详情内点编辑：mode 从 read → edit 且 planId 非空（新建不经过此分支）
 function onModeChange(mode) {
   if (mode === "edit" && modal.value.planId) editingFromDetail.value = true;

@@ -1,6 +1,6 @@
 import { ElMessage } from "element-plus";
 
-// v1.3.1：用 Element Plus ElMessage 替代底部红色浮窗，外观更柔和、支持分组去重
+// 用 Element Plus ElMessage 替代底部红色浮窗，外观更柔和、支持分组去重
 const _last = { key: "", at: 0 };
 
 /**

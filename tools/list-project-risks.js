@@ -14,7 +14,7 @@ export async function execute(input, toolCtx) {
   const data = createDataAccess(toolCtx.dataDir);
   const projects = data.listProjects(input.projectSetId !== undefined ? input.projectSetId : undefined, "");
 
-  // 口径（与 data.js scanMessages 的 risk 生成口径一致，V2.3 review）：
+ // 口径（与 data.js scanMessages 的 risk 生成口径一致）：
   // 项目过滤：非归档 + 原始 status∈{进行中,待开始}；风险过滤：仅 high/medium（low 不入列不计数）
   const LEVEL_ORDER = { high: 0, medium: 1 };
   const included = [];

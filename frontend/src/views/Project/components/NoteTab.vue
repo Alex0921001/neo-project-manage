@@ -107,7 +107,7 @@ const palette = [
   "oklch(0.88 0.14 85 / 0.55)",
 ];
 
-// ===== 备注内容搜索（V2.6.1）：剥 HTML 后匹配 + 命中片段高亮（先转义再包 <mark>，防 XSS） =====
+// ===== 备注内容搜索：剥 HTML 后匹配 + 命中片段高亮（先转义再包 <mark>，防 XSS） =====
 const kw = computed(() => props.searchQuery.trim());
 function plainOf(html) {
   const d = document.createElement("div");

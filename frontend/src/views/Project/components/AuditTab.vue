@@ -211,7 +211,7 @@ function fmtVal(v, max = 100) {
   return s.length > max ? `${s.slice(0, max)}…` : s;
 }
 
-/** 从 old/new JSON 提取目标名（name 优先，title 次之，content 兜底；V2.3.1 补 title：方案审计用 title 字段） */
+/** 从 old/new JSON 提取目标名（name 优先，title 次之，content 兜底；补 title：方案审计用 title 字段） */
 function extractName(log) {
   for (const raw of [log.newValue, log.oldValue]) {
     if (!raw) continue;
@@ -277,7 +277,7 @@ function lookupName(log) {
   }
   if (log.targetType === "file") return (p.files || []).find((f) => f.id === log.targetId)?.name || "";
   if (log.targetType === "note") return (p.notes || []).find((n) => n.id === log.targetId)?.content || "";
-  // V2.3.1 补审：folder/plan/requirement 从项目详情反查；member 为全局成员无项目归属，名称已在变更字段由 extractName 提取；plan_comment 关联 plan 兜底
+ // 补审：folder/plan/requirement 从项目详情反查；member 为全局成员无项目归属，名称已在变更字段由 extractName 提取；plan_comment 关联 plan 兜底
   if (log.targetType === "folder") return findFolder(p.folders, log.targetId)?.name || "";
   if (log.targetType === "plan") return (p.plans || []).find((pl) => pl.id === log.targetId)?.title || "";
   if (log.targetType === "requirement") return (p.requirements || []).find((r) => r.id === log.targetId)?.name || "";

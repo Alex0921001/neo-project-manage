@@ -1,6 +1,6 @@
 <template>
   <div class="set-tabs">
-    <!-- V2.3 精修：项目集横条溢出用左右箭头平移（不无限延长滚动条） -->
+    <!-- 项目集横条溢出用左右箭头平移（不无限延长滚动条） -->
     <button
       v-if="canScrollLeft"
       class="tab-arrow"
@@ -47,11 +47,11 @@
       <button class="tab-manage" title="管理项目集" @click="openManager">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <!-- V2.3 R2：全局搜索入口（齿轮右侧，铃铛左侧） -->
+      <!-- 全局搜索入口（齿轮右侧，铃铛左侧） -->
       <button class="tab-manage" title="全局搜索（Ctrl+F）" @click="searchShow = true">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
-      <!-- V2.3 精修：提醒/消息中心入口移到工具栏最右端 -->
+      <!-- 提醒/消息中心入口移到工具栏最右端 -->
       <button class="tab-manage" title="消息中心" @click="msgShow = true">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         <span v-if="unread > 0" class="unread-badge" :title="`${unread} 条未读消息`">{{ unread > 99 ? '99+' : unread }}</span>
@@ -155,9 +155,9 @@
       </div>
     </FloatPanel>
 
-    <!-- V2.3 R1：消息中心弹窗（读/删后刷新铃铛角标） -->
+    <!-- 消息中心弹窗（读/删后刷新铃铛角标） -->
     <MessageCenterPanel v-model="msgShow" @changed="loadUnread" />
-    <!-- V2.3 R2：全局搜索弹窗 -->
+    <!-- 全局搜索弹窗 -->
     <SearchPanel v-model="searchShow" />
   </div>
 </template>
@@ -180,7 +180,7 @@ const props = defineProps({
 });
 const emit = defineEmits(["select-set", "changed", "confirm-ask", "reorder"]);
 
-// ===== V2.3 精修：项目集横条溢出左右箭头（不无限延长滚动条） =====
+// ===== 精修：项目集横条溢出左右箭头（不无限延长滚动条） =====
 const tabsInnerRef = ref(null);
 const canScrollLeft = ref(false);
 const canScrollRight = ref(false);
@@ -217,7 +217,7 @@ onMounted(() => {
 });
 onUnmounted(() => { tabsObs?.disconnect(); });
 
-// ===== V2.3 R1：消息中心 + 全局搜索 =====
+// ===== 消息中心 + 全局搜索 =====
 const msgShow = ref(false);
 const searchShow = ref(false);
 const unread = ref(0);
@@ -446,7 +446,7 @@ async function mgrAdd() {
   align-items: center;
   gap: 2px;
   min-width: 0;
-  /* V2.3 精修：占剩余空间 + 溢出隐藏（左右箭头平移，不用无限延长滚动条） */
+ /* 精修：占剩余空间 + 溢出隐藏（左右箭头平移，不用无限延长滚动条） */
   flex: 1 1 auto;
   overflow: hidden;
 }
@@ -521,7 +521,7 @@ async function mgrAdd() {
 }
 .tab-manage:hover { background: var(--bg-hover); color: var(--text); }
 
-/* V2.3 R1：未读角标（铃铛右上角，琥珀强调） */
+/* 未读角标（铃铛右上角，琥珀强调） */
 .tab-manage { position: relative; }
 .unread-badge {
   position: absolute;

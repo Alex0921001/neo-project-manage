@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.2 R11 工具层查询/描述一致性回归测试（node:test）
+ * neo-project-manage 工具层查询/描述一致性回归测试（node:test）
  *
  * 覆盖：
  * 1. getRequirement / getPlan 全局查询（projectId 可选）+ 归属校验
@@ -50,9 +50,9 @@ function seedPlan(id, title, projectId) {
 }
 
 // ===== 1. 需求 / 方案全局查询 + 归属校验 =====
-test("R11-1：getRequirement / getPlan 全局查询（projectId 可选）+ 归属校验", () => {
-  const projA = data.createProject({ name: "R11-项目A" });
-  const projB = data.createProject({ name: "R11-项目B" });
+test("getRequirement / getPlan 全局查询（projectId 可选）+ 归属校验", () => {
+  const projA = data.createProject({ name: "项目A" });
+  const projB = data.createProject({ name: "项目B" });
   const req = data.createRequirement(projA.id, { name: "全局需求" });
   const plan = data.createPlan(projA.id, "全局方案", "<p>x</p>");
 
@@ -78,8 +78,8 @@ test("R11-1：getRequirement / getPlan 全局查询（projectId 可选）+ 归�
 });
 
 // ===== 2. 短 ID 前缀匹配：唯一命中 / 多候选 =====
-test("R11-2：get 工具短 ID 前缀匹配（唯一命中 / 多候选）", () => {
-  const proj = data.createProject({ name: "R11-前缀项目" });
+test("get 工具短 ID 前缀匹配（唯一命中 / 多候选）", () => {
+  const proj = data.createProject({ name: "前缀项目" });
   seedRequirement("abc12345", "前缀需求甲", proj.id);
   seedRequirement("abcd6789", "前缀需求乙", proj.id);
   seedPlan("abc12345", "前缀方案甲", proj.id);
@@ -101,8 +101,8 @@ test("R11-2：get 工具短 ID 前缀匹配（唯一命中 / 多候选）", () =
 });
 
 // ===== 2b. 短前缀含 SQL 通配符（% _ \）按字面匹配，不误配/漏配 =====
-test("R11-2b：get 短前缀含 SQL 通配符按字面匹配", () => {
-  const proj = data.createProject({ name: "R11-通配项目" });
+test("get 短前缀含 SQL 通配符按字面匹配", () => {
+  const proj = data.createProject({ name: "通配项目" });
   // 每个通配符配一个「占位」id：若未转义会被 LIKE 误匹配
   seedRequirement("w_c123", "下划线需求", proj.id);
   seedRequirement("wXc456", "下划线占位需求", proj.id);
@@ -117,8 +117,8 @@ test("R11-2b：get 短前缀含 SQL 通配符按字面匹配", () => {
 });
 
 // ===== 2c. 短前缀命中后关联数据按解析后的完整 ID 查询 =====
-test("R11-2c：短前缀命中后关联数据（plans/planIds/评论）按完整 ID 查询", () => {
-  const proj = data.createProject({ name: "R11-前缀关联项目" });
+test("短前缀命中后关联数据（plans/planIds/评论）按完整 ID 查询", () => {
+  const proj = data.createProject({ name: "前缀关联项目" });
   seedRequirement("reqp0001", "关联需求乙", proj.id);
   seedPlan("planp0001", "关联方案乙", proj.id);
   data._db.prepare("INSERT INTO requirement_plans (requirement_id, plan_id) VALUES (?, ?)").run("reqp0001", "planp0001");
@@ -136,8 +136,8 @@ test("R11-2c：短前缀命中后关联数据（plans/planIds/评论）按完整
 });
 
 // ===== 3. 列表工具输出完整 ID =====
-test("R11-3：list_requirements / list_plans 输出完整 ID", async () => {
-  const proj = data.createProject({ name: "R11-列表项目" });
+test("list_requirements / list_plans 输出完整 ID", async () => {
+  const proj = data.createProject({ name: "列表项目" });
   const req = data.createRequirement(proj.id, { name: "列表需求" });
   const plan = data.createPlan(proj.id, "列表方案", "<p>x</p>");
 
@@ -206,7 +206,7 @@ test("R11-6：deletePlan 清 requirement_plans 关联（无残留）", () => {
   assert.equal(cnt, 0, "删除方案后 requirement_plans 应无残留");
 });
 
-// ===== 7. 启动自愈：清理历史悬空 task_id（R1/R2/R9 场景）=====
+// ===== 7. 启动自愈：清理历史悬空 task_id// 场景）=====
 test("R11-7：启动自愈清理历史悬空 plans.task_id", () => {
   const proj = data.createProject({ name: "R11-自愈项目" });
   const plan = data.createPlan(proj.id, "悬空方案", "<p>x</p>");

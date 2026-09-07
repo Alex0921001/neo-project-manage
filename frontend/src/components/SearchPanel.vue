@@ -86,7 +86,7 @@ const indexed = ref(0);
 const projectCount = ref(0);
 const indexing = ref(false);
 
-// ===== 分组定义（展示顺序固定：项目组最前；V2.6.1 补评论/验证体系/临时任务） =====
+// ===== 分组定义（展示顺序固定：项目组最前；补评论/验证体系/临时任务） =====
 const TYPE_GROUPS = [
   { type: "project", label: "项目" },
   { type: "task", label: "任务" },
@@ -156,7 +156,7 @@ function go(r) {
   jumpToResult({ type: r.type, projectId: r.projectId, refId: r.refId });
 }
 
-// ===== 展示层（V2.3 全局搜索优化：固定三行【标题】【内容】【所属项目】，标题与内容均带命中高亮） =====
+// ===== 展示层（全局搜索优化：固定三行【标题】【内容】【所属项目】，标题与内容均带命中高亮） =====
 
 /**
  * 标题短名称：task/plan/requirement/file/project 用后端 name/title 原样；

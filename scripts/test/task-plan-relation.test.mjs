@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.2 R14 任务↔方案双向关联测试（node:test）
+ * neo-project-manage 任务↔方案双向关联测试（node:test）
  *
  * 覆盖：
  * 1. createTask planIds 写 task_plans，getTaskById / getProject 树返回 planRefs

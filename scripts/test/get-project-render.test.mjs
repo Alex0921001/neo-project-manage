@@ -1,5 +1,5 @@
 /**
- * neo-project-manage get_project R3 需求/方案清单渲染测试（node:test，真实临时库）
+ * neo-project-manage get_project 需求/方案清单渲染测试（node:test，真实临时库）
  *
  * 覆盖（T1 数据段合入前后均可跑）：
  * - 段落结构：任务 → 需求 → 方案 → 文件资产 → 备注 顺序正确
@@ -45,9 +45,9 @@ function assertSectionOrder(text, heads) {
   }
 }
 
-test("R3 渲染：段落顺序 + 空字段容错（T1 合入前形态，不崩）", async () => {
-  const proj = data.createProject({ name: "R3-渲染测试项目", members: ["测试员"], status: "进行中" });
-  const task = data.createTask(proj.id, { name: "R3-任务" });
+test("渲染：段落顺序 + 空字段容错（空字段容错，不崩）", async () => {
+  const proj = data.createProject({ name: "渲染测试项目", members: ["测试员"], status: "进行中" });
+  const task = data.createTask(proj.id, { name: "演示任务" });
 
   const text = await runGetProject({ id: proj.id });
 
@@ -62,17 +62,17 @@ test("R3 渲染：段落顺序 + 空字段容错（T1 合入前形态，不崩�
   assert.ok(!text.includes("undefined"), "输出不应含 undefined");
 
   // 常规段不受影响
-  assert.match(text, /R3-渲染测试项目/);
-  assert.match(text, /R3-任务/);
+  assert.match(text, /渲染测试项目/);
+  assert.match(text, /演示任务/);
 
   // 清理
   data.deleteTask(proj.id, task.id);
   data.deleteProject(proj.id);
 });
 
-test("R3 渲染：view=summary 不输出需求/方案段（提前 return 不受影响）", async () => {
-  const proj = data.createProject({ name: "R3-Summary项目" });
-  data.createTask(proj.id, { name: "R3-Sum任务" });
+test("渲染：view=summary 不输出需求/方案段（提前 return 不受影响）", async () => {
+  const proj = data.createProject({ name: "Summary项目" });
+  data.createTask(proj.id, { name: "Sum任务" });
 
   const text = await runGetProject({ id: proj.id, view: "summary" });
 

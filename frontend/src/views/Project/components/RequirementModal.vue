@@ -78,7 +78,7 @@
                 <span class="rq-plan-status">{{ pl.status }}</span>
               </div>
             </div>
-            <!-- 划词引用气泡（V2.6）：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
+            <!-- 划词引用气泡：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
             <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
               <button class="quote-bubble-btn" @mousedown.prevent @click="quoteNow">引用</button>
             </div>
@@ -142,7 +142,7 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
-  <!-- 版本历史弹窗（V2.6） -->
+  <!-- 版本历史弹窗 -->
   <VersionModal
     :show="versionShow"
     :project-id="projectId"
@@ -184,8 +184,8 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   requirementId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit（初始模式）
-  canPrev: { type: Boolean, default: false }, // R10：列表首条为 false
-  canNext: { type: Boolean, default: false }, // R10：列表末条为 false
+  canPrev: { type: Boolean, default: false }, // 列表首条为 false
+  canNext: { type: Boolean, default: false }, // 列表末条为 false
 });
 const emit = defineEmits(["close", "changed", "update:show", "prev", "next", "saved", "created", "edit-cancel", "closed-detail", "mode-change"]);
 
@@ -199,9 +199,9 @@ const mode = ref(props.mode);
 const currentId = ref(props.requirementId);
 const req = ref(null);
 const saving = ref(false);
-const commentPanel = ref(null); // V2.6 公共评论面板
+const commentPanel = ref(null); // 公共评论面板
 const commentsCollapsed = ref(true); // 评论折叠：有评论展开，无评论闭合
-const versionShow = ref(false); // V2.6 版本历史弹窗
+const versionShow = ref(false); // 版本历史弹窗
 
 // 状态（阅读模式头部下拉切换：待处理可流转，终态冻结）
 const REQUIREMENT_STATUSES = ["待处理", "已完成", "已取消"];
@@ -246,7 +246,7 @@ const panelTitle = computed(() => {
   return "需求详情";
 });
 
-// ===== 评论（V2.6：数据内聚在 CommentPanel）=====
+// ===== 评论（数据内聚在 CommentPanel）=====
 /** 扫描正文引用标注：正文 DOM 就绪后调用；无标注的引用退化为纯文字引用（灰显不可定位） */
 function scanLocatableQuotes() {
   nextTick(() => {
@@ -281,9 +281,9 @@ function settleCommentConfirm(ok) {
 }
 watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
 
-// ===== 划词引用评论（V2.6）=====
+// ===== 划词引用评论=====
 const richContainer = ref(null);
-// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（V2.6.2 Agent 批量加评论场景）
+// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（Agent 批量加评论场景）
 const locatableIds = ref(null);
 const { bubble: quoteBubble, takeAnchor } = useQuoteSelection(richContainer, {
   enabled: () => mode.value === "read",
@@ -317,7 +317,7 @@ async function onQuoteRemoved(commentId) {
   if (!had) return;
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
   const res = await applyQuoteAnchor(props.projectId, commentId, {
-    // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
+ // 评论已删除，回传目标归属供后端清理模式校验
     content: newHtml, targetType: "requirement", targetId: req.value?.id,
   });
   if (res?.ok) req.value = { ...req.value, description: newHtml };
@@ -352,7 +352,7 @@ function onRichViewClick(e) {
   onRichClick(e);
 }
 
-let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响应可写入
+let loadSeq = 0; // 详情加载竞态防护：仅最新一次请求的响应可写入
 async function loadDetail() {
   if (!currentId.value) return;
   const seq = ++loadSeq;
@@ -369,7 +369,7 @@ async function loadDetail() {
       planIds: [...(res.data.planIds || [])],
     };
   } else {
-    // R15：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
+ // ：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
     toast(res?.error || "加载失败", "error");
     emit("closed-detail");
     emit("close");
@@ -408,13 +408,13 @@ async function save() {
   saving.value = false;
   if (!res?.ok) return toast(res?.error || "保存失败", "error");
   toast(isEdit ? "已更新需求" : "已创建需求");
-  // R15：编辑保存交给父级决定「回落详情」或「关弹窗刷新」；新建由父级关弹窗刷新
+ // ：编辑保存交给父级决定「回落详情」或「关弹窗刷新」；新建由父级关弹窗刷新
   if (isEdit) emit("saved", currentId.value);
   else emit("created");
 }
 
 function cancelEdit() {
-  // R15：编辑取消交给父级决定「回落详情」或「关弹窗」
+ // ：编辑取消交给父级决定「回落详情」或「关弹窗」
   emit("edit-cancel");
 }
 
@@ -490,7 +490,7 @@ defineExpose({ loadDetail });
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* R10 详情切换箭头按钮（左右两侧） */
+/* 详情切换箭头按钮（左右两侧） */
 .rq-nav-btn {
   flex-shrink: 0;
   display: inline-flex;
@@ -539,7 +539,7 @@ defineExpose({ loadDetail });
 .rq-read {
   position: relative; /* 评论折叠按钮定位基准（对齐方案弹窗） */
 }
-/* V2.6：横向分栏（内容 + 评论面板），折叠时评论隐藏内容占满 */
+/* 横向分栏（内容 + 评论面板），折叠时评论隐藏内容占满 */
 .rq-grid {
   flex: 1;
   min-height: 0;

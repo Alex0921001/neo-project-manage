@@ -1,7 +1,7 @@
 import http from "../index.js";
 
 /**
- * 批注（便利贴）接口模块（V2.6.4 任务 f74273ee）
+ * 批注（便利贴）接口模块
  * 批注挂在任务下：api/projects/:pid/tasks/:taskId/annotations/:annId
  */
 

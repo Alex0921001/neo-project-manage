@@ -1002,7 +1002,7 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
   padding: 8px 12px;
   border-bottom: 0.5px solid var(--border-light);
 }
-/* V2.6.4：kind 徽标（仅 agent/assertion 显示，human 零噪音） */
+/* kind 徽标（仅 agent/assertion 显示，human 零噪音） */
 .vitem-kind {
   flex: none;
   font-size: 10px;
@@ -1141,7 +1141,7 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
   outline: none;
 }
 .vitem-edit:focus { border-color: var(--text); }
-/* V2.6.4：agent 项录入时的指令输入框（textarea 下方） */
+/* agent 项录入时的指令输入框（textarea 下方） */
 .vt-instruction {
   width: 100%;
   margin-top: 4px;

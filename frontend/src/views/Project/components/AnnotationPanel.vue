@@ -223,7 +223,7 @@ const manageShow = ref(false);
 // S9：输入框引用，预填后自动聚焦方便用户继续打字
 const inputRef = ref(null);
 
-// ===== 便利贴类型（V2.0）=====
+// ===== 便利贴类型=====
 const KINDS = [
   { value: "note", label: "备注" },
   { value: "decision", label: "决策" },
@@ -459,7 +459,7 @@ async function doRemove() {
 }
 
 async function toggleConfirm(ann) {
-  if (targetDone.value) return; // V2.1 规则：任务已完成便利贴冻结，不可切换确认状态
+ if (targetDone.value) return; // 规则：任务已完成便利贴冻结，不可切换确认状态
   const target = !effectiveConfirmed(ann);
   const res = await updateAnnotation(props.projectId, taskIdOf(ann), ann.id, { confirmed: target }, { silent: true });
   if (res?.ok) {
@@ -585,7 +585,7 @@ async function toggleConfirm(ann) {
   flex-shrink: 1;
   min-width: 0;
 }
-/* 类型着色（V2.0）：色相对齐全局 status 变量，浅底保证深/浅主题均可见 */
+/* 类型着色：色相对齐全局 status 变量，浅底保证深/浅主题均可见 */
 .sticky-kind-decision { background: oklch(0.95 0.09 255); }
 .sticky-kind-risk { background: oklch(0.95 0.09 25); }
 .sticky-kind-milestone { background: oklch(0.95 0.09 75); }
@@ -712,7 +712,7 @@ async function toggleConfirm(ann) {
   opacity: 0.85;
 }
 
-/* 类型筛选 chips（V2.0） */
+/* 类型筛选 chips */
 .annot-kind-filter {
   display: flex; gap: 6px; flex-wrap: wrap;
   flex-shrink: 0;
@@ -798,7 +798,7 @@ async function toggleConfirm(ann) {
 .kind-chip-risk.active { background: oklch(0.85 0.10 25); }
 .kind-chip-milestone.active { background: oklch(0.87 0.10 75); }
 
-/* 类型小标签（V2.0）：半透明底 + 类型色圆点，在时间右侧 */
+/* 类型小标签：半透明底 + 类型色圆点，在时间右侧 */
 .sticky-kind-tag {
   display: inline-flex;
   align-items: center;
@@ -821,7 +821,7 @@ async function toggleConfirm(ann) {
 .kind-tag-risk .kind-tag-dot { color: oklch(0.64 0.24 25); }
 .kind-tag-milestone .kind-tag-dot { color: oklch(0.7 0.15 75); }
 
-/* 类型下拉（V2.0）：无边框 dropdown（左下角纯文字标签） */
+/* 类型下拉：无边框 dropdown（左下角纯文字标签） */
 /* 输入框容器：边框/圆角/背景都在这层，textarea 无边框；toolbar 是底部正常流行，不与文字重叠 */
 .annot-compose-box {
   display: flex;

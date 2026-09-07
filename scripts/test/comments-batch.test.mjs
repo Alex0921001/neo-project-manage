@@ -1,5 +1,5 @@
 /**
- * 评论批量操作测试（V2.6.2，临时库，不触碰真实数据）
+ * 评论批量操作测试（临时库，不触碰真实数据）
  * 覆盖：同目标批量加评论（整体回滚 + 划词引用透传）/ 批量编辑（逐条独立）/ 批量删除（逐条独立）
  */
 import { test, before, after } from "node:test";
@@ -77,7 +77,7 @@ test("评论批量：add 整体回滚 / update·delete 逐条独立 + 双目标�
   assert.throws(() => data.deleteComments(pid, Array.from({ length: 51 }, () => "x")), /50/);
 });
 
-test("删除评论同步摘除旧表行：库重初始化重放迁移不复活（V2.6.4 e05fbe69）", async () => {
+test("删除评论同步摘除旧表行：库重初始化重放迁移不复活", async () => {
   const { createDb, migrateCommentsTable } = await import("../../lib/db.js");
   const proj = data.createProject({ name: "复活回归项目" });
   const pid = proj.id;

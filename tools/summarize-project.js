@@ -15,7 +15,7 @@ export async function execute(input, toolCtx) {
   const s = data.summarizeProject(input.projectId);
   if (!s) throw new Error(`项目 ${input.projectId} 不存在`);
 
-  // V2.0 自动存档：Agent 主动总结时留一条历史快照（source=auto），供时间线回看项目演进。
+ // 自动存档：Agent 主动总结时留一条历史快照（source=auto），供时间线回看项目演进。
   // 页面刷新的 REST /summary 走 data.summarizeProject（纯计算），不会触发存档，避免刷新刷爆时间线。
   try {
     data.saveProjectSummary(input.projectId, JSON.stringify(s), "auto");

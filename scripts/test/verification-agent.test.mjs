@@ -1,5 +1,5 @@
 /**
- * 验证项 Agent 化测试（V2.6.4，临时库，不触碰真实数据）
+ * 验证项 Agent 化测试（临时库，不触碰真实数据）
  * 覆盖：kind/instruction 默认与校验 / 证据回填（落库·自动勾·审计）/ human 项拒绝 / 幂等重跑 / 批量逐条独立 / 工具层输出
  */
 import { test, before, after } from "node:test";

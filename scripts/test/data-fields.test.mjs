@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.3 R3 数据层测试（node:test）
+ * neo-project-manage 数据层测试（node:test）
  *
  * 覆盖：getProject 新增 requirements/plans 字段（存在且字段名/值齐全——接口约定给 T2 get-project 渲染）、
  * 空项目返回空数组、summarizeProject 不受影响。每个 test 独立临时库，跑完自动清理。

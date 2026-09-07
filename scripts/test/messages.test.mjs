@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.3 R1 消息中心测试（node:test）
+ * neo-project-manage 消息中心测试（node:test）
  *
  * 覆盖：deadline 聚合（3 天内到期 1 条聚合 / 出窗口不生成）、幂等（同 batch_key 不重复插入）、
  * 风险口径（归档/已完成不生成、非归档进行中仅 high+medium）、已读/未读/删除/筛选。

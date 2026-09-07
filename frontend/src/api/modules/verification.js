@@ -1,6 +1,6 @@
 import http from "../index.js";
 
-/** 验证模块接口（V2.6.4 任务 f74273ee）；返回业务 JSON { ok, data?, error? } */
+/** 验证模块接口；返回业务 JSON { ok, data?, error? } */
 
 // ===== 验证卡 =====
 

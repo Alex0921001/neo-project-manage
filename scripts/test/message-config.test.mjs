@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.3 精修 #7 消息提醒配置测试（node:test）
+ * neo-project-manage 精修 #7 消息提醒配置测试（node:test）
  *
  * 覆盖：settings 读写、getMessageConfig 默认值/校验、updateMessageConfig 局部更新、
  * scanMessages 读配置（deadline_days 生效、开关关闭不生成）、v12 迁移幂等、配置工具冒烟。

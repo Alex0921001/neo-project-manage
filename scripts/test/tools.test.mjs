@@ -24,20 +24,20 @@ const TOOL_FILES = [
   "update-project-set", "update-project", "update-task", "update-annotation",
   "delete-annotations", "delete-tasks", "delete-task", "delete-annotation",
   "delete-project", "delete-project-set",
-  // V2.0 新工具
+ // 新工具
   "list-project-files", "get-project-file",
   "link-project-session", "list-project-sessions", "unlink-project-session",
   "get-project-summaries", "summarize-project", "ask-project",
-  // V2.0 成员管理
+ // 成员管理
   "list-members", "create-member", "update-member", "delete-member",
-  // V2.1 方案 + 审计
+ // 方案 + 审计
   "list-audit-logs", "create-plan", "update-plan", "delete-plan",
   "list-plans", "get-plan", "add-plan-comment", "delete-plan-comment", "convert-plan-to-task",
-  // V2.1 备注三工具
+ // 备注三工具
   "create-note", "update-note", "delete-note",
-  // V2.1 风险只读工具
+ // 风险只读工具
   "get-project-risks",
-  // V2.1.2 工具类
+ // 工具类
   "list-project-risks", "import-plan-file", "confirm-annotations", "register-project-file",
 ];
 const tools = {};
@@ -137,7 +137,7 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
   assert.match(upSet, /AT-改名集/);
   const upProj = await run("update_project", { id: projId, name: "AT-改名项目", status: "已完成" });
   assert.match(upProj, /AT-改名项目/);
-  // V2.1 规则：便利贴需在任务未完成时可改；完成任务前全部便利贴须确认
+ //  规则：便利贴需在任务未完成时可改；完成任务前全部便利贴须确认
   const upAnn = await run("update_annotation", { taskId, annotationId: annId, content: "改后内容", confirmed: true });
   assert.match(upAnn, /改后内容/);
   const allAnns = await run("list_annotations", { taskId });
@@ -145,7 +145,7 @@ test("工具全链路：集→项目→任务→批注→更新→删除+清理"
   for (const aid of toConfirm) {
     await run("update_annotation", { taskId, annotationId: aid, confirmed: true });
   }
-  // V2.2 R7 后端兜底：完成任务前需先完成其后代（父完成 + 子未完成会被拒绝）
+ // 后端兜底：完成任务前需先完成其后代（父完成 + 子未完成会被拒绝）
   for (const sid of subTaskIds) {
     await run("update_task", { projectId: projId, id: sid, done: true });
   }
@@ -179,7 +179,7 @@ test("工具错误场景：非法输入应抛错", async () => {
   );
 });
 
-// ===== V2.0 新工具冒烟（总结/会话/文件/批注 kind） =====
+// ===== 新工具冒烟（总结/会话/文件/批注 kind） =====
 test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", async () => {
   // 建集→项目→任务→批注（含 kind）→总结
   const setTxt = await run("create_project_set", { name: "V2工具集" });
@@ -201,7 +201,7 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   assert.match(askTxt, /决策V2/);
   assert.match(askTxt, /备注V2/);
 
-  // get_project_risks（V2.1：只读风险，JSON 结构化，不触发存档）
+ // get_project_risks（只读风险，JSON 结构化，不触发存档）
   const risksTxt = await run("get_project_risks", { projectId: projId });
   const risksJson = JSON.parse(risksTxt);
   assert.ok(Array.isArray(risksJson.risks), "risks 应为 JSON 数组");
@@ -223,7 +223,7 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   const filesTxt = await run("list_project_files", { projectId: projId });
   assert.match(filesTxt, /暂无|清单/);
 
-  // 备注 CRUD（V2.1 工具补齐）
+ // 备注 CRUD（工具补齐）
   const noteTxt = await run("create_note", { projectId: projId, content: "备注-测试内容" });
   const noteId = firstId(noteTxt);
   const upNote = await run("update_note", { projectId: projId, noteId, content: "备注-改后内容" });
@@ -231,7 +231,7 @@ test("V2.0 工具：summarize_project / ask_project / 会话 / 文件资产", as
   const gotProj2 = await run("get_project", { id: projId });
   assert.match(gotProj2, /备注-改后内容/);
 
-  // ===== V2.1.2 工具类 =====
+ // ===== 工具类 =====
   // get_project view=summary：轻量模式应省略批注明细
   const sumViewTxt = await run("get_project", { id: projId, view: "summary" });
   assert.match(sumViewTxt, /任务/);

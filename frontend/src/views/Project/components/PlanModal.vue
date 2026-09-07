@@ -57,7 +57,7 @@
           </div>
         </div>
         <div class="pm-grid" :class="{ 'pm-grid-folded': commentsCollapsed }">
-          <!-- 评论折叠切换按钮（V2.1.3）：展开态显示 >（收起），折叠态显示 <（展开） -->
+          <!-- 评论折叠切换按钮：展开态显示 >（收起），折叠态显示 <（展开） -->
           <button
             class="pm-comments-toggle"
             :class="{ folded: commentsCollapsed }"
@@ -83,7 +83,7 @@
               <span class="pm-task-name" @click="emit('jump-task', plan.taskId)">▸ {{ plan.taskName }}</span>
             </div>
             <div v-if="plan?.taskExists === false" class="pm-task-gone">已转任务（原任务已删除）</div>
-            <!-- V2.1.3 需求管理：方案反向展示关联需求 -->
+            <!-- 方案反向展示关联需求 -->
             <div v-if="plan?.requirements?.length" class="pm-reqs">
               <div class="pm-reqs-title">关联需求（{{ plan.requirements.length }}）</div>
               <div v-for="r in plan.requirements" :key="r.id" class="pm-req-item">
@@ -92,12 +92,12 @@
                 <span class="pm-req-status">{{ r.status }}</span>
               </div>
             </div>
-            <!-- 划词引用气泡（V2.6）：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
+            <!-- 划词引用气泡：选中文字后弹出；mousedown 防止选区折叠触发隐藏 -->
             <div v-if="quoteBubble" class="quote-bubble" :style="{ left: quoteBubble.x + 'px', top: quoteBubble.y + 'px' }">
               <button class="quote-bubble-btn" @mousedown.prevent @click="quoteNow">引用</button>
             </div>
           </div>
-          <!-- 右：评论（公共 CommentPanel，V2.6：编辑/输入框放大/分栏宽度拖拽） -->
+          <!-- 右：评论（公共 CommentPanel：编辑/输入框放大/分栏宽度拖拽） -->
           <CommentPanel
             v-show="!commentsCollapsed"
             ref="commentPanel"
@@ -134,7 +134,7 @@
             placeholder="方案内容：记录背景、方案要点、优劣对比……"
           />
         </div>
-        <!-- V2.2 R14：关联任务 + 关联需求并排一行（五五开） -->
+        <!-- 关联任务 + 关联需求并排一行（五五开） -->
         <div class="pm-edit-assoc">
           <div class="pm-edit-tasks">
             <el-tree-select
@@ -177,7 +177,7 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
-  <!-- 版本历史弹窗（V2.6） -->
+  <!-- 版本历史弹窗 -->
   <VersionModal
     :show="versionShow"
     :project-id="projectId"
@@ -222,8 +222,8 @@ const props = defineProps({
   planId: { type: String, default: null }, // null = 新建
   mode: { type: String, default: "read" }, // read | edit
   clonePlan: { type: Object, default: null }, // 克隆源：新建编辑态预填其标题 + 内容（无权限控制）
-  canPrev: { type: Boolean, default: false }, // R10：列表首条为 false
-  canNext: { type: Boolean, default: false }, // R10：列表末条为 false
+  canPrev: { type: Boolean, default: false }, // 列表首条为 false
+  canNext: { type: Boolean, default: false }, // 列表末条为 false
 });
 const emit = defineEmits(["close", "changed", "jump-task", "mode-change", "clone", "update:show", "prev", "next", "saved", "created", "edit-cancel", "closed-detail"]);
 
@@ -231,11 +231,11 @@ const editorComp = createRichEditor();
 const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
 
 const plan = ref(null);
-const commentPanel = ref(null); // V2.6 公共评论面板（数据内聚）
+const commentPanel = ref(null); // 公共评论面板（数据内聚）
 const statusVal = ref("草稿");
 const statusSaving = ref(false);
 const commentsCollapsed = ref(true); // 评论折叠：加载详情后按评论数初始化（有评论展开，无评论闭合）
-const versionShow = ref(false); // V2.6 版本历史弹窗
+const versionShow = ref(false); // 版本历史弹窗
 
 /** 版本还原后刷新详情（内容可能已变） */
 function onVersionRestored() {
@@ -247,7 +247,7 @@ function onVersionRestored() {
 const editTitle = ref("");
 const editContent = ref("");
 const saving = ref(false);
-// V2.1.4 方案侧关联需求（多对多，编辑态多选）
+// 方案侧关联需求（多对多，编辑态多选）
 const requirements = ref([]);
 const editRequirementIds = ref([]);
 async function loadRequirements() {
@@ -256,7 +256,7 @@ async function loadRequirements() {
   if (res?.ok) requirements.value = res.data.items || [];
 }
 
-// V2.2 R14 方案侧关联任务（树形多选，父子不联动：check-strictly 下不勾父自动勾子）
+// 方案侧关联任务（树形多选，父子不联动：check-strictly 下不勾父自动勾子）
 const taskTree = ref([]);
 const editTaskIds = ref([]);
 async function loadTasks() {
@@ -320,9 +320,9 @@ function formatTime(iso) {
 // CommentPanel 挂载后注入删除确认回调（数据内聚，确认弹窗用本弹窗的 ConfirmModal）
 watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
 
-// ===== 划词引用评论（V2.6）=====
+// ===== 划词引用评论=====
 const richContainer = ref(null);
-// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（V2.6.2 Agent 批量加评论场景）
+// 正文中有引用标注的评论 id 集合（onCommentsLoaded 后扫描）；无标注的引用评论灰显不可定位（Agent 批量加评论场景）
 const locatableIds = ref(null);
 const { bubble: quoteBubble, takeAnchor, hideBubble } = useQuoteSelection(richContainer, {
   enabled: () => props.mode === "read" && !saving.value,
@@ -356,7 +356,7 @@ async function onQuoteRemoved(commentId) {
   if (!had) return; // 孤立引用（正文已无标注）无需清理
   const newHtml = unwrapQuoteInHtml(container.innerHTML, commentId);
   const res = await applyQuoteAnchor(props.projectId, commentId, {
-    // 评论已删除，回传目标归属供后端清理模式校验（V2.6.1）
+ // 评论已删除，回传目标归属供后端清理模式校验
     content: newHtml, targetType: "plan", targetId: plan.value?.id,
   });
   if (res?.ok) plan.value = { ...plan.value, content: newHtml };
@@ -430,7 +430,7 @@ function initEdit() {
   }
 }
 
-let loadSeq = 0; // R10 详情加载竞态防护：仅最新一次请求的响应可写入
+let loadSeq = 0; // 详情加载竞态防护：仅最新一次请求的响应可写入
 async function loadDetail() {
   if (!props.show || !props.planId) return;
   const seq = ++loadSeq;
@@ -444,7 +444,7 @@ async function loadDetail() {
     // 编辑模式直接打开（不经 read）时，加载完成后再预填
     if (props.mode === "edit") initEdit();
   } else {
-    // R15：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
+ // ：详情接口返回不存在（编辑期间被删）→ toast + 回列表刷新 + 关弹窗，不白屏
     toast(res?.error || "加载方案失败", "error");
     emit("closed-detail");
     emit("close");
@@ -470,7 +470,7 @@ async function savePlan() {
       const res = await updatePlan(props.projectId, props.planId, { title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value });
       if (!res?.ok) return toast(res?.error || "保存失败", "error");
       toast("已保存");
-      // R15：编辑保存不再直接关弹窗，交给父级决定「回落详情」或「关弹窗刷新列表」
+ // ：编辑保存不再直接关弹窗，交给父级决定「回落详情」或「关弹窗刷新列表」
       emit("saved", props.planId);
     } else {
       const res = await createPlan(props.projectId, { title, content: editContent.value, requirementIds: editRequirementIds.value, taskIds: editTaskIds.value });
@@ -484,7 +484,7 @@ async function savePlan() {
   }
 }
 
-// R15：编辑态取消，交给父级决定「回落详情」或「关弹窗」
+// ：编辑态取消，交给父级决定「回落详情」或「关弹窗」
 function cancelEdit() {
   emit("edit-cancel");
 }
@@ -508,7 +508,7 @@ async function onStatusChange(v) {
   }
 }
 
-// 评论（V2.6：数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
+// 评论（数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
 /** 扫描正文引用标注：正文 DOM 就绪后调用；无标注的引用退化为纯文字引用（灰显不可定位） */
 function scanLocatableQuotes() {
   nextTick(() => {
@@ -625,7 +625,7 @@ watch(
   },
   { immediate: true }
 );
-// R15 补：详情开着时列表右键编辑同一方案（show/planId 未变只 mode 变）→ 预填表单，避免空表单覆盖原关联
+// 补：详情开着时列表右键编辑同一方案（show/planId 未变只 mode 变）→ 预填表单，避免空表单覆盖原关联
 watch(() => props.mode, (m) => {
   if (props.show && m === "edit") initEdit();
 });
@@ -639,9 +639,9 @@ watch(() => props.mode, (m) => {
   height: 100%;
   min-height: 0;
   padding: 0 16px 16px;
-  position: relative; /* V2.1.3 评论折叠按钮定位基准 */
+  position: relative; /* 评论折叠按钮定位基准 */
 }
-/* V2.1.3 评论折叠：右上角圆形切换按钮 */
+/* 评论折叠：右上角圆形切换按钮 */
 .pm-comments-toggle {
   position: absolute;
   top: 48px;
@@ -705,7 +705,7 @@ watch(() => props.mode, (m) => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* R10 详情切换箭头按钮（左右两侧） */
+/* 详情切换箭头按钮（左右两侧） */
 .pm-nav-btn {
   flex-shrink: 0;
   display: inline-flex;
@@ -778,13 +778,13 @@ watch(() => props.mode, (m) => {
   color: var(--status-delay-text);
 }
 .pm-grid {
-  /* V2.6：改 flex，评论面板宽度由 CommentPanel 自控（拖拽 260~480） */
+ /* 改 flex，评论面板宽度由 CommentPanel 自控（拖拽 260~480） */
   display: flex;
   gap: 0;
   flex: 1;
   min-height: 0;
 }
-/* V2.1.3 评论折叠：评论栏隐藏时内容区占满 */
+/* 评论折叠：评论栏隐藏时内容区占满 */
 .pm-grid-folded .pm-content {
   border-right: none;
 }
@@ -836,7 +836,7 @@ watch(() => props.mode, (m) => {
   font-size: 12px;
   color: var(--text-tertiary);
 }
-/* V2.1.3 关联需求（方案反向展示） */
+/* 关联需求（方案反向展示） */
 .pm-reqs {
   margin-top: 14px;
   border-top: 0.5px solid var(--border);
@@ -1024,7 +1024,7 @@ watch(() => props.mode, (m) => {
   min-height: 0;
   max-height: none;
 }
-/* V2.2 编辑态关联需求+关联任务：并排一行五五开，四周留呼吸间距 */
+/* 编辑态关联需求+关联任务：并排一行五五开，四周留呼吸间距 */
 .pm-edit-assoc {
   display: flex;
   gap: 14px;

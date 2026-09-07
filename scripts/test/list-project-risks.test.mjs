@@ -1,7 +1,7 @@
 /**
  * neo-project-manage list_project_risks 口径测试（node:test）
  *
- * V2.3 review #1：项目过滤 archived=false 且 status∈{进行中,待开始}；风险只保留 high/medium
+ *  review #1：项目过滤 archived=false 且 status∈{进行中,待开始}；风险只保留 high/medium
  * （low 不入列、不计 totalLow）；projectCount 按过滤后口径。与 data.js scanMessages risk 口径一致。
  */
 import { test } from "node:test";

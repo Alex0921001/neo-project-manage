@@ -29,7 +29,7 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
-  // V2.0 S12：项目总结（与 summarize-project 工具同源，数据来自 data.summarizeProject）
+ // S12：项目总结（与 summarize-project 工具同源，数据来自 data.summarizeProject）
   app.get("/api/projects/:id/summary", (c) => {
     try {
       const summary = data.summarizeProject(c.req.param("id"));
@@ -40,7 +40,7 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
-  // V2.2 R3：一键周报/阶段总结（body: { range, startDate?, endDate? }，返回 Markdown + 区间）
+ // 一键周报/阶段总结（body: { range, startDate?, endDate? }，返回 Markdown + 区间）
   app.post("/api/projects/:id/report", async (c) => {
     try {
       const body = await c.req.json();
@@ -52,7 +52,7 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
-  // V2.1 项目级风险规则配置（齿轮弹窗 / Agent 工具读改写）
+ // 项目级风险规则配置（齿轮弹窗 / Agent 工具读改写）
   app.get("/api/projects/:id/risk-config", (c) => {
     try {
       const cfg = data.getRiskConfig(c.req.param("id"));
@@ -74,7 +74,7 @@ export function registerProjectsRoutes(app, data) {
     }
   });
 
-  // V2.0 S14：历史总结列表（data.getProjectSummaries 倒序取最近 N 条，供前端时间线）
+ // S14：历史总结列表（data.getProjectSummaries 倒序取最近 N 条，供前端时间线）
   // P1-1：limit 仅接受正整数，非法（缺失/NaN/小数/负数）退回默认 10，避免 data 层抛错裸 500
   // P2-1：不再前置 getProject 全量查询，存在性由 data 层轻量 SELECT 检查并抛「项目不存在」
   app.get("/api/projects/:id/summaries", (c) => {

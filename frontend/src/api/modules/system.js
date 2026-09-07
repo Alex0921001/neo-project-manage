@@ -1,6 +1,6 @@
 import http from "../index.js";
 
-/** 系统/检索/项目洞察接口模块（V2.6.4 任务 f74273ee）；返回业务 JSON { ok, data?, error? } */
+/** 系统/检索/项目洞察接口模块；返回业务 JSON { ok, data?, error? } */
 
 export function searchAll(params = {}, opts = {}) {
   return http.get("api/search", { params, ...opts });

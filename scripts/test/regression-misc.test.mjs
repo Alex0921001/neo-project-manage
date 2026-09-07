@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.2 R3 + R7 回归测试（node:test）
+ * neo-project-manage + 回归测试（node:test）
  *
  * 覆盖：
  * 1. v9 迁移：tasks.done_at 列 + SCHEMA_VERSION=9（幂等）
@@ -35,7 +35,7 @@ function expectThrow(fn, pattern) {
   });
 }
 
-// ===== 1. v9 迁移：done_at 列 + 版本号（V2.3 精修已升 v12，版本号断言随当前 SCHEMA_VERSION） =====
+// ===== 1. v9 迁移：done_at 列 + 版本号（精修已升 v12，版本号断言随当前 SCHEMA_VERSION） =====
 test("R3-1：v9 迁移补 tasks.done_at 列，SCHEMA_VERSION 随 V2.3 升至 12", () => {
   const cols = data._db.prepare("PRAGMA table_info(tasks)").all().map((c) => c.name);
   assert.ok(cols.includes("done_at"), "tasks 表应含 done_at 列");
@@ -70,7 +70,7 @@ test("R3-2：updateTask done=true 写本地时间 done_at，done=false 清空", 
   assert.notEqual(again, "", "再完成后应重新写入 done_at");
 });
 
-// ===== S1 回归：已完成任务再传 done=true 不刷新 done_at =====
+// =====  回归：已完成任务再传 done=true 不刷新 done_at =====
 test("R3-S1：已完成任务再传 done=true 不刷新 done_at", () => {
   const proj = data.createProject({ name: "R3-S1-幂等项目" });
   const task = data.createTask(proj.id, { name: "已完成任务" });
@@ -110,7 +110,7 @@ test("R7-1：updateTasks 批量更新，单条失败不影响其他条", () => {
   expectThrow(() => data.updateTasks(proj.id, many), /50/);
 });
 
-// ===== S2 回归：批量完成含未完成子任务的父任务进 failed，其余成功 =====
+// =====  回归：批量完成含未完成子任务的父任务进 failed，其余成功 =====
 test("R7-S2：批量完成含未完成子任务的父任务进 failed，其余成功", () => {
   const proj = data.createProject({ name: "R7-S2-矛盾树项目" });
   const parent = data.createTask(proj.id, { name: "父任务" });

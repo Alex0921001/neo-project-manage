@@ -60,7 +60,7 @@ export async function api(path, opts = {}) {
     if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
     const res = await fetch(withToken(apiUrl(path)), { ...opts, headers });
     const data = await res.json();
-    // v1.3.1：拦截后端业务错误（ok=false），统一弹 ElMessage；调用方传 silent:true 跳过
+ // 拦截后端业务错误（ok=false），统一弹 ElMessage；调用方传 silent:true 跳过
     // 重复 toast 由 toast.js 内部 600ms 内容去重保护，不会刷屏
     if (data && data.ok === false && !opts.silent) {
       ElMessage.error(data.error || "操作失败");

@@ -1,7 +1,7 @@
 /**
  * 项目文件 + 文件夹 CRUD：/api/projects/:projectId/files/* 与 /api/projects/:projectId/folders/*
  *
- * 文件夹（V2.1.4 文件系统重构）：多层嵌套（parent_id 自引用），NULL=根目录；
+ * 文件夹（文件系统重构）：多层嵌套（parent_id 自引用），NULL=根目录；
  * 删除走「真删除」语义（递归删子孙夹 + 级联删夹内文件登记，磁盘文件不碰，用户拍板）。
  */
 export function registerFilesRoutes(app, data) {

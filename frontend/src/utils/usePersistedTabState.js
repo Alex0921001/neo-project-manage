@@ -3,7 +3,7 @@ import { reactive, watch } from "vue";
 export const STATE_VERSION = "v1";
 
 /**
- * R13：项目详情五 tab 筛选/排序状态持久化 composable。
+ * ：项目详情五 tab 筛选/排序状态持久化 composable。
  * 用法：
  *   const st = usePersistedTabState(() => `${projectId}-requirements`, { search: "", status: "全部", sort: "default" });
  *   const { search, status, sort } = toRefs(st); // 直接 v-model 绑定

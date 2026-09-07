@@ -214,8 +214,8 @@ const props = defineProps({
   expandAll: { type: Boolean, default: null },
   forceExpandIds: { type: Array, default: () => [] }, // 定位跳转：命中任务 id 强制展开（祖先链）
   depth: { type: Number, default: 0 },        // 0=顶层，1=子任务，2=孙任务
-  dragDisabled: { type: Boolean, default: false }, // V2.1.2 非默认排序时禁用拖拽（隐藏把手）
-  selectable: { type: Boolean, default: false }, // V2.2 R7 多选模式：渲染复选框（仅顶层任务开启）
+ dragDisabled: { type: Boolean, default: false }, // 非默认排序时禁用拖拽（隐藏把手）
+ selectable: { type: Boolean, default: false }, // 多选模式：渲染复选框（仅顶层任务开启）
   selected: { type: Boolean, default: false },
 });
 const emit = defineEmits([
@@ -263,7 +263,7 @@ watch(() => props.searchQuery, (q) => {
 });
 
 // 仅顶层卡片（depth 0）渲染子任务时支持拖拽；depth>=1 渲染后代用普通列表（嵌套 draggable 不稳）
-// V2.1.2：非默认排序（dragDisabled）时同样禁用
+// 非默认排序（dragDisabled）时同样禁用
 const draggable_drag = computed(() => props.depth < 1 && !props.dragDisabled);
 
 const annotList = computed(() => props.task.annotations || []);
@@ -326,7 +326,7 @@ const fileRefsList = computed(() => {
   return ids.map((id) => props.files.find((f) => f.id === id)).filter(Boolean);
 });
 
-// V2.2 R14：关联方案标签（task.planRefs 已含 id/title/status）
+// 关联方案标签（task.planRefs 已含 id/title/status）
 const planRefsList = computed(() => props.task.planRefs || []);
 function openPlan(planId) {
   if (!planId) return;
@@ -756,7 +756,7 @@ defineExpose({
   border-color: var(--border);
 }
 
-/* V2.2 R14：任务反向展示关联方案标签（可点击打开方案详情） */
+/* 任务反向展示关联方案标签（可点击打开方案详情） */
 .plan-refs-row {
   display: flex;
   flex-wrap: wrap;
@@ -795,7 +795,7 @@ defineExpose({
   flex-direction: column;
   gap: 2px;
 }
-/* v1.3.1：空子任务放置区（拖入任务成为子任务） */
+/* 空子任务放置区（拖入任务成为子任务） */
 .subtask-empty {
   min-height: 24px;
   border-top: 1px dashed transparent;

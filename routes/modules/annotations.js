@@ -55,7 +55,7 @@ export function registerAnnotationsRoutes(app, data) {
 
   // ===== 批量操作 =====
 
-  // V2.2 R7：批量更新批注（body: { annotations: [{id, content?, kind?, confirmed?}] }，逐条独立，冻结条目标失败）
+ // 批量更新批注（body: { annotations: [{id, content?, kind?, confirmed?}] }，逐条独立，冻结条目标失败）
   app.post("/api/projects/:projectId/annotations/batch-update", async (c) => {
     try {
       const body = await c.req.json();

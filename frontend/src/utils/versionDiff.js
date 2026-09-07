@@ -1,5 +1,5 @@
 /**
- * 版本对比引擎（V2.6）：块级 LCS 对齐 + 块内字符级 diff，不引第三方依赖
+ * 版本对比引擎：块级 LCS 对齐 + 块内字符级 diff，不引第三方依赖
  *
  * - htmlToBlocks：HTML 解析为块序列（段落/标题/列表项/引用/表格行/分隔线）
  * - diffBlocks：LCS 对齐产出 same/add/del 操作序列

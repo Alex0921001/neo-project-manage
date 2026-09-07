@@ -120,7 +120,7 @@ export default function registerPluginUiRoutes(app, ctx) {
     const hanaCss = c.req.query("hana-css") || "";
     const theme = c.req.query("hana-theme") || "inherit";
     // JS/CSS 全部内联进 HTML，必须禁缓存：否则 WebView 缓存旧 HTML = 旧代码，
-    // 无论 dist 怎么更新用户都拿不到新版（V2.6.1 验收期实锢问题）
+ // 无论 dist 怎么更新用户都拿不到新版（验收期实锢问题）
     c.header("Cache-Control", "no-store, no-cache, must-revalidate");
     return c.html(buildHtml(ctx.pluginId, hanaCss, theme));
   });
@@ -134,7 +134,7 @@ export default function registerPluginUiRoutes(app, ctx) {
     return c.body(fs.readFileSync(filePath), 200, { "Content-Type": mime, "Cache-Control": "max-age=31536000" });
   });
 
-  // ===== Static Frontend Assets（v1.1.1 兼容：JS/CSS 内联进 HTML，不注册静态路由 — P0-2 真问题）=====
+ // ===== Static Frontend Assets（兼容：JS/CSS 内联进 HTML，不注册静态路由）=====
 
   // ===== Domain API（按职责分模块注册） =====
   registerProjectSetsRoutes(app, data);
@@ -149,18 +149,18 @@ export default function registerPluginUiRoutes(app, ctx) {
   registerMembersRoutes(app, data);
   registerAuditRoutes(app, data);
   registerPlansRoutes(app, data);
-  // V2.6：统一评论（需求/方案共用）
+ // 统一评论（需求/方案共用）
   registerCommentsRoutes(app, data);
-  // V2.6：版本管理（需求/方案共用）
+ // 版本管理（需求/方案共用）
   registerVersionsRoutes(app, data);
-  // V2.6：验证模块
+ // 验证模块
   registerVerificationsRoutes(app, data);
   registerRequirementsRoutes(app, data);
-  // V2.3：消息中心（R1）+ 全文检索（R2）注册链末尾挂载
+ // 消息中心）+ 全文检索）注册链末尾挂载
   registerMessagesRoutes(app, data);
   registerSearchRoutes(app, data);
 
-  // V2.3 R2：首次启动后台建 FTS 全量索引（非阻塞；已完成则空跑，脏标记不触发）
+ // 首次启动后台建 FTS 全量索引（非阻塞；已完成则空跑，脏标记不触发）
   setTimeout(() => {
     try {
       const r = data.ensureFtsReady();
@@ -184,7 +184,7 @@ export default function registerPluginUiRoutes(app, ctx) {
     });
   });
 
-  // ===== 功能速查（v2.1.0）：运行时读 docs/capabilities.md，内容更新无需重新构建 =====
+ // ===== 功能速查：运行时读 docs/capabilities.md，内容更新无需重新构建 =====
   const capabilitiesFile = path.join(PLUGIN_ROOT, "docs", "capabilities.md");
   app.get("/api/capabilities", (c) => {
     try {
@@ -228,7 +228,7 @@ export default function registerPluginUiRoutes(app, ctx) {
       // 文件不存在直接报错（避免 Start-Process 静默失败，前端无感知）
       if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // P1-2：execFile + 参数数组（不经 cmd shell），-FilePath 字面路径 + 单引号转义
-      // 注意：Windows PowerShell 5.1 的 Start-Process 没有 -LiteralPath（PS7.3+ 才有），必须用 -FilePath；
+ // 注意：Windows PowerShell 5.1 的 Start-Process 没有 -LiteralPath（PS7.3+ 才有），必须用 -FilePath；
       // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量；-ErrorAction Stop 让失败可捕获
       const psCmd = `Start-Process -FilePath '${String(filePath).replace(/'/g, "''")}' -ErrorAction Stop`;
       const result = await new Promise((resolve) => {

@@ -1,5 +1,5 @@
 /**
- * 版本管理（V2.6）：需求/方案共用，/api/projects/:projectId/versions/*
+ * 版本管理：需求/方案共用，/api/projects/:projectId/versions/*
  *
  * GET  /api/projects/:projectId/versions?targetType=&targetId=   版本列表（新→旧，含内容快照）
  * POST /api/projects/:projectId/versions/:versionId/restore       还原到历史版本（旧内容作为新版本存入）

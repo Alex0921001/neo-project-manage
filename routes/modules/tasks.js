@@ -38,7 +38,7 @@ export function registerTasksRoutes(app, data) {
     }
   });
 
-  // V2.2 R7：批量更新任务（body: { tasks: [{id, ...可改字段}] }，逐条独立，返回成功/失败清单）
+ // 批量更新任务（body: { tasks: [{id, ...可改字段}] }，逐条独立，返回成功/失败清单）
   app.post("/api/projects/:projectId/tasks/batch-update", async (c) => {
     try {
       const body = await c.req.json();

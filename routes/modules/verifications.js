@@ -1,5 +1,5 @@
 /**
- * 验证模块（V2.6.1）：验证卡 + 卡内验证项，/api/projects/:projectId/verifications/*
+ * 验证模块：验证卡 + 卡内验证项，/api/projects/:projectId/verifications/*
  *
  * GET    /api/projects/:projectId/verifications                          验证卡列表（分页 20，含进度与关联任务名）
  * POST   /api/projects/:projectId/verifications                          新建验证卡 { name, taskIds?, note? }

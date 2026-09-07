@@ -3,7 +3,7 @@ import axios from "axios";
 import { ElMessage } from "element-plus";
 
 /**
- * axios 实例与 Hana 凭据 adapter（V2.6.4 需求 b11fb230 / 任务 818c9917）
+ * axios 实例与 Hana 凭据 adapter
  *
  * 双模式请求链路：
  * - 宿主 iframe：window.hana.api.fetch 优先（平台自动处理凭据与路由前缀）

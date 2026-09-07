@@ -1,5 +1,5 @@
 /**
- * 消息中心（V2.3 R1）：GET /api/messages、PUT /api/messages/read、DELETE /api/messages/:id、GET /api/messages/unread-count
+ * 消息中心）：GET /api/messages、PUT /api/messages/read、DELETE /api/messages/:id、GET /api/messages/unread-count
  */
 export function registerMessagesRoutes(app, data) {
   // 消息列表（先惰性扫描生成新消息，再分页；可按项目/类型筛选，含 total/unread）
@@ -56,7 +56,7 @@ export function registerMessagesRoutes(app, data) {
     }
   });
 
-  // V2.3 精修 #7：消息提醒配置读/写
+ // 精修 #7：消息提醒配置读/写
   app.get("/api/messages/config", (c) => {
     try {
       const config = data.getMessageConfig();

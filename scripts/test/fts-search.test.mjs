@@ -1,5 +1,5 @@
 /**
- * neo-project-manage V2.3 R2 全文检索测试（node:test）
+ * neo-project-manage 全文检索测试（node:test）
  *
  * 覆盖：FTS 增量（updateTask 改名后搜到新词 / deleteTask 后搜不到）、全类型索引
  * （task/annotation/plan/requirement/note/file）、type/projectId 过滤、LIKE 兜底（1~2 字词）、
@@ -97,7 +97,7 @@ test("全类型索引：6 类数据均可搜 + type/projectId 过滤", () => {
     const r = data.searchAll("独角鲸");
     assert.ok(r.results[0].snippet.includes("<mark>") || r.results[0].title.includes("独角鲸"));
 
-    // project：项目名/描述纳入索引（V2.3 全局搜索优化）
+ // project：项目名/描述纳入索引（全局搜索优化）
     const projHit = data.searchAll("全类型项目").results.find((x) => x.type === "project");
     assert.ok(projHit, "项目名关键词命中 type=project");
     assert.equal(projHit.projectId, p.id, "project 结果 projectId=项目 id");

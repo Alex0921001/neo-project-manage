@@ -247,7 +247,7 @@
             </div>
           </div>
 
-          <!-- 列 4：历史总结时间线（V2.0 S14）：懒加载，不随概览刷新 -->
+          <!-- 列 4：历史总结时间线：懒加载，不随概览刷新 -->
           <div class="ov-col ov-col-tl">
             <div v-if="tlLoading" class="ov-empty">加载中…</div>
             <el-empty v-else-if="!summaries.length" description="暂无数据" :image-size="80" />
@@ -267,7 +267,7 @@
       </div>
     </div>
 
-    <!-- 历史总结全部内容：右侧 Drawer（V2.0 精修） -->
+    <!-- 历史总结全部内容：右侧 Drawer -->
     <el-drawer v-model="drawerOpen" title="历史总结" size="420px" :append-to-body="true">
       <!-- 来源筛选：全部 / 自动 / 手动 -->
       <div class="ov-drawer-filter">
@@ -292,7 +292,7 @@
       </ul>
     </el-drawer>
 
-    <!-- 生成周报（V2.2 R3 + 改造）：公共可拖拽缩放面板，自动生成，md 渲染预览 -->
+    <!-- 生成周报：公共可拖拽缩放面板，自动生成，md 渲染预览 -->
     <FloatPanel v-model="reportShow" title="生成周报" :default-width="760" :default-height="560">
       <div class="report-panel">
         <div class="report-range">
@@ -334,7 +334,7 @@ import { toast } from "../../../toast.js";
 import RiskConfigModal from "./RiskConfigModal.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 
-// V2.2：周报 Markdown 轻量渲染（内置，零依赖——避免第三方 md 库在构建产物中的 interop 风险）
+// 周报 Markdown 轻量渲染（内置，零依赖——避免第三方 md 库在构建产物中的 interop 风险）
 // 覆盖周报固定格式：标题 / 列表 / 表格 / 粗体 / 行内代码；未知内容转义后按文本输出
 function renderSimpleMd(src) {
   if (!src) return "";
@@ -426,7 +426,7 @@ const loading = ref(false);
 const s = ref(null); // summary data
 const riskConfigShow = ref(false); // 风险规则配置弹窗
 
-// ===== 生成周报（V2.2 R3 + 改造）：自动生成（打开/切换范围即拉取），md 渲染预览 =====
+// ===== 生成周报（+ 改造）：自动生成（打开/切换范围即拉取），md 渲染预览 =====
 const reportShow = ref(false);
 const reportRange = ref("thisWeek");
 const reportCustomRange = ref([]);
@@ -475,7 +475,7 @@ async function generateReport() {
   }
 }
 
-// ===== 历史总结时间线（V2.0 S14）=====
+// ===== 历史总结时间线）=====
 const TL_LIMIT = 10; // 默认展示前 10 条，超出部分列表滚动条；更多内容点「更多 >」进 Drawer 查看
 const SOURCE_FILTERS = [
   { value: "all", label: "全部" },
@@ -1010,7 +1010,7 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   line-height: 1.6;
 }
 
-/* ===== 历史总结时间线（V2.0 S14）===== */
+/* ===== 历史总结时间线）===== */
 .ov-tl-title {
   font-size: 13px;
   font-weight: 600;
@@ -1158,7 +1158,7 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   word-break: break-word;
 }
 
-/* ===== 生成周报（V2.2 R3 + 改造） ===== */
+/* ===== 生成周报（+ 改造） ===== */
 .report-panel {
   flex: 1;
   min-height: 0;
@@ -1247,7 +1247,7 @@ function riskParts(r) {  const desc = String(r?.desc || "");
 </style>
 
 <style>
-/* ===== Drawer 微调（V2.0 精修） =====
+/* ===== Drawer 微调（精修） =====
  * el-drawer 内容 teleport 到 body，scoped/:deep 无法命中，必须用全局样式 */
 .el-drawer__header {
   margin-bottom: 0;

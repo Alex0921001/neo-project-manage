@@ -1,5 +1,5 @@
 /**
- * 评论引用后台补锚测试（V2.6.3，临时库，不触碰真实数据）
+ * 评论引用后台补锚测试（临时库，不触碰真实数据）
  * 覆盖：quote-anchor 纯函数（定位/实体/跨段分片/多匹配）+ addComment 集成（补锚落库/降级/划词跳过/批量嵌套）
  */
 import { test, before, after } from "node:test";

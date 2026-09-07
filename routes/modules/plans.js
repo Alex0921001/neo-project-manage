@@ -37,7 +37,7 @@ export function registerPlansRoutes(app, data) {
     }
   });
 
-  // V2.1 方案文件导入：multipart field=file，支持 txt / md / docx → 解析为 { title, content(HTML) }
+ // 方案文件导入：multipart field=file，支持 txt / md / docx → 解析为 { title, content(HTML) }
   app.post("/api/projects/:projectId/plans/import", async (c) => {
     try {
       const contentLength = Number(c.req.header("content-length") || 0);

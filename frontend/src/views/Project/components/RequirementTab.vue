@@ -93,7 +93,7 @@ const props = defineProps({
   projectId: { type: String, default: "" },
   searchQuery: { type: String, default: "" },
   statusQuery: { type: String, default: "全部" },
-  sortQuery: { type: String, default: "default" }, // R12：default=创建时间倒序 / priority=优先级 P0→P5
+  sortQuery: { type: String, default: "default" }, // default=创建时间倒序 / priority=优先级 P0→P5
 });
 const emit = defineEmits(["changed"]);
 
@@ -107,10 +107,10 @@ const page = ref(1);
 const pageSize = 10;
 const loading = ref(false);
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)));
-// V2.2：区分「搜索/筛选无结果」与「真无数据」的空态（有筛选条件时展示搜索空态，不误报无需求）
+// 区分「搜索/筛选无结果」与「真无数据」的空态（有筛选条件时展示搜索空态，不误报无需求）
 const isFiltered = computed(() => !!props.searchQuery || props.statusQuery !== "全部");
 
-let loadSeq = 0; // R10 列表加载竞态防护：仅最新一次请求的响应可写入
+let loadSeq = 0; // 列表加载竞态防护：仅最新一次请求的响应可写入
 async function load(p = page.value, keyword = props.searchQuery, status = props.statusQuery, sort = props.sortQuery) {
   if (!props.projectId) return;
   const seq = ++loadSeq;
@@ -148,7 +148,7 @@ function goPage(p) {
 const modalShow = ref(false);
 const modalMode = ref("read"); // read | edit
 const modalId = ref(null); // null = 新建
-// V2.2 R15：记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
+// 记录当前编辑是否来自详情（详情内点编辑=true；列表右键编辑/新建=false）
 const editingFromDetail = ref(false);
 
 // 筛选 / 排序 / 搜索 / 项目切换：任何列表重载都关弹窗（PM 口径），再重新拉取
@@ -172,7 +172,7 @@ function openCreate() {
   modalShow.value = true;
 }
 
-// V2.3 R2：按需求 ID 打开详情（全文搜索跳转；列表未加载到该条时弹窗按 ID 直开）
+// 按需求 ID 打开详情（全文搜索跳转；列表未加载到该条时弹窗按 ID 直开）
 function openDetailById(reqId) {
   if (!reqId) return;
   modalId.value = reqId;
@@ -185,7 +185,7 @@ function openDetail(r, globalIdx) {
   modalMode.value = "read";
   editingFromDetail.value = false;
   modalShow.value = true;
-  // R10 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
+ // 详情切换：记录当前项在筛选结果全局序列中的索引（跨页导航基准）
   if (typeof globalIdx === "number") {
     detailGlobalIndex.value = globalIdx;
   } else {
@@ -194,7 +194,7 @@ function openDetail(r, globalIdx) {
   }
 }
 
-// ===== R10 详情快速切换（上一条 / 下一条，跨页补拉） =====
+// ===== 详情快速切换（上一条 / 下一条，跨页补拉） =====
 const detailGlobalIndex = ref(0); // 当前详情项在筛选结果全局序列的索引
 const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
 // 导航按钮常驻显示（首/末条不隐藏，边界点击提示）
@@ -222,7 +222,7 @@ function onModalChanged() {
   load();
 }
 
-// ===== V2.2 R15：编辑保存/取消回落详情 =====
+// ===== 编辑保存/取消回落详情 =====
 // 详情内点编辑：记录来源（新建不经过此分支，modalId 为空）
 function onModeChange(mode) {
   if (mode === "edit" && modalId.value) editingFromDetail.value = true;
@@ -471,7 +471,7 @@ defineExpose({ openCreate, load, openDetailById });
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* 已完成/已取消：名称样式与待处理一致（V2.1.4 去掉删除线） */
+/* 已完成/已取消：名称样式与待处理一致（去掉删除线） */
 /* 搜索关键字高亮（对齐方案/任务列表 .hl） */
 .req-name :deep(.hl),
 .req-name .hl {
@@ -536,7 +536,7 @@ defineExpose({ openCreate, load, openDetailById });
 .priority-p3 { color: var(--text-tertiary); background: var(--bg); border: 1px solid var(--border-light); }
 .priority-p4 { color: #5a7f9c; background: rgba(90, 127, 156, 0.10); border: 1px solid rgba(90, 127, 156, 0.24); }
 .priority-p5 { color: #98a0ab; background: transparent; border: 1px solid var(--border-light); opacity: 0.8; }
-/* 已完成/已取消：徽标与待处理一致（V2.1.4 去掉降透明） */
+/* 已完成/已取消：徽标与待处理一致（去掉降透明） */
 .req-meta {
   flex-shrink: 0;
   font-size: 13px;

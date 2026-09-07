@@ -1,7 +1,7 @@
 import http from "../index.js";
 import { apiUpload } from "../upload.js";
 
-/** 方案接口模块（V2.6.4 任务 f74273ee）；返回业务 JSON { ok, data?, error? } */
+/** 方案接口模块；返回业务 JSON { ok, data?, error? } */
 
 export function listPlans(projectId, params = {}, opts = {}) {
   return http.get(`api/projects/${projectId}/plans`, { params, ...opts });

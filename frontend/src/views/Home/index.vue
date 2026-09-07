@@ -33,7 +33,7 @@
       @confirm="doConfirm"
     />
 
-    <!-- 右下角功能速查入口（v2.1.0） -->
+    <!-- 右下角功能速查入口 -->
     <CapabilityCheatSheet />
   </div>
 </template>
@@ -81,7 +81,7 @@ function onSelectSet(id) {
   nextTick(() => projPanel.value?.setFilter(id));
 }
 
-// tabs 拖拽/弹窗排序：按新顺序重排 sets，并持久化到后端（v1.3.1）
+// tabs 拖拽/弹窗排序：按新顺序重排 sets，并持久化到后端
 async function onReorder(ids) {
   const map = new Map(sets.value.map((s) => [s.id, s]));
   sets.value = ids.map((id) => map.get(id)).filter(Boolean);

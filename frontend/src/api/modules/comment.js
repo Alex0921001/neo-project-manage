@@ -1,7 +1,7 @@
 import http from "../index.js";
 
 /**
- * 统一评论接口模块（V2.6.4 范式模块，任务 818c9917）
+ * 统一评论接口模块
  * 需求/方案共用评论表；返回业务 JSON { ok, data?, error? }
  */
 

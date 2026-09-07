@@ -1,5 +1,5 @@
 /**
- * 划词引用评论（V2.6）
+ * 划词引用评论
  *
  * 锚定策略：Tiptap QuoteCommentMark（文档数据内锚，内容重排不丢锚）。
  * 阅读模式（v-html，无编辑器实例）通过「纯文本偏移 + TextWalker 包裹 span」

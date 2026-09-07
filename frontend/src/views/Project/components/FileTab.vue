@@ -192,13 +192,13 @@ const props = defineProps({
   projectId: String,
   files: { type: Array, default: () => [] },
   folders: { type: Array, default: () => [] },
-  sortMode: { type: String, default: "default" }, // V2.3.3 文件排序：default / name / type
+ sortMode: { type: String, default: "default" }, // 文件排序：default / name / type
 });
 const emit = defineEmits(["changed", "confirm-ask"]);
 
 // ===== 视图状态 =====
 const search = ref("");
-// R13 文件 tab 树状态持久化：高亮文件夹 + 折叠集合（恢复后父链展开见 applyExpandState）
+// 文件 tab 树状态持久化：高亮文件夹 + 折叠集合（恢复后父链展开见 applyExpandState）
 const folderState = usePersistedTabState(() => `${props.projectId}-files-tree`, {
   selectedFolder: "root",
   collapsedIds: [],
@@ -530,7 +530,7 @@ function selectFolder(id) {
   anchorIndex.value = -1;
 }
 
-// ===== 文件夹行内编辑 / 新建（V2.1.4 精修：替代原弹窗，原处 input 编辑） =====
+// ===== 文件夹行内编辑 / 新建（精修：替代原弹窗，原处 input 编辑） =====
 const rootExpanded = ref(true); // 根目录容器展开/收起
 const expandedIds = ref(new Set()); // 展开的文件夹 id 集合（父级管理，初始全部展开）
 const editingFolder = ref({ id: "", name: "" }); // 行内编辑中：仅 id 命中节点显示 input
@@ -1101,7 +1101,7 @@ function setSearch(v) {
 
 /* 工具栏 */
 .ft-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-/* 主体布局：左右等高填满剩余高度，中间分割线（V2.1.4 精修：左树独立滚动、不依赖右高） */
+/* 主体布局：左右等高填满剩余高度，中间分割线（精修：左树独立滚动、不依赖右高） */
 .ft-body {
   display: flex;
   align-items: stretch;
@@ -1201,7 +1201,7 @@ function setSearch(v) {
 }
 
 /* 文件网格（Windows 风格：图标 + 名称；选中淡琥珀底 + 琥珀直角虚线框；hover 浮层三点信息）
-   列宽固定 112px（V2.3.3 调整：文件名两行展示，固定宽度保证折行稳定、不随容器伸缩变宽） */
+   列宽固定 112px（文件名两行展示，固定宽度保证折行稳定、不随容器伸缩变宽） */
 .fg-grid {
   position: relative;
   display: grid;

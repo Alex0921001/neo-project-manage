@@ -1,5 +1,5 @@
 /**
- * 全文检索（V2.3 R2）：GET /api/search?keyword=&projectId=&type=&limit=
+ * 全文检索）：GET /api/search?keyword=&projectId=&type=&limit=
  */
 export function registerSearchRoutes(app, data) {
   app.get("/api/search", (c) => {

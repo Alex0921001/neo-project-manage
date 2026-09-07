@@ -7,7 +7,7 @@ export function registerProjectSetsRoutes(app, data) {
     return c.json({ ok: true, data: sets });
   });
 
-  // v1.3.1：项目集拖拽排序持久化（先于 :id 路由注册，避免 reorder 被当 id）
+ // 项目集拖拽排序持久化（先于 :id 路由注册，避免 reorder 被当 id）
   app.post("/api/project-sets/reorder", async (c) => {
     const body = await c.req.json();
     try {

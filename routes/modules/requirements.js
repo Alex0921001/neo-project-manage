@@ -1,5 +1,5 @@
 /**
- * 需求管理（V2.1.3）：/api/projects/:projectId/requirements/*
+ * 需求管理：/api/projects/:projectId/requirements/*
  *
  * GET    /api/projects/:projectId/requirements           需求列表（分页 + status/keyword 筛选，含关联方案数）
  * POST   /api/projects/:projectId/requirements           新建需求（name/description/priority/planIds）

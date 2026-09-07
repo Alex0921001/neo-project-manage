@@ -1,6 +1,6 @@
 import http from "../index.js";
 
-/** 任务接口模块（V2.6.4 任务 f74273ee）；返回业务 JSON { ok, data?, error? } */
+/** 任务接口模块；返回业务 JSON { ok, data?, error? } */
 
 export function listTasks(projectId, params = {}, opts = {}) {
   return http.get(`api/projects/${projectId}/tasks`, { params, ...opts });

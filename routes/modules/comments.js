@@ -1,5 +1,5 @@
 /**
- * 统一评论（V2.6）：需求/方案共用，/api/projects/:projectId/comments/*
+ * 统一评论：需求/方案共用，/api/projects/:projectId/comments/*
  *
  * GET    /api/projects/:projectId/comments?targetType=&targetId=   评论列表（新→旧）
  * POST   /api/projects/:projectId/comments                         加评论 { targetType, targetId, content, quote? }
@@ -55,11 +55,11 @@ export function registerCommentsRoutes(app, data) {
     }
   });
 
-  // 评论引用标注写入（V2.6 划词引用）：前端包裹好高亮 span 的新 HTML，绕过内容编辑状态冻结
+ // 评论引用标注写入（划词引用）：前端包裹好高亮 span 的新 HTML，绕过内容编辑状态冻结
   app.post("/api/projects/:projectId/comments/:commentId/anchor", async (c) => {
     const body = await c.req.json();
     try {
-      // 清理上下文（V2.6.1）：评论已删除后的高亮清理场景，由前端回传目标归属
+ // 清理上下文：评论已删除后的高亮清理场景，由前端回传目标归属
       const cleanup = body.targetType && body.targetId
         ? { targetType: body.targetType, targetId: body.targetId }
         : null;

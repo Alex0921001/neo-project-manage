@@ -93,7 +93,7 @@ test("项目：CRUD + 参数校验", () => {
   assert.equal(data.getProject(p.id), null);
 });
 
-// ===== 2b. 收藏（V2.0 P0-1） =====
+// ===== 2b. 收藏（P0-1） =====
 test("收藏：创建默认 0 / update 可设 1 / 查询返回 pinned", () => {
   const p = data.createProject({ name: "收藏项目" });
   assert.equal(p.pinned, 0, "创建默认 pinned=0");
@@ -162,7 +162,7 @@ test("任务：父子孙树 / 成员契约 / 日期边界 / 级联删除", () =>
   assert.ok(!after.some((t) => t.id === t1.id || t.id === sub.id || t.id === grand.id), "级联删除子孙");
 });
 
-// ===== 3b. 任务优先级（V2.0） =====
+// ===== 3b. 任务优先级 =====
 test("任务优先级：默认 P3 / update 可改 / 非法抛错", () => {
   const p = data.createProject({ name: "优先级项目" });
 
@@ -191,7 +191,7 @@ test("任务优先级：默认 P3 / update 可改 / 非法抛错", () => {
   assert.equal(batch[1].priority, "P3", "批量默认 P3");
 });
 
-// ===== 3c. listTasks 排序（V2.0） =====
+// ===== 3c. listTasks 排序 =====
 test("listTasks 排序：等级 → 开始时间 → 创建时间", () => {
   const p = data.createProject({ name: "排序项目" });
   data.createTask(p.id, { name: "P0", priority: "P0" });
@@ -211,7 +211,7 @@ test("listTasks 排序：等级 → 开始时间 → 创建时间", () => {
   assert.deepEqual(names.slice(5), ["P3先", "P3后"], "无日期同等级按创建时间");
 });
 
-// ===== 3d. 任务里程碑（V2.1） =====
+// ===== 3d. 任务里程碑 =====
 test("任务里程碑：默认 false / 显式设置 / update 切换 / 非法抛错", () => {
   const p = data.createProject({ name: "里程碑项目", planStart: "2026-08-01", planEnd: "2026-08-31" });
 
@@ -348,7 +348,7 @@ test("listCalendarTasks：仅返回有起止日期的任务", () => {
   assert.ok(!cal.some((t) => t.name === "无日期"));
 });
 
-// ===== 8b. 日历任务：里程碑标记透传（V2.1） =====
+// ===== 8b. 日历任务：里程碑标记透传 =====
 test("listCalendarTasks：isMilestone 透传", () => {
   const p = data.createProject({ name: "日历里程碑项目" });
   data.createTask(p.id, { name: "里程碑", startDate: "2026-08-05", endDate: "2026-08-10", isMilestone: true });
@@ -368,7 +368,7 @@ test("项目统计：taskCount / incompleteTaskCount", () => {
   assert.equal(proj.incompleteTaskCount, 1);
 });
 
-// ===== 10. 批注 kind（V2.0） =====
+// ===== 10. 批注 kind =====
 test("批注 kind：创建/筛选/老数据兜底/非法值拦截", () => {
   const p = data.createProject({ name: "kind项目" });
   const t = data.createTask(p.id, { name: "kind任务" });
@@ -389,7 +389,7 @@ test("批注 kind：创建/筛选/老数据兜底/非法值拦截", () => {
   expectThrow(() => data.createAnnotation(p.id, t.id, { content: "x", kind: "bad" }), /kind/);
 });
 
-// ===== 11. 文件资产化（V2.0） =====
+// ===== 11. 文件资产化 =====
 test("文件资产化：登记读元信息 / digest / 路径失效防御", () => {
   const p = data.createProject({ name: "文件项目" });
   const real = path.join(tmpDir, "REPORT.PDF");
@@ -410,7 +410,7 @@ test("文件资产化：登记读元信息 / digest / 路径失效防御", () =>
   assert.ok(proj.files.every((x) => "size" in x && "ext" in x && "digest" in x));
 });
 
-// ===== 12. 会话关联（V2.0） =====
+// ===== 12. 会话关联 =====
 test("会话关联：link 去重 / unlink / 脏数据兜底", () => {
   const p = data.createProject({ name: "会话项目" });
   data.linkProjectSession(p.id, "sess-1");
@@ -426,7 +426,7 @@ test("会话关联：link 去重 / unlink / 脏数据兜底", () => {
   expectThrow(() => data.linkProjectSession("no", "s"), /不存在/);
 });
 
-// ===== 13. 总结持久化 + 风险识别（V2.0） =====
+// ===== 13. 总结持久化 + 风险识别 =====
 test("总结：保存/查询/50KB 上限 + 风险规则触发", () => {
   const p = data.createProject({ name: "总结项目", status: "进行中", planStart: "2026-01-01", planEnd: "2026-12-31" });
   data.saveProjectSummary(p.id, '{"summary":"正常"}', "auto");
@@ -478,7 +478,7 @@ test("askProject：scope 齐全 / decisions 过滤 / all 四段", () => {
   expectThrow(() => data.askProject(p.id, "bad"), /scope/);
 });
 
-// ===== 15. 成员管理（V2.0） =====
+// ===== 15. 成员管理 =====
 test("成员：创建 / 重名拒绝 / 改名 / 删除", () => {
   const m = data.createMember("MEM-甲");
   assert.ok(m.id, "应返回 id");
@@ -533,7 +533,7 @@ test("成员：allKnownNames 聚合（含历史项目里的成员名、去重）
   assert.deepEqual(known, [...known].sort((a, b) => a.localeCompare(b, "zh")), "应按名称排序");
 });
 
-// ===== 16. 审计日志（V2.1 审计追踪） =====
+// ===== 16. 审计日志（审计追踪） =====
 test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔离 / 分页 / 级联删除", () => {
   const p = data.createProject({ name: "审计项目", members: ["审计人甲"], status: "待开始" });
   const p2 = data.createProject({ name: "审计项目2" });
@@ -580,9 +580,9 @@ test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔
 
   // —— 任务：创建 / 更新（含 done 归一 bool）——
   const t = data.createTask(pid, { name: "审计任务", assignees: ["审计人甲"] });
-  // 批注需在任务未完成时挂载（V2.1 规则：已完成任务不允许挂载便利贴）
+ // 批注需在任务未完成时挂载（规则：已完成任务不允许挂载便利贴）
   const a = data.createAnnotation(pid, t.id, { content: "审计批注A", kind: "note" });
-  // V2.1 规则：完成任务前便利贴必须全部确认（顺带验证 kind+confirmed 变更审计）
+ //  规则：完成任务前便利贴必须全部确认（顺带验证 kind+confirmed 变更审计）
   data.updateAnnotation(t.id, a.id, { kind: "risk", confirmed: true });
   data.updateTask(pid, t.id, { name: "审计任务改", done: true });
   logs = data.listAuditLogs(pid);
@@ -646,7 +646,7 @@ test("审计：写操作产生记录 / old-new 正确 / 读不产生 / 项目隔
   expectThrow(() => data.listAuditLogs(p2.id), /不存在/);
 });
 
-// ===== 17. 便利贴与任务完成互斥规则（V2.1） =====
+// ===== 17. 便利贴与任务完成互斥规则 =====
 test("便利贴规则：已完成任务禁挂载 / 禁修改冻结 / 完成前置需全部确认", () => {
   const p = data.createProject({ name: "规则项目" });
   const t = data.createTask(p.id, { name: "规则任务" });
@@ -685,7 +685,7 @@ test("便利贴规则：已完成任务禁挂载 / 禁修改冻结 / 完成前�
   assert.equal(after.done, true, "重新完成应成功");
 });
 
-// ===== N. 方案管理（V2.1，plans + plan_comments + 转任务）=====
+// ===== N. 方案管理（plans + plan_comments + 转任务）=====
 test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   const proj = data.createProject({ name: "方案测试项目" });
 
@@ -751,7 +751,7 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
 
   // 任务删除后：状态冻结解除，可回退流转；回退到草稿后可删（级联删评论）
   data.deleteTask(proj.id, conv.taskId);
-  // V2.2 R11：删任务时同步清空 plans.task_id，方案回到「未转」状态（可再次转任务）
+ // 删任务时同步清空 plans.task_id，方案回到「未转」状态（可再次转任务）
   const afterDel = data.getPlan(proj.id, p1.id);
   assert.equal(afterDel.taskId, null);
   assert.equal(afterDel.taskExists, null);
@@ -760,7 +760,7 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
   data.deletePlan(proj.id, p1.id);
   expectThrow(() => data.getPlan(proj.id, p1.id), /不存在/);
 
-  // 审计联动：方案 CRUD/转任务留痕；V2.6.1 统一评论表后，评论动作记为「添加评论」「删除评论」（targetType=comment）
+ // 审计联动：方案 CRUD/转任务留痕；统一评论表后，评论动作记为「添加评论」「删除评论」（targetType=comment）
   const audit = data.listAuditLogs(proj.id, {});
   const actions = audit.items.map((a) => a.action);
   for (const act of ["创建方案", "更新方案", "添加评论", "方案转任务", "删除评论", "删除方案"]) {
@@ -770,7 +770,7 @@ test("方案：CRUD + 状态校验 + 评论 + 转任务 + 审计联动", () => {
 });
 
 
-// ===== 16. 项目级风险规则配置（V2.1） =====
+// ===== 16. 项目级风险规则配置 =====
 test("风险配置：默认合并 / 白名单校验 / summarize 按配置生效 / 审计", () => {
   const pj = data.createProject({ name: "风险配置项目" });
   const t = data.createTask(pj.id, { name: "任务A", endDate: "2020-01-01" }); // 长期延期
@@ -846,9 +846,9 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   const r3 = data.updateRequirementStatus(pj.id, r1.id, "已完成");
   assert.equal(r3.status, "已完成");
 
-  // 已完成冻结：不可编辑（V2.1.4 状态流转已放开，仅编辑仍限待处理）
+ // 已完成冻结：不可编辑（状态流转已放开，仅编辑仍限待处理）
   assert.throws(() => data.updateRequirement(pj.id, r1.id, { name: "x" }), /不可修改/);
-  // 状态自由流转：已完成 → 已取消（V2.1.4 放开状态机）
+ // 状态自由流转：已完成 → 已取消（放开状态机）
   assert.equal(data.updateRequirementStatus(pj.id, r1.id, "已取消").status, "已取消");
   // 已取消 → 待处理（切回）
   assert.equal(data.updateRequirementStatus(pj.id, r1.id, "待处理").status, "待处理");
@@ -867,7 +867,7 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   // 无效状态
   assert.throws(() => data.updateRequirementStatus(pj.id, r1.id, "进行中"), /无效需求状态/);
 
-  // V2.1.4：已完成不可删除（交付记录保留）
+ // 已完成不可删除（交付记录保留）
   const rDone = data.createRequirement(pj.id, { name: "完成不可删", description: "", priority: "P3", planIds: [] });
   data.updateRequirementStatus(pj.id, rDone.id, "已完成");
   assert.throws(() => data.deleteRequirement(pj.id, rDone.id), /已完成的需求不可删除/);
@@ -877,7 +877,7 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   data.deleteRequirement(pj.id, rDone.id);
   assert.throws(() => data.getRequirement(pj.id, rDone.id), /不存在/);
 
-  // V2.1.4 方案侧反向挂载：updatePlan 关联需求 + 双向一致 + 仅改关联也生效
+ // 方案侧反向挂载：updatePlan 关联需求 + 双向一致 + 仅改关联也生效
   data.updatePlan(pj.id, planA.id, { requirementIds: [r1.id] });
   assert.equal(data.getPlan(pj.id, planA.id).requirements.length, 1, "方案应挂 1 个需求");
   assert.ok(data.getRequirement(pj.id, r1.id).planIds.includes(planA.id), "需求侧应反向可见");
@@ -894,7 +894,7 @@ test("需求管理：CRUD + 三态流转 + 方案双向挂载 + 冻结校验 + �
   ["创建需求", "更新需求", "更新需求状态", "关联方案", "解除方案关联", "删除需求"].forEach((a) => assert.ok(actions.has(a), `应有审计动作 ${a}`));
 });
 
-// ===== 19. 文件夹（V2.1.4 文件系统重构） =====
+// ===== 19. 文件夹（文件系统重构） =====
 test("文件夹：创建/同级重名拒绝/不同父级可同名/树结构/更新", () => {
   const p = data.createProject({ name: "文件夹项目" });
   // 根级创建
@@ -908,7 +908,7 @@ test("文件夹：创建/同级重名拒绝/不同父级可同名/树结构/更�
   expectThrow(() => data.createFolder(p.id, { name: "x".repeat(51) }), /50/);
   // 嵌套
   const b = data.createFolder(p.id, { name: "V2", parentId: a.id });
-  const c = data.createFolder(p.id, { name: "V2.1", parentId: b.id });
+  const c = data.createFolder(p.id, { name: "folder-a", parentId: b.id });
   assert.equal(b.parentId, a.id);
   assert.equal(c.parentId, b.id);
   // 不同父级可同名（根下再建 V2 不冲突）
@@ -1053,7 +1053,7 @@ test("文件夹：审计日志（创建/更新/删除 + folder targetType）", (
   assert.ok(folderLogs.length >= 3, "文件夹操作应记 targetType=folder");
 });
 
-// ===== 方案批量（V2.6.2）=====
+// ===== 方案批量=====
 test("方案批量：create 整体回滚 / update·delete 逐条独立 + 状态冻结", () => {
   const proj = data.createProject({ name: "方案批量测试项目" });
   const pid = proj.id;

@@ -1,6 +1,6 @@
 import http from "../index.js";
 
-/** 项目备注接口模块（V2.6.4 任务 f74273ee）；返回业务 JSON { ok, data?, error? } */
+/** 项目备注接口模块；返回业务 JSON { ok, data?, error? } */
 
 export function listNotes(projectId, params = {}, opts = {}) {
   return http.get(`api/projects/${projectId}/notes`, { params, ...opts });

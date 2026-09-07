@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_message_config";
-export const description = "更新消息提醒配置（V2.3）：deadlineDays 到期提醒提前天数（1-14 整数）、deadlineEnabled 到期提醒开关、riskEnabled 风险提醒开关；传哪个改哪个，校验后写入，返回更新后的完整配置";
+export const description = "更新消息提醒配置：deadlineDays 到期提醒提前天数（1-14 整数）、deadlineEnabled 到期提醒开关、riskEnabled 风险提醒开关；传哪个改哪个，校验后写入，返回更新后的完整配置";
 export const parameters = {
   type: "object",
   required: [],

@@ -175,7 +175,7 @@ function resetInputHeight() {
 // ===== 划词引用（父级选中文字后调 beginQuote，提交时携带锚，Esc 取消）=====
 // 注意：pendingQuote 必须声明在下方 immediate watch 之前，否则 setup 阶段
 // watch 回调调 cancelQuote() 会触发 TDZ（Cannot access before initialization），
-// 导致 load() 永远不执行 → 评论面板恒为 0 条（V2.6.1 修复）
+// 导致 load() 永远不执行 → 评论面板恒为 0 条（修复）
 const pendingQuote = ref(null);
 function beginQuote(anchor) {
   pendingQuote.value = anchor;
@@ -232,7 +232,7 @@ async function send() {
   const content = draft.value.trim();
   if (!content) return;
   const body = { targetType: props.targetType, targetId: props.targetId, content };
-  // 划词引用评论：附带引用文本与纯文本偏移锚（V2.6）
+ // 划词引用评论：附带引用文本与纯文本偏移锚
   if (pendingQuote.value) {
     body.quote = pendingQuote.value.text;
     body.quoteAnchor = JSON.stringify({ start: pendingQuote.value.start, end: pendingQuote.value.end });
@@ -316,7 +316,7 @@ async function askDelete(c) {
     comments.value = comments.value.filter((x) => x.id !== c.id);
     emit("loaded", comments.value.length);
     emit("changed");
-    // 删除评论后通知父级清理正文高亮（unwrap + 持久化），避免孤儿引用残留（V2.6 划词引用）
+ // 删除评论后通知父级清理正文高亮（unwrap + 持久化），避免孤儿引用残留（划词引用）
     emit("quote-removed", c.id);
     toast("已删除评论");
   } else {

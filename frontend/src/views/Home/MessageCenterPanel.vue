@@ -44,7 +44,7 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <!-- V2.3 精修二批：设置按钮移到删除按钮右侧 -->
+        <!-- 设置按钮移到删除按钮右侧 -->
         <button class="msg-btn" title="消息提醒配置" @click="openConfig">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         </button>
@@ -73,7 +73,7 @@
               <span class="msg-time">{{ fmtTime(m.createdAt) }}</span>
             </div>
           </div>
-          <!-- V2.3 精修二批：加载更多仅在“有数据且未加载完”时显示（空列表/搜索无结果只显示空态） -->
+          <!-- 加载更多仅在“有数据且未加载完”时显示（空列表/搜索无结果只显示空态） -->
           <div v-if="filtered.length && hasMore" class="msg-load-more">加载更多…</div>
           <div v-else-if="filtered.length" class="msg-list-end">已全部加载</div>
         </div>
@@ -103,7 +103,7 @@
       </div>
     </div>
 
-    <!-- V2.3 精修二批：右键菜单（定位鼠标处，点击其他区域关闭；删除项弹二次确认） -->
+    <!-- 右键菜单（定位鼠标处，点击其他区域关闭；删除项弹二次确认） -->
     <Teleport to="body">
       <div
         v-if="ctxMenu.show"
@@ -134,7 +134,7 @@
       @confirm="doDeleteAll"
     />
 
-    <!-- V2.3 精修 #7：消息提醒配置弹窗 -->
+    <!-- 消息提醒配置弹窗 -->
     <el-dialog
       v-model="configShow"
       title="消息提醒配置"
@@ -207,7 +207,7 @@ function typeLabel(t) {
 const filtered = computed(() => {
   const kw = searchWord.value.trim().toLowerCase();
   return items.value.filter((m) => {
-    if (m.type === "synergy") return false; // V2.3 决策：协同通知不做了，过滤不展示
+ if (m.type === "synergy") return false; // 决策：协同通知不做了，过滤不展示
     if (typeFilter.value !== "all" && m.type !== typeFilter.value) return false;
     if (!kw) return true;
     return (m.title || "").toLowerCase().includes(kw) || (m.content || "").toLowerCase().includes(kw);
@@ -304,7 +304,7 @@ async function markAllRead() {
   toast(`已标记 ${unreadIds.length} 条未读消息`);
 }
 
-// ===== 右键菜单（V2.3 精修二批：右键列表项 → 小菜单「删除」→ 二次确认 → 删除并刷新角标） =====
+// ===== 右键菜单（精修二批：右键列表项 → 小菜单「删除」→ 二次确认 → 删除并刷新角标） =====
 const ctxMenu = ref({ show: false, x: 0, y: 0, z: 4000, msg: null });
 
 function openCtxMenu(e, m) {
@@ -423,7 +423,7 @@ async function doDeleteAll() {
   toast(`已删除 ${deleted} 条消息`);
 }
 
-// ===== V2.3 精修 #7：消息提醒配置弹窗 =====
+// ===== 消息提醒配置弹窗 =====
 const configShow = ref(false);
 const configSaving = ref(false);
 const cfgForm = ref({ deadlineDays: 3, deadlineEnabled: true, riskEnabled: true });
@@ -581,7 +581,7 @@ watch(() => props.modelValue, (v) => {
   font-size: 12.5px;
   cursor: pointer;
   flex-shrink: 0;
-  /* V2.3 精修二批：统一高度与行高，纯图标按钮（设置）与文字按钮对齐 */
+ /* 精修二批：统一高度与行高，纯图标按钮（设置）与文字按钮对齐 */
   height: 30px;
   line-height: 1;
   white-space: nowrap;
@@ -591,7 +591,7 @@ watch(() => props.modelValue, (v) => {
 .msg-btn-danger:hover:not(:disabled) { background: #fdecec; color: var(--danger); border-color: var(--danger); }
 .msg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* 右键菜单（V2.3 精修二批，风格对齐项目内 ctx-menu：黑白灰简洁浮层） */
+/* 右键菜单（精修二批，风格对齐项目内 ctx-menu：黑白灰简洁浮层） */
 .msg-ctx-menu {
   position: fixed;
   min-width: 110px;
