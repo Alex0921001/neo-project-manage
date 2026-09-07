@@ -185,13 +185,28 @@
                 </button>
                 <template v-if="editingId === it.id">
                   <input v-model="editDraft" class="vitem-edit" @keydown.enter.prevent="saveEdit(it)" @keydown.esc="cancelEdit" />
+                  <input
+                    v-if="it.kind === 'agent'"
+                    v-model="editInstruction"
+                    class="vitem-edit"
+                    placeholder="验证指令（Agent 执行依据）"
+                    title="Agent 执行验证的依据，留空则仅保留内容"
+                    @keydown.enter.prevent="saveEdit(it)"
+                    @keydown.esc="cancelEdit"
+                  />
                   <button class="vitem-op" @click="saveEdit(it)">保存</button>
                   <button class="vitem-op" @click="cancelEdit">取消</button>
                 </template>
                 <template v-else>
+                  <span
+                    v-if="it.kind && it.kind !== 'human'"
+                    class="vitem-kind"
+                    :class="it.kind === 'agent' ? 'vitem-kind-agent' : 'vitem-kind-assertion'"
+                    :title="it.kind === 'agent' ? 'Agent 执行项：执行指令后回填证据' : '数据断言项：后端校验执行'"
+                  >{{ it.kind === 'agent' ? '⚙ Agent' : '⌘ 断言' }}</span>
                   <span class="vitem-content" :class="{ done: it.status }">{{ it.content }}</span>
                   <span v-if="it.note" class="vitem-note" :title="it.note">备注: {{ it.note }}</span>
-                  <span v-if="it.status && it.checkedAt" class="vitem-time">{{ fmtTime(it.checkedAt) }}</span>
+                  <span v-if="it.status && it.checkedAt" class="vitem-time">{{ fmtTime(it.checkedAt) }}<template v-if="it.evidence"> · {{ it.evidence.runner }}</template></span>
                   <span class="vitem-ops">
                     <button class="vitem-op" title="编辑" @click="startEdit(it)">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -200,6 +215,24 @@
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
                     </button>
                   </span>
+                  <div v-if="it.instruction" class="vitem-instruction" :title="it.instruction">▸ 指令：{{ it.instruction }}</div>
+                  <div v-if="it.evidence" class="vitem-evidence">
+                    <span class="vitem-evidence-mark">✓</span>
+                    <span class="vitem-evidence-summary" :title="it.evidence.summary">{{ it.evidence.summary }}</span>
+                    <el-popover v-if="it.evidence.detail" placement="bottom-start" :width="420" trigger="click">
+                      <template #reference>
+                        <span class="vitem-evidence-link">▸ 证据</span>
+                      </template>
+                      <div class="vitem-vep">
+                        <div class="vitem-vep-head">
+                          <span><b>证据</b> · runner: {{ it.evidence.runner }}</span>
+                          <span>{{ fmtTime(it.evidence.runAt || it.checkedAt) }}</span>
+                        </div>
+                        <div class="vitem-vep-row"><span class="vitem-vep-label">summary：</span>{{ it.evidence.summary }}</div>
+                        <div v-if="it.evidence.detail" class="vitem-vep-row"><span class="vitem-vep-label">detail：</span><code>{{ it.evidence.detail }}</code></div>
+                      </div>
+                    </el-popover>
+                  </div>
                 </template>
               </div>
             </div>
@@ -207,6 +240,11 @@
       <div v-if="!items.length && !loading" class="vtab-empty">该对象还没有验证项，在下方录入</div>
     </div>
     <div class="vtab-input">
+      <el-select v-model="draftKind" size="small" placeholder="方式" style="width: 88px" title="执行方式：human 人工勾选 / agent 由 Agent 执行后回填证据">
+        <el-option label="人工" value="human" />
+        <el-option label="Agent" value="agent" />
+        <el-option label="断言" value="assertion" disabled />
+      </el-select>
       <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
         <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />
       </el-select>
@@ -217,9 +255,16 @@
           v-model="draft"
           class="vt-input"
           rows="1"
-          placeholder="输入验证项内容，回车即存…"
+          :placeholder="draftKind === 'agent' ? '输入 Agent 验证项内容，回车即存…' : '输入验证项内容，回车即存…'"
           @keydown.enter="onDraftKeydown"
         ></textarea>
+        <input
+          v-if="draftKind === 'agent'"
+          v-model="draftInstruction"
+          class="vt-instruction"
+          placeholder="验证指令（可选，Agent 执行依据，如：npm test，检查 fail=0）"
+          @keydown.enter="addItem"
+        />
       </div>
     </div>
       </div>
@@ -451,6 +496,9 @@ const draft = ref("");
 const draftCategory = ref("功能验证");
 const editingId = ref("");
 const editDraft = ref("");
+const editInstruction = ref("");
+const draftKind = ref("human");
+const draftInstruction = ref("");
 const foldedGroups = ref(new Set());
 
 // 录入下拉：分组管理字典 + 当前验证项已有分类（字典为主，不再硬编码）
@@ -516,13 +564,19 @@ function fmtTime(iso) {
 async function addItem() {
   const content = draft.value.trim();
   if (!content) return;
+  const body = { content, category: draftCategory.value || "" };
+  if (draftKind.value !== "human") {
+    body.kind = draftKind.value;
+    if (draftInstruction.value.trim()) body.instruction = draftInstruction.value.trim();
+  }
   const res = await api(`api/projects/${props.projectId}/verifications/${detail.value.id}/items`, {
     method: "POST",
-    body: JSON.stringify({ content, category: draftCategory.value || "" }),
+    body: JSON.stringify(body),
   });
   if (res?.ok) {
     detailItems.value.push(res.data);
     draft.value = "";
+    draftInstruction.value = "";
     resetDraftInputHeight();
     syncCardProgress();
     emit("changed");
@@ -597,17 +651,21 @@ async function toggleItem(it) {
 function startEdit(it) {
   editingId.value = it.id;
   editDraft.value = it.content;
+  editInstruction.value = it.instruction || "";
 }
 function cancelEdit() {
   editingId.value = "";
   editDraft.value = "";
+  editInstruction.value = "";
 }
 async function saveEdit(it) {
   const content = editDraft.value.trim();
   if (!content) return;
+  const body = { content };
+  if (it.kind === "agent") body.instruction = editInstruction.value.trim();
   const res = await api(`api/projects/${props.projectId}/verifications/items/${it.id}`, {
     method: "PUT",
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(body),
   });
   if (res?.ok) {
     Object.assign(it, res.data);
@@ -953,9 +1011,73 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
 .vitem {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 8px 12px;
   border-bottom: 0.5px solid var(--border-light);
+}
+/* V2.6.4：kind 徽标（仅 agent/assertion 显示，human 零噪音） */
+.vitem-kind {
+  flex: none;
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 3px;
+  line-height: 16px;
+  cursor: default;
+}
+.vitem-kind-agent { background: rgba(90, 140, 255, 0.12); color: #5a8cff; }
+.vitem-kind-assertion { background: rgba(46, 160, 67, 0.12); color: #2ea043; }
+/* 指令行 / 证据行：换行后的附加行，左对齐 content（checkbox 16 + gap 10） */
+.vitem-instruction,
+.vitem-evidence {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding-left: 26px;
+  margin-top: -4px;
+}
+.vitem-instruction {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: default;
+}
+.vitem-evidence-mark { flex: none; color: var(--accent); }
+.vitem-evidence-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vitem-evidence-link {
+  flex: none;
+  color: var(--accent);
+  cursor: pointer;
+  border-bottom: 1px dashed var(--accent);
+}
+.vitem-evidence-link:hover { color: var(--accent-hover); }
+.vitem-vep { font-size: 12px; }
+.vitem-vep-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+.vitem-vep-row { margin-bottom: 4px; word-break: break-word; }
+.vitem-vep-label { color: var(--text-tertiary); }
+.vitem-vep code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 0.5px solid var(--border-light);
+  border-radius: 3px;
+  padding: 0 4px;
 }
 .vitem:last-child { border-bottom: none; }
 .vitem-check {
@@ -1033,6 +1155,19 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
   outline: none;
 }
 .vitem-edit:focus { border-color: var(--text); }
+/* V2.6.4：agent 项录入时的指令输入框（textarea 下方） */
+.vt-instruction {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 0.5px dashed var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  outline: none;
+}
+.vt-instruction:focus { border-color: var(--text); }
 .vtab-input {
   flex-shrink: 0;
   display: flex;

@@ -135,6 +135,7 @@
       "./tools/create-verification-items.js",
       "./tools/update-verification-items.js",
       "./tools/toggle-verification-items.js",
+      "./tools/report-verification-result.js",
       "./tools/delete-verification-items.js",
       "./tools/delete-verifications.js",
       "./tools/list-verification-categories.js",
