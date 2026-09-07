@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_verification_item";
-export const description = "编辑验证项（内容/分类/备注），全量审计";
+export const description = "编辑验证项（内容/分类/备注/执行方式/Agent 指令），全量审计";
 export const parameters = {
   type: "object",
   required: ["projectId", "id"],
@@ -11,6 +11,8 @@ export const parameters = {
     content: { type: "string", description: "新的验证内容（可选）" },
     note: { type: "string", description: "备注（可选，传空串清除）" },
     category: { type: "string", description: "分类（可选）" },
+    kind: { type: "string", enum: ["human", "agent", "assertion"], description: "执行方式（可选）" },
+    instruction: { type: "string", description: "Agent 验证指令（可选）" },
   },
 };
 

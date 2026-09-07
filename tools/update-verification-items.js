@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "update_verification_items";
-export const description = "批量编辑验证项（每项含 id + 可改字段 content/category/note），全量审计。逐条独立校验：单条失败不影响其他条，返回成功/失败清单及原因。";
+export const description = "批量编辑验证项（每项含 id + 可改字段 content/category/note/kind/instruction），全量审计。逐条独立校验：单条失败不影响其他条，返回成功/失败清单及原因。";
 export const parameters = {
   type: "object",
   required: ["projectId", "items"],
@@ -18,6 +18,8 @@ export const parameters = {
           content: { type: "string", description: "新的验证内容" },
           category: { type: "string", description: "分类（可选）" },
           note: { type: "string", description: "备注（可选，传空串清除）" },
+          kind: { type: "string", enum: ["human", "agent", "assertion"], description: "执行方式（可选）" },
+          instruction: { type: "string", description: "Agent 验证指令（可选）" },
         },
       },
     },
@@ -33,6 +35,8 @@ export async function execute(input, toolCtx) {
     content: it.content,
     category: it.category,
     note: it.note,
+    kind: it.kind,
+    instruction: it.instruction,
   })));
   const lines = [`✅ 成功 ${res.success.length} 条，失败 ${res.failed.length} 条`];
   if (res.success.length) {

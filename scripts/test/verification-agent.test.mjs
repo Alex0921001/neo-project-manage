@@ -49,6 +49,18 @@ test("老路径兼容：toggle 不带 evidence 行为不变", () => {
   assert.equal(off.status, false);
 });
 
+test("编辑验证项支持改 kind：human 升级 agent 后可回填；非法值拒绝", () => {
+  const it = data.createVerificationItem(pid, card.id, { content: "升级项" });
+  assert.equal(it.kind, "human");
+  const up = data.updateVerificationItem(pid, it.id, { kind: "agent", instruction: "升级后的指令" });
+  assert.equal(up.kind, "agent");
+  assert.equal(up.instruction, "升级后的指令");
+  assert.throws(
+    () => data.updateVerificationItem(pid, it.id, { kind: "robot" }),
+    /非法的执行方式/,
+  );
+});
+
 test("证据回填：agent 项 evidence 落库、自动勾选、checked_by=runner、审计留痕", () => {
   const it = data.createVerificationItem(pid, card.id, { content: "补锚落库断言", kind: "agent", instruction: "查正文含标注 span" });
   const res = data.reportVerificationResult(pid, [
