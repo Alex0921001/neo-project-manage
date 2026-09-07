@@ -518,9 +518,8 @@ async function onStatusChange(v) {
 }
 
 // 评论（V2.6：数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
-function onCommentsLoaded(count) {
-  commentsCollapsed.value = count === 0;
-  // 扫描正文引用标注：无标注的引用退化为纯文字引用（灰显不可定位）
+/** 扫描正文引用标注：正文 DOM 就绪后调用；无标注的引用退化为纯文字引用（灰显不可定位） */
+function scanLocatableQuotes() {
   nextTick(() => {
     const container = richContainer.value;
     if (!container) { locatableIds.value = []; return; }
@@ -529,6 +528,15 @@ function onCommentsLoaded(count) {
     locatableIds.value = [...ids];
   });
 }
+
+function onCommentsLoaded(count) {
+  commentsCollapsed.value = count === 0;
+  scanLocatableQuotes();
+}
+
+// 正文与评论是两条互不等待的异步加载链：评论先到时正文尚未渲染，扫描得空集 → 首开全部误判灰显。
+// 后到方（正文加载完/更新）触发重扫，消除首开竞态；重复扫描幂等无害
+watch(plan, () => scanLocatableQuotes());
 
 // 克隆：通知父级以当前方案为克隆源重开新建编辑态（planId 置空，保存走新建）
 function startClone() {
