@@ -133,8 +133,8 @@ async function search() {
   const seq = ++reqSeq;
   loading.value = true;
   try {
-    const params = new URLSearchParams({ keyword: kw, limit: "20" });
-    if (isProject.value) params.set("projectId", props.projectId);
+    const params = { keyword: kw, limit: 20 };
+    if (isProject.value) params.projectId = props.projectId;
     const res = await searchAll(params, { silent: true });
     if (seq !== reqSeq) return; // 已有后发请求，丢弃本次旧响应
     if (res?.ok) {

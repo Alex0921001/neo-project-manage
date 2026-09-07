@@ -322,10 +322,10 @@ async function load() {
   if (!props.projectId) return; // 项目对象未就绪（刷新恢复 tab 的瞬态）不发请求
   const seq = ++loadSeq;
   loading.value = true;
-  const qs = new URLSearchParams({ page: page.value, pageSize });
-  if (props.searchQuery.trim()) qs.set("keyword", props.searchQuery.trim());
-  if (props.planFilter.length) qs.set("planId", props.planFilter[0]);
-  if (props.taskFilter.length) qs.set("taskId", props.taskFilter[0]);
+  const params = { page: page.value, pageSize };
+  if (props.searchQuery.trim()) params.keyword = props.searchQuery.trim();
+  if (props.planFilter.length) params.planId = props.planFilter[0];
+  if (props.taskFilter.length) params.taskId = props.taskFilter[0];
   const res = await listVerifications(props.projectId, params);
   loading.value = false;
   if (seq !== loadSeq || !res?.ok) return;

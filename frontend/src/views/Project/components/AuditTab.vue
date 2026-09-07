@@ -307,10 +307,10 @@ async function loadPage(p) {
   loading.value = true;
   try {
     // 筛选参数：行为（精确）+ 时间范围（dateFrom / dateTo），来自父级 tab 栏
-    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
-    if (props.actionFilter) params.set("action", props.actionFilter);
-    if (props.dateFrom) params.set("dateFrom", props.dateFrom);
-    if (props.dateTo) params.set("dateTo", props.dateTo);
+    const params = { limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE };
+    if (props.actionFilter) params.action = props.actionFilter;
+    if (props.dateFrom) params.dateFrom = props.dateFrom;
+    if (props.dateTo) params.dateTo = props.dateTo;
     const res = await listAuditLogs(props.projectId, params, { silent: true });
     if (res?.ok) {
       logs.value = res.data.items || [];

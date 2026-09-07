@@ -246,9 +246,9 @@ async function load(p = page.value, keyword = props.searchQuery, status = props.
   const seq = ++loadSeq;
   loading.value = true;
   try {
-    const params = new URLSearchParams({ limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE });
-    if (keyword.trim()) params.set("keyword", keyword.trim());
-    if (status && status !== "全部") params.set("status", status);
+    const params = { limit: PAGE_SIZE, offset: (p - 1) * PAGE_SIZE };
+    if (keyword.trim()) params.keyword = keyword.trim();
+    if (status && status !== "全部") params.status = status;
     const res = await listPlans(props.projectId, params);
     if (seq !== loadSeq) return; // 过期响应丢弃
     if (res?.ok) {
