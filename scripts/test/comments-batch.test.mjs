@@ -76,3 +76,41 @@ test("评论批量：add 整体回滚 / update·delete 逐条独立 + 双目标�
   assert.throws(() => data.deleteComments(pid, []), /不能为空/);
   assert.throws(() => data.deleteComments(pid, Array.from({ length: 51 }, () => "x")), /50/);
 });
+
+test("删除评论同步摘除旧表行：库重初始化重放迁移不复活（V2.6.4 e05fbe69）", async () => {
+  const { createDb, migrateCommentsTable } = await import("../../lib/db.js");
+  const proj = data.createProject({ name: "复活回归项目" });
+  const pid = proj.id;
+  const plan = data.createPlan(pid, "复活目标方案", "<p>正文</p>");
+  const comment = data.addComment(pid, "plan", plan.id, "会被删除的评论");
+
+  // 模拟历史遗留：旧表有同 id 行（v8 老库搬迁源头）
+  const legacy = createDb(tmpDir);
+  try {
+    legacy.prepare("INSERT INTO plan_comments (id, plan_id, content, created_at) VALUES (?, ?, ?, ?)")
+      .run(comment.id, plan.id, "会被删除的评论", comment.createdAt);
+
+    // 删除统一表评论：修复后应同步摘除旧表行
+    assert.equal(data.deleteComment(pid, comment.id), true);
+    assert.equal(data.getPlan(pid, plan.id).comments.length, 0);
+    assert.equal(
+      legacy.prepare("SELECT COUNT(*) AS c FROM plan_comments WHERE id = ?").get(comment.id).c,
+      0,
+      "删除评论后旧表同 id 行应同步摘除",
+    );
+
+    // 重放迁移（库重新初始化场景）：旧表无行 → 不复活
+    migrateCommentsTable(legacy);
+    const revived = data.getPlan(pid, plan.id).comments;
+    assert.equal(revived.length, 0, "迁移重放后已删评论不应复活");
+
+    // 对照：未删除的旧表行仍会被正常搬入（迁移语义不破坏）
+    const keepId = "legacy-keep-1";
+    legacy.prepare("INSERT INTO plan_comments (id, plan_id, content, created_at) VALUES (?, ?, ?, ?)")
+      .run(keepId, plan.id, "正常搬迁的旧评论", new Date().toISOString());
+    migrateCommentsTable(legacy);
+    assert.equal(data.getPlan(pid, plan.id).comments.length, 1, "未删除的旧表行应正常搬入");
+  } finally {
+    legacy.close();
+  }
+});
