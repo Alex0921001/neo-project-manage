@@ -58,8 +58,8 @@ describe("renderDiff 行结构与类名", () => {
 
   it("编辑行左右各自纯净：左栏不含新版独有文字，右栏不含旧版独有文字", () => {
     const m = body(
-      { content: "<p>AAAAA BBBBB</p>" },
-      { content: "<p>AAAAA CCCCC</p>" }
+      { content: "<p>AAAAA BBBBB 结尾</p>" },
+      { content: "<p>AAAAA CCCCC 结尾</p>" }
     );
     const l = m.match(/<div class="vd-cell vd-l">([\s\S]*?)<\/div>/)[1];
     const r = m.match(/<div class="vd-cell vd-r">([\s\S]*?)<\/div>/)[1];
