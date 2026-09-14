@@ -373,9 +373,9 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
 /* 编辑（小改）：白底，仅变化片段上色（vd-del/vd-add 词块） */
-/* 编辑（重写）：底色只包裹内容（内层 div），不随 cell 拉伸铺满 */
-:deep(.vd-rewrite-l .vd-tint) { background: #ffebe9; display: block; min-height: 100%; }
-:deep(.vd-rewrite-r .vd-tint) { background: #d2f8d2; display: block; min-height: 100%; }
+/* 编辑（重写）：底色只包裹内容（内层 div），高度随内容自然增长，不随 cell 拉伸 */
+:deep(.vd-rewrite-l .vd-tint) { background: #ffebe9; display: block; }
+:deep(.vd-rewrite-r .vd-tint) { background: #d2f8d2; display: block; }
 /* 单侧行：同上，底色只到内容底部 */
 :deep(.vd-del-side .vd-tint) { background: #ffebe9; display: block; }
 :deep(.vd-add-side .vd-tint) { background: #d2f8d2; display: block; }
