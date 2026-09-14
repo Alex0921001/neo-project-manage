@@ -372,9 +372,13 @@ watch(() => [props.show, props.targetId], () => {
 }
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
-/* 修改行：白底，仅变化片段上色（vd-del/vd-add 词块） */
-/* 单侧行：只有存在的一侧有内容，无底色标注 */
-:deep(.vd-del .vd-l), :deep(.vd-add .vd-r) { background: #fff; }
+/* 编辑（小改）：白底，仅变化片段上色（vd-del/vd-add 词块） */
+/* 编辑（重写）：左右整段淡色完整显示 */
+:deep(.vd-rewrite-l) { background: #ffebe9; }
+:deep(.vd-rewrite-r) { background: #d2f8d2; }
+/* 单侧行：存在侧淡色，空侧白 */
+:deep(.vd-del-side) { background: #ffebe9; }
+:deep(.vd-add-side) { background: #d2f8d2; }
 /* 表格：与详情弹窗 rich-view 对齐（v-html 内任意表格统一生效） */
 :deep(.vd-body table) {
   width: 100%;

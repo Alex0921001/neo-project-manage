@@ -118,13 +118,13 @@ export function charDiff(a, b) {
   return out;
 }
 
-/** 相似度（LCS 长度 / 较长边长度）：>= 0.5 才配对为修改行，否则视为独立删/增 */
+/** 相似度三态：'same'（归一化后全等，仅空白差异）/ 'partial'（LCS 比 ≥ 0.5，小改）/ 'rewrite'（< 0.5，重写） */
 function isSimilar(a, b) {
-  if (!a && !b) return true;
-  if (!a || !b) return false;
+  if (!a && !b) return "same";
+  if (!a || !b) return "rewrite";
   const dp = lcsMatrix([...a], [...b]);
   const lcs = dp[0][0];
-  return lcs / Math.max(a.length, b.length) >= 0.5;
+  return lcs / Math.max(a.length, b.length) >= 0.5 ? "partial" : "rewrite";
 }
 
 /** 字符级 diff → 行内 HTML（ins/del 词块） */
@@ -188,7 +188,7 @@ function renderTableDiff(oldTableHtml, newTableHtml) {
       const a = tableRows(`<table>${op.block.html}</table>`)[0];
       const b = nxt && nxt.type === "add" ? tableRows(`<table>${nxt.block.html}</table>`)[0] : null;
       const canPair = nxt && nxt.type === "add" && a && b && a.cells.length === b.cells.length &&
-        a.cells.some((c, i) => isSimilar(c, b.cells[i]));
+        a.cells.some((c, i) => isSimilar(c, b.cells[i]) !== "rewrite");
       if (canPair) {
         // 行配对：左=旧行（删词标红）右=新行（增词标绿），逐单元格独立渲染
         const tdsOld = a.cells.map((c, i) => `<td>${cellHtml(c, b.cells[i], "old")}</td>`).join("");
@@ -237,25 +237,36 @@ export function renderDiff(va, vb) {
       rows.push(`<div class="vd-row vd-same"><div class="vd-cell vd-l">${body}</div><div class="vd-cell vd-r">${body}</div></div>`);
     } else if (op.type === "del") {
       const nxt = ops[k + 1];
-      if (nxt && nxt.type === "add" && isSimilar(op.block.text, nxt.block.text)) {
-        // 配对：修改行，白底，仅变化片段上色（左删词红块 / 右增词绿块）
-        if (op.block.kind === "table") {
-          const t = renderTableDiff(op.block.html, nxt.block.html);
-          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
+      if (nxt && nxt.type === "add") {
+        const sim = isSimilar(op.block.text, nxt.block.text);
+        if (sim === "partial") {
+          // 编辑（小改）：白底，仅变化片段上色（左删词红块 / 右增词绿块）
+          if (op.block.kind === "table") {
+            const t = renderTableDiff(op.block.html, nxt.block.html);
+            rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
+          } else {
+            const parts = charDiff(op.block.text, nxt.block.text);
+            const l = parts.map((p) => p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)).join("");
+            const r = parts.map((p) => p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)).join("");
+            rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
+          }
         } else {
-          const parts = charDiff(op.block.text, nxt.block.text);
-          const l = parts.map((p) => p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)).join("");
-          const r = parts.map((p) => p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)).join("");
-          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
+          // 编辑（重写）：左右整段淡色完整显示，无词级混排
+          if (op.block.kind === "table") {
+            const t = renderTableDiff(op.block.html, nxt.block.html);
+            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l">${t.oldHtml}</div><div class="vd-cell vd-r vd-rewrite-r">${t.newHtml}</div></div>`);
+          } else {
+            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l">${op.block.html}</div><div class="vd-cell vd-r vd-rewrite-r">${nxt.block.html}</div></div>`);
+          }
         }
         k++;
       } else {
-        // 单侧删除：保留两栏骨架，空侧留白格（无色），内容严格在自己栏内
-        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
+        // 单侧删除：保留两栏骨架，空侧留白格（无色）
+        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l vd-del-side">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
       }
     } else {
       // 单侧新增：保留两栏骨架，空侧留白格（无色）
-      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r">${op.block.html}</div></div>`);
+      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-add-side">${op.block.html}</div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };
