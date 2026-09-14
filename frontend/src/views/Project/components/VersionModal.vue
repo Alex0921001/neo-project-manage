@@ -358,7 +358,8 @@ watch(() => [props.show, props.targetId], () => {
   color: #57606a;
   background: #f6f8fa;
 }
-:deep(.vd-pane-label + .vd-pane-label) { border-left: 1px solid #d0d7de; }:deep(.vd-row) { display: flex; align-items: stretch; min-height: 20px; }
+:deep(.vd-pane-label + .vd-pane-label) { border-left: 1px solid #d0d7de; }
+:deep(.vd-row) { display: flex; align-items: stretch; min-height: 20px; }
 :deep(.vd-cell) {
   flex: 1;
   min-width: 0;
