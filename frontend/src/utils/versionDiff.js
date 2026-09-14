@@ -110,6 +110,15 @@ export function charDiff(a, b) {
   return out;
 }
 
+/** 相似度（LCS 长度 / 较长边长度）：>= 0.5 才配对为修改行，否则视为独立删/增 */
+function isSimilar(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const dp = lcsMatrix([...a], [...b]);
+  const lcs = dp[0][0];
+  return lcs / Math.max(a.length, b.length) >= 0.5;
+}
+
 /** 字符级 diff → 行内 HTML（ins/del 词块） */
 export function charDiffHtml(a, b) {
   return charDiff(a, b)
@@ -156,10 +165,12 @@ function renderTableDiff(oldTableHtml, newTableHtml) {
     } else if (op.type === "del") {
       const nxt = ops[k + 1];
       if (nxt && nxt.type === "add") {
-        // 行配对：逐单元格对比，只标变化单元格
+        // 行配对：需相似（同行小改）才逐单元格对比；完全不同的行独立标色
         const a = tableRows(`<table>${op.block.html}</table>`)[0];
         const b = tableRows(`<table>${nxt.block.html}</table>`)[0];
-        if (a && b && a.cells.length === b.cells.length) {
+        const canPair = a && b && a.cells.length === b.cells.length &&
+          a.cells.some((c, i) => isSimilar(c, b.cells[i]));
+        if (canPair) {
           const tds = a.cells.map((cellText, ci) => {
             const same = cellText === b.cells[ci];
             const inner = same ? ESC(cellText)
@@ -212,16 +223,16 @@ export function renderDiff(va, vb) {
       rows.push(`<div class="vd-row vd-same"><div class="vd-cell vd-l">${body}</div><div class="vd-cell vd-r">${body}</div></div>`);
     } else if (op.type === "del") {
       const nxt = ops[k + 1];
-      if (nxt && nxt.type === "add") {
-        // 配对：修改行，左=旧句（红底，删词标红）右=新句（绿底，增词标绿），未变部分不上色
+      if (nxt && nxt.type === "add" && isSimilar(op.block.text, nxt.block.text)) {
+        // 配对：修改行，白底，仅变化片段上色（左删词红块 / 右增词绿块）
         if (op.block.kind === "table") {
           const t = renderTableDiff(op.block.html, nxt.block.html);
-          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l vd-mod-l">${t}</div><div class="vd-cell vd-r vd-mod-r">${t}</div></div>`);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t}</div><div class="vd-cell vd-r">${t}</div></div>`);
         } else {
           const parts = charDiff(op.block.text, nxt.block.text);
           const l = parts.map((p) => p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)).join("");
           const r = parts.map((p) => p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)).join("");
-          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l vd-mod-l">${l}</div><div class="vd-cell vd-r vd-mod-r">${r}</div></div>`);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
         }
         k++;
       } else {

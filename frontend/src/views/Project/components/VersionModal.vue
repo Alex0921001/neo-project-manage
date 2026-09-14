@@ -366,8 +366,7 @@ watch(() => [props.show, props.targetId], () => {
 }
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
-:deep(.vd-mod-l) { background: #ffebe9; }
-:deep(.vd-mod-r) { background: #d2f8d2; }
+/* 修改行：白底，仅变化片段上色（vd-del/vd-add 词块） */
 /* 单侧行：只有存在的一侧有内容，无底色标注 */
 :deep(.vd-del .vd-l), :deep(.vd-add .vd-r) { background: #fff; }
 :deep(.vd-table) {
