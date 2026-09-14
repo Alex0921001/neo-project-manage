@@ -261,12 +261,12 @@ export function renderDiff(va, vb) {
         }
         k++;
       } else {
-        // 单侧删除：白底 + 左侧红色条，不整块刷色
-        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l vd-side-del">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
+        // 单侧删除：内容侧淡红底，空侧白底
+        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l vd-del-side">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
       }
     } else {
-      // 单侧新增：白底 + 左侧绿色条，不整块刷色
-      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-side-add">${op.block.html}</div></div>`);
+      // 单侧新增：内容侧淡绿底，空侧白底
+      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-add-side">${op.block.html}</div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };
