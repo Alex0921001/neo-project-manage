@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { renderDiff } from "./versionDiff.js";
+import { renderDiff, htmlToBlocks } from "./versionDiff.js";
 
 const va = {
   content: [
@@ -85,5 +85,13 @@ describe("renderDiff 行结构与类名", () => {
       { content: "<p>毫无关联的新内容丁戊己</p>" }
     );
     expect(m).toMatch(/vd-row vd-row-del|vd-row vd-row-add/);
+  });
+
+  it("列表项带类型标记：ol 序号与 ul 圆点区分，文本保留", () => {
+    const b = htmlToBlocks("<ul><li>甲项</li></ul><ol><li>乙项</li></ol>");
+    expect(b[0].html).toMatch(/data-list="ul"/);
+    expect(b[0].text).toBe("甲项");
+    expect(b[1].html).toMatch(/data-list="ol"/);
+    expect(b[1].text).toBe("乙项");
   });
 });

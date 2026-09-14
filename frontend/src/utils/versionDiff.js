@@ -24,7 +24,14 @@ export function htmlToBlocks(html) {
       if (/^h[1-6]$/.test(tag) || tag === "p" || tag === "blockquote" || tag === "pre") {
         push(tag, child);
       } else if (tag === "ul" || tag === "ol") {
-        for (const li of child.children) push("li", li);
+        // li 会被抽离父级单独成行，带上列表类型标记，渲染时才能区分圆点/序号
+        const ordered = tag === "ol";
+        for (const li of child.children) {
+          const text = (li.textContent || "").replace(/\s+/g, " ").trim();
+          if (!text) continue;
+          const html = li.outerHTML.replace(/^<li\b/i, `<li data-list="${ordered ? "ol" : "ul"}"`);
+          blocks.push({ kind: "li", html, text });
+        }
       } else if (tag === "table") {
         push("table", child);
       } else if (tag === "hr") {
@@ -235,7 +242,7 @@ function renderTableDiff(oldTableHtml, newTableHtml) {
  * 解决大段重写时「删除群在上、新增群在下」导致的左右内容垂直错位（序列漂移）。
  */
 function pairOps(ops) {
-  const PAIR_MIN = 0.6;
+  const PAIR_MIN = 0.3;
   const out = [];
   let k = 0;
   while (k < ops.length) {
