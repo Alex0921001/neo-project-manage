@@ -40,19 +40,24 @@ export function getSelectionAnchor(container) {
   const range = sel.getRangeAt(0);
   if (!container.contains(range.commonAncestorContainer)) return null;
 
-  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-  let offset = 0;
-  let start = -1;
-  let end = -1;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    const nodeStart = offset;
-    offset += node.nodeValue.length;
-    if (node === range.startContainer) start = nodeStart + range.startOffset;
-    if (node === range.endContainer) end = nodeStart + range.endOffset;
+  // 纯文本偏移用 Range.toString 计算：
+  // 三击选段时 range 边界落在元素节点上（startContainer 是 <p>），
+  // 按「边界必须是文本节点」匹配会直接取不到偏移（气泡不出现）。
+  let start;
+  let length;
+  try {
+    const pre = range.cloneRange();
+    pre.selectNodeContents(container);
+    pre.setEnd(range.startContainer, range.startOffset);
+    start = pre.toString().length;
+    length = range.toString().length;
+  } catch {
+    return null;
   }
-  if (start === -1 || end === -1 || start >= end) return null;
+  const end = start + length;
+  if (start < 0 || start >= end) return null;
   const text = container.textContent.slice(start, end);
+  if (!text) return null;
   return { start, end, text };
 }
 
