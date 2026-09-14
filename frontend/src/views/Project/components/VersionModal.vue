@@ -64,11 +64,13 @@
           </div>
           <div class="vh-field">
             <div class="vh-field-name">内容</div>
-            <div class="vh-diff-head">
-              <div class="vd-pane-label">旧版（上一版）</div>
-              <div class="vd-pane-label">新版（当前版本）</div>
+            <div class="vh-field-body vh-rich vd-body">
+              <div class="vd-diff-head">
+                <div class="vd-pane-label">旧版（上一版）</div>
+                <div class="vd-pane-label">新版（当前版本）</div>
+              </div>
+              <div v-html="bodyHtml"></div>
             </div>
-            <div class="vh-field-body vh-rich vd-body" v-html="bodyHtml"></div>
           </div>
           <div v-if="same" class="vh-same-tip">两个版本内容一致</div>
         </div>
@@ -352,8 +354,7 @@ watch(() => [props.show, props.targetId], () => {
   color: #57606a;
   background: #f6f8fa;
 }
-:deep(.vd-pane-label + .vd-pane-label) { border-left: 1px solid #d0d7de; }
-:deep(.vd-row) { display: flex; align-items: stretch; min-height: 20px; }
+:deep(.vd-pane-label + .vd-pane-label) { border-left: 1px solid #d0d7de; }:deep(.vd-row) { display: flex; align-items: stretch; min-height: 20px; }
 :deep(.vd-cell) {
   flex: 1;
   min-width: 0;
@@ -379,6 +380,7 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-table th) { background: #f6f8fa; font-weight: 600; }
 :deep(.vd-tr-add td) { background: #d2f8d2; }
 :deep(.vd-tr-del td) { background: #ffebe9; }
+:deep(.vd-td-mod) { background: #fdf3d8; }
 :deep(.vd-add) {
   text-decoration: none;
   background: #acf2bd;
