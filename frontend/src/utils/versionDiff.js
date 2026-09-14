@@ -141,6 +141,7 @@ function tableRows(tableHtml) {
 
 /** 表格块渲染：单元格级对比——同一位置的行若仅部分单元格变化，只标变化单元格；整行新增/删除才整行标色 */
 function renderTableDiff(oldTableHtml, newTableHtml) {
+  const rowHtml = (html, cls) => html.replace(/^<tr/, `<tr class="${cls}"`);
   const rowsA = tableRows(oldTableHtml);
   const rowsB = tableRows(newTableHtml);
   const ops = diffBlocks(
