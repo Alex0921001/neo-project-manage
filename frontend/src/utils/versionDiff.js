@@ -246,8 +246,15 @@ export function renderDiff(va, vb) {
             rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
           } else {
             const parts = charDiff(op.block.text, nxt.block.text);
-            const l = parts.map((p) => p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)).join("");
-            const r = parts.map((p) => p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)).join("");
+            // 左栏只保留「相同 + 删除」片段，右栏只保留「相同 + 新增」片段，另一侧独有文字不出现
+            const l = parts
+              .filter((p) => p.t !== "add")
+              .map((p) => (p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)))
+              .join("");
+            const r = parts
+              .filter((p) => p.t !== "del")
+              .map((p) => (p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)))
+              .join("");
             rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
           }
         } else {

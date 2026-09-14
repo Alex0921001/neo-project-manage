@@ -363,13 +363,15 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-cell) {
   flex: 1;
   min-width: 0;
-  padding: 4px 12px;
+  padding: 0 12px;
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
   color: #24292f;
   overflow-wrap: anywhere;
 }
+/* 块级元素 margin 归零：分块成行后，原 margin 会变成行间白缝 */
+:deep(.vd-cell :is(p, h1, h2, h3, h4, h5, h6, ul, ol, li, table, blockquote, pre)) { margin: 0; }
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
 /* 编辑（小改）：白底，仅变化片段上色（vd-del/vd-add 词块） */
@@ -385,7 +387,7 @@ watch(() => [props.show, props.targetId], () => {
   max-width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
-  margin: 8px 0;
+  margin: 0;
   font-size: inherit;
 }
 :deep(.vd-body th), :deep(.vd-body td) {
