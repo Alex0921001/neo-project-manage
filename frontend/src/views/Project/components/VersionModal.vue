@@ -395,7 +395,6 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-body th) { background: var(--bg-hover); font-weight: 600; }
 :deep(.vd-tr-add td) { background: #d2f8d2; }
 :deep(.vd-tr-del td) { background: #ffebe9; }
-:deep(.vd-td-mod) { background: #fdf3d8; }
 /* 图片：缩略图限宽，点击预览（useRichImagePreview） */
 :deep(.vd-body img) {
   max-width: 250px;

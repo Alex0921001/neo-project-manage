@@ -148,53 +148,59 @@ function tableRows(tableHtml) {
   return rows;
 }
 
-/** 表格块渲染：单元格级对比——同一位置的行若仅部分单元格变化，只标变化单元格；整行新增/删除才整行标色 */
+/** 表格块渲染：返回 { oldHtml, newHtml }——左栏放旧表、右栏放新表，各自只显自己侧的标注：
+ *  变化单元格只做词级标注（无底色），整行增删才整行标色 */
 function renderTableDiff(oldTableHtml, newTableHtml) {
-  const rowHtml = (html, cls) => html.replace(/^<tr/, `<tr class="${cls}"`);
+  const rowHtml = (html, cls) => html.replace(/^<tr/i, `<tr class="${cls}"`);
   const rowsA = tableRows(oldTableHtml);
   const rowsB = tableRows(newTableHtml);
   const ops = diffBlocks(
     rowsA.map((r) => ({ kind: "tr", html: r.html, text: r.key })),
     rowsB.map((r) => ({ kind: "tr", html: r.html, text: r.key }))
   );
-  const out = ["<table class=\"vd-table\">"];
+  // 单元格渲染：old 侧只标删除词，new 侧只标新增词，未变部分不上色
+  const cellHtml = (aText, bText, side) => {
+    if (aText === bText) return ESC(aText);
+    return charDiff(aText, bText)
+      .filter((p) => (side === "old" ? p.t !== "add" : p.t !== "del"))
+      .map((p) => p.t === "same" ? ESC(p.text)
+        : side === "old" ? `<del class="vd-del">${ESC(p.text)}</del>`
+        : `<ins class="vd-add">${ESC(p.text)}</ins>`)
+      .join("");
+  };
+  const oldOut = [];
+  const newOut = [];
   for (let k = 0; k < ops.length; k++) {
     const op = ops[k];
     if (op.type === "same") {
-      out.push(op.block.html);
+      oldOut.push(op.block.html);
+      newOut.push(op.block.html);
     } else if (op.type === "del") {
       const nxt = ops[k + 1];
-      if (nxt && nxt.type === "add") {
-        // 行配对：需相似（同行小改）才逐单元格对比；完全不同的行独立标色
-        const a = tableRows(`<table>${op.block.html}</table>`)[0];
-        const b = tableRows(`<table>${nxt.block.html}</table>`)[0];
-        const canPair = a && b && a.cells.length === b.cells.length &&
-          a.cells.some((c, i) => isSimilar(c, b.cells[i]));
-        if (canPair) {
-          const tds = a.cells.map((cellText, ci) => {
-            const same = cellText === b.cells[ci];
-            const inner = same ? ESC(cellText)
-              : charDiff(cellText, b.cells[ci]).map((p) =>
-                p.t === "same" ? ESC(p.text)
-                  : p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>`
-                  : `<ins class="vd-add">${ESC(p.text)}</ins>`).join("");
-            return `<td class="${same ? "" : "vd-td-mod"}">${inner}</td>`;
-          });
-          out.push(`<tr>${tds.join("")}</tr>`);
-        } else {
-          out.push(rowHtml(op.block.html, "vd-tr-del"));
-          out.push(rowHtml(nxt.block.html, "vd-tr-add"));
-        }
+      const a = tableRows(`<table>${op.block.html}</table>`)[0];
+      const b = nxt && nxt.type === "add" ? tableRows(`<table>${nxt.block.html}</table>`)[0] : null;
+      const canPair = nxt && nxt.type === "add" && a && b && a.cells.length === b.cells.length &&
+        a.cells.some((c, i) => isSimilar(c, b.cells[i]));
+      if (canPair) {
+        // 行配对：左=旧行（删词标红）右=新行（增词标绿），逐单元格独立渲染
+        const tdsOld = a.cells.map((c, i) => `<td>${cellHtml(c, b.cells[i], "old")}</td>`).join("");
+        const tdsNew = a.cells.map((c, i) => `<td>${cellHtml(c, b.cells[i], "new")}</td>`).join("");
+        oldOut.push(`<tr>${tdsOld}</tr>`);
+        newOut.push(`<tr>${tdsNew}</tr>`);
         k++;
       } else {
-        out.push(rowHtml(op.block.html, "vd-tr-del"));
+        // 无法配对：旧行只进左表（红），新行只进右表（绿）
+        oldOut.push(rowHtml(op.block.html, "vd-tr-del"));
+        if (nxt && nxt.type === "add") { newOut.push(rowHtml(nxt.block.html, "vd-tr-add")); k++; }
       }
     } else {
-      out.push(rowHtml(op.block.html, "vd-tr-add"));
+      newOut.push(rowHtml(op.block.html, "vd-tr-add"));
     }
   }
-  out.push("</table>");
-  return out.join("");
+  return {
+    oldHtml: `<table class="vd-table">${oldOut.join("")}</table>`,
+    newHtml: `<table class="vd-table">${newOut.join("")}</table>`,
+  };
 }
 
 /**
@@ -227,7 +233,7 @@ export function renderDiff(va, vb) {
         // 配对：修改行，白底，仅变化片段上色（左删词红块 / 右增词绿块）
         if (op.block.kind === "table") {
           const t = renderTableDiff(op.block.html, nxt.block.html);
-          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t}</div><div class="vd-cell vd-r">${t}</div></div>`);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
         } else {
           const parts = charDiff(op.block.text, nxt.block.text);
           const l = parts.map((p) => p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)).join("");
