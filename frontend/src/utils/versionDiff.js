@@ -235,7 +235,7 @@ function renderTableDiff(oldTableHtml, newTableHtml) {
  * 解决大段重写时「删除群在上、新增群在下」导致的左右内容垂直错位（序列漂移）。
  */
 function pairOps(ops) {
-  const PAIR_MIN = 0.3;
+  const PAIR_MIN = 0.6;
   const out = [];
   let k = 0;
   while (k < ops.length) {
