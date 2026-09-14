@@ -73,7 +73,7 @@
 - 「这条方案提三条修改意见」→ `add_comments`（targetType:plan + items）
 - 「把这 10 条已废弃方案清掉」→ `delete_plans`（planIds[]，仅草稿/已废弃可删逐条生效）
 
-### Agent 工具（123 个）
+### Agent 工具（124 个）
 
 | 类别 | 工具 | 说明 |
 | --- | --- | --- |
