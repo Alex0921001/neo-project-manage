@@ -1,20 +1,22 @@
 /**
- * 版本对比引擎：块级 LCS 对齐 + 块内字符级 diff，不引第三方依赖
+ * 版本对比引擎 v2：白底双栏、全文渲染、修改行左右对齐
  *
- * - htmlToBlocks：HTML 解析为块序列（段落/标题/列表项/引用/表格行/分隔线）
+ * - htmlToBlocks：HTML 解析为结构化块序列（保留标题/列表/表格 DOM，不降级纯文本）
  * - diffBlocks：LCS 对齐产出 same/add/del 操作序列
- * - charDiff：两段文本字符级 LCS → 行内 ins/del 标记
- * - renderDiffHtml：把 ops 渲染成对比视图 HTML（del 块与相邻 add 块合并为「修改」行内 diff）
+ * - charDiff：字符级 LCS → 行内 ins/del 标记
+ * - renderDiffHtml：del 与相邻 add 配对合并为 mod 行（左旧右新同屏对齐）；
+ *   未配对的 del/add 各占一行，空侧留占位
  */
 
-/** HTML → 块序列 [{tag, text}]（块取纯文本；空块跳过） */
+/** HTML → 结构化块序列。每块 { kind, html }，html 为该块的原始子 HTML（保结构）。 */
 export function htmlToBlocks(html) {
   const host = document.createElement("div");
   host.innerHTML = html || "";
   const blocks = [];
-  const push = (tag, el) => {
+  const push = (kind, el) => {
+    if (!el) return;
     const text = (el.textContent || "").replace(/\s+/g, " ").trim();
-    blocks.push({ tag, text });
+    if (text || kind === "hr") blocks.push({ kind, html: el.outerHTML, text });
   };
   const walk = (el) => {
     for (const child of el.children) {
@@ -24,9 +26,9 @@ export function htmlToBlocks(html) {
       } else if (tag === "ul" || tag === "ol") {
         for (const li of child.children) push("li", li);
       } else if (tag === "table") {
-        for (const tr of child.querySelectorAll("tr")) push("tr", tr);
+        push("table", child);
       } else if (tag === "hr") {
-        blocks.push({ tag: "hr", text: "" });
+        blocks.push({ kind: "hr", html: child.outerHTML, text: "" });
       } else {
         walk(child); // 容器级嵌套继续下钻
       }
@@ -52,7 +54,7 @@ function lcsMatrix(a, b) {
 
 /**
  * 块级 diff：LCS 对齐
- * @returns {Array<{type:'same'|'add'|'del', block:{tag,text}}>}
+ * @returns {Array<{type:'same'|'add'|'del', block:{kind,html,text}}>}
  */
 export function diffBlocks(a, b) {
   const at = a.map((x) => x.text);
@@ -108,7 +110,7 @@ export function charDiff(a, b) {
   return out;
 }
 
-/** 字符级 diff → HTML（ins/del 标记） */
+/** 字符级 diff → 行内 HTML（ins/del 词块） */
 export function charDiffHtml(a, b) {
   return charDiff(a, b)
     .map((p) =>
@@ -125,8 +127,44 @@ export function simpleDiffHtml(a, b) {
   return charDiffHtml(a, b);
 }
 
+/** 表格 HTML：按行拆出结构化行（含单元格文本数组），供行级 diff */
+function tableRows(tableHtml) {
+  const host = document.createElement("div");
+  host.innerHTML = tableHtml;
+  const rows = [];
+  for (const tr of host.querySelectorAll("tr")) {
+    const cells = [...tr.children].map((td) => (td.textContent || "").replace(/\s+/g, " ").trim());
+    rows.push({ html: tr.outerHTML, cells, key: cells.join("|") });
+  }
+  return rows;
+}
+
+/** 表格块渲染：对齐两版行，未变行白底、仅新行绿底、仅旧行红底（按 diffBlocks 对齐） */
+function renderTableDiff(oldTableHtml, newTableHtml) {
+  const rowsA = tableRows(oldTableHtml);
+  const rowsB = tableRows(newTableHtml);
+  const ops = diffBlocks(
+    rowsA.map((r) => ({ kind: "tr", html: r.html, text: r.key })),
+    rowsB.map((r) => ({ kind: "tr", html: r.html, text: r.key }))
+  );
+  const rowHtml = (html, cls) => html.replace(/^<tr/, `<tr class="${cls}"`);
+  const out = ["<table class=\"vd-table\">"];
+  for (const op of ops) {
+    const cls = op.type === "add" ? "vd-tr-add" : op.type === "del" ? "vd-tr-del" : "";
+    out.push(rowHtml(op.block.html, cls));
+  }
+  out.push("</table>");
+  return out.join("");
+}
+
 /**
- * 版本对比 → 渲染 HTML
+ * 版本对比 → 双栏渲染 HTML
+ * 输出行结构（每行固定两格，左旧右新）：
+ *   <div class="vd-row vd-same"><div class="vd-cell vd-l">..</div><div class="vd-cell vd-r">..</div></div>
+ *   mod:  左=旧句(行内 del 词块)  右=新句(行内 ins 词块)
+ *   del:  左=旧块红底            右=空占位
+ *   add:  左=空占位              右=新块绿底
+ * 表格块走 renderTableDiff（结构保留 + 行级标色）。
  * @param {{title:string, content:string, extra:object}} va 基线（旧）
  * @param {{title:string, content:string, extra:object}} vb 对比（新）
  * @returns {{titleHtml: string, bodyHtml: string, same: boolean}}
@@ -141,20 +179,25 @@ export function renderDiff(va, vb) {
   for (let k = 0; k < ops.length; k++) {
     const op = ops[k];
     if (op.type === "same") {
-      rows.push(`<div class="vd-row vd-same">${ESC(op.block.text)}</div>`);
+      const body = op.block.html;
+      rows.push(`<div class="vd-row vd-same"><div class="vd-cell vd-l">${body}</div><div class="vd-cell vd-r">${body}</div></div>`);
     } else if (op.type === "del") {
-      // del 后紧跟 add 且同为小段 → 合并为「修改」行内 diff
       const nxt = ops[k + 1];
       if (nxt && nxt.type === "add") {
-        rows.push(
-          `<div class="vd-row vd-mod"><span class="vd-tag">改</span>${charDiffHtml(op.block.text, nxt.block.text)}</div>`
-        );
+        // 配对：修改行，左旧右新同屏
+        if (op.block.kind === "table") {
+          const t = renderTableDiff(op.block.html, nxt.block.html);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l vd-mod-l">${t}</div><div class="vd-cell vd-r vd-mod-r">${t}</div></div>`);
+        } else {
+          const inline = charDiffHtml(op.block.text, nxt.block.text);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l vd-mod-l">${inline}</div><div class="vd-cell vd-r vd-mod-r">${inline}</div></div>`);
+        }
         k++;
       } else {
-        rows.push(`<div class="vd-row vd-del-row"><span class="vd-tag">删</span>${ESC(op.block.text)}</div>`);
+        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
       }
     } else {
-      rows.push(`<div class="vd-row vd-add-row"><span class="vd-tag">增</span>${ESC(op.block.text)}</div>`);
+      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r">${op.block.html}</div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };

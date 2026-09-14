@@ -64,7 +64,11 @@
           </div>
           <div class="vh-field">
             <div class="vh-field-name">内容</div>
-            <div class="vh-field-body vh-rich" v-html="bodyHtml"></div>
+            <div class="vh-diff-head">
+              <div class="vd-pane-label">旧版（上一版）</div>
+              <div class="vd-pane-label">新版（当前版本）</div>
+            </div>
+            <div class="vh-field-body vh-rich vd-body" v-html="bodyHtml"></div>
           </div>
           <div v-if="same" class="vh-same-tip">两个版本内容一致</div>
         </div>
@@ -329,54 +333,80 @@ watch(() => [props.show, props.targetId], () => {
   text-align: center;
   padding: 10px;
 }
-/* diff 标记 */
+/* diff 标记（白底双栏风格） */
+:deep(.vd-body) {
+  background: #fff;
+  color: #24292f;
+  border-color: #d0d7de;
+  padding: 0;
+  white-space: normal;
+}
+:deep(.vd-diff-head) {
+  display: flex;
+  border-bottom: 1px solid #d0d7de;
+}
+:deep(.vd-pane-label) {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  color: #57606a;
+  background: #f6f8fa;
+}
+:deep(.vd-pane-label + .vd-pane-label) { border-left: 1px solid #d0d7de; }
+:deep(.vd-row) { display: flex; align-items: stretch; min-height: 20px; }
+:deep(.vd-cell) {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #24292f;
+}
+:deep(.vd-l) { border-right: 1px solid #eaeef2; }
+:deep(.vd-same) { color: #24292f; }
+:deep(.vd-mod-l) { background: #ffebe9; }
+:deep(.vd-mod-r) { background: #d2f8d2; }
+:deep(.vd-del .vd-l) { background: #ffebe9; }
+:deep(.vd-del .vd-r), :deep(.vd-add .vd-l) { background: #fafbfc; }
+:deep(.vd-add .vd-r) { background: #d2f8d2; }
+:deep(.vd-table) {
+  border-collapse: collapse;
+  margin: 2px 0;
+  font-size: 12px;
+}
+:deep(.vd-table th), :deep(.vd-table td) { border: 1px solid #d0d7de; padding: 2px 12px; }
+:deep(.vd-table th) { background: #f6f8fa; font-weight: 600; }
+:deep(.vd-tr-add td) { background: #d2f8d2; }
+:deep(.vd-tr-del td) { background: #ffebe9; }
 :deep(.vd-add) {
   text-decoration: none;
-  background: rgba(74, 107, 74, 0.14);
-  color: var(--status-done-text);
+  background: #acf2bd;
+  color: inherit;
   border-radius: 2px;
-  padding: 0 1px;
+  padding: 0 2px;
 }
 :deep(.vd-del) {
-  text-decoration: line-through;
-  background: rgba(139, 44, 31, 0.1);
-  color: var(--status-cancel-text);
+  text-decoration: none;
+  background: #fdb8c0;
+  color: inherit;
   border-radius: 2px;
-  padding: 0 1px;
+  padding: 0 2px;
 }
 :deep(.vd-del-inline), :deep(ins) { text-decoration: none; }
-:deep(del) { text-decoration: line-through; }
+:deep(del) { text-decoration: none; }
 .vd-add-inline {
-  background: rgba(74, 107, 74, 0.14);
-  color: var(--status-done-text);
+  background: #acf2bd;
+  color: inherit;
   border-radius: 2px;
   padding: 0 2px;
 }
 .vd-del-inline {
-  text-decoration: line-through;
-  background: rgba(139, 44, 31, 0.1);
-  color: var(--status-cancel-text);
+  text-decoration: none;
+  background: #fdb8c0;
+  color: inherit;
   border-radius: 2px;
   padding: 0 2px;
   margin-right: 4px;
 }
-:deep(.vd-row) {
-  padding: 3px 8px;
-  border-radius: 4px;
-  margin-bottom: 2px;
-}
-:deep(.vd-same) { color: var(--text-secondary); }
-:deep(.vd-add-row) { background: rgba(74, 107, 74, 0.1); }
-:deep(.vd-del-row) { background: rgba(139, 44, 31, 0.07); }
-:deep(.vd-del-row .vd-mark-text) { text-decoration: line-through; }
-:deep(.vd-mod) { background: rgba(83, 125, 150, 0.08); }
-:deep(.vd-tag) {
-  display: inline-block;
-  font-size: 10px;
-  color: var(--text-tertiary);
-  margin-right: 6px;
-  user-select: none;
-}
-:deep(.vd-del-row) { color: var(--status-cancel-text); }
-:deep(.vd-add-row) { color: var(--status-done-text); }
 </style>
