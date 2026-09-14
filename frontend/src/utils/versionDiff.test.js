@@ -68,4 +68,22 @@ describe("renderDiff 行结构与类名", () => {
     expect(r).toContain("CCCCC");
     expect(r).not.toContain("BBBBB");
   });
+
+  it("大段重写：变更段内按相似度配对，左右不再垂直错开", () => {
+    const m = body(
+      { content: "<p>AAA 项目周报列表内容</p><p>BBB 表格组件选择</p><p>CCC 新增弹窗组件</p>" },
+      { content: "<p>AAA 项目周报列表内容改版</p><p>BBB 表格组件选择调整</p><p>CCC 新增弹窗组件重构</p>" }
+    );
+    expect((m.match(/vd-row vd-row-del/g) || []).length).toBe(0);
+    expect((m.match(/vd-row vd-row-add/g) || []).length).toBe(0);
+    expect((m.match(/vd-row vd-(mod|rewrite)/g) || []).length).toBe(3);
+  });
+
+  it("不相关的内容不强行配对，保留单侧行", () => {
+    const m = body(
+      { content: "<p>完全不同的旧内容甲乙丙</p>" },
+      { content: "<p>毫无关联的新内容丁戊己</p>" }
+    );
+    expect(m).toMatch(/vd-row vd-row-del|vd-row vd-row-add/);
+  });
 });

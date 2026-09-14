@@ -118,13 +118,19 @@ export function charDiff(a, b) {
   return out;
 }
 
+/** 相似度数值（LCS 长度 / 较长边长度，0~1） */
+function similarityScore(a, b) {
+  if (!a && !b) return 1;
+  if (!a || !b) return 0;
+  const dp = lcsMatrix([...a], [...b]);
+  return dp[0][0] / Math.max(a.length, b.length);
+}
+
 /** 相似度三态：'same'（归一化后全等，仅空白差异）/ 'partial'（LCS 比 ≥ 0.5，小改）/ 'rewrite'（< 0.5，重写） */
 function isSimilar(a, b) {
   if (!a && !b) return "same";
   if (!a || !b) return "rewrite";
-  const dp = lcsMatrix([...a], [...b]);
-  const lcs = dp[0][0];
-  return lcs / Math.max(a.length, b.length) >= 0.5 ? "partial" : "rewrite";
+  return similarityScore(a, b) >= 0.5 ? "partial" : "rewrite";
 }
 
 /** 字符级 diff → 行内 HTML（ins/del 词块） */
@@ -223,6 +229,69 @@ function renderTableDiff(oldTableHtml, newTableHtml) {
  * @param {{title:string, content:string, extra:object}} vb 对比（新）
  * @returns {{titleHtml: string, bodyHtml: string, same: boolean}}
  */
+/**
+ * 变更段内配对：把连续 del/add 段里的旧块与新区块按相似度做单调配对，
+ * 配成对的渲染为同一行的「编辑行」（左右对齐），配不上的保持单侧。
+ * 解决大段重写时「删除群在上、新增群在下」导致的左右内容垂直错位（序列漂移）。
+ */
+function pairOps(ops) {
+  const PAIR_MIN = 0.3;
+  const out = [];
+  let k = 0;
+  while (k < ops.length) {
+    if (ops[k].type === "same") {
+      out.push(ops[k]);
+      k++;
+      continue;
+    }
+    const dels = [];
+    const adds = [];
+    while (k < ops.length && ops[k].type !== "same") {
+      if (ops[k].type === "del") dels.push(ops[k].block);
+      else adds.push(ops[k].block);
+      k++;
+    }
+    const n = dels.length;
+    const m = adds.length;
+    // 预计算相似度矩阵，避免 DP 中重复做 LCS
+    const sim = Array.from({ length: n }, (_, i) =>
+      Array.from({ length: m }, (_, j) => similarityScore(dels[i].text, adds[j].text))
+    );
+    // dp[i][j]：从 i/j 开始能配成的最大对数（单调，不交叉）
+    const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        const take = sim[i][j] >= PAIR_MIN ? 1 + dp[i + 1][j + 1] : -1;
+        dp[i][j] = Math.max(take, dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (sim[i][j] >= PAIR_MIN && 1 + dp[i + 1][j + 1] === dp[i][j]) {
+        out.push({ type: "pair", d: dels[i], a: adds[j] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        out.push({ type: "del", block: dels[i] });
+        i++;
+      } else {
+        out.push({ type: "add", block: adds[j] });
+        j++;
+      }
+    }
+    while (i < n) {
+      out.push({ type: "del", block: dels[i] });
+      i++;
+    }
+    while (j < m) {
+      out.push({ type: "add", block: adds[j] });
+      j++;
+    }
+  }
+  return out;
+}
+
 export function renderDiff(va, vb) {
   const titleHtml = simpleDiffHtml(va?.title || "", vb?.title || "");
   const blocksA = htmlToBlocks(va?.content || "");
@@ -230,47 +299,44 @@ export function renderDiff(va, vb) {
   const ops = diffBlocks(blocksA, blocksB);
 
   const rows = [];
-  for (let k = 0; k < ops.length; k++) {
-    const op = ops[k];
+  for (const op of pairOps(ops)) {
     if (op.type === "same") {
       const body = op.block.html;
       rows.push(`<div class="vd-row vd-same"><div class="vd-cell vd-l">${body}</div><div class="vd-cell vd-r">${body}</div></div>`);
-    } else if (op.type === "del") {
-      const nxt = ops[k + 1];
-      if (nxt && nxt.type === "add") {
-        const sim = isSimilar(op.block.text, nxt.block.text);
-        if (sim === "partial") {
-          // 编辑（小改）：白底，仅变化片段上色（左删词红块 / 右增词绿块）
-          if (op.block.kind === "table") {
-            const t = renderTableDiff(op.block.html, nxt.block.html);
-            rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
-          } else {
-            const parts = charDiff(op.block.text, nxt.block.text);
-            // 左栏只保留「相同 + 删除」片段，右栏只保留「相同 + 新增」片段，另一侧独有文字不出现
-            const l = parts
-              .filter((p) => p.t !== "add")
-              .map((p) => (p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)))
-              .join("");
-            const r = parts
-              .filter((p) => p.t !== "del")
-              .map((p) => (p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)))
-              .join("");
-            rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
-          }
+    } else if (op.type === "pair") {
+      const d = op.d;
+      const a = op.a;
+      const sim = isSimilar(d.text, a.text);
+      if (sim === "partial") {
+        // 编辑（小改）：白底，仅变化片段上色（左删词红块 / 右增词绿块）
+        if (d.kind === "table") {
+          const t = renderTableDiff(d.html, a.html);
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${t.oldHtml}</div><div class="vd-cell vd-r">${t.newHtml}</div></div>`);
         } else {
-          // 编辑（重写）：左右整段淡色完整显示，无词级混排
-          if (op.block.kind === "table") {
-            const t = renderTableDiff(op.block.html, nxt.block.html);
-            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${t.oldHtml}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${t.newHtml}</span></div></div>`);
-          } else {
-            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${nxt.block.html}</span></div></div>`);
-          }
+          const parts = charDiff(d.text, a.text);
+          // 左栏只保留「相同 + 删除」片段，右栏只保留「相同 + 新增」片段，另一侧独有文字不出现
+          const l = parts
+            .filter((p) => p.t !== "add")
+            .map((p) => (p.t === "del" ? `<del class="vd-del">${ESC(p.text)}</del>` : ESC(p.text)))
+            .join("");
+          const r = parts
+            .filter((p) => p.t !== "del")
+            .map((p) => (p.t === "add" ? `<ins class="vd-add">${ESC(p.text)}</ins>` : ESC(p.text)))
+            .join("");
+          rows.push(`<div class="vd-row vd-mod"><div class="vd-cell vd-l">${l}</div><div class="vd-cell vd-r">${r}</div></div>`);
         }
-        k++;
       } else {
-        // 单侧删除：内容侧淡红底（只包内容），空侧白底
-        rows.push(`<div class="vd-row vd-row-del"><div class="vd-cell vd-l vd-del-side"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r"></div></div>`);
+        // 编辑（重写）：左右整段淡色完整显示，无词级混排
+        if (d.kind === "table") {
+          const t = renderTableDiff(d.html, a.html);
+          rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${t.oldHtml}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${t.newHtml}</span></div></div>`);
+        } else {
+          rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${d.html}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${a.html}</span></div></div>`);
+        }
       }
+    } else if (op.type === "del") {
+      // 单侧删除：内容侧淡红底（只包内容），空侧白底
+      rows.push(`<div class="vd-row vd-row-del"><div class="vd-cell vd-l vd-del-side"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r"></div></div>`);
     } else {
       // 单侧新增：内容侧淡绿底（只包内容），空侧白底
       rows.push(`<div class="vd-row vd-row-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-add-side"><span class="vd-tint">${op.block.html}</span></div></div>`);
