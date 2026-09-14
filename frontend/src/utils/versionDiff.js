@@ -254,7 +254,7 @@ export function renderDiff(va, vb) {
           // 编辑（重写）：左右整段淡色完整显示，无词级混排
           if (op.block.kind === "table") {
             const t = renderTableDiff(op.block.html, nxt.block.html);
-            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l">${t.oldHtml}</div><div class="vd-cell vd-r vd-rewrite-r">${t.newHtml}</div></div>`);
+            rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${t.oldHtml}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${t.newHtml}</span></div></div>`);
           } else {
             rows.push(`<div class="vd-row vd-rewrite"><div class="vd-cell vd-l vd-rewrite-l"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r vd-rewrite-r"><span class="vd-tint">${nxt.block.html}</span></div></div>`);
           }
@@ -262,11 +262,11 @@ export function renderDiff(va, vb) {
         k++;
       } else {
         // 单侧删除：内容侧淡红底（只包内容），空侧白底
-        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l vd-del-side"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r"></div></div>`);
+        rows.push(`<div class="vd-row vd-row-del"><div class="vd-cell vd-l vd-del-side"><span class="vd-tint">${op.block.html}</span></div><div class="vd-cell vd-r"></div></div>`);
       }
     } else {
       // 单侧新增：内容侧淡绿底（只包内容），空侧白底
-      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-add-side"><span class="vd-tint">${op.block.html}</span></div></div>`);
+      rows.push(`<div class="vd-row vd-row-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r vd-add-side"><span class="vd-tint">${op.block.html}</span></div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };
