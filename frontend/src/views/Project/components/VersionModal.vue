@@ -373,12 +373,12 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
 /* 编辑（小改）：白底，仅变化片段上色（vd-del/vd-add 词块） */
-/* 编辑（重写）：左右整段淡色完整显示 */
-:deep(.vd-rewrite-l) { background: #ffebe9; }
-:deep(.vd-rewrite-r) { background: #d2f8d2; }
-/* 单侧行：有内容侧淡色底，空侧白底，无色条 */
-:deep(.vd-del-side) { background: #ffebe9; }
-:deep(.vd-add-side) { background: #d2f8d2; }
+/* 编辑（重写）：底色只包裹内容（内层 div），不随 cell 拉伸铺满 */
+:deep(.vd-rewrite-l .vd-tint) { background: #ffebe9; display: block; min-height: 100%; }
+:deep(.vd-rewrite-r .vd-tint) { background: #d2f8d2; display: block; min-height: 100%; }
+/* 单侧行：同上，底色只到内容底部 */
+:deep(.vd-del-side .vd-tint) { background: #ffebe9; display: block; }
+:deep(.vd-add-side .vd-tint) { background: #d2f8d2; display: block; }
 /* 表格：与详情弹窗 rich-view 对齐（v-html 内任意表格统一生效） */
 :deep(.vd-body table) {
   width: 100%;
