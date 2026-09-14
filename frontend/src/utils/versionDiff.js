@@ -89,9 +89,17 @@ export function diffBlocks(a, b) {
 const ESC = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** 字符级 diff：返回 [{t:'same'|'del'|'add', text}] */
+/** 空白归一化：字符级 diff 时忽略空格有无/类型差异（全角空格、NBSP、零宽字符与半角空格等价）。
+ *  避免纯排版差异（如「09-07 富文本」→「09-07富文本」）产生大面积色块。 */
+function normBlank(ch) {
+  return /[\s\u00a0\u3000\u200b\ufeff]/.test(ch) ? " " : ch;
+}
+
+/** 字符级 diff：返回 [{t:'same'|'del'|'add', text}]（空白差异视为相同） */
 export function charDiff(a, b) {
-  const dp = lcsMatrix([...a], [...b]);
+  const aa = [...a].map(normBlank);
+  const bb = [...b].map(normBlank);
+  const dp = lcsMatrix(aa, bb);
   const out = [];
   let i = 0;
   let j = 0;
@@ -101,7 +109,7 @@ export function charDiff(a, b) {
     else out.push({ t, text: ch });
   };
   while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) { push("same", a[i]); i++; j++; }
+    if (aa[i] === bb[j]) { push("same", a[i]); i++; j++; }
     else if (dp[i + 1][j] >= dp[i][j + 1]) { push("del", a[i]); i++; }
     else { push("add", b[j]); j++; }
   }
