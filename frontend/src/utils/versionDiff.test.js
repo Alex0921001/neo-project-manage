@@ -87,11 +87,13 @@ describe("renderDiff 行结构与类名", () => {
     expect(m).toMatch(/vd-row vd-row-del|vd-row vd-row-add/);
   });
 
-  it("列表项带类型标记：ol 序号与 ul 圆点区分，文本保留", () => {
-    const b = htmlToBlocks("<ul><li>甲项</li></ul><ol><li>乙项</li></ol>");
+  it("列表项带类型标记与序号：ol 序号按序自增，ul 圆点，文本保留", () => {
+    const b = htmlToBlocks("<ul><li>甲项</li></ul><ol><li>乙项</li><li>丙项</li><li>丁项</li></ol>");
     expect(b[0].html).toMatch(/data-list="ul"/);
     expect(b[0].text).toBe("甲项");
-    expect(b[1].html).toMatch(/data-list="ol"/);
-    expect(b[1].text).toBe("乙项");
+    expect(b[1].html).toMatch(/data-list="ol" data-idx="1"/);
+    expect(b[2].html).toMatch(/data-idx="2"/);
+    expect(b[3].html).toMatch(/data-idx="3"/);
+    expect(b[3].text).toBe("丁项");
   });
 });

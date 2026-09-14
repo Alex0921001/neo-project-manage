@@ -24,12 +24,17 @@ export function htmlToBlocks(html) {
       if (/^h[1-6]$/.test(tag) || tag === "p" || tag === "blockquote" || tag === "pre") {
         push(tag, child);
       } else if (tag === "ul" || tag === "ol") {
-        // li 会被抽离父级单独成行，带上列表类型标记，渲染时才能区分圆点/序号
+        // li 会被抽离父级单独成行：带上类型标记与在列表中的序号。
+        // 脱离 ol 后浏览器无法自增序号（一律显示 1.），所以序号在解析时算好
         const ordered = tag === "ol";
+        let idx = 0;
         for (const li of child.children) {
+          if (li.tagName.toLowerCase() !== "li") continue;
+          idx++;
           const text = (li.textContent || "").replace(/\s+/g, " ").trim();
           if (!text) continue;
-          const html = li.outerHTML.replace(/^<li\b/i, `<li data-list="${ordered ? "ol" : "ul"}"`);
+          const attrs = ordered ? ` data-list="ol" data-idx="${idx}"` : ` data-list="ul"`;
+          const html = li.outerHTML.replace(/^<li\b/i, `<li${attrs}`);
           blocks.push({ kind: "li", html, text });
         }
       } else if (tag === "table") {

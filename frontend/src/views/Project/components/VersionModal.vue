@@ -372,10 +372,21 @@ watch(() => [props.show, props.targetId], () => {
 }
 /* 块级元素 margin 归零：分块成行后，原 margin 会变成行间白缝 */
 :deep(.vd-cell :is(p, h1, h2, h3, h4, h5, h6, ul, ol, li, table, blockquote, pre)) { margin: 0; }
-/* 列表项：marker 收进自身 padding 区，不溢出到单元格边界外；有序/无序各自正确标记 */
-:deep(.vd-cell li) { padding-left: 1.5em; list-style-position: outside; }
-:deep(.vd-cell li[data-list="ol"]) { list-style-type: decimal; }
-:deep(.vd-cell li[data-list="ul"]) { list-style-type: disc; }
+/* 列表项：脱离 ul/ol 后原生 marker 会溢出且序号不自增，
+   改为禁用原生 marker、用 ::before 自己渲染，标记固定在内容框内 */
+:deep(.vd-cell li[data-list]) { list-style: none; position: relative; padding-left: 1.6em; }
+:deep(.vd-cell li[data-list="ul"])::before {
+  content: "•";
+  position: absolute;
+  left: 0.35em;
+  color: #57606a;
+}
+:deep(.vd-cell li[data-list="ol"])::before {
+  content: attr(data-idx) ".";
+  position: absolute;
+  left: 0;
+  color: #57606a;
+}
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
 /* 编辑（小改）：白底，仅变化片段上色（vd-del/vd-add 词块） */
