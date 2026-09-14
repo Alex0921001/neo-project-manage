@@ -236,12 +236,12 @@ export function renderDiff(va, vb) {
         }
         k++;
       } else {
-        // 单侧删除：只渲染存在的一侧，不占位不标色
-        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div></div>`);
+        // 单侧删除：保留两栏骨架，空侧留白格（无色），内容严格在自己栏内
+        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
       }
     } else {
-      // 单侧新增：只渲染存在的一侧，不占位不标色
-      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-r">${op.block.html}</div></div>`);
+      // 单侧新增：保留两栏骨架，空侧留白格（无色）
+      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r">${op.block.html}</div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };
