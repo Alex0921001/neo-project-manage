@@ -368,16 +368,22 @@ watch(() => [props.show, props.targetId], () => {
 :deep(.vd-same) { color: #24292f; }
 :deep(.vd-mod-l) { background: #ffebe9; }
 :deep(.vd-mod-r) { background: #d2f8d2; }
-:deep(.vd-del .vd-l) { background: #ffebe9; }
-:deep(.vd-del .vd-r), :deep(.vd-add .vd-l) { background: #fafbfc; }
-:deep(.vd-add .vd-r) { background: #d2f8d2; }
+/* 单侧行：只有存在的一侧有内容，无底色标注 */
+:deep(.vd-del .vd-l), :deep(.vd-add .vd-r) { background: #fff; }
 :deep(.vd-table) {
+  width: 100%;
   border-collapse: collapse;
-  margin: 2px 0;
-  font-size: 12px;
+  margin: 8px 0;
+  font-size: inherit;
 }
-:deep(.vd-table th), :deep(.vd-table td) { border: 1px solid #d0d7de; padding: 2px 12px; }
-:deep(.vd-table th) { background: #f6f8fa; font-weight: 600; }
+:deep(.vd-table th), :deep(.vd-table td) {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.6;
+}
+:deep(.vd-table th) { background: var(--bg-hover); font-weight: 600; }
 :deep(.vd-tr-add td) { background: #d2f8d2; }
 :deep(.vd-tr-del td) { background: #ffebe9; }
 :deep(.vd-td-mod) { background: #fdf3d8; }

@@ -225,10 +225,12 @@ export function renderDiff(va, vb) {
         }
         k++;
       } else {
-        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div><div class="vd-cell vd-r"></div></div>`);
+        // 单侧删除：只渲染存在的一侧，不占位不标色
+        rows.push(`<div class="vd-row vd-del"><div class="vd-cell vd-l">${op.block.html}</div></div>`);
       }
     } else {
-      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-l"></div><div class="vd-cell vd-r">${op.block.html}</div></div>`);
+      // 单侧新增：只渲染存在的一侧，不占位不标色
+      rows.push(`<div class="vd-row vd-add"><div class="vd-cell vd-r">${op.block.html}</div></div>`);
     }
   }
   return { titleHtml, bodyHtml: rows.join(""), same: !titleHtml && rows.length === 0 };
