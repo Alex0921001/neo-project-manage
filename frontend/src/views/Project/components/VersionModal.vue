@@ -64,15 +64,16 @@
           </div>
           <div class="vh-field">
             <div class="vh-field-name">内容</div>
-            <div class="vh-field-body vh-rich vd-body">
-              <div class="vd-diff-head">
-                <div class="vd-pane-label">旧版（上一版）</div>
-                <div class="vd-pane-label">新版（当前版本）</div>
-              </div>
-              <div v-html="bodyHtml"></div>
+            <div class="vh-field-body vh-rich vd-body" @click="onRichClick" >
+            <div class="vd-diff-head">
+              <div class="vd-pane-label">旧版（上一版）</div>
+              <div class="vd-pane-label">新版（当前版本）</div>
             </div>
+            <div v-html="bodyHtml"></div>
+          </div>
           </div>
           <div v-if="same" class="vh-same-tip">两个版本内容一致</div>
+          <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
         </div>
       </div>
     </div>
@@ -94,6 +95,7 @@ import ConfirmModal from "../../../components/ConfirmModal.vue";
 import { listVersions, restoreVersion } from "../../../api/modules/version.js";
 import { toast } from "../../../toast.js";
 import { renderDiff } from "../../../utils/versionDiff.js";
+import { useRichImagePreview } from "../../../utils/richImagePreview.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -102,6 +104,8 @@ const props = defineProps({
   targetId: { type: String, required: true },
 });
 const emit = defineEmits(["update:show", "close", "restored"]);
+
+const { viewerVisible, viewerSrc, onRichClick } = useRichImagePreview();
 
 const loading = ref(false);
 const versions = ref([]);
@@ -363,29 +367,44 @@ watch(() => [props.show, props.targetId], () => {
   white-space: pre-wrap;
   word-break: break-word;
   color: #24292f;
+  overflow-wrap: anywhere;
 }
 :deep(.vd-l) { border-right: 1px solid #eaeef2; }
 :deep(.vd-same) { color: #24292f; }
 /* 修改行：白底，仅变化片段上色（vd-del/vd-add 词块） */
 /* 单侧行：只有存在的一侧有内容，无底色标注 */
 :deep(.vd-del .vd-l), :deep(.vd-add .vd-r) { background: #fff; }
-:deep(.vd-table) {
+/* 表格：与详情弹窗 rich-view 对齐（v-html 内任意表格统一生效） */
+:deep(.vd-body table) {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   margin: 8px 0;
   font-size: inherit;
 }
-:deep(.vd-table th), :deep(.vd-table td) {
+:deep(.vd-body th), :deep(.vd-body td) {
   border: 1px solid var(--border);
   padding: 6px 10px;
   text-align: left;
   vertical-align: top;
   line-height: 1.6;
+  word-break: break-word;
 }
-:deep(.vd-table th) { background: var(--bg-hover); font-weight: 600; }
+:deep(.vd-body th) { background: var(--bg-hover); font-weight: 600; }
 :deep(.vd-tr-add td) { background: #d2f8d2; }
 :deep(.vd-tr-del td) { background: #ffebe9; }
 :deep(.vd-td-mod) { background: #fdf3d8; }
+/* 图片：缩略图限宽，点击预览（useRichImagePreview） */
+:deep(.vd-body img) {
+  max-width: 250px;
+  max-height: 150px;
+  height: auto;
+  width: auto;
+  border-radius: 6px;
+  cursor: zoom-in;
+  object-fit: contain;
+}
 :deep(.vd-add) {
   text-decoration: none;
   background: #acf2bd;
