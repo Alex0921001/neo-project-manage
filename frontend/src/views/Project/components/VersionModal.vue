@@ -376,10 +376,9 @@ watch(() => [props.show, props.targetId], () => {
 /* 编辑（重写）：左右整段淡色完整显示 */
 :deep(.vd-rewrite-l) { background: #ffebe9; }
 :deep(.vd-rewrite-r) { background: #d2f8d2; }
-/* 单侧行：存在侧淡色，空侧透明融入背景 */
-:deep(.vd-del-side) { background: #ffebe9; }
-:deep(.vd-add-side) { background: #d2f8d2; }
-:deep(.vd-del .vd-r), :deep(.vd-add .vd-l) { background: transparent; }
+/* 单侧行：白底 + 左侧色条标注变更类型，不整块刷色 */
+:deep(.vd-side-del) { background: #fff; box-shadow: inset 3px 0 0 #f85149; }
+:deep(.vd-side-add) { background: #fff; box-shadow: inset 3px 0 0 #34d058; }
 /* 表格：与详情弹窗 rich-view 对齐（v-html 内任意表格统一生效） */
 :deep(.vd-body table) {
   width: 100%;
