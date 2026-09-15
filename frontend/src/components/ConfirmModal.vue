@@ -1,22 +1,20 @@
 <template>
   <Teleport to="body">
-    <Transition name="cm-fade">
-      <div v-if="show" class="cm-overlay" :style="{ zIndex: overlayZ }">
-        <div class="cm-dialog" role="alertdialog" aria-modal="true">
-          <div class="cm-title">{{ title }}</div>
-          <p class="cm-body">{{ message }}</p>
-          <div class="cm-footer">
-            <button type="button" class="cm-btn" @click="$emit('close')">{{ cancelText }}</button>
-            <button type="button" class="cm-btn cm-btn-danger" @click="$emit('confirm')">{{ confirmText }}</button>
-          </div>
+    <div v-if="show" ref="overlayEl" class="cm-overlay" :style="{ zIndex: overlayZ }" popover="manual">
+      <div class="cm-dialog" role="alertdialog" aria-modal="true">
+        <div class="cm-title">{{ title }}</div>
+        <p class="cm-body">{{ message }}</p>
+        <div class="cm-footer">
+          <button type="button" class="cm-btn" @click="$emit('close')">{{ cancelText }}</button>
+          <button type="button" class="cm-btn cm-btn-danger" @click="$emit('confirm')">{{ confirmText }}</button>
         </div>
       </div>
-    </Transition>
+    </div>
   </Teleport>
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { nextZIndex } from "../utils/zIndex.js";
 
 const props = defineProps({
@@ -33,10 +31,37 @@ const emit = defineEmits(["close", "confirm"]);
 // 自研弹层（替代 el-dialog）：与 FloatPanel 共用 zIndex.js 统一计数器。
 // 层级：编程式由外部传入（confirm.js 统一取号 + enforceTop 兜底）；模板式打开时自行取号
 const ownZ = ref(0);
+const overlayZ = computed(() => props.z || ownZ.value);
+const overlayEl = ref(null);
+
+// ===== Top Layer 保证（终极兜底）=====
+// Popover API（Chromium 114+）：showPopover() 把遮罩提升进浏览器 top layer，
+// 渲染在文档一切内容（含任意 z-index 的浮动面板）之上，与 z-index 彻底无关。
+// 旧内核不支持时自动降级为 z-index 路径（元素上保留 popover 属性但 UA 样式会
+// display:none —— 必须在不支持的环境移除该属性，否则遮罩永远不可见）。
+const canPopover = typeof HTMLElement !== "undefined" && "showPopover" in HTMLElement.prototype;
+
 watch(() => props.show, (v) => {
   if (v && !props.z) ownZ.value = nextZIndex();
+  nextTick(() => {
+    const el = overlayEl.value;
+    if (!el) return;
+    if (canPopover) {
+      try {
+        if (!el.matches(":popover-open")) el.showPopover();
+      } catch { /* ignore */ }
+      // showPopover 失败（异常/未进入 top layer）时摘掉 popover 属性，避免 UA 的
+      // display:none 把遮罩藏成不可见，降级回 z-index 渲染
+      if (!el.matches(":popover-open")) el.removeAttribute("popover");
+    }
+    // 诊断输出：遮罩与所有已开面板的实际层级（出问题时 F12 一眼定位）
+    const panels = [...document.querySelectorAll(".float-panel")].map((p) => ({
+      z: parseInt(window.getComputedStyle(p).zIndex, 10) || 0,
+      title: p.querySelector(".float-panel-title")?.textContent || "",
+    }));
+    console.info("[confirm] overlay z =", overlayZ.value, "panels =", JSON.stringify(panels), "topLayer =", canPopover && !!el.matches?.(":popover-open"));
+  });
 });
-const overlayZ = computed(() => props.z || ownZ.value);
 
 // Esc 取消：捕获阶段拦截并吞掉，不冒泡到 FloatPanel 的 Esc 关闭链（避免误关底层弹窗）
 function onKeydown(e) {
@@ -46,7 +71,11 @@ function onKeydown(e) {
   emit("close");
 }
 document.addEventListener("keydown", onKeydown, true);
-onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown, true));
+onBeforeUnmount(() => {
+  document.removeEventListener("keydown", onKeydown, true);
+  // 单例卸载时若仍在 top layer，退出（v-if 移除元素时浏览器自动收栈，此处仅保险）
+  try { overlayEl.value?.hidePopover?.(); } catch { /* ignore */ }
+});
 </script>
 
 <style scoped>
@@ -57,6 +86,10 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown, true));
   display: flex;
   align-items: center;
   justify-content: center;
+}
+/* popover 打开态覆盖 UA 的 display:none（Chromium 会注入 [popover] UA 规则） */
+.cm-overlay:popover-open {
+  display: flex;
 }
 .cm-dialog {
   width: 360px;
@@ -101,9 +134,4 @@ onBeforeUnmount(() => document.removeEventListener("keydown", onKeydown, true));
   color: #fff;
 }
 .cm-btn-danger:hover { filter: brightness(1.08); border-color: var(--danger); }
-
-.cm-fade-enter-active,
-.cm-fade-leave-active { transition: opacity 0.12s ease; }
-.cm-fade-enter-from,
-.cm-fade-leave-to { opacity: 0; }
 </style>
