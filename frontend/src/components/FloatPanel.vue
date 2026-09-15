@@ -131,7 +131,7 @@ watch(() => props.modelValue, (v) => {
   prevRect.value = null;
   zIndex.value = nextZIndex();
   openStack.push(zIndex.value);
-});
+}, { immediate: true }); // v-if 按需挂载（层叠弹窗）时 modelValue 已为 true，需 immediate 初始化层级/位置/开栈
 
 // ===== 点击置顶（bringToFront）=====
 // 鼠标点击面板任意位置时把面板升到当前最高层（拖拽/缩放/滚轮不触发）。

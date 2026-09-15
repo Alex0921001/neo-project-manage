@@ -216,7 +216,7 @@ import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import { apiUpload } from "../../../api/upload.js";
 import { listPlans, getPlan, createPlan, updatePlan, deletePlan, convertPlan, importPlanFile } from "../../../api/modules/plan.js";
-import { listRequirements } from "../../../api/modules/requirement.js";
+import { listRequirements, getRequirement } from "../../../api/modules/requirement.js";
 import { listTasks } from "../../../api/modules/task.js";
 import { applyQuoteAnchor } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
@@ -626,7 +626,7 @@ watch(() => props.show, (v) => {
     loadRequirements();
     loadTasks();
   }
-});
+}, { immediate: true }); // v-if 按需挂载（层叠弹窗）时 show 已为 true，需 immediate 触发初始化
 watch(() => props.planId, () => {
   if (props.show) {
     initEdit();

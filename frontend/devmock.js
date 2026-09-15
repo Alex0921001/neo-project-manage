@@ -419,7 +419,7 @@ function mockAllKnown() {
   if (planListMatch && method === "GET") {
     if (!realDb) return err("mock 仅支持真实库模式");
     const rows = qAll("SELECT id, project_id, title, status, task_id, created_at, updated_at FROM plans WHERE project_id = ? ORDER BY created_at DESC", [planListMatch[1]]) || [];
-    return respond(rows.map((r) => ({ ...r, taskExists: !!r.task_id })));
+    return respond({ items: rows.map((r) => ({ ...r, taskExists: !!r.task_id })), total: rows.length });
   }
   const planMatch = p.match(/^api\/projects\/([^/]+)\/plans\/([^/]+)$/);
   if (planMatch && method === "GET") {
@@ -434,7 +434,7 @@ function mockAllKnown() {
   if (reqListMatch && method === "GET") {
     if (!realDb) return err("mock 仅支持真实库模式");
     const rows = qAll("SELECT id, project_id, name, description, status, priority, created_at FROM requirements WHERE project_id = ? ORDER BY created_at DESC", [reqListMatch[1]]) || [];
-    return respond(rows);
+    return respond({ items: rows, total: rows.length });
   }
   const reqMatch = p.match(/^api\/projects\/([^/]+)\/requirements\/([^/]+)$/);
   if (reqMatch && method === "GET") {

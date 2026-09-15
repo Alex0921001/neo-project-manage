@@ -246,10 +246,8 @@
       <div v-if="!items.length && !loading" class="vtab-empty">该对象还没有验证项，在下方录入</div>
     </div>
     <div class="vtab-input">
-      <el-select v-model="draftKind" size="small" placeholder="方式" style="width: 88px" title="执行方式：human 人工勾选 / agent 由 Agent 执行后回填证据 / assertion 后端查库断言">
+      <el-select v-model="draftKind" size="small" placeholder="方式" style="width: 88px" title="执行方式：human 人工勾选（Agent / 断言类型由 MCP 工具创建，不在前端录入）">
         <el-option label="人工" value="human" />
-        <el-option label="Agent" value="agent" />
-        <el-option label="断言" value="assertion" />
       </el-select>
       <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
         <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />

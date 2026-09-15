@@ -407,7 +407,7 @@ function init() {
   if (currentId.value) loadDetail();
   else mode.value = "edit"; // 新建直接进编辑模式
 }
-watch(() => props.show, (v) => { if (v) init(); });
+watch(() => props.show, (v) => { if (v) init(); }, { immediate: true }); // v-if 按需挂载（层叠弹窗）时 show 已为 true，需 immediate 触发初始化
 // 弹窗已开时点击列表其他需求：id 变化重新加载（对齐方案弹窗的切换行为）
 watch(() => props.requirementId, () => { if (props.show) init(); });
 // 模式变化（如详情开着时右键「编辑」同一行）：强制重初始化，切到编辑态
