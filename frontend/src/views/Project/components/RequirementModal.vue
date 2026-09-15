@@ -142,8 +142,10 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
-  <!-- 关联方案详情弹窗（层叠打开，多实例并存：异步加载避免循环依赖） -->
+  <!-- 关联方案详情弹窗（层叠打开，多实例并存：异步加载避免循环依赖）
+    v-if 按需挂载：与 PlanModal 互相异步引用，常挂载会形成无限组件实例递归导致页面卡死 -->
   <PlanModalAsync
+    v-if="planModal.show"
     :show="planModal.show"
     :project-id="projectId"
     :plan-id="planModal.id"

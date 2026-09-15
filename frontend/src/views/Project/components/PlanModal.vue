@@ -177,8 +177,11 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
-  <!-- 关联需求详情弹窗（层叠打开，多实例并存：本实例仅展示由本方案打开的需求，异步加载避免循环依赖） -->
+  <!-- 关联需求详情弹窗（层叠打开，多实例并存：本实例仅展示由本方案打开的需求，异步加载避免循环依赖）
+    v-if 按需挂载：本弹窗与 RequirementModal 互相异步引用，若常挂载会形成 PlanModal→ReqModal→PlanModal→…
+    的无限组件实例递归，页面一挂载即卡死渲染进程（V2.6.6 回归，已修复） -->
   <RequirementModalAsync
+    v-if="reqModal.show"
     :show="reqModal.show"
     :project-id="projectId"
     :requirement-id="reqModal.id"
