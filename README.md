@@ -2,7 +2,7 @@
 
 面向 Agent 与用户的项目与任务管理工具。支持项目集、项目、树形任务、批注（便利贴）、文件引用、项目备注、方案管理、需求管理、统一评论、版本管理、验证模块、临时任务、任务日历、自动总结、风险识别与周报生成的完整闭环，五大模块（需求/方案/评论/验证/临时任务）提供批量操作能力。
 
-> 当前版本：**V2.6.5**（历史版本双栏对比：白底左右对照全文渲染、变更段按相似度配对避免错位、行内词级标注、表格与列表保结构渲染、图片缩略可预览；修复三击选段无法唤起引用气泡）
+> 当前版本：**V2.6.6**（验证模块数据断言：assertion 类型验证项后端查库断言自动勾选、四元组录入与徽标摘要；关联需求/方案详情超链接层叠打开；公共确认弹窗 Promise 化并进浏览器 top-layer 永远置顶；层叠弹窗点击置顶与 Esc 逐层关闭）
 
 ## 快速使用
 
@@ -41,7 +41,7 @@
 10. list_messages { } / get_message_config { } → 消息中心 / 提醒配置
 ```
 
-## 工具清单（124 个）
+## 工具清单（125 个）
 
 ### 创建
 
@@ -183,6 +183,7 @@
 | `create_verification` / `update_verification` / `delete_verification` | 验证卡增改删（删除级联删项）|
 | `list_verification_items` / `add_verification_item` / `update_verification_item` / `toggle_verification_item` / `delete_verification_item` / `report_verification_result` | 卡内验证项增删改查 + 勾选退回落库（写勾选时间/操作人 + 审计）+ Agent 证据回填（V2.6.4，仅 agent 项），进度按项完成度计算 |
 | `list_verification_categories` / `create_verification_category` / `rename_verification_category` / `delete_verification_category` / `clear_verification_group` | 验证分类字典（新项目预置三分类；改名自动同步项；删分类项归入通用组；按组清空验证项）|
+| `verify_assertion_items` | 数据断言批量执行（V2.6.6）：assertion 类型验证项按四元组 instruction（target/field/op/value）后端查库校验，通过自动勾选并回填证据，失败拒勾返原因，逐条独立幂等重跑 |
 
 ### 统一评论与版本管理（V2.6）
 
