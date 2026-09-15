@@ -414,6 +414,36 @@ function mockAllKnown() {
     return respond({ ok: true });
   }
 
+  // ---- 方案（dev 只读，用于层叠弹窗/超链接联调）----
+  const planListMatch = p.match(/^api\/projects\/([^/]+)\/plans$/);
+  if (planListMatch && method === "GET") {
+    if (!realDb) return err("mock 仅支持真实库模式");
+    const rows = qAll("SELECT id, project_id, title, status, task_id, created_at, updated_at FROM plans WHERE project_id = ? ORDER BY created_at DESC", [planListMatch[1]]) || [];
+    return respond(rows.map((r) => ({ ...r, taskExists: !!r.task_id })));
+  }
+  const planMatch = p.match(/^api\/projects\/([^/]+)\/plans\/([^/]+)$/);
+  if (planMatch && method === "GET") {
+    if (!realDb) return err("mock 仅支持真实库模式");
+    const row = qGet("SELECT * FROM plans WHERE id = ?", [planMatch[2]]);
+    if (!row) return err("方案不存在");
+    const requirements = (qAll("SELECT r.id, r.name, r.status FROM requirements r JOIN requirement_plans rp ON rp.requirement_id = r.id WHERE rp.plan_id = ?", [row.id]) || []);
+    return respond({ ...row, requirements, taskExists: !!row.task_id });
+  }
+  // ---- 需求（dev 只读）----
+  const reqListMatch = p.match(/^api\/projects\/([^/]+)\/requirements$/);
+  if (reqListMatch && method === "GET") {
+    if (!realDb) return err("mock 仅支持真实库模式");
+    const rows = qAll("SELECT id, project_id, name, description, status, priority, created_at FROM requirements WHERE project_id = ? ORDER BY created_at DESC", [reqListMatch[1]]) || [];
+    return respond(rows);
+  }
+  const reqMatch = p.match(/^api\/projects\/([^/]+)\/requirements\/([^/]+)$/);
+  if (reqMatch && method === "GET") {
+    if (!realDb) return err("mock 仅支持真实库模式");
+    const row = qGet("SELECT * FROM requirements WHERE id = ?", [reqMatch[2]]);
+    if (!row) return err("需求不存在");
+    const plans = (qAll("SELECT p.id, p.title, p.status FROM plans p JOIN requirement_plans rp ON rp.plan_id = p.id WHERE rp.requirement_id = ?", [row.id]) || []);
+    return respond({ ...row, plans });
+  }
   // ---- 项目 ----
   if (p === "api/projects" && method === "GET") {
     let list = realDb ? realProjectList() : mockProjectList();

@@ -1249,16 +1249,20 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
 }
 /* 录入输入框：textarea + 顶部拖拽柄（评论面板同款：贴顶热区 + 横条提示） */
 .vt-input {
+  display: block;
+  width: 100%;
   min-height: 36px;
   max-height: 320px;
   padding: 7px 2px;
   box-sizing: border-box;
 }
+/* 录入区容器：纵向堆叠（textarea 在上，指令/断言行在下）；
+   原为横向 flex，断言四元组行会把 textarea 挤到只剩滚动条（V2.6.6 回归） */
 .vt-input-wrap {
   flex: 1;
   min-width: 0;
   position: relative;
-  display: flex;
+  display: block;
 }
 .vt-input-resize {
   position: absolute;

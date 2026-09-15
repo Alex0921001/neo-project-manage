@@ -649,14 +649,18 @@ defineExpose({ loadDetail });
   white-space: nowrap;
   color: var(--text);
 }
-/* 关联方案超链接（点击层叠打开方案详情） */
+/* 关联方案超链接（点击层叠打开方案详情）：title 有 flex:1 撑满整行，
+   不能用 border-bottom（会拉出超长虚线），改用 text-decoration 只贴文字 */
 .rq-link {
   color: var(--text);
-  text-decoration: none;
-  border-bottom: 1px dashed var(--border);
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  text-decoration-color: var(--border);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
   cursor: pointer;
 }
-.rq-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.rq-link:hover { color: var(--accent); text-decoration-color: var(--accent); }
 .rq-plan-status {
   margin-left: auto;
   font-size: 11px;
