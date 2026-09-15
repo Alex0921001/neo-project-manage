@@ -228,15 +228,16 @@ function onModeChange(mode) {
   if (mode === "edit" && modalId.value) editingFromDetail.value = true;
   modalMode.value = mode; // 对齐 PlanTab：回写 modalMode，供 onNavigate 判断编辑态弹「放弃并切换」确认
 }
-// 编辑保存成功：来源详情 → 回落详情（重新拉数据）；来源列表 → 关弹窗刷新列表
+// 编辑保存成功：来源详情 → 回落详情（弹窗重拉详情 + 同步刷新列表，修复保存后列表不刷新）；
+// 来源列表 → 关弹窗刷新列表
 function onSaved(id) {
+  load();
   if (editingFromDetail.value) {
     reopenDetail(id);
   } else {
     closeModal();
-    load();
-    emit("changed");
   }
+  emit("changed");
 }
 // 新建保存成功：关弹窗 + 刷新列表
 function onCreated() {

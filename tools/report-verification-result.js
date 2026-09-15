@@ -1,7 +1,7 @@
 import { createDataAccess } from "../lib/data.js";
 
 export const name = "report_verification_result";
-export const description = "证据回填（Agent 验证专用）：Agent 执行验证指令后，回填执行证据（runner/摘要/detail）并自动勾选验证项。仅支持 kind=agent 的验证项（human 项请用 toggle_verification_item(s)；assertion 项待断言引擎）。批量逐条独立：单条失败不影响其他条，返回成功/失败清单及原因。已勾选项重复回填为幂等更新证据（重跑场景），审计记「验证证据更新」。";
+export const description = "证据回填（Agent 验证专用）：Agent 执行验证指令后，回填执行证据（runner/摘要/detail）并自动勾选验证项。仅支持 kind=agent 的验证项（human 项请用 toggle_verification_item(s)；assertion 项请用 verify_assertion_items 执行）。批量逐条独立：单条失败不影响其他条，返回成功/失败清单及原因。已勾选项重复回填为幂等更新证据（重跑场景），审计记「验证证据更新」。";
 export const parameters = {
   type: "object",
   required: ["projectId", "items"],

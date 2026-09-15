@@ -83,12 +83,12 @@
               <span class="pm-task-name" @click="emit('jump-task', plan.taskId)">▸ {{ plan.taskName }}</span>
             </div>
             <div v-if="plan?.taskExists === false" class="pm-task-gone">已转任务（原任务已删除）</div>
-            <!-- 方案反向展示关联需求 -->
+            <!-- 方案反向展示关联需求（超链接：点击层叠打开需求详情弹窗，旧弹窗保留对照） -->
             <div v-if="plan?.requirements?.length" class="pm-reqs">
               <div class="pm-reqs-title">关联需求（{{ plan.requirements.length }}）</div>
               <div v-for="r in plan.requirements" :key="r.id" class="pm-req-item">
                 <span class="pm-req-dot" :class="`dot-${r.status}`"></span>
-                <span class="pm-req-name">{{ r.name }}</span>
+                <a href="javascript:void(0)" class="pm-req-name pm-link" :title="`打开需求详情：${r.name}`" @click.stop="openRequirementDetail(r)">{{ r.name }}</a>
                 <span class="pm-req-status">{{ r.status }}</span>
               </div>
             </div>
@@ -177,6 +177,16 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
+  <!-- 关联需求详情弹窗（层叠打开，多实例并存：本实例仅展示由本方案打开的需求，异步加载避免循环依赖） -->
+  <RequirementModalAsync
+    :show="reqModal.show"
+    :project-id="projectId"
+    :requirement-id="reqModal.id"
+    mode="read"
+    @update:show="reqModal.show = $event"
+    @close="reqModal.show = false"
+  />
+
   <!-- 版本历史弹窗 -->
   <VersionModal
     :show="versionShow"
@@ -198,7 +208,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, defineAsyncComponent } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import { apiUpload } from "../../../api/upload.js";
@@ -213,6 +223,7 @@ import { createRichEditor } from "../../../utils/asyncEditor.js";
 import { PLAN_STATUS_OPTIONS, planStatusKey } from "../../../utils/planStatus.js";
 import CommentPanel from "./CommentPanel.vue";
 import VersionModal from "./VersionModal.vue";
+const RequirementModalAsync = defineAsyncComponent(() => import("./RequirementModal.vue"));
 import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
 import { applyQuoteToDom, unwrapQuoteFromDom, unwrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
@@ -241,6 +252,15 @@ const versionShow = ref(false); // 版本历史弹窗
 function onVersionRestored() {
   loadDetail();
   emit("changed");
+}
+
+// ===== 关联需求超链接：点击层叠打开需求详情弹窗（目标不存在提示，旧弹窗保留对照） =====
+const reqModal = ref({ show: false, id: null });
+async function openRequirementDetail(r) {
+  if (!r?.id) return;
+  const res = await getRequirement(props.projectId, r.id, { silent: true });
+  if (!res?.ok) return toast("关联对象不存在", "error");
+  reqModal.value = { show: true, id: r.id };
 }
 
 // 编辑态（状态默认草稿，创建后由阅读模式头部切换，编辑弹窗不设状态）
@@ -871,6 +891,14 @@ watch(() => props.mode, (m) => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* 关联需求超链接（点击层叠打开需求详情） */
+.pm-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border);
+  cursor: pointer;
+}
+.pm-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .pm-req-status {
   margin-left: auto;
   font-size: 11px;

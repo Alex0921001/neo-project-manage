@@ -186,11 +186,11 @@
                 <template v-if="editingId === it.id">
                   <input v-model="editDraft" class="vitem-edit" @keydown.enter.prevent="saveEdit(it)" @keydown.esc="cancelEdit" />
                   <input
-                    v-if="it.kind === 'agent'"
+                    v-if="it.kind === 'agent' || it.kind === 'assertion'"
                     v-model="editInstruction"
                     class="vitem-edit"
-                    placeholder="验证指令（Agent 执行依据）"
-                    title="Agent 执行验证的依据，留空则仅保留内容"
+                    :placeholder="it.kind === 'agent' ? '验证指令（Agent 执行依据）' : '断言定义 JSON（{target,field,op,value}）'"
+                    :title="it.kind === 'agent' ? 'Agent 执行验证的依据，留空则仅保留内容' : '断言四元组 JSON，留空则仅保留内容'"
                     @keydown.enter.prevent="saveEdit(it)"
                     @keydown.esc="cancelEdit"
                   />
@@ -204,6 +204,11 @@
                     :class="it.kind === 'agent' ? 'vitem-kind-agent' : 'vitem-kind-assertion'"
                     :title="it.kind === 'agent' ? 'Agent 执行项：执行指令后回填证据' : '数据断言项：后端校验执行'"
                   >{{ it.kind === 'agent' ? '⚙ Agent' : '⌘ 断言' }}</span>
+                  <span
+                    v-if="it.kind === 'assertion'"
+                    class="vitem-assertion-summary"
+                    :title="it.instruction || ''"
+                  >{{ assertionSummary(it.instruction) || "无效断言定义" }}</span>
                   <span class="vitem-content" :class="{ done: it.status }">{{ it.content }}</span>
                   <span v-if="it.note" class="vitem-note" :title="it.note">备注: {{ it.note }}</span>
                   <span v-if="it.status && it.checkedAt" class="vitem-time">{{ fmtTime(it.checkedAt) }}<template v-if="it.evidence"> · {{ it.evidence.runner }}</template></span>
@@ -215,7 +220,8 @@
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
                     </button>
                   </span>
-                  <div v-if="it.instruction" class="vitem-instruction" :title="it.instruction">▸ 指令：{{ it.instruction }}</div>
+                  <div v-if="it.kind === 'agent' && it.instruction" class="vitem-instruction" :title="it.instruction">▸ 指令：{{ it.instruction }}</div>
+                  <div v-else-if="it.kind === 'assertion'" class="vitem-instruction" :title="it.instruction || ''">▸ 断言：{{ assertionSummary(it.instruction) || "无效断言定义" }}</div>
                   <div v-if="it.evidence" class="vitem-evidence">
                     <span class="vitem-evidence-mark">✓</span>
                     <span class="vitem-evidence-summary" :title="it.evidence.summary">{{ it.evidence.summary }}</span>
@@ -240,10 +246,10 @@
       <div v-if="!items.length && !loading" class="vtab-empty">该对象还没有验证项，在下方录入</div>
     </div>
     <div class="vtab-input">
-      <el-select v-model="draftKind" size="small" placeholder="方式" style="width: 88px" title="执行方式：human 人工勾选 / agent 由 Agent 执行后回填证据">
+      <el-select v-model="draftKind" size="small" placeholder="方式" style="width: 88px" title="执行方式：human 人工勾选 / agent 由 Agent 执行后回填证据 / assertion 后端查库断言">
         <el-option label="人工" value="human" />
         <el-option label="Agent" value="agent" />
-        <el-option label="断言" value="assertion" disabled />
+        <el-option label="断言" value="assertion" />
       </el-select>
       <el-select v-model="draftCategory" filterable allow-create default-first-option size="small" placeholder="类别" style="width: 130px">
         <el-option v-for="c in knownCategories" :key="c" :label="c" :value="c" />
@@ -255,7 +261,7 @@
           v-model="draft"
           class="vt-input"
           rows="1"
-          :placeholder="draftKind === 'agent' ? '输入 Agent 验证项内容，回车即存…' : '输入验证项内容，回车即存…'"
+          :placeholder="draftKind === 'agent' ? '输入 Agent 验证项内容，回车即存…' : draftKind === 'assertion' ? '输入断言项内容，回车即存…' : '输入验证项内容，回车即存…'"
           @keydown.enter="onDraftKeydown"
         ></textarea>
         <input
@@ -265,6 +271,21 @@
           placeholder="验证指令（可选，Agent 执行依据，如：npm test，检查 fail=0）"
           @keydown.enter="addItem"
         />
+        <!-- 断言四元组录入（kind=assertion）：目标/字段/操作符/期望值 → instruction JSON -->
+        <div v-if="draftKind === 'assertion'" class="vt-assertion">
+          <input v-model="assertForm.target" class="vt-assertion-input vt-assertion-target" placeholder="目标 表名:id，如 comment:36db7c28" @keydown.enter="addItem" />
+          <input v-model="assertForm.field" class="vt-assertion-input vt-assertion-field" placeholder="字段，如 quote_anchor" @keydown.enter="addItem" />
+          <el-select v-model="assertForm.op" size="small" class="vt-assertion-op" title="断言操作符">
+            <el-option v-for="o in ASSERTION_OP_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+          </el-select>
+          <input
+            v-if="opNeedsValue(assertForm.op)"
+            v-model="assertForm.value"
+            class="vt-assertion-input vt-assertion-value"
+            placeholder="期望值（可留空）"
+            @keydown.enter="addItem"
+          />
+        </div>
       </div>
     </div>
       </div>
@@ -286,6 +307,7 @@ import { listPlans } from "../../../api/modules/plan.js";
 import { listTasks } from "../../../api/modules/task.js";
 import { listVerifications, createVerification, updateVerification, deleteVerification, listVerificationItems, createVerificationItems, updateVerificationItem, toggleVerificationItem, deleteVerificationItem, clearVerificationGroup, listVerificationCategories, createVerificationCategory, updateVerificationCategory, deleteVerificationCategory } from "../../../api/modules/verification.js";
 import { toast } from "../../../toast.js";
+import { ASSERTION_OP_OPTIONS, buildAssertionInstruction, assertionSummary, opNeedsValue } from "../../../utils/assertion.js";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
 import FormDialog from "../../../components/FormDialog.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
@@ -494,6 +516,8 @@ const editDraft = ref("");
 const editInstruction = ref("");
 const draftKind = ref("human");
 const draftInstruction = ref("");
+// 断言四元组录入（draftKind=assertion）：提交时序列化为 instruction JSON
+const assertForm = reactive({ target: "", field: "", op: "not_null", value: "" });
 const foldedGroups = ref(new Set());
 
 // 录入下拉：分组管理字典 + 当前验证项已有分类（字典为主，不再硬编码）
@@ -560,15 +584,24 @@ async function addItem() {
   const content = draft.value.trim();
   if (!content) return;
   const body = { content, category: draftCategory.value || "" };
-  if (draftKind.value !== "human") {
+  if (draftKind.value === "agent") {
     body.kind = draftKind.value;
     if (draftInstruction.value.trim()) body.instruction = draftInstruction.value.trim();
+  } else if (draftKind.value === "assertion") {
+    const target = assertForm.target.trim();
+    const field = assertForm.field.trim();
+    if (!target || !field) return toast("断言需填写目标（表名:id）与字段", "error");
+    body.kind = draftKind.value;
+    body.instruction = buildAssertionInstruction({ target, field, op: assertForm.op, value: assertForm.value });
   }
   const res = await createVerificationItems(props.projectId, detail.value.id, body);
   if (res?.ok) {
     detailItems.value.push(res.data);
     draft.value = "";
     draftInstruction.value = "";
+    assertForm.target = "";
+    assertForm.field = "";
+    assertForm.value = "";
     resetDraftInputHeight();
     syncCardProgress();
     emit("changed");
@@ -654,7 +687,7 @@ async function saveEdit(it) {
   const content = editDraft.value.trim();
   if (!content) return;
   const body = { content };
-  if (it.kind === "agent") body.instruction = editInstruction.value.trim();
+  if (it.kind === "agent" || it.kind === "assertion") body.instruction = editInstruction.value.trim();
   const res = await updateVerificationItem(props.projectId, it.id, body);
   if (res?.ok) {
     Object.assign(it, res.data);
@@ -1013,6 +1046,19 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
 }
 .vitem-kind-agent { background: rgba(90, 140, 255, 0.12); color: #5a8cff; }
 .vitem-kind-assertion { background: rgba(46, 160, 67, 0.12); color: #2ea043; }
+/* 断言摘要（绿色系，对齐徽标；无效定义灰显提示） */
+.vitem-assertion-summary {
+  flex: none;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #2ea043;
+  background: rgba(46, 160, 67, 0.06);
+  border-radius: 8px;
+  padding: 1px 7px;
+}
 /* 指令行 / 证据行：换行后的附加行，左对齐 content（checkbox 16 + gap 10） */
 .vitem-instruction,
 .vitem-evidence {
@@ -1154,6 +1200,30 @@ defineExpose({ reload: load, openCreate, openCategoryManager, openDetailById });
   outline: none;
 }
 .vt-instruction:focus { border-color: var(--text); }
+/* 断言四元组录入行：目标/字段/操作符/期望值（agent 指令行同款风格） */
+.vt-assertion {
+  width: 100%;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vt-assertion-input {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 0.5px dashed var(--border);
+  border-radius: 5px;
+  padding: 4px 8px;
+  outline: none;
+  font-family: var(--font-mono, monospace);
+}
+.vt-assertion-input:focus { border-color: var(--text); }
+.vt-assertion-target { flex: 2.2; }
+.vt-assertion-field { flex: 1.4; }
+.vt-assertion-op { flex: none; width: 78px; }
+.vt-assertion-value { flex: 1; }
 .vtab-input {
   flex-shrink: 0;
   display: flex;

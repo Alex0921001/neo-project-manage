@@ -11,8 +11,8 @@ export const parameters = {
     content: { type: "string", description: "新的验证内容（可选）" },
     note: { type: "string", description: "备注（可选，传空串清除）" },
     category: { type: "string", description: "分类（可选）" },
-    kind: { type: "string", enum: ["human", "agent", "assertion"], description: "执行方式（可选）" },
-    instruction: { type: "string", description: "Agent 验证指令（可选）" },
+    kind: { type: "string", enum: ["human", "agent", "assertion"], description: "执行方式（可选）：agent 由 Agent 执行；assertion 为数据断言（verify_assertion_items 执行）" },
+    instruction: { type: "string", description: "Agent 验证指令或断言四元组 JSON（可选）：kind=agent 时为指令；kind=assertion 时为 {target,field,op,value} JSON，如 {\"target\":\"comment:36db7c28\",\"field\":\"quote_anchor\",\"op\":\"not_null\",\"value\":null}" },
   },
 };
 

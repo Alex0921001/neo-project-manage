@@ -16,3 +16,16 @@ export function nextZIndex() {
   topZ += 1;
   return topZ;
 }
+
+// 共享弹窗栈（模块级单例，所有 FloatPanel 实例共用）：记录各面板当前 z-index，
+// Esc 只关最上层（栈顶），点击置顶时同步重排栈序
+export const openStack = [];
+
+/**
+ * 点击置顶：重新取号并返回新层级（调用方负责同步自身 zIndex 与 openStack 栈序）。
+ * 已是当前最顶层（currentZ === topZ）时原值返回，避免反复点击让计数器无谓膨胀。
+ */
+export function bringToFront(currentZ) {
+  if (typeof currentZ === "number" && currentZ === topZ) return currentZ;
+  return nextZIndex();
+}

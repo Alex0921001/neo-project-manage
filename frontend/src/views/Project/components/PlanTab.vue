@@ -380,15 +380,16 @@ function onModeChange(mode) {
   if (mode === "edit" && modal.value.planId) editingFromDetail.value = true;
   modal.value = { ...modal.value, mode };
 }
-// 编辑保存成功：来源详情 → 回落详情（重新拉数据）；来源列表 → 关弹窗刷新列表（现状）
+// 编辑保存成功：来源详情 → 回落详情（弹窗重拉详情 + 同步刷新列表，修复保存后列表不刷新）；
+// 来源列表 → 关弹窗刷新列表（现状）
 function onSaved(planId) {
+  load();
   if (editingFromDetail.value) {
     reopenDetail(planId);
   } else {
     closeModal();
-    load();
-    emit("changed");
   }
+  emit("changed");
 }
 // 新建保存成功：关弹窗 + 刷新列表（现状）
 function onCreated() {

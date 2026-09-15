@@ -5,6 +5,8 @@
       class="float-panel"
       :class="{ 'float-panel-full-state': fullscreen }"
       :style="panelStyle"
+      @pointerdown="onPanelPointerdown"
+      @click="onPanelClick"
     >
       <!-- 标题栏：拖动区域（点 × 关闭；双击标题撑满整页；无遮罩，点击外部不关闭） -->
       <div
@@ -50,10 +52,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
-import { nextZIndex } from "../utils/zIndex.js";
-
-// 已打开面板的 zIndex 栈：Esc 只关最上层，避免多弹窗叠加时一按全关
-const openStack = [];
+import { nextZIndex, bringToFront, openStack } from "../utils/zIndex.js";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -134,9 +133,35 @@ watch(() => props.modelValue, (v) => {
   openStack.push(zIndex.value);
 });
 
+// ===== 点击置顶（bringToFront）=====
+// 鼠标点击面板任意位置时把面板升到当前最高层（拖拽/缩放/滚轮不触发）。
+// 层级取号复用 zIndex.js bringToFront（已是顶层时原值返回，避免计数器膨胀），
+// 同时同步共享 openStack 栈序，保证 Esc 仍只关最上层。
+// 遮罩策略：FloatPanel 无遮罩层，天然不挡下层弹窗的点击；
+// ConfirmModal（el-dialog）的遮罩保持模态语义不变，不在本能力范围内。
+let downPos = null; // 面板内 pointerdown 起点（供 click 判定是否拖拽结束）
+function onPanelPointerdown(e) {
+  downPos = { x: e.clientX, y: e.clientY };
+}
+function onPanelClick(e) {
+  if (!props.modelValue || dragging.value || resizing.value) return;
+  // 拖拽/缩放结束后落在面板上的 click（位移超过阈值）不触发置顶
+  if (downPos) {
+    const dx = e.clientX - downPos.x;
+    const dy = e.clientY - downPos.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) return;
+  }
+  const z = bringToFront(zIndex.value);
+  if (z === zIndex.value) return;
+  const i = openStack.indexOf(zIndex.value);
+  if (i >= 0) openStack.splice(i, 1);
+  zIndex.value = z;
+  openStack.push(z);
+}
+
 // ===== Esc 关闭弹窗 =====
 // 输入控件内（INPUT/TEXTAREA/contentEditable）的 Esc 由局部逻辑优先（如临时任务编辑态取消），不关弹窗；
-// 多弹窗叠加时只关最上层
+// 多弹窗叠加时只关最上层（openStack 为模块级共享栈）
 function onPanelKeydown(e) {
   if (e.key !== "Escape" || !props.modelValue) return;
   const t = e.target;

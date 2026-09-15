@@ -68,13 +68,13 @@
               @click="onRichViewClick"
             ></div>
             <div v-else class="rq-content-empty">暂无内容</div>
-            <!-- 关联方案（需求↔方案多对多）：样式对齐方案详情的关联需求（内容底部区块） -->
+            <!-- 关联方案（需求↔方案多对多）：样式对齐方案详情的关联需求（内容底部区块）；超链接点击层叠打开方案详情弹窗 -->
             <div class="rq-plans">
               <div class="rq-plans-title">关联方案（{{ req?.plans?.length || 0 }}）</div>
               <div v-if="!req?.plans?.length" class="rq-plans-empty">暂无关联方案，编辑需求可关联方案</div>
               <div v-for="pl in req?.plans || []" :key="pl.id" class="rq-plan-item">
                 <span class="rq-plan-dot" :class="`dot-${planStatusKey(pl.status)}`"></span>
-                <span class="rq-plan-title" :title="pl.title">{{ pl.title }}</span>
+                <a href="javascript:void(0)" class="rq-plan-title rq-link" :title="`打开方案详情：${pl.title}`" @click.stop="openPlanDetail(pl)">{{ pl.title }}</a>
                 <span class="rq-plan-status">{{ pl.status }}</span>
               </div>
             </div>
@@ -142,6 +142,16 @@
     <el-image-viewer v-if="viewerVisible" :url-list="[viewerSrc]" @close="viewerVisible = false" />
   </FloatPanel>
 
+  <!-- 关联方案详情弹窗（层叠打开，多实例并存：异步加载避免循环依赖） -->
+  <PlanModalAsync
+    :show="planModal.show"
+    :project-id="projectId"
+    :plan-id="planModal.id"
+    mode="read"
+    @update:show="planModal.show = $event"
+    @close="planModal.show = false"
+  />
+
   <!-- 版本历史弹窗 -->
   <VersionModal
     :show="versionShow"
@@ -163,10 +173,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, watch, nextTick, defineAsyncComponent } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 import ConfirmModal from "../../../components/ConfirmModal.vue";
-import { listPlans } from "../../../api/modules/plan.js";
+import { listPlans, getPlan } from "../../../api/modules/plan.js";
 import { listRequirements, getRequirement, createRequirement, updateRequirement, updateRequirementStatus, deleteRequirement } from "../../../api/modules/requirement.js";
 import { applyQuoteAnchor } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
@@ -176,6 +186,7 @@ import { createRichEditor } from "../../../utils/asyncEditor.js";
 import { planStatusKey } from "../../../utils/planStatus.js";
 import CommentPanel from "./CommentPanel.vue";
 import VersionModal from "./VersionModal.vue";
+const PlanModalAsync = defineAsyncComponent(() => import("./PlanModal.vue"));
 import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
 import { applyQuoteToDom, wrapQuoteInHtml, unwrapQuoteFromDom, unwrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
@@ -239,6 +250,15 @@ async function loadPlans() {
 function onVersionRestored() {
   loadDetail();
   emit("changed");
+}
+
+// ===== 关联方案超链接：点击层叠打开方案详情弹窗（目标不存在提示，旧弹窗保留对照） =====
+const planModal = ref({ show: false, id: null });
+async function openPlanDetail(pl) {
+  if (!pl?.id) return;
+  const res = await getPlan(props.projectId, pl.id, { silent: true });
+  if (!res?.ok) return toast("关联对象不存在", "error");
+  planModal.value = { show: true, id: pl.id };
 }
 
 const panelTitle = computed(() => {
@@ -627,6 +647,14 @@ defineExpose({ loadDetail });
   white-space: nowrap;
   color: var(--text);
 }
+/* 关联方案超链接（点击层叠打开方案详情） */
+.rq-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--border);
+  cursor: pointer;
+}
+.rq-link:hover { color: var(--accent); border-bottom-color: var(--accent); }
 .rq-plan-status {
   margin-left: auto;
   font-size: 11px;
