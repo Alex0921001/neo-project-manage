@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="cm-fade">
-      <div v-if="show" class="cm-overlay" :style="{ zIndex: z }">
+      <div v-if="show" class="cm-overlay" :style="{ zIndex: overlayZ }">
         <div class="cm-dialog" role="alertdialog" aria-modal="true">
           <div class="cm-title">{{ title }}</div>
           <p class="cm-body">{{ message }}</p>
@@ -16,7 +16,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onBeforeUnmount } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { nextZIndex } from "../utils/zIndex.js";
 
 const props = defineProps({
@@ -25,16 +25,18 @@ const props = defineProps({
   confirmText: { type: String, default: "确认删除" },
   cancelText: { type: String, default: "取消" },
   title: { type: String, default: "确认" },
+  // 编程式调用（utils/confirm.js 单例）时传入实际层级；模板用法传空则自行取号
+  z: { type: Number, default: 0 },
 });
 const emit = defineEmits(["close", "confirm"]);
 
-// 自研弹层（替代 el-dialog）：与 FloatPanel 共用 zIndex.js 统一计数器，
-// 打开即取 topZ+1 全局最顶层；全屏遮罩拦截指针事件，打开期间面板无法被
-// 点击置顶盖到本弹窗——彻底规避 Element Plus 弹层计数器与我们计数器交叉导致的遮挡
-const z = ref(0);
+// 自研弹层（替代 el-dialog）：与 FloatPanel 共用 zIndex.js 统一计数器。
+// 层级：编程式由外部传入（confirm.js 统一取号 + enforceTop 兜底）；模板式打开时自行取号
+const ownZ = ref(0);
 watch(() => props.show, (v) => {
-  if (v) z.value = nextZIndex();
+  if (v && !props.z) ownZ.value = nextZIndex();
 });
+const overlayZ = computed(() => props.z || ownZ.value);
 
 // Esc 取消：捕获阶段拦截并吞掉，不冒泡到 FloatPanel 的 Esc 关闭链（避免误关底层弹窗）
 function onKeydown(e) {
