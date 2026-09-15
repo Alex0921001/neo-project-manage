@@ -82,6 +82,16 @@ onBeforeUnmount(() => {
 .cm-overlay {
   position: fixed;
   inset: 0;
+  /* 显式覆盖 Chromium UA 对 [popover] 的默认样式：fit-content / border / padding /
+     overflow:auto，否则遮罩会被缩成左上角一个带黑边的盒子 */
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: none;
+  padding: 0;
+  overflow: visible;
   background: rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
