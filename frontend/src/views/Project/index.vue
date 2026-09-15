@@ -53,12 +53,12 @@
         <div class="tab-bar-right">
           <div v-if="tab === 'tasks'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="taskSearch" class="task-search-input" placeholder="搜索任务" @click.stop />
+            <input v-model="taskSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="taskSearch" class="task-search-clear" title="清空" @click="taskSearch = ''">×</button>
           </div>
           <div v-if="tab === 'plans'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="planSearch" class="task-search-input" placeholder="搜索方案标题" @click.stop />
+            <input v-model="planSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="planSearch" class="task-search-clear" title="清空" @click="planSearch = ''">×</button>
           </div>
           <el-select v-if="tab === 'plans'" v-model="planStatus" class="plan-status-select" size="small" @click.stop>
@@ -67,7 +67,7 @@
           <!-- 需求筛选（tab 栏右上角，与方案筛选同形态）：搜索框 + 状态下拉 -->
           <div v-if="tab === 'requirements'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="requirementSearch" class="task-search-input" placeholder="搜索需求" @click.stop />
+            <input v-model="requirementSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="requirementSearch" class="task-search-clear" title="清空" @click="requirementSearch = ''">×</button>
           </div>
           <el-select v-if="tab === 'requirements'" v-model="requirementStatus" class="plan-status-select" size="small" @click.stop>
@@ -119,7 +119,7 @@
           <!-- 文件搜索（tab 栏新建按钮左侧，与任务/方案/需求同形态） -->
           <div v-if="tab === 'files'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="fileSearch" class="task-search-input" placeholder="搜索文件名称" @click.stop />
+            <input v-model="fileSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="fileSearch" class="task-search-clear" title="清空" @click="fileSearch = ''">×</button>
           </div>
           <!-- 文件排序（新建按钮左侧）：默认 / 名称 / 类型，持久化 -->
@@ -135,13 +135,13 @@
           <!-- 验证搜索（tab 栏新建按钮左侧，与文件搜索同形态） -->
           <div v-if="tab === 'verification'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="verificationSearch" class="task-search-input" placeholder="搜索验证名称/备注/id" @click.stop />
+            <input v-model="verificationSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="verificationSearch" class="task-search-clear" title="清空" @click="verificationSearch = ''">×</button>
           </div>
           <!-- 备注搜索（tab 栏新建按钮左侧，与验证搜索同形态） -->
           <div v-if="tab === 'notes'" class="task-search">
             <svg class="task-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input v-model="noteSearch" class="task-search-input" placeholder="搜索备注内容" @click.stop />
+            <input v-model="noteSearch" class="task-search-input" placeholder="搜索" @click.stop />
             <button v-if="noteSearch" class="task-search-clear" title="清空" @click="noteSearch = ''">×</button>
           </div>
           <button v-if="tab === 'verification'" class="header-btn" @click="verificationTabRef?.openCategoryManager()">分组管理</button>
