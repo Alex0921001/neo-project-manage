@@ -620,7 +620,8 @@ async function toggleConfirm(ann) {
 .sticky-done .sticky-content {
   color: var(--text);
   text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(154, 145, 134, 0.45);
 }
 .sticky-foot {
   display: flex;
