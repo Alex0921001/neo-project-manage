@@ -117,23 +117,6 @@
     </Teleport>
 
     <!-- 删除二次确认（复用项目内确认交互模式） -->
-    <ConfirmModal
-      :show="confirmShow"
-      message="确认删除该消息？删除后不可恢复。"
-      confirm-text="删除"
-      @close="confirmShow = false"
-      @confirm="doDelete"
-    />
-
-    <!-- 全部删除确认 -->
-    <ConfirmModal
-      :show="deleteAllShow"
-      message="确认删除全部消息？此操作不可恢复。"
-      confirm-text="全部删除"
-      @close="deleteAllShow = false"
-      @confirm="doDeleteAll"
-    />
-
     <!-- 消息提醒配置弹窗 -->
     <el-dialog
       v-model="configShow"
@@ -171,11 +154,11 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import FloatPanel from "../../components/FloatPanel.vue";
-import ConfirmModal from "../../components/ConfirmModal.vue";
 import { listMessages, deleteMessage, markMessagesRead, getMessageConfig, updateMessageConfig } from "../../api/modules/message.js";
 import { toast } from "../../toast.js";
 import { jumpToResult, highlightKeyword } from "../../utils/jump.js";
 import { nextZIndex } from "../../utils/zIndex.js";
+import { confirmDialog } from "../../utils/confirm.js";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -187,7 +170,6 @@ const loading = ref(false);
 const selected = ref(null);
 const searchWord = ref("");
 const typeFilter = ref("all");
-const confirmShow = ref(false);
 
 const typeTabs = computed(() => {
   // 计数基于已加载数据（分页加载中，非全量；打开滚动加载可补全）
@@ -351,25 +333,16 @@ onBeforeUnmount(() => {
   window.removeEventListener("scroll", onDocPointer, true);
 });
 
-// 删除确认：pendingDelete 记录目标（右键列表项 / header 删除当前选中），删除后按目标是否当前选中决定是否切换选中
-const pendingDelete = ref(null);
-function askDelete(m = null) {
+async function askDelete(m = null) {
   const target = m || selected.value;
   if (!target) return;
-  pendingDelete.value = target;
-  confirmShow.value = true;
-}
-
-async function doDelete() {
-  const m = pendingDelete.value;
-  if (!m) return;
-  confirmShow.value = false;
-  pendingDelete.value = null;
-  const res = await deleteMessage(m.id, { silent: true });
+  const ok = await confirmDialog({ message: "确认删除该消息？删除后不可恢复。", confirmText: "删除" });
+  if (!ok) return;
+  const res = await deleteMessage(target.id, { silent: true });
   if (res?.ok) {
     toast("已删除");
-    items.value = items.value.filter((x) => x.id !== m.id);
-    if (selected.value?.id === m.id) {
+    items.value = items.value.filter((x) => x.id !== target.id);
+    if (selected.value?.id === target.id) {
       selected.value = items.value.find((x) => !x.read) || items.value[0] || null;
     }
     emit("changed");
@@ -387,13 +360,9 @@ function onDeleteCmd(cmd) {
   }
 }
 
-const deleteAllShow = ref(false);
-function askDeleteAll() {
-  deleteAllShow.value = true;
-}
-
-async function doDeleteAll() {
-  deleteAllShow.value = false;
+async function askDeleteAll() {
+  const ok = await confirmDialog({ message: "确认删除全部消息？此操作不可恢复。", confirmText: "全部删除" });
+  if (!ok) return;
   // 拉全量消息
   let allMsgs = [];
   let offset = 0;

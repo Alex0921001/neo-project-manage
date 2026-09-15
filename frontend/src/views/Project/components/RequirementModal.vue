@@ -164,20 +164,12 @@
     @close="versionShow = false"
     @restored="onVersionRestored"
   />
-
-  <ConfirmModal
-    :show="confirm.show"
-    :message="confirm.message"
-    :confirm-text="confirm.confirmText"
-    @close="settleCommentConfirm(false); confirm.show = false"
-    @confirm="doConfirm"
-  />
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick, defineAsyncComponent } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 import { listPlans, getPlan } from "../../../api/modules/plan.js";
 import { listRequirements, getRequirement, createRequirement, updateRequirement, updateRequirementStatus, deleteRequirement } from "../../../api/modules/requirement.js";
 import { applyQuoteAnchor } from "../../../api/modules/comment.js";
@@ -288,18 +280,9 @@ function onCommentsLoaded(count) {
 // 正文与评论是两条互不等待的异步加载链：评论先到时正文尚未渲染，扫描得空集 → 首开全部误判灰显。
 // 后到方（正文加载完/更新）触发重扫，消除首开竞态；重复扫描幂等无害
 watch(req, () => scanLocatableQuotes());
-let commentConfirmResolve = null;
+// 评论删除确认（CommentPanel 回调）：直接用 confirmDialog，天然返回 Promise<boolean>
 function onCommentAsk() {
-  return new Promise((resolve) => {
-    commentConfirmResolve = resolve;
-    ask(`删除这条评论？`, "删除", "comment-delete");
-  });
-}
-function settleCommentConfirm(ok) {
-  if (commentConfirmResolve) {
-    commentConfirmResolve(ok);
-    commentConfirmResolve = null;
-  }
+  return confirmDialog({ message: `删除这条评论？`, confirmText: "删除" });
 }
 watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
 
@@ -447,20 +430,9 @@ function enterEdit() {
 }
 
 // ===== 删除 =====
-const confirm = ref({ show: false, message: "", confirmText: "删除", action: "" });
-function ask(message, confirmText, action) {
-  confirm.value = { show: true, message, confirmText, action };
-}
-function askDelete() {
-  ask(`确认删除需求「${req.value?.name}」？关联方案不受影响。`, "删除", "delete");
-}
-async function doConfirm() {
-  confirm.value.show = false;
-  if (confirm.value.action === "comment-delete") {
-    settleCommentConfirm(true);
-    return;
-  }
-  if (confirm.value.action !== "delete" || !currentId.value) return;
+async function askDelete() {
+  const ok = await confirmDialog({ message: `确认删除需求「${req.value?.name}」？关联方案不受影响。`, confirmText: "删除" });
+  if (!ok || !currentId.value) return;
   const res = await deleteRequirement(props.projectId, currentId.value);
   if (res?.ok) {
     toast("已删除需求");

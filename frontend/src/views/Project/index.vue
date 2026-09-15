@@ -276,14 +276,6 @@
       @select-task="(payload) => { calShow = false; onTabCalendarSelectTask(payload) }"
     />
 
-    <ConfirmModal
-      :show="confirm.show"
-      :message="confirm.message"
-      :confirm-text="confirm.confirmText"
-      @close="confirm.show = false"
-      @confirm="doConfirm"
-    />
-
     <!-- V2.3 R2：项目内全文搜索弹窗 -->
     <SearchPanel v-model="searchShow" :project-id="p?.id || ''" title="项目内搜索" />
   </div>
@@ -307,7 +299,7 @@ import AuditTab from "./components/AuditTab.vue";
 import PlanTab from "./components/PlanTab.vue";
 import RequirementTab from "./components/RequirementTab.vue";
 import VerificationTab from "./components/VerificationTab.vue";
-import ConfirmModal from "../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../utils/confirm.js";
 import SearchPanel from "../../components/SearchPanel.vue";
 import { consumeJumpMark } from "../../utils/jump.js";
 import ProjectFormModal from "../Home/components/ProjectFormModal.vue";
@@ -748,12 +740,11 @@ async function doEditProject(d) {
   else toast(res.error || "更新失败", "error");  // 重复 toast 被 toast.js 内容去重
 }
 
-// ===== Confirm =====
-const confirm = ref({ show: false, message: "", action: "", payload: null, confirmText: "确认" });
-function onConfirm(e) { confirm.value = { show: true, message: e.message, action: e.action, payload: e.payload, confirmText: e.confirmText || "确认" }; }
-async function doConfirm() {
-  const { action, payload } = confirm.value;
-  confirm.value.show = false;
+// ===== Confirm（编程式：confirmDialog 统一取号）=====
+async function onConfirm(e) {
+  const ok = await confirmDialog({ message: e.message, confirmText: e.confirmText || "确认" });
+  if (!ok) return;
+  const { action, payload } = e;
   let res;
   if (action === "delete-task") {
     res = await deleteTask(props.projectId, payload, { silent: true });

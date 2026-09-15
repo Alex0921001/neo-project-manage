@@ -200,20 +200,12 @@
     @close="versionShow = false"
     @restored="onVersionRestored"
   />
-
-  <ConfirmModal
-    :show="confirm.show"
-    :message="confirm.message"
-    :confirm-text="confirm.confirmText"
-    @close="settleCommentConfirm(false); confirm.show = false"
-    @confirm="doConfirm"
-  />
 </template>
 
 <script setup>
 import { ref, computed, watch, nextTick, defineAsyncComponent } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 import { apiUpload } from "../../../api/upload.js";
 import { listPlans, getPlan, createPlan, updatePlan, deletePlan, convertPlan, importPlanFile } from "../../../api/modules/plan.js";
 import { listRequirements, getRequirement } from "../../../api/modules/requirement.js";
@@ -325,8 +317,7 @@ async function onFileSelected(e) {
   }
 }
 
-// 确认弹窗
-const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", payload: null });
+// 评论删除确认走 utils/confirm.js（confirmDialog），本组件不再维护确认状态机
 
 const panelTitle = computed(() => {
   if (props.mode === "edit") return props.planId ? "编辑方案" : "新建方案";
@@ -340,7 +331,7 @@ function formatTime(iso) {
   return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-// CommentPanel 挂载后注入删除确认回调（数据内聚，确认弹窗用本弹窗的 ConfirmModal）
+// CommentPanel 挂载后注入删除确认回调（数据内聚，确认弹窗走 utils/confirm.js）
 watch(commentPanel, (panel) => panel?.setConfirmHandler?.(onCommentAsk), { immediate: true });
 
 // ===== 划词引用评论=====
@@ -413,23 +404,9 @@ function locateQuoteInBody(c) {
   setTimeout(() => marks.forEach((m) => m.classList.remove("qc-flash")), 1400);
 }
 
-function ask(msg, confirmText, action, payload) {
-  confirm.value = { show: true, message: msg, confirmText, action, payload };
-}
-
-// ===== 评论删除确认（CommentPanel 回调）：Promise 化，确认/取消都能收口 =====
-let commentConfirmResolve = null;
+// ===== 评论删除确认（CommentPanel 回调）：直接用 confirmDialog，天然返回 Promise<boolean> =====
 function onCommentAsk() {
-  return new Promise((resolve) => {
-    commentConfirmResolve = resolve;
-    ask("删除这条评论？", "删除", "comment-delete", null);
-  });
-}
-function settleCommentConfirm(ok) {
-  if (commentConfirmResolve) {
-    commentConfirmResolve(ok);
-    commentConfirmResolve = null;
-  }
+  return confirmDialog({ message: "删除这条评论？", confirmText: "删除" });
 }
 
 // ===== 加载 =====
@@ -531,7 +508,7 @@ async function onStatusChange(v) {
   }
 }
 
-// 评论（数据内聚在 CommentPanel；删除确认复用本弹窗 ConfirmModal）
+// 评论（数据内聚在 CommentPanel；删除确认走 utils/confirm.js）
 /** 扫描正文引用标注：正文 DOM 就绪后调用；无标注的引用退化为纯文字引用（灰显不可定位） */
 function scanLocatableQuotes() {
   nextTick(() => {
@@ -585,37 +562,27 @@ async function copyPlan() {
   }
 }
 
-function confirmDelete() {
-  ask(`确认删除方案「${plan.value?.title}」？评论将一并删除，转出的任务不受影响。`, "删除方案", "delete", null);
+async function confirmDelete() {
+  const ok = await confirmDialog({ message: `确认删除方案「${plan.value?.title}」？评论将一并删除，转出的任务不受影响。`, confirmText: "删除方案" });
+  if (!ok) return;
+  const res = await deletePlan(props.projectId, props.planId);
+  if (res?.ok) {
+    toast("已删除方案");
+    emit("changed");
+    emit("close");
+  } else toast(res?.error || "删除失败", "error");
 }
-function confirmConvert() {
+async function confirmConvert() {
   if (plan.value?.status !== "已采纳") return toast("仅「已采纳」状态的方案可转任务", "error");
   if (plan.value?.taskExists) return toast("该方案已转为任务，不能重复转换", "error");
-  ask(`将方案「${plan.value?.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, "转任务", "convert", null);
-}
-
-async function doConfirm() {
-  // 点击确认后立即关闭确认框（异步操作后台执行，结果以 toast 呈现）
-  confirm.value.show = false;
-  const action = confirm.value.action;
-  const c = confirm.value.payload;
-  if (action === "comment-delete") {
-    settleCommentConfirm(true);
-  } else if (action === "delete") {
-    const res = await deletePlan(props.projectId, props.planId);
-    if (res?.ok) {
-      toast("已删除方案");
-      emit("changed");
-      emit("close");
-    } else toast(res?.error || "删除失败", "error");
-  } else if (action === "convert") {
-    const res = await convertPlan(props.projectId, props.planId);
-    if (res?.ok) {
-      toast("已转为任务");
-      loadDetail();
-      emit("changed");
-    } else toast(res?.error || "转任务失败", "error");
-  }
+  const ok = await confirmDialog({ message: `将方案「${plan.value?.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, confirmText: "转任务" });
+  if (!ok) return;
+  const res = await convertPlan(props.projectId, props.planId);
+  if (res?.ok) {
+    toast("已转为任务");
+    loadDetail();
+    emit("changed");
+  } else toast(res?.error || "转任务失败", "error");
 }
 
 // 打开时：初始化编辑字段 + 加载详情；planId 变化刷新

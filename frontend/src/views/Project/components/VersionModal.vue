@@ -77,21 +77,13 @@
         </div>
       </div>
     </div>
-
-    <ConfirmModal
-      :show="confirmShow"
-      :message="`将内容还原到 v${compareVersion?.versionNo}？还原内容将作为新版本保存，版本链不断，可随时再还原回来。`"
-      confirm-text="还原"
-      @close="confirmShow = false"
-      @confirm="doRestore"
-    />
   </FloatPanel>
 </template>
 
 <script setup>
 import { ref, computed, watch } from "vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 import { listVersions, restoreVersion } from "../../../api/modules/version.js";
 import { toast } from "../../../toast.js";
 import { renderDiff } from "../../../utils/versionDiff.js";
@@ -111,7 +103,6 @@ const loading = ref(false);
 const versions = ref([]);
 const compareId = ref("");
 const restoring = ref(false);
-const confirmShow = ref(false);
 
 // 基线：对比版的下一版（更旧）；无下一版时两版相同显示一致
 const baseVersion = computed(() => {
@@ -173,13 +164,10 @@ function selectCompare(v) {
   compareId.value = v.id;
 }
 
-function askRestore() {
+async function askRestore() {
   if (!compareVersion.value) return;
-  confirmShow.value = true;
-}
-
-async function doRestore() {
-  confirmShow.value = false;
+  const ok = await confirmDialog({ message: `将内容还原到 v${compareVersion.value.versionNo}？还原内容将作为新版本保存，版本链不断，可随时再还原回来。`, confirmText: "还原" });
+  if (!ok) return;
   restoring.value = true;
   const res = await restoreVersion(
     props.projectId,

@@ -25,14 +25,6 @@
       @changed="load"
     />
 
-    <ConfirmModal
-      :show="confirm.show"
-      :message="confirm.message"
-      :confirm-text="confirm.text"
-      @close="confirm.show = false"
-      @confirm="doConfirm"
-    />
-
     <!-- 右下角功能速查入口 -->
     <CapabilityCheatSheet />
   </div>
@@ -46,7 +38,6 @@ import { toast } from "../../toast.js";
 import ProjectSetTabs from "./components/ProjectSetTabs.vue";
 import ProjectPanel from "./components/ProjectPanel.vue";
 import QuickTaskPanel from "./components/QuickTaskPanel.vue";
-import ConfirmModal from "../../components/ConfirmModal.vue";
 import CapabilityCheatSheet from "../../components/CapabilityCheatSheet.vue";
 
 const emit = defineEmits(["open-project", "go-calendar"]);
@@ -94,14 +85,11 @@ async function onReorder(ids) {
   }
 }
 
-// ===== Confirm =====
-const confirm = ref({ show: false, message: "", text: "确认删除", action: "", payload: null });
-function onConfirm(e) {
-  confirm.value = { show: true, message: e.message, text: e.confirmText || "确认删除", action: e.action, payload: e.payload };
-}
-async function doConfirm() {
-  const { action, payload } = confirm.value;
-  confirm.value.show = false;
+// ===== Confirm（编程式：confirmDialog 统一取号，永远最顶） =====
+async function onConfirm(e) {
+  const ok = await confirmDialog({ message: e.message, confirmText: e.confirmText || "确认删除" });
+  if (!ok) return;
+  const { action, payload } = e;
   if (action === "delete-set") {
     const res = await deleteProjectSet(payload, { silent: true });
     if (res.ok) { toast("已删除"); if (selSetId.value === payload) { selSetId.value = null; projPanel.value?.setFilter(null); } load(); }
@@ -115,7 +103,6 @@ async function doConfirm() {
     if (res.ok) { toast("已归档"); load(); projPanel.value?.load(); }
     else toast(res.error || "归档失败", "error");
   }
-  confirm.value.action = ""; confirm.value.payload = null;
 }
 
 onMounted(async () => {

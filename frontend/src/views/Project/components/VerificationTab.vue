@@ -289,13 +289,6 @@
       </div>
     </FloatPanel>
 
-    <ConfirmModal
-      :show="confirm.show"
-      :message="confirm.message"
-      confirm-text="删除"
-      @close="confirm.show = false"
-      @confirm="doConfirm"
-    />
   </div>
 </template>
 
@@ -306,7 +299,7 @@ import { listTasks } from "../../../api/modules/task.js";
 import { listVerifications, createVerification, updateVerification, deleteVerification, listVerificationItems, createVerificationItems, updateVerificationItem, toggleVerificationItem, deleteVerificationItem, clearVerificationGroup, listVerificationCategories, createVerificationCategory, updateVerificationCategory, deleteVerificationCategory } from "../../../api/modules/verification.js";
 import { toast } from "../../../toast.js";
 import { ASSERTION_OP_OPTIONS, buildAssertionInstruction, assertionSummary, opNeedsValue } from "../../../utils/assertion.js";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
 
@@ -494,13 +487,18 @@ async function saveForm() {
   }
 }
 
-// ===== 删除卡 =====
-const confirm = reactive({ show: false, message: "", payload: null, itemMode: false, clearMode: false });
-function askDelete(v) {
-  confirm.payload = v;
-  confirm.itemMode = false;
-  confirm.message = `删除验证「${v.name}」？卡内验证项将一并删除。`;
-  confirm.show = true;
+// ===== 删除卡（编程式确认）=====
+async function askDelete(v) {
+  const ok = await confirmDialog({ message: `删除验证「${v.name}」？卡内验证项将一并删除。`, confirmText: "删除" });
+  if (!ok) return;
+  const res = await deleteVerification(props.projectId, v.id);
+  if (res?.ok) {
+    toast("已删除验证");
+    load();
+    emit("changed");
+  } else {
+    toast(res?.error || "删除失败", "error");
+  }
 }
 
 // ===== 详情弹窗（验证项清单）=====
@@ -642,13 +640,18 @@ function resetDraftInputHeight() {
 }
 
 // 分组头批量清空
-function askClearGroup(g) {
+async function askClearGroup(g) {
   if (!detail.value) return;
-  confirm.payload = { cardId: detail.value.id, category: g.name === "通用" ? "" : g.name, name: g.name, total: g.total };
-  confirm.itemMode = false;
-  confirm.clearMode = true;
-  confirm.message = `清空分组「${g.name}」下的全部 ${g.total} 条验证项？此操作不可恢复。`;
-  confirm.show = true;
+  const ok = await confirmDialog({ message: `清空分组「${g.name}」下的全部 ${g.total} 条验证项？此操作不可恢复。`, confirmText: "删除" });
+  if (!ok) return;
+  const res = await clearVerificationGroup(props.projectId, detail.value.id, g.name === "通用" ? "" : g.name);
+  if (res?.ok) {
+    toast(`已清空 ${res.data.deleted} 条`);
+    loadDetail();
+    emit("changed");
+  } else {
+    toast(res?.error || "清空失败", "error");
+  }
 }
 function syncCardProgress() {
   const card = items.value.find((x) => x.id === detail.value?.id);
@@ -694,44 +697,14 @@ async function saveEdit(it) {
     toast(res?.error || "保存失败", "error");
   }
 }
-function askDeleteItem(it) {
-  confirm.payload = it;
-  confirm.itemMode = true;
-  confirm.message = `删除验证项「${it.content.slice(0, 30)}」？`;
-  confirm.show = true;
-}
-async function doConfirm() {
-  confirm.show = false;
-  const payload = confirm.payload;
-  if (confirm.clearMode) {
-    const res = await clearVerificationGroup(props.projectId, payload.cardId, payload.category);
-    if (res?.ok) {
-      toast(`已清空 ${res.data.deleted} 条`);
-      loadDetail();
-      emit("changed");
-    } else {
-      toast(res?.error || "清空失败", "error");
-    }
-    return;
-  }
-  const it = payload;
-  if (confirm.itemMode) {
-    const res = await deleteVerificationItem(props.projectId, it.id);
-    if (res?.ok) {
-      detailItems.value = detailItems.value.filter((x) => x.id !== it.id);
-      syncCardProgress();
-      toast("已删除");
-    } else {
-      toast(res?.error || "删除失败", "error");
-    }
-    return;
-  }
-  const v = it;
-  const res = await deleteVerification(props.projectId, v.id);
+async function askDeleteItem(it) {
+  const ok = await confirmDialog({ message: `删除验证项「${it.content.slice(0, 30)}」？`, confirmText: "删除" });
+  if (!ok) return;
+  const res = await deleteVerificationItem(props.projectId, it.id);
   if (res?.ok) {
-    toast("已删除验证");
-    load();
-    emit("changed");
+    detailItems.value = detailItems.value.filter((x) => x.id !== it.id);
+    syncCardProgress();
+    toast("已删除");
   } else {
     toast(res?.error || "删除失败", "error");
   }

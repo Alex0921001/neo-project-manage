@@ -177,13 +177,6 @@
       </div>
     </div>
 
-    <ConfirmModal
-      :show="confirmDel.show"
-      :message="`确定要删除这条批注吗？\n\n“${confirmDel.ann?.content?.slice(0, 60) || ''}${(confirmDel.ann?.content || '').length > 60 ? '…' : ''}”`"
-      @close="cancelRemove"
-      @confirm="doRemove"
-    />
-
     <!-- 批注管理大弹窗：小窗放不下时点头部按钮打开 -->
     <AnnotationManagerModal
       v-model="manageShow"
@@ -200,7 +193,7 @@ import { ref, computed, watch, defineAsyncComponent } from "vue";
 import { CircleCheck, Close, FullScreen, RefreshLeft } from "@element-plus/icons-vue";
 import { createAnnotation, updateAnnotation, deleteAnnotation } from "../../../api/modules/annotation.js";
 import { toast } from "../../../toast.js";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 // 打破 AnnotationPanel <-> AnnotationManagerModal 编译期循环依赖（TDZ）
 const AnnotationManagerModal = defineAsyncComponent(() => import("./AnnotationManagerModal.vue"));
 import { formatDescription } from "../../../utils/text.js";
@@ -336,7 +329,6 @@ async function changeKind(ann, v) {
 }
 
 // 删除二次确认
-const confirmDel = ref({ show: false, ann: null });
 
 // 层级提示（仅为显示，不影响逻辑）
 const targetDepth = computed(() => {
@@ -445,16 +437,11 @@ async function remove(ann) {
   else toast(res.error || "删除失败", "error");
 }
 
-function askRemove(ann) {
-  confirmDel.value = { show: true, ann };
-}
-function cancelRemove() {
-  confirmDel.value = { show: false, ann: null };
-}
-async function doRemove() {
-  const ann = confirmDel.value.ann;
-  confirmDel.value = { show: false, ann: null };
-  if (!ann) return;
+async function askRemove(ann) {
+  const excerpt = ann?.content?.slice(0, 60) || '';
+  const ell = (ann?.content || '').length > 60 ? '…' : '';
+  const ok = await confirmDialog({ message: `确定要删除这条批注吗？\n\n“${excerpt}${ell}”`, confirmText: "删除" });
+  if (!ok) return;
   await remove(ann);
 }
 

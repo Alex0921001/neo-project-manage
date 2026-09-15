@@ -149,15 +149,6 @@
       </el-form-item>
     </FormDialog>
 
-    <!-- 删除二次确认（WebView 环境不支持 window.confirm，用公共 ConfirmModal） -->
-    <ConfirmModal
-      :show="delConfirm.show"
-      :message="delConfirm.message"
-      confirm-text="确认删除"
-      @close="delConfirm.show = false"
-      @confirm="doConfirmDelete"
-    />
-
     <!-- 已归档弹窗（公共 FloatPanel，纸感） -->
     <FloatPanel v-model="archShow" title="已归档的临时任务" :default-width="660" :default-height="520">
       <div class="qtp-arch-body">
@@ -218,7 +209,7 @@ import { toast } from "../../../toast.js";
 import { highlightKeyword } from "../../../utils/jump.js";
 import FormDialog from "../../../components/FormDialog.vue";
 import FloatPanel from "../../../components/FloatPanel.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 
 const emit = defineEmits(["open-project", "changed"]);
 
@@ -469,16 +460,10 @@ async function removeEmpty(id) {
 }
 
 // ===== 删除二次确认（归档数据破坏性操作用；未完成草稿清空即删无需确认） =====
-const delConfirm = reactive({ show: false, message: "", action: null });
-function askDelete(message, action) {
-  delConfirm.message = message;
-  delConfirm.action = action;
-  delConfirm.show = true;
-}
-async function doConfirmDelete() {
-  const action = delConfirm.action;
-  delConfirm.show = false;
-  if (action) await action();
+// ===== 删除二次确认（归档数据破坏性操作用）=====
+async function askDelete(message, action) {
+  const ok = await confirmDialog({ message, confirmText: "确认删除" });
+  if (ok && action) await action();
 }
 
 // ===== 归档 =====
