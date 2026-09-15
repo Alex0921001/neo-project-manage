@@ -12,6 +12,13 @@ export function nextZIndex() {
       const z = parseInt(window.getComputedStyle(el).zIndex, 10);
       if (!Number.isNaN(z) && z > topZ) topZ = z;
     }
+  } else {
+    // 目标性重扫（节点数量级几十，成本可忽略）：Element Plus 的弹层计数器独立自增，
+    // 若不吸收，EP 弹层（select 下拉/消息等）可能反超我们的 topZ 造成遮挡
+    for (const el of document.querySelectorAll(".el-popper, .el-overlay, .el-message")) {
+      const z = parseInt(window.getComputedStyle(el).zIndex, 10);
+      if (!Number.isNaN(z) && z > topZ) topZ = z;
+    }
   }
   topZ += 1;
   return topZ;

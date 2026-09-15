@@ -82,14 +82,6 @@
       @next="onNavigate(1)"
     />
     <PlanCompareModal v-model:show="compareShow" :plans="comparePlans" />
-
-    <ConfirmModal
-      :show="confirm.show"
-      :message="confirm.message"
-      :confirm-text="confirm.confirmText"
-      @close="confirm.show = false"
-      @confirm="doCtxConfirm"
-    />
   </div>
 </template>
 
@@ -101,7 +93,7 @@ import { planStatusKey } from "../../../utils/planStatus.js";
 import { highlight } from "../../../utils/highlight.js";
 import PlanModal from "./PlanModal.vue";
 import PlanCompareModal from "./PlanCompareModal.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
@@ -142,7 +134,6 @@ function closeModal() {
 
 // ===== 右键菜单：打开 / 克隆 / 编辑 / 删除 / 转任务 =====
 const ctx = reactive({ show: false, x: 0, y: 0, plan: null });
-const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", plan: null });
 const canEdit = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "进行中"));
 const canDel = computed(() => ctx.plan && (ctx.plan.status === "草稿" || ctx.plan.status === "已废弃"));
 const canConvert = computed(() => ctx.plan && ctx.plan.status === "已采纳" && !ctx.plan.taskId);
@@ -200,36 +191,31 @@ function ctxEdit() {
   editingFromDetail.value = false; // 列表右键编辑：非详情来源，保存/取消维持关弹窗现状
   modal.value = { show: true, planId: ctx.plan.id, mode: "edit", clonePlan: null };
 }
-function ctxDel() {
+async function ctxDel() {
   closeCtx();
-  confirm.value = { show: true, message: `确认删除方案「${ctx.plan.title}」？评论将一并删除，转出的任务不受影响。`, confirmText: "删除方案", action: "delete", plan: ctx.plan };
+  const ok = await confirmDialog({
+    message: `确认删除方案「${ctx.plan.title}」？评论将一并删除，转出的任务不受影响。`,
+    confirmText: "删除方案",
+  });
+  if (!ok) return;
+  const res = await deletePlan(props.projectId, ctx.plan.id);
+  if (res?.ok) {
+    toast("已删除方案");
+    onChanged();
+  } else toast(res?.error || "删除失败", "error");
 }
-function ctxConvert() {
+async function ctxConvert() {
   closeCtx();
-  confirm.value = { show: true, message: `将方案「${ctx.plan.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`, confirmText: "转任务", action: "convert", plan: ctx.plan };
-}
-async function doCtxConfirm() {
-  confirm.value.show = false;
-  const { action, plan } = confirm.value;
-  if (action === "navigate") {
-    // 放弃编辑并切换：openDetail 内部会切回 read 模式
-    doNavigate(pendingDelta.value);
-    return;
-  }
-  if (!plan) return;
-  if (action === "delete") {
-    const res = await deletePlan(props.projectId, plan.id);
-    if (res?.ok) {
-      toast("已删除方案");
-      onChanged();
-    } else toast(res?.error || "删除失败", "error");
-  } else if (action === "convert") {
-    const res = await convertPlan(props.projectId, plan.id);
-    if (res?.ok) {
-      toast("已转为任务");
-      onChanged();
-    } else toast(res?.error || "转任务失败", "error");
-  }
+  const ok = await confirmDialog({
+    message: `将方案「${ctx.plan.title}」转为任务？任务名 = 方案标题，内容 = 方案内容。`,
+    confirmText: "转任务",
+  });
+  if (!ok) return;
+  const res = await convertPlan(props.projectId, ctx.plan.id);
+  if (res?.ok) {
+    toast("已转为任务");
+    onChanged();
+  } else toast(res?.error || "转任务失败", "error");
 }
 // 全局点击关闭右键菜单
 onMounted(() => window.addEventListener("click", closeCtx));
@@ -335,17 +321,15 @@ const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
 const canPrev = computed(() => modal.value.show && !!modal.value.planId);
 const canNext = computed(() => modal.value.show && !!modal.value.planId);
 
-function onNavigate(delta) {
+async function onNavigate(delta) {
   // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
   if (modal.value.mode === "edit") {
     pendingDelta.value = delta;
-    confirm.value = {
-      show: true,
+    const ok = await confirmDialog({
       message: "当前处于编辑中，切换将丢失未保存的修改。放弃修改并切换？",
       confirmText: "放弃并切换",
-      action: "navigate",
-      plan: null,
-    };
+    });
+    if (ok) doNavigate(pendingDelta.value);
     return;
   }
   doNavigate(delta);

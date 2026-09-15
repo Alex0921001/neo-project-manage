@@ -71,13 +71,6 @@
       <div v-if="ctx.req?.status !== '已完成'" class="req-ctx-item req-ctx-danger" @click="ctxDel">删除</div>
     </div>
 
-    <ConfirmModal
-      :show="confirm.show"
-      :message="confirm.message"
-      :confirm-text="confirm.confirmText"
-      @close="confirm.show = false"
-      @confirm="doCtxConfirm"
-    />
   </div>
 </template>
 
@@ -87,7 +80,7 @@ import { listRequirements, deleteRequirement } from "../../../api/modules/requir
 import { toast } from "../../../toast.js";
 import { highlight } from "../../../utils/highlight.js";
 import RequirementModal from "./RequirementModal.vue";
-import ConfirmModal from "../../../components/ConfirmModal.vue";
+import { confirmDialog } from "../../../utils/confirm.js";
 
 const props = defineProps({
   projectId: { type: String, default: "" },
@@ -201,17 +194,15 @@ const pendingDelta = ref(0); // 编辑态放弃切换时暂存方向
 const canPrev = computed(() => modalShow.value && !!modalId.value);
 const canNext = computed(() => modalShow.value && !!modalId.value);
 
-function onNavigate(delta) {
+async function onNavigate(delta) {
   // 编辑态：先提示保存或放弃，确认后放弃编辑并切换
   if (modalMode.value === "edit") {
     pendingDelta.value = delta;
-    confirm.value = {
-      show: true,
+    const ok = await confirmDialog({
       message: "当前处于编辑中，切换将丢失未保存的修改。放弃修改并切换？",
       confirmText: "放弃并切换",
-      action: "navigate",
-      req: null,
-    };
+    });
+    if (ok) doNavigate(pendingDelta.value);
     return;
   }
   doNavigate(delta);
@@ -283,7 +274,6 @@ async function doNavigate(delta) {
 
 // ===== 右键菜单：打开 / 编辑 / 删除（对齐方案列表） =====
 const ctx = reactive({ show: false, x: 0, y: 0, req: null });
-const confirm = ref({ show: false, message: "", confirmText: "确认", action: "", req: null });
 const ctxCanEdit = computed(() => ctx.req && ctx.req.status === "待处理");
 
 function openCtx(e, r) {
@@ -335,26 +325,14 @@ function ctxEdit() {
   editingFromDetail.value = false; // 列表右键编辑：非详情来源
   modalShow.value = true;
 }
-function ctxDel() {
+async function ctxDel() {
   closeCtx();
-  confirm.value = {
-    show: true,
+  const ok = await confirmDialog({
     message: `确认删除需求「${ctx.req.name}」？关联方案不受影响。`,
     confirmText: "删除",
-    action: "delete",
-    req: ctx.req,
-  };
-}
-async function doCtxConfirm() {
-  confirm.value.show = false;
-  const { action, req } = confirm.value;
-  if (action === "navigate") {
-    // 放弃编辑并切换：openDetail 内部会切回 read 模式
-    doNavigate(pendingDelta.value);
-    return;
-  }
-  if (!req || action !== "delete") return;
-  const res = await deleteRequirement(props.projectId, req.id);
+  });
+  if (!ok) return;
+  const res = await deleteRequirement(props.projectId, ctx.req.id);
   if (res?.ok) {
     toast("已删除需求");
     load();
