@@ -6,6 +6,7 @@
     :default-height="600"
     :min-width="640"
     :min-height="420"
+    top-layer
     @update:model-value="emit('update:show', $event)"
     @close="emit('close')"
   >

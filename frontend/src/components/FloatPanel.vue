@@ -2,6 +2,8 @@
   <Teleport to="body">
     <div
       v-if="modelValue"
+      ref="rootEl"
+      :popover="topLayer ? 'manual' : undefined"
       class="float-panel"
       :class="{ 'float-panel-full-state': fullscreen }"
       :style="panelStyle"
@@ -51,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { nextZIndex, bringToFront, openStack } from "../utils/zIndex.js";
 
 const props = defineProps({
@@ -63,11 +65,15 @@ const props = defineProps({
   minHeight: { type: Number, default: 320 },
   maxWidth: { type: Number, default: 1920 },
   maxHeight: { type: Number, default: 1080 },
+  // top-layer 模式：进浏览器顶层渲染，永不被其他面板盖住（Popover API，Chromium 114+；
+  // 旧内核降级为普通 z-index 路径）。适用于子弹窗（如版本历史）需要始终盖住父面板的场景
+  topLayer: { type: Boolean, default: false },
 });
 const emit = defineEmits(["update:modelValue", "close", "resize"]);
 
 const pos = ref({ x: 0, y: 0 });
 const size = ref({ w: props.defaultWidth, h: props.defaultHeight });
+const rootEl = ref(null);
 const dragging = ref(false);
 const resizing = ref(false);
 // 打开时动态取层级（后打开的面板/弹窗永远更高）
@@ -131,6 +137,17 @@ watch(() => props.modelValue, (v) => {
   prevRect.value = null;
   zIndex.value = nextZIndex();
   openStack.push(zIndex.value);
+  // top-layer 模式：进浏览器顶层（与 z-index 无关的规范级保证）；失败则降级 z-index 路径
+  if (props.topLayer) {
+    nextTick(() => {
+      const el = rootEl.value;
+      if (!el || typeof el.showPopover !== "function") return;
+      try {
+        if (!el.matches(":popover-open")) el.showPopover();
+      } catch { /* ignore */ }
+      if (!el.matches(":popover-open")) el.removeAttribute("popover"); // 防止 UA display:none 藏死
+    });
+  }
 }, { immediate: true }); // v-if 按需挂载（层叠弹窗）时 modelValue 已为 true，需 immediate 初始化层级/位置/开栈
 
 // ===== 点击置顶（bringToFront）=====
@@ -309,6 +326,13 @@ function startResize(e, dir = "se") {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+/* top-layer（popover）模式：重置 Chromium UA 对 [popover] 的默认样式
+   （padding: 0.25em 会把内容挤进去、margin: auto 会干扰定位） */
+.float-panel[popover] {
+  margin: 0;
+  padding: 0;
   overflow: hidden;
 }
 /* 全屏态：去掉圆角与边框，铺满整页 */
