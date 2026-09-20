@@ -39,6 +39,7 @@ import ProjectSetTabs from "./components/ProjectSetTabs.vue";
 import ProjectPanel from "./components/ProjectPanel.vue";
 import QuickTaskPanel from "./components/QuickTaskPanel.vue";
 import CapabilityCheatSheet from "../../components/CapabilityCheatSheet.vue";
+import { confirmDialog } from "../../utils/confirm.js";
 
 const emit = defineEmits(["open-project", "go-calendar"]);
 
