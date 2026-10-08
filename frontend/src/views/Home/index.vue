@@ -32,7 +32,7 @@
 
 <script setup>
 import { ref, watch, onMounted, nextTick } from "vue";
-import { listProjectSets, createProjectSet, deleteProjectSet } from "../../api/modules/projectSet.js";
+import { listProjectSets, createProjectSet, deleteProjectSet, reorderProjectSets } from "../../api/modules/projectSet.js";
 import { deleteProject, updateProject } from "../../api/modules/project.js";
 import { toast } from "../../toast.js";
 import ProjectSetTabs from "./components/ProjectSetTabs.vue";

@@ -220,7 +220,7 @@ import CommentPanel from "./CommentPanel.vue";
 import VersionModal from "./VersionModal.vue";
 const RequirementModalAsync = defineAsyncComponent(() => import("./RequirementModal.vue"));
 import { useQuoteSelection } from "../../../utils/useQuoteSelection.js";
-import { applyQuoteToDom, unwrapQuoteFromDom, unwrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
+import { applyQuoteToDom, unwrapQuoteFromDom, unwrapQuoteInHtml, wrapQuoteInHtml, quoteIdFromEvent } from "../../../utils/quoteComment.js";
 
 const props = defineProps({
   show: { type: Boolean, default: false },

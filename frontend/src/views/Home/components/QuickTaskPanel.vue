@@ -203,7 +203,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { Search as SearchIcon } from "@element-plus/icons-vue";
-import { listQuickTasks, createQuickTask, updateQuickTask, deleteQuickTask, archiveQuickTask, convertQuickTask, listArchivedQuickTasks, deleteArchivedQuickTasks } from "../../../api/modules/quickTask.js";
+import { listQuickTasks, createQuickTask, updateQuickTask, deleteQuickTask, archiveQuickTask, archiveQuickTasks, convertQuickTask, listArchivedQuickTasks, deleteArchivedQuickTasks, deleteArchivedAll } from "../../../api/modules/quickTask.js";
 import { listProjects } from "../../../api/modules/project.js";
 import { toast } from "../../../toast.js";
 import { highlightKeyword } from "../../../utils/jump.js";
