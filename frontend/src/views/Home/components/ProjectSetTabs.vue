@@ -19,6 +19,7 @@
       :force-fallback="true"
       fallback-on-body
       fallback-tolerance="8"
+      @start="onDragStart"
       @end="onDragEnd"
       class="tabs-inner"
     >
@@ -242,20 +243,22 @@ async function loadQuickCount() {
 }
 // QuickTaskPanel 内的增删改会触发 Home load() 重新赋值 sets，借此刷新 tab 角标数字
 watch(() => props.sets, () => { loadQuickCount(); });
-// tab 列表必须是可写 ref（vuedraggable 依赖 :list 可写）：computed 每次重算会丢弃拖拽结果，
-// 导致「拖完顺序还原」。这里用保序合并：本地拖拽顺序优先，新增项按后端顺序追加，删除项剔除。
+// tab 列表必须是可写 ref（vuedraggable 的 :list 会原地 splice，computed 会在重算时丢弃拖拽结果），
+// 但顺序的唯一权威源仍是 props.sets：横条自身拖拽与「管理项目集」弹窗拖拽都经 Home.onReorder 落库，
+// 再由 props 回流，两个入口才能保持一致。拖拽进行中不重建，避免覆盖 Sortable 的原地改动。
 const tabItems = ref([]);
+const dragging = ref(false);
+function onDragStart() {
+  dragging.value = true;
+}
 function syncTabItems() {
+  if (dragging.value) return;
   const total = props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
-  const fresh = [
+  tabItems.value = [
     { key: "inbox", label: "临时任务", count: quickCount.value, isSet: false },
     { key: null, label: "全部项目", count: total, isSet: false },
     ...props.sets.map((s) => ({ key: s.id, label: s.name, count: s.projectCount || 0, isSet: true })),
   ];
-  const byKey = new Map(fresh.map((t) => [t.key, t]));
-  const kept = tabItems.value.map((t) => byKey.get(t.key)).filter(Boolean);
-  const keptKeys = new Set(kept.map((t) => t.key));
-  tabItems.value = [...kept, ...fresh.filter((t) => !keptKeys.has(t.key))];
 }
 watch([() => props.sets, quickCount], syncTabItems, { immediate: true, deep: true });
 
@@ -268,7 +271,10 @@ function select(el) {
 
 function onDragEnd() {
   const ids = tabItems.value.filter((t) => t.isSet).map((t) => t.key);
+  dragging.value = false;
   emit("reorder", ids);
+  // Home 已同步重排 sets，下一帧按权威顺序重建（同时拉齐角标与伪 tab 计数）
+  nextTick(syncTabItems);
 }
 
 // ===== 右键菜单 =====
