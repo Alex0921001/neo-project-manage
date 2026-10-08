@@ -44,6 +44,15 @@ for (const dir of DATA_DIRS) {
 
 const ovProjects = new Map(); // id -> 新增/覆盖的项目
 const ovSets = new Map();
+const ovSetOrder = { ids: null }; // 拖拽排序覆写（会话内有效）
+/** 按 dev 会话内记录的排序覆写列表顺序（未登记的新项排最后） */
+function applySetOrder(list) {
+  const ids = ovSetOrder.ids;
+  if (!ids) return list;
+  const idx = new Map(ids.map((id, i) => [id, i]));
+  const rank = (id) => (idx.has(id) ? idx.get(id) : ids.length);
+  return [...list].sort((a, b) => rank(a.id) - rank(b.id));
+}
 const ovTasks = new Map();
 const ovFiles = new Map();
 const ovNotes = new Map();
@@ -127,7 +136,8 @@ function realProjectList() {
 }
 
 function realSetList() {
-  const rows = qAll("SELECT * FROM project_sets ORDER BY name") || [];
+  // 与真实后端 listProjectSets 排序口径一致：sort 升序，空 sort 排最后，再按 created_at
+  const rows = qAll("SELECT * FROM project_sets ORDER BY sort IS NULL, sort, created_at") || [];
   const sets = rows.filter((r) => !delSets.has(r.id)).map((r) => ({
     id: r.id, name: r.name, createdAt: r.created_at,
   }));
@@ -135,7 +145,7 @@ function realSetList() {
     if (delSets.has(s.id)) continue;
     if (!sets.some((x) => x.id === s.id)) sets.push(s);
   }
-  return sets.map((s) => ({ ...s, projectCount: realProjectList().filter((p) => p.projectSetId === s.id).length }));
+  return applySetOrder(sets.map((s) => ({ ...s, projectCount: realProjectList().filter((p) => p.projectSetId === s.id).length })));
 }
 
 function realTaskTree(projectId) {
@@ -379,7 +389,12 @@ function mockAllKnown() {
   // ---- 项目集 ----
   if (p === "api/project-sets" && method === "GET") {
     if (realDb) return respond(realSetList());
-    return respond(mockSets.map((s) => ({ ...s, projectCount: mockProjectList().filter((x) => x.projectSetId === s.id).length })));
+    return respond(applySetOrder(mockSets).map((s) => ({ ...s, projectCount: mockProjectList().filter((x) => x.projectSetId === s.id).length })));
+  }
+  // 项目集拖拽排序（会话内内存覆写，与真实后端 reorder 路由对齐）
+  if (p === "api/project-sets/reorder" && method === "POST") {
+    ovSetOrder.ids = Array.isArray(body?.ids) ? body.ids : null;
+    return respond({ ok: true });
   }
   if (p === "api/project-sets" && method === "POST") {
     if (!body?.name?.trim()) return err("项目集名称不能为空");

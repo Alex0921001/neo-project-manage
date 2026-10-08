@@ -163,7 +163,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, reactive, watch, nextTick, onMounted, onUnmounted } from "vue";
 import draggable from "vuedraggable";
 import { getUnreadCount } from "../../../api/modules/message.js";
 import { listQuickTasks } from "../../../api/modules/quickTask.js";
@@ -242,14 +242,22 @@ async function loadQuickCount() {
 }
 // QuickTaskPanel 内的增删改会触发 Home load() 重新赋值 sets，借此刷新 tab 角标数字
 watch(() => props.sets, () => { loadQuickCount(); });
-const tabItems = computed(() => {
+// tab 列表必须是可写 ref（vuedraggable 依赖 :list 可写）：computed 每次重算会丢弃拖拽结果，
+// 导致「拖完顺序还原」。这里用保序合并：本地拖拽顺序优先，新增项按后端顺序追加，删除项剔除。
+const tabItems = ref([]);
+function syncTabItems() {
   const total = props.sets.reduce((sum, s) => sum + (s.projectCount || 0), 0);
-  return [
+  const fresh = [
     { key: "inbox", label: "临时任务", count: quickCount.value, isSet: false },
     { key: null, label: "全部项目", count: total, isSet: false },
     ...props.sets.map((s) => ({ key: s.id, label: s.name, count: s.projectCount || 0, isSet: true })),
   ];
-});
+  const byKey = new Map(fresh.map((t) => [t.key, t]));
+  const kept = tabItems.value.map((t) => byKey.get(t.key)).filter(Boolean);
+  const keptKeys = new Set(kept.map((t) => t.key));
+  tabItems.value = [...kept, ...fresh.filter((t) => !keptKeys.has(t.key))];
+}
+watch([() => props.sets, quickCount], syncTabItems, { immediate: true, deep: true });
 
 function isActive(el) {
   return el.key === props.selectedId;
