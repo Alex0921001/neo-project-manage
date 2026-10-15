@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { exec, execFile, execSync } from "node:child_process";
 import { createDataAccess } from "../lib/data.js";
 import { registerProjectSetsRoutes } from "./modules/project-sets.js";
-import { existsSafe, readFileSafe } from "../lib/safe-fs.js";
+import { existsSafe } from "../lib/safe-fs.js";
 import { registerProjectsRoutes } from "./modules/projects.js";
 import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
@@ -237,9 +237,9 @@ export default function registerPluginUiRoutes(app, ctx) {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
-      // 文件不存在直接报错（避免 Start-Process 静默失败，前端无感知）
-      // v2 下工作区路径不在许可根内，existsSafe 会把「无权访问」当不存在处理
-      if (!existsSafe(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
+      // 仅在「确定不存在」时报错；v2 下工作区路径无权判定（existsSafe 返回 null）时放行，
+      // 交给 Start-Process 自己报错，避免把「读不到」误判成「文件已被移动」
+      if (existsSafe(filePath) === false) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // P1-2：execFile + 参数数组（不经 cmd shell），-FilePath 字面路径 + 单引号转义
  // 注意：Windows PowerShell 5.1 的 Start-Process 没有 -LiteralPath（PS7.3+ 才有），必须用 -FilePath；
       // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量；-ErrorAction Stop 让失败可捕获
@@ -266,7 +266,8 @@ export default function registerPluginUiRoutes(app, ctx) {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
-      if (!existsSafe(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
+      // 同 open-file：只有确定不存在才拦，无权判定时放行
+      if (existsSafe(filePath) === false) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // windowsVerbatimArguments：参数原样传递；explorer 的 /select, 路径需自带引号，
       // 含空格路径不加引号会被 explorer 截断，回退打开默认位置（如「文档」）
       execFile("explorer.exe", [`/select,"${filePath}"`], { windowsVerbatimArguments: true }, (err) => {
