@@ -9,11 +9,11 @@
  * - 图片类型明确报「不支持提取」；其他二进制/未知类型报「不支持读取」
  * - 文件不存在/被移动 → 明确报错
  */
-import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { createDataAccess } from "../lib/data.js";
 import { docxToText } from "../lib/plan-import.js";
+import { createHostFs } from "../lib/host-fs.js";
 
 export const name = "read_project_file";
 export const description = "读取项目已登记文件的内容（文本类直接返回；docx/pdf 提取文本；图片/二进制明确报不支持）。仅限已登记文件，防任意路径读取。";
@@ -48,11 +48,7 @@ export async function execute(input, toolCtx) {
   const file = data.getFile(input.projectId, input.fileId);
   if (!file) throw new Error(`项目 ${input.projectId} 中不存在文件 ${input.fileId}（仅可读取已登记文件）`);
   if (!file.path) throw new Error(`文件「${file.name}」未登记路径，无法读取`);
-  if (!fs.existsSync(file.path)) throw new Error(`文件「${file.name}」不存在或已被移动（登记路径：${file.path}）`);
-
-  const stat = fs.statSync(file.path);
-  if (!stat.isFile()) throw new Error(`登记路径不是普通文件：${file.path}`);
-  if (stat.size > MAX_READ_BYTES) throw new Error(`文件超过 ${MAX_READ_BYTES / 1024 / 1024}MB 限制，不支持读取`);
+  const hostFs = toolCtx.hostFs || createHostFs(toolCtx.resources);
 
   const ext = (file.ext || path.extname(file.name).slice(1) || "").toLowerCase();
 
@@ -60,27 +56,37 @@ export async function execute(input, toolCtx) {
   if (IMAGE_EXTS.has(ext)) {
     throw new Error(`文件「${file.name}」是图片类型（${ext}），不支持文本提取`);
   }
+  if (!(ext === "docx" || ext === "pdf" || TEXT_EXTS.has(ext) || ext === "")) {
+    throw new Error(`文件「${file.name}」类型 ${ext} 不支持读取（文本类 / docx / pdf 可读）`);
+  }
+
+  // 读正文：v2 子进程读不到工作区路径，走宿主资源通道（app/resources.read）
+  const read = await hostFs.readBuffer(file.path);
+  if (!read.ok) {
+    throw new Error(`文件「${file.name}」读取失败：${read.error}（登记路径：${file.path}）`);
+  }
+  const buf = read.bytes;
+  if (buf.length > MAX_READ_BYTES) {
+    throw new Error(`文件超过 ${MAX_READ_BYTES / 1024 / 1024}MB 限制，不支持读取`);
+  }
 
   let text = null;
   if (ext === "docx") {
     try {
-      text = docxToText(fs.readFileSync(file.path));
+      text = docxToText(buf);
     } catch (e) {
       throw new Error(`docx 解析失败：${e.message || e}`);
     }
     if (!text.trim()) throw new Error("docx 未提取到文本内容");
   } else if (ext === "pdf") {
-    text = extractPdfText(fs.readFileSync(file.path));
+    text = extractPdfText(buf);
     if (!text.trim()) {
       throw new Error("PDF 未提取到文本内容（可能为扫描件/加密，或字体无文本层）");
     }
-  } else if (TEXT_EXTS.has(ext) || ext === "") {
+  } else {
     // 文本类 / 无扩展名：NUL 字节探测兜底（防二进制乱码输出）
-    const buf = fs.readFileSync(file.path);
     if (buf.includes(0)) throw new Error(`文件「${file.name}」是二进制文件，不支持文本读取`);
     text = buf.toString("utf8");
-  } else {
-    throw new Error(`文件「${file.name}」类型 ${ext} 不支持读取（文本类 / docx / pdf 可读）`);
   }
 
   const truncated = text.length > MAX_TEXT_CHARS;

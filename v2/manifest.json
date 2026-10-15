@@ -8,6 +8,7 @@
   "icon": "assets/icon.png",
   "minAppVersion": "1.1.0-beta",
   "capabilities": [
+    "app/resources.read",
     "app/tools.expose-to-model",
     "app/process.spawn",
     "app/ui.open-external",

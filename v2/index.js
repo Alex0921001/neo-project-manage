@@ -14,6 +14,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { defineApp } from "./sdk/app-contract/server-client.js";
 import registerPluginUiRoutes from "./backend/ui.js";
 import { setScratchDir } from "./lib/plan-import.js";
+import { createHostFs } from "./lib/host-fs.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +29,8 @@ export default defineApp(async (sdk) => {
   const dataDir = sdk.dataDir;
   // docx 导入要写临时文件；v2 只有 app-data 可写，指到 app-data 内
   setScratchDir(path.join(dataDir, ".scratch"));
+  // 读工作区文件走宿主 ResourceIO（v2 子进程许可根外无法裸 fs 读）
+  const hostFs = createHostFs(sdk.resources);
   // routes/ui.js 与 tools/*.js 沿用 v1 的 ctx 形状（dataDir / log / pluginId / pluginKey），
   // 这里把 v2 SDK 的能力适配成同一份形状，源码零改动。
   const legacyCtx = {
@@ -35,6 +38,8 @@ export default defineApp(async (sdk) => {
     log: sdk.logger,
     pluginId: "neo-project-manage-v2",
     pluginKey: "app",
+    resources: sdk.resources,
+    hostFs,
   };
 
   // 1) 后端路由（对外 /api/apps/<id>/routes/*）
@@ -66,7 +71,7 @@ export default defineApp(async (sdk) => {
       name: `${TOOL_PREFIX}${mod.name}`,
       description: mod.description || "",
       parameters: mod.parameters || { type: "object", properties: {} },
-      execute: (input) => mod.execute(input, { dataDir, log: sdk.logger }),
+      execute: (input) => mod.execute(input, { dataDir, log: sdk.logger, resources: sdk.resources, hostFs }),
     });
     count += 1;
   }

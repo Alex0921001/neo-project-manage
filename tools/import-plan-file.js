@@ -1,6 +1,6 @@
-import fs from "node:fs";
 import { createDataAccess } from "../lib/data.js";
 import { parsePlanFile } from "../lib/plan-import.js";
+import { createHostFs } from "../lib/host-fs.js";
 
 export const name = "import_plan_file";
 export const description = "从本地文件导入方案（txt / md / docx）。解析后返回标题与内容；autoCreate=true 时直接创建方案。非支持类型 / 超 5MB 拒绝。";
@@ -17,11 +17,12 @@ export const parameters = {
 export async function execute(input, toolCtx) {
   const filePath = String(input.filePath || "").trim();
   if (!filePath) throw new Error("缺少文件路径");
-  if (!fs.existsSync(filePath)) throw new Error(`文件不存在：${filePath}`);
-  const stat = fs.statSync(filePath);
-  if (!stat.isFile()) throw new Error("路径不是文件");
 
-  const bytes = fs.readFileSync(filePath);
+  // v2 子进程读不到工作区路径，走宿主资源通道（app/resources.read）
+  const hostFs = toolCtx.hostFs || createHostFs(toolCtx.resources);
+  const read = await hostFs.readBuffer(filePath);
+  if (!read.ok) throw new Error(`文件读取失败：${read.error}（${filePath}）`);
+  const bytes = read.bytes;
   const parsed = parsePlanFile(filePath, bytes);
 
   if (input.autoCreate) {
