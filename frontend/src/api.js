@@ -1,5 +1,6 @@
 /* global hana, __BUILD_AT__, __PLUGIN_VERSION__, __PLUGIN_SOURCE__ */
 import { ElMessage } from "element-plus";
+import { apiUrlFor, assetUrlFor, runtimeSession, withToken, RUNTIME } from "./api/runtime.js";
 
 const BUILD_AT = typeof __BUILD_AT__ !== "undefined" ? __BUILD_AT__ : "dev";
 // 编译时静态注入：未重启 Hana 之前的后端 fallback（前端打包时已知后端 version）
@@ -7,29 +8,18 @@ const STATIC_VERSION = typeof __PLUGIN_VERSION__ !== "undefined" ? __PLUGIN_VERS
 const STATIC_SOURCE = typeof __PLUGIN_SOURCE__ !== "undefined" ? __PLUGIN_SOURCE__ : "?";
 
 function pluginId() {
-  const m = /^\/api\/plugins\/([^/]+)/.exec(window.location.pathname);
-  if (!m) throw new Error("Cannot detect plugin id");
-  return decodeURIComponent(m[1]);
+  return RUNTIME.id;
 }
 
 function apiUrl(path) {
-  const p = path.replace(/^\/+/, "").replace(/[\\\0#]/g, "");
-  return `${window.location.origin}/api/plugins/${pluginId()}/${p}`;
+  return apiUrlFor(path);
 }
 
-const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
-// 直连模式：URL 带 token 时自动附加到所有请求（宿主 iframe 内无 token 参数，不生效）
-const urlToken = new URLSearchParams(window.location.search).get("token");
-function withToken(url) {
-  if (!urlToken) return url;
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}token=${encodeURIComponent(urlToken)}`;
-}
-
+const surfaceSession = runtimeSession();
 // Hana 平台注入的 iframe API（自动处理凭据）。优先使用，回退手动 session header
 const hanaApi = (typeof window !== "undefined" && window.hana?.api) || null;
 // 调试：确认运行环境（可删）
-console.log("[neo-pm] hana.api 可用:", !!hanaApi, "; surfaceSession:", surfaceSession ? surfaceSession.slice(0, 8) + "..." : "null");
+console.log("[neo-pm] 运行形态:", RUNTIME.mode, "; hana.api 可用:", !!hanaApi, "; surfaceSession:", surfaceSession ? surfaceSession.slice(0, 8) + "..." : "null");
 
 /**
  * 解析插件资源 URL（图片等 <img> 无法带 header）：
@@ -40,16 +30,19 @@ console.log("[neo-pm] hana.api 可用:", !!hanaApi, "; surfaceSession:", surface
 export function resolveAssetUrl(src) {
   if (!src) return src;
   const s = String(src);
-  // 非插件资源（http 外部 / data: / blob:）不处理
-  if (!s.startsWith("/api/plugins/")) return s;
+  // 外部 / 内嵌资源不处理
+  if (/^(https?:|data:|blob:)/.test(s)) return s;
+  // 相对路径按当前宿主补前缀（v1 /api/plugins/<id>/，v2 /api/apps/<id>/routes/）
+  const abs = s.startsWith("/api/") ? s : assetUrlFor(s);
+  const rel = abs.startsWith(RUNTIME.assetPrefix) ? abs.slice(RUNTIME.assetPrefix.length) : null;
   try {
-    if (hanaApi?.url) return hanaApi.url(s.replace(/^\/api\/plugins\/[^/]+\//, ""));
+    if (hanaApi?.url && rel != null) return hanaApi.url(rel);
   } catch (e) {
     console.error("[neo-pm] hana.api.url 失败，回退手动:", e);
   }
-  if (!surfaceSession) return s;
-  const sep = s.includes("?") ? "&" : "?";
-  return `${s}${sep}pluginSurfaceSession=${encodeURIComponent(surfaceSession)}`;
+  if (!surfaceSession) return abs;
+  const sep = abs.includes("?") ? "&" : "?";
+  return `${abs}${sep}${RUNTIME.sessionQuery}=${encodeURIComponent(surfaceSession)}`;
 }
 
 export async function api(path, opts = {}) {
@@ -57,7 +50,7 @@ export async function api(path, opts = {}) {
     // 优先 Hana 平台 API（自动处理凭据与路由前缀）
     if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), opts);
     const headers = { "Content-Type": "application/json", ...opts.headers };
-    if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+    if (surfaceSession) headers[RUNTIME.sessionHeader] = surfaceSession;
     const res = await fetch(withToken(apiUrl(path)), { ...opts, headers });
     const data = await res.json();
  // 拦截后端业务错误（ok=false），统一弹 ElMessage；调用方传 silent:true 跳过
@@ -81,7 +74,7 @@ export async function apiUpload(path, formData) {
     // 优先 Hana 平台 API
     if (hanaApi?.fetch) return await hanaApi.fetch(path.replace(/^\/+/, ""), { method: "POST", body: formData });
     const headers = {};
-    if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+    if (surfaceSession) headers[RUNTIME.sessionHeader] = surfaceSession;
     const res = await fetch(withToken(apiUrl(path)), { method: "POST", body: formData, headers });
     return await res.json();
   } catch (err) {

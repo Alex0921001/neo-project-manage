@@ -419,7 +419,7 @@ function jumpAnnFromPop(item, popRef) {
 }
 
 // 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
-const confettiIcon = resolveAssetUrl("/api/plugins/neo-project-manage/icons/confetti.png");
+const confettiIcon = resolveAssetUrl("icons/confetti.png");
 
 const expanded = ref(true); // 默认展开
 const loading = ref(false);

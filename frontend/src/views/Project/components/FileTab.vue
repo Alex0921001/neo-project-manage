@@ -1020,7 +1020,7 @@ function iconUrl(f) {
   const ext = (f.name || "").split(".").pop()?.toLowerCase();
   const icon = ext ? EXT_ICON[ext] : null;
   if (!icon) return "";
-  return resolveAssetUrl(`/api/plugins/neo-project-manage/icons/${icon}.png`);
+  return resolveAssetUrl(`icons/${icon}.png`);
 }
 
 function fileType(f) {

@@ -13,7 +13,7 @@
  *   node mcp-server/index.js
  *
  * 环境变量：
- *   MCP_DATA_DIR   - 数据目录（默认 %USERPROFILE%/.hanako/plugin-data/neo-project-manage）
+ *   MCP_DATA_DIR   - 数据目录（默认 %USERPROFILE%/.hanako/app-data/neo-project-manage-v2）
  *   MCP_PORT       - HTTP 模式端口（可选，不传则走 stdio 模式）
  *
  * vendor ABI：lib/vendor/better-sqlite3 为 Hana 宿主（Electron）ABI 编译；
@@ -31,7 +31,7 @@ const PLUGIN_ROOT = path.resolve(__dirname, "..");
 // ── 配置 ──────────────────────────────────────────────
 const DATA_DIR = process.env.MCP_DATA_DIR || path.join(
   process.env.USERPROFILE || process.env.HOME || "C:/Users/default",
-  ".hanako/plugin-data/neo-project-manage"
+  ".hanako/app-data/neo-project-manage-v2"
 );
 
 // 版本号与插件 id 从 manifest.json 读取，不再写死

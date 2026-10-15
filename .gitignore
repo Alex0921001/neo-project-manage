@@ -20,3 +20,9 @@ Desktop.ini
 # 寮€鍙戠幆澧冩棩蹇?
 devserver*.log
 .git-commit-msg.tmp
+
+# v2 App 构建产物
+dist/
+
+# 构建资产生成脚本（*.py 默认忽略，这里放行）
+!scripts/gen-v2-icons.py

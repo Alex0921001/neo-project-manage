@@ -29,6 +29,9 @@ try {
   pluginVersion = manifest.version || "?";
 } catch { /* ignore */ }
 
+// v2 App 构建模式（scripts/build-v2-app.mjs 设置）：产物落 dist/neo-project-manage-v2/ui，相对 base
+const IS_V2_BUILD = process.env.NEO_PM_V2_BUILD === "1";
+
 export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
@@ -58,7 +61,7 @@ export default defineConfig(({ mode }) => ({
       },
     },
   ],
-  base: mode === "production" ? "" : "/",
+  base: IS_V2_BUILD ? "./" : mode === "production" ? "" : "/",
   server: {
     port: 5173,
     strictPort: false,
@@ -69,8 +72,8 @@ export default defineConfig(({ mode }) => ({
     __PLUGIN_SOURCE__: JSON.stringify("dev"),
   },
   build: {
-    outDir: "dist",
-    emptyOutDir: true,
+    outDir: IS_V2_BUILD ? "../dist/neo-project-manage-v2/ui" : "dist",
+    emptyOutDir: IS_V2_BUILD ? false : true,
     rollupOptions: {
       output: {
         // 鍙栨秷寮傛 chunk 鎷嗗垎锛氬叏閮ㄥ唴鑱斿埌鍗曚釜 index-*.js

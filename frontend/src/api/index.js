@@ -1,6 +1,7 @@
 /* global hana */
 import axios from "axios";
 import { ElMessage } from "element-plus";
+import { apiUrlFor, runtimeSession, withToken, RUNTIME } from "./runtime.js";
 
 /**
  * axios 实例与 Hana 凭据 adapter
@@ -15,27 +16,17 @@ import { ElMessage } from "element-plus";
  */
 
 function pluginId() {
-  const m = /^\/api\/plugins\/([^/]+)/.exec(window.location.pathname);
-  if (!m) throw new Error("Cannot detect plugin id");
-  return decodeURIComponent(m[1]);
+  return RUNTIME.id;
 }
 
 function apiUrl(path) {
-  const p = String(path).replace(/^\/+/, "").replace(/[\\\0#]/g, "");
-  return `${window.location.origin}/api/plugins/${pluginId()}/${p}`;
+  return apiUrlFor(path);
 }
 
 // 直连模式：URL 带 token 时自动附加到所有请求（宿主 iframe 内无 token 参数，不生效）
-const urlToken = new URLSearchParams(window.location.search).get("token");
-function withToken(url) {
-  if (!urlToken) return url;
-  const sep = url.includes("?") ? "&" : "?";
-  return `${url}${sep}token=${encodeURIComponent(urlToken)}`;
-}
-
 // Hana 平台注入的 iframe API（自动处理凭据）。直连模式为 null，走 fetch 回退
 const hanaApi = (typeof window !== "undefined" && window.hana?.api) || null;
-const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
+const surfaceSession = runtimeSession();
 
 /** axios config.url + params → 完整请求 URL（相对路径按插件 API 前缀补全） */
 function buildUrl(config) {
@@ -92,7 +83,7 @@ async function hanaAdapter(config) {
     return { data, status: 200, statusText: "OK", headers: {}, config, request: null };
   }
 
-  if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+  if (surfaceSession) headers[RUNTIME.sessionHeader] = surfaceSession;
   const res = await fetch(withToken(url), { method, headers, body });
   data = await res.json();
   return { data, status: res.status, statusText: res.statusText, headers: {}, config, request: null };

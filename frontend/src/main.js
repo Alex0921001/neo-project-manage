@@ -7,22 +7,23 @@ import "dayjs/locale/zh-cn";
 import "./styles/ep-theme.css";
 import "./styles/rich-view.css";
 import App from "./App.vue";
+import { runtimeSession, RUNTIME } from "./api/runtime.js";
 
 // Element Plus 全量中文化（日期选择器等组件语言，P3）
 dayjs.locale("zh-cn");
 
 createApp(App).use(ElementPlus, { locale: zhCn }).mount("#app");
 
-// 插件静态文件图片（/api/plugins/.../files/*）在 Hana 网关下需要 session 鉴权，
+// 后端静态图片（v1 /api/plugins/<id>/files/*，v2 /api/apps/<id>/routes/files/*）在 Hana 网关下需 session 鉴权，
 // <img> 标签无法带自定义 header。方案：fetch 带 session header 取回图片，转 dataURL（CSP img-src 允许 data:）。
 // 新上传图片已由 RichEditor 直接转 base64 入库（data: 开头），此处理仅兜底历史数据中的服务器路径图片。
-const surfaceSession = new URLSearchParams(window.location.search).get("pluginSurfaceSession");
+const surfaceSession = runtimeSession();
 const imgCache = new Map(); // src → dataURL
 
 async function loadImgWithCredential(img) {
   const src = img.getAttribute("src");
   if (!src || src.startsWith("data:")) return; // base64 已自包含，无需处理
-  if (!src.startsWith("/api/plugins/") || !src.includes("/files/")) return;
+  if (!src.startsWith("/api/") || !src.includes("/files/")) return;
   if (img.dataset.pmLoaded === "1") return; // 已处理
   if (imgCache.has(src)) {
     img.src = imgCache.get(src);
@@ -32,7 +33,7 @@ async function loadImgWithCredential(img) {
   img.dataset.pmLoaded = "1"; // 防并发重复，失败时复位允许重试
   try {
     const headers = {};
-    if (surfaceSession) headers["X-Hana-Plugin-Surface-Session"] = surfaceSession;
+    if (surfaceSession) headers[RUNTIME.sessionHeader] = surfaceSession;
     const res = await fetch(src, { headers });
     if (!res.ok) {
       console.warn("[neo-pm] 图片加载失败", src, res.status);
@@ -54,7 +55,7 @@ async function loadImgWithCredential(img) {
 }
 
 function patchPluginImages(root) {
-  root.querySelectorAll?.("img[src^=\"/api/plugins/\"]").forEach((img) => loadImgWithCredential(img));
+  root.querySelectorAll?.("img[src^=\"/api/\"]").forEach((img) => loadImgWithCredential(img));
 }
 
 const observer = new MutationObserver((mutations) => {

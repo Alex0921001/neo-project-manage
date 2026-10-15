@@ -1,0 +1,28 @@
+{
+  "manifestVersion": 2,
+  "id": "neo-project-manage-v2",
+  "name": "项目管理",
+  "version": "__VERSION__",
+  "description": "项目与任务管理工具：项目集/项目/任务/方案/需求/评论/验证/临时任务全流程，工具与页面一体，支持 Agent 读写。",
+  "entry": "index.js",
+  "icon": "assets/icon.png",
+  "minAppVersion": "1.1.0-beta",
+  "capabilities": [
+    "app/tools.expose-to-model",
+    "app/process.spawn",
+    "app/ui.open-external",
+    "app/ui.clipboard-write"
+  ],
+  "contributes": {
+    "cards": [
+      {
+        "id": "page",
+        "title": "项目管理",
+        "description": "打开项目管理整页：项目集、项目、任务、方案、需求、验证等。",
+        "route": "/index.html",
+        "realization": "page",
+        "face": { "image": "assets/cover.png" }
+      }
+    ]
+  }
+}

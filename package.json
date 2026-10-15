@@ -10,7 +10,10 @@
     "lib": "lib"
   },
   "scripts": {
-    "test": "node --test \"scripts/test/*.test.mjs\""
+    "test": "node --test \"scripts/test/*.test.mjs\"",
+    "build:v2": "node scripts/build-v2-app.mjs",
+    "validate:v2": "node scripts/validate-v2-app.mjs",
+    "migrate:v2": "node scripts/migrate-v1-to-v2-data.mjs"
   },
   "license": "ISC",
   "dependencies": {
