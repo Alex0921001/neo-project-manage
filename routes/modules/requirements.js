@@ -72,8 +72,8 @@ export function registerRequirementsRoutes(app, data) {
   });
 
   app.post("/api/projects/:projectId/requirements/:id/plans", async (c) => {
-    const body = await c.req.json();
     try {
+      const body = await c.req.json().catch(() => ({}));
       return c.json({ ok: true, data: data.linkRequirementPlans(c.req.param("projectId"), c.req.param("id"), body.planIds) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
@@ -81,8 +81,8 @@ export function registerRequirementsRoutes(app, data) {
   });
 
   app.delete("/api/projects/:projectId/requirements/:id/plans", async (c) => {
-    const body = await c.req.json();
     try {
+      const body = await c.req.json().catch(() => ({}));
       return c.json({ ok: true, data: data.unlinkRequirementPlans(c.req.param("projectId"), c.req.param("id"), body.planIds) });
     } catch (e) {
       return c.json({ ok: false, error: e.message }, 400);
