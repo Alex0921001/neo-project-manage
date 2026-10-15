@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { exec, execFile, execSync } from "node:child_process";
 import { createDataAccess } from "../lib/data.js";
 import { registerProjectSetsRoutes } from "./modules/project-sets.js";
+import { existsSafe, readFileSafe } from "../lib/safe-fs.js";
 import { registerProjectsRoutes } from "./modules/projects.js";
 import { registerTasksRoutes } from "./modules/tasks.js";
 import { registerAnnotationsRoutes } from "./modules/annotations.js";
@@ -37,7 +38,18 @@ try {
 // routes 模块首次被调用时的加载时间（reload 会更新）
 let ROUTES_LOADED_AT = null;
 
-const ASSETS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets");
+// v2 打包布局把前端产物放在 ui/assets；v1 旧布局在 frontend/dist/assets。
+// 两者都试，避免 /page 内联资源取不到目录而 500。
+const ASSETS_DIR = (() => {
+  const candidates = [
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "../ui/assets"),
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "../frontend/dist/assets"),
+  ];
+  for (const dir of candidates) {
+    try { if (fs.existsSync(dir)) return dir; } catch { /* 忽略，试下一个 */ }
+  }
+  return candidates[candidates.length - 1];
+})();
 const ICONS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../icons");
 
 // dev 槽位（plugins-dev 目录）强制 DEBUG：前端产物每次请求重新读，改代码刷新即生效，无需重启
@@ -226,7 +238,8 @@ export default function registerPluginUiRoutes(app, ctx) {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
       // 文件不存在直接报错（避免 Start-Process 静默失败，前端无感知）
-      if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
+      // v2 下工作区路径不在许可根内，existsSafe 会把「无权访问」当不存在处理
+      if (!existsSafe(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // P1-2：execFile + 参数数组（不经 cmd shell），-FilePath 字面路径 + 单引号转义
  // 注意：Windows PowerShell 5.1 的 Start-Process 没有 -LiteralPath（PS7.3+ 才有），必须用 -FilePath；
       // 路径中的 & 等字符不会被当作命令，恶意注入的单引号被 '' 转义为字面量；-ErrorAction Stop 让失败可捕获
@@ -253,7 +266,7 @@ export default function registerPluginUiRoutes(app, ctx) {
     try {
       const filePath = c.req.query("path");
       if (!filePath) return c.json({ ok: false, error: "缺少 path 参数" });
-      if (!fs.existsSync(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
+      if (!existsSafe(filePath)) return c.json({ ok: false, error: "文件不存在或已被移动" });
       // windowsVerbatimArguments：参数原样传递；explorer 的 /select, 路径需自带引号，
       // 含空格路径不加引号会被 explorer 截断，回退打开默认位置（如「文档」）
       execFile("explorer.exe", [`/select,"${filePath}"`], { windowsVerbatimArguments: true }, (err) => {

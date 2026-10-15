@@ -13,6 +13,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { defineApp } from "./sdk/app-contract/server-client.js";
 import registerPluginUiRoutes from "./backend/ui.js";
+import { setScratchDir } from "./lib/plan-import.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,8 @@ export default defineApp(async (sdk) => {
   await sdk.logger.info("[neo-pm] v2 app loading…");
 
   const dataDir = sdk.dataDir;
+  // docx 导入要写临时文件；v2 只有 app-data 可写，指到 app-data 内
+  setScratchDir(path.join(dataDir, ".scratch"));
   // routes/ui.js 与 tools/*.js 沿用 v1 的 ctx 形状（dataDir / log / pluginId / pluginKey），
   // 这里把 v2 SDK 的能力适配成同一份形状，源码零改动。
   const legacyCtx = {
