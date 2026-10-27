@@ -22,10 +22,13 @@ const baseProject = {
 };
 
 describe("ProjectCard 统计行", () => {
-  it("渲染 任务/需求/方案/备注/文件 五个文字统计", () => {
+  it("渲染 任务/需求/方案/备注/文件 五个文字统计，不带引导语", () => {
     const wrapper = mount(ProjectCard, { props: { project: baseProject, setLabel: "" } });
-    const stats = wrapper.find(".card-stats");
+    const stats = wrapper.find(".foot-desc");
     const text = stats.text();
+
+    // 引导语已移除，只保留统计项
+    expect(text).not.toContain("当前项目下拥有");
 
     // 文字标签
     expect(text).toContain("任务");
@@ -48,7 +51,7 @@ describe("ProjectCard 统计行", () => {
   it("统计为零时显示 0 兜底", () => {
     const empty = { ...baseProject, taskCount: 0, incompleteTaskCount: 0, reqCount: 0, planCount: 0, noteCount: 0, fileCount: 0 };
     const wrapper = mount(ProjectCard, { props: { project: empty, setLabel: "" } });
-    const text = wrapper.find(".card-stats").text();
+    const text = wrapper.find(".foot-desc").text();
     expect(text).toContain("0/0");
     expect(text.match(/\b0\b/g).length).toBeGreaterThanOrEqual(4);
   });

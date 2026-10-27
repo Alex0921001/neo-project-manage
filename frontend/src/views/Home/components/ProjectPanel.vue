@@ -37,7 +37,7 @@
     </div>
 
     <template v-else-if="filteredProjects.length">
-      <div v-for="group in groupedProjects" :key="group.key" class="proj-group" v-show="group.items.length">
+      <div v-for="group in visibleGroups" :key="group.key" class="proj-group" v-show="group.items.length">
         <div class="proj-group-header">
           <div class="group-title-row">
             <span :class="['group-dot', `dot-${group.key}`]"></span>
@@ -47,7 +47,7 @@
         </div>
         <div class="project-grid">
           <ProjectCard
-            v-for="p in visibleItems(group)" :key="p.id"
+            v-for="p in group.items" :key="p.id"
             :project="p"
             :set-label="getSetName(p.projectSetId)"
             @open="$emit('open-project', p.id)"
@@ -58,13 +58,13 @@
             @toggle-pin="togglePin"
           />
         </div>
-        <!-- 已归档：更多按钮常驻（便于随时打开弹窗查看全部） -->
-        <div v-if="group.key === 'archived' && group.items.length" class="archived-more">
-          <button class="archived-more-btn" @click="archivedShow = true">
-            查看全部已归档项目（{{ group.items.length }} 条）
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
+      </div>
+      <!-- 已归档：不再平铺卡片，列表底部保留唯一入口 -->
+      <div v-if="archivedProjects.length" class="archived-more">
+        <button class="archived-more-btn" @click="archivedShow = true">
+          查看全部已归档项目（{{ archivedProjects.length }} 条）
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
       </div>
     </template>
 
@@ -122,8 +122,6 @@ const filteredProjects = computed(() => {
 });
 
 // ===== 分组（基于展示状态：已延期合并到待开始组；已取消独立组；已归档独立组） =====
-// 已归档组预览条数，超出走弹窗
-const ARCHIVED_PREVIEW = 3;
 // 排序依据快照（非响应式 Map，load 时填充）：点击收藏只变星星视觉，不触发排序重排（避免卡片跳动）
 // 置顶排序在下次数据刷新（load）时体现
 const pinSnapshot = new Map(); // id -> boolean
@@ -146,10 +144,8 @@ const groupedProjects = computed(() => {
   ];
 });
 
-// 已归档组只预览前 N 条，其余走弹窗
-function visibleItems(group) {
-  return group.key === "archived" ? group.items.slice(0, ARCHIVED_PREVIEW) : group.items;
-}
+// 列表只渲染活跃分组；已归档走底部入口 + 弹窗
+const visibleGroups = computed(() => groupedProjects.value.filter((g) => g.key !== "archived"));
 
 function getSetName(projectSetId) {
   if (!projectSetId) return "";

@@ -7,17 +7,17 @@
         <svg class="ov-chevron" :class="{ rotated: expanded }" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         <span class="ov-title">项目概览</span>
         <span class="ov-spacer"></span>
-        <button class="ov-refresh" title="一键生成周报/阶段总结" @click.stop="openReport">
+        <button v-if="expanded" class="ov-refresh" title="一键生成周报/阶段总结" @click.stop="openReport">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>
           生成周报
         </button>
-        <button class="ov-refresh" :class="{ spinning: loading }" title="刷新总结" @click.stop="refresh">
+        <button v-if="expanded" class="ov-refresh" :class="{ spinning: loading }" title="刷新总结" @click.stop="refresh">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
           刷新总结
         </button>
       </div>
-      <!-- 右标题：历史总结（始终显示，无数据时列内显示 el-empty） -->
-      <div class="ov-head ov-head-tl">
+      <!-- 右标题：历史总结（展开时显示，折叠态只保留「项目概览」） -->
+      <div v-if="expanded" class="ov-head ov-head-tl">
         <span class="ov-tl-title">历史总结</span>
         <span v-if="summaries.length" class="ov-tl-count">{{ summaries.length }}</span>
         <span class="ov-tl-spacer"></span>
@@ -421,7 +421,7 @@ function jumpAnnFromPop(item, popRef) {
 // 撒花缺省图标：经 resolveAssetUrl 解析（自动带插件前缀 + session 凭据）
 const confettiIcon = resolveAssetUrl("icons/confetti.png");
 
-const expanded = ref(true); // 默认展开
+const expanded = ref(false); // 默认折叠：只保留单行标题条
 const loading = ref(false);
 const s = ref(null); // summary data
 const riskConfigShow = ref(false); // 风险规则配置弹窗
@@ -642,10 +642,15 @@ function riskParts(r) {  const desc = String(r?.desc || "");
   flex-direction: column;
   transition: min-height 0.2s var(--ease-out);
 }
-/* 收起态：内容隐藏后卡片同步收缩 */
+/* 收起态：内容隐藏后卡片同步收缩（底部内边距回收，标题条上下居中） */
 .ov-collapsed {
   min-height: 0;
   margin-bottom: 8px;
+  padding-bottom: 2px;
+}
+/* 收起态：标题占满整行（右侧「历史总结」块与按钮已隐藏） */
+.ov-collapsed .ov-head-main {
+  grid-column: 1 / -1;
 }
 
 /* ===== 头部（与内容区 4 列对齐） =====

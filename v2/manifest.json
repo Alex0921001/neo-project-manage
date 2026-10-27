@@ -22,6 +22,8 @@
         "description": "打开项目管理整页：项目集、项目、任务、方案、需求、验证等。",
         "route": "/index.html",
         "realization": "page",
+        "siteNavEntry": true,
+        "pageIcon": "assets/nav.svg",
         "face": { "image": "assets/cover.png" }
       }
     ]

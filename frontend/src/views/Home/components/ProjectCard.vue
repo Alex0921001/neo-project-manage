@@ -69,7 +69,7 @@
 
     <!-- 底部说明 -->
     <div class="foot-desc">
-      当前项目下拥有：任务（{{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}）需求（{{ project.reqCount || 0 }}）方案（{{ project.planCount || 0 }}）备注（{{ project.noteCount || 0 }}）文件（{{ project.fileCount || 0 }}）
+      任务（{{ doneTaskCount || 0 }}/{{ project.taskCount || 0 }}）需求（{{ project.reqCount || 0 }}）方案（{{ project.planCount || 0 }}）备注（{{ project.noteCount || 0 }}）文件（{{ project.fileCount || 0 }}）
     </div>
 
     <!-- 右键菜单 -->

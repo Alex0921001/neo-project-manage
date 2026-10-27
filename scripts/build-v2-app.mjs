@@ -92,11 +92,12 @@ step("前端 vite build", () => {
   });
 });
 
-// 8) 卡片封面进 ui/assets（face.image 相对 ui/ 解析）
-step("放置卡片封面", () => {
+// 8) 卡片封面与页面导航图标进 ui/assets（face.image / pageIcon 均相对 ui/ 解析）
+step("放置卡片封面与导航图标", () => {
   const uiAssets = path.join(OUT, "ui", "assets");
   fs.mkdirSync(uiAssets, { recursive: true });
   cp(path.join(ROOT, "v2", "assets", "cover.png"), path.join(uiAssets, "cover.png"));
+  cp(path.join(ROOT, "v2", "assets", "nav.svg"), path.join(uiAssets, "nav.svg"));
 });
 
 log("完成 →", OUT);

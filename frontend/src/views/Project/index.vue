@@ -25,7 +25,12 @@
     <!-- Tab 区 -->
     <section class="tab-section">
       <div ref="tabBarRef" class="tab-bar" :class="{ compact: barCompact, mini: barMini }" @click="closeTabMenu">
+        <!-- tab 溢出用左右箭头平移（窄容器下不静默裁切） -->
+        <button v-if="tabCanScrollLeft" class="tab-arrow" title="向左滚动" @click.stop="scrollTabBar(-1)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <draggable
+          ref="tabTabsRef"
           v-model="tabDragList"
           item-key="key"
           ghost-class="tab-ghost"
@@ -49,6 +54,9 @@
             </button>
           </template>
         </draggable>
+        <button v-if="tabCanScrollRight" class="tab-arrow" title="向右滚动" @click.stop="scrollTabBar(1)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
         <div class="tab-bar-spacer"></div>
         <div class="tab-bar-right">
           <div v-if="tab === 'tasks'" class="task-search">
@@ -481,6 +489,33 @@ const barCompact = ref(false);
 const barMini = ref(false);
 let barObs = null;
 
+// ===== tab 条溢出左右箭头（同项目集横条交互） =====
+const tabTabsRef = ref(null);
+const tabCanScrollLeft = ref(false);
+const tabCanScrollRight = ref(false);
+let tabScrollObs = null;
+
+function tabTabsEl() {
+  // vuedraggable 的 ref 是组件实例，根元素即 .tab-bar-tabs
+  return tabTabsRef.value?.$el || tabTabsRef.value || null;
+}
+function updateTabScrollState() {
+  const el = tabTabsEl();
+  if (!el) return;
+  tabCanScrollLeft.value = el.scrollLeft > 0;
+  tabCanScrollRight.value = el.scrollWidth - el.clientWidth - el.scrollLeft > 4;
+}
+function scrollTabBar(dir) {
+  const el = tabTabsEl();
+  if (!el) return;
+  el.scrollBy({ left: dir * Math.max(80, Math.round(el.clientWidth / 3)), behavior: "smooth" });
+  // smooth 滚动期间 scrollLeft 持续变化，动画结束后再收敛一次
+  setTimeout(updateTabScrollState, 350);
+}
+// tab 数量/显隐/文字模式变化 → 重算箭头
+watch(() => [...tabDragList.value], () => nextTick(updateTabScrollState));
+watch([barCompact, barMini], () => nextTick(updateTabScrollState));
+
 // ===== 项目内搜索 + 跳转消费 =====
 const searchShow = ref(false);
 
@@ -571,8 +606,20 @@ onMounted(() => {
     barCompact.value = w < 800; // 后减文字：tab 只留图标
   });
   if (tabBarRef.value) barObs.observe(tabBarRef.value);
+  // tab 容器尺寸变化（视口/布局变动）→ 箭头显隐
+  const tabsEl = tabTabsEl();
+  if (tabsEl) {
+    tabScrollObs = new ResizeObserver(updateTabScrollState);
+    tabScrollObs.observe(tabsEl);
+    tabsEl.addEventListener("scroll", updateTabScrollState, { passive: true });
+  }
+  nextTick(updateTabScrollState);
 });
-onUnmounted(() => { barObs?.disconnect(); });
+onUnmounted(() => {
+  barObs?.disconnect();
+  tabScrollObs?.disconnect();
+  tabTabsEl()?.removeEventListener("scroll", updateTabScrollState);
+});
 
 // ===== 一键展开/收起 =====
 // null = 未操作（子任务按默认：未完成展开、已完成折叠）；true/false = 显式展开/收起
@@ -891,6 +938,22 @@ async function onConfirm(e) {
   scrollbar-width: none;
 }
 .tab-bar-tabs::-webkit-scrollbar { display: none; }
+/* 溢出平移箭头（同项目集横条） */
+.tab-arrow {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.tab-arrow:hover { background: var(--bg-hover); color: var(--text); }
 .tab-ghost {
   opacity: 0.4;
   background: var(--bg-hover);
