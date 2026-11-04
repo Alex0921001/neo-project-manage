@@ -1,0 +1,9 @@
+{
+  "_说明": "把下面这个对象追加到 hana-marketplace 的 approvals.json 的 approvals 数组中。tag 换成你实际发布的 Release tag；sha256 必须照抄 entry.json 的 archive.sha256，不要自行计算。readme 字段内容取 store-readme.md 全文（作为字符串，换行转义为 \\n）。",
+  "approval": {
+    "kind": "app",
+    "id": "neo-project-manage-v2",
+    "tag": "v3.0.0",
+    "sha256": "1a5df3f77efabb861c026b5efe8e6b51e29e8811ceba8c5f79b2c90087ab76ec"
+  }
+}

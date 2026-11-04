@@ -26,3 +26,7 @@ dist/
 
 # 构建资产生成脚本（*.py 默认忽略，这里放行）
 !scripts/gen-v2-icons.py
+
+# 市场交付物：发布包以 GitHub Release 为准，数据备份库不入库
+dist-extensions/*.zip
+dist-extensions/backup/

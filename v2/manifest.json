@@ -25,6 +25,14 @@
         "siteNavEntry": true,
         "pageIcon": "assets/nav.svg",
         "face": { "image": "assets/cover.png" }
+      },
+      {
+        "id": "panel",
+        "title": "项目管理",
+        "description": "项目管理面板卡：可在页面间移动，或拖到主页停靠。",
+        "route": "/index.html",
+        "pageOf": "page",
+        "face": { "image": "assets/cover.png" }
       }
     ]
   }

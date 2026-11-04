@@ -1,0 +1,9 @@
+{
+  "_说明": "把下面这个对象追加到 hana-marketplace 的 registry.json 的 entries 数组中。kind/id/publisher 必须与 entry.json 完全一致。",
+  "entry": {
+    "kind": "app",
+    "id": "neo-project-manage-v2",
+    "repository": "Alex0921001/neo-project-manage",
+    "publisher": "Alex0921001"
+  }
+}
