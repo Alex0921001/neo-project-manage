@@ -277,8 +277,10 @@ function onGlobalJump(e) {
   --space-6: 32px;
 
   /* === 状态语义色（鲜亮糖果色） === */
+  --status-pre-start-text: oklch(0.74 0.11 245);  /* 预开始：淡蓝（比进行中也更浅更淡） */
   --status-todo-text: oklch(0.77 0.19 70);
   --status-doing-text: oklch(0.62 0.21 255);
+  --status-pre-end-text: oklch(0.76 0.11 158);   /* 预结束：淡绿（比已完成也更浅更淡） */
   --status-done-text: oklch(0.70 0.17 162);
   --status-delay-text: oklch(0.64 0.24 25);
   --status-cancel-text: oklch(0.52 0 0);   /* 已取消：中性灰（标识不做的项目） */
@@ -364,8 +366,10 @@ input, textarea, select { font-family: inherit; }
 }
 
 /* === Status Text Colors（圆点/文字风格，无底色） === */
+.status-pre-start { color: var(--status-pre-start-text); }
 .status-todo { color: var(--status-todo-text); }
 .status-doing { color: var(--status-doing-text); }
+.status-pre-end { color: var(--status-pre-end-text); }
 .status-done { color: var(--status-done-text); }
 .status-delay { color: var(--status-delay-text); }
 

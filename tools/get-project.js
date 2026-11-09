@@ -20,7 +20,7 @@ export async function execute(input, toolCtx) {
   // 项目集名映射（标注归属）
   const setIdToName = new Map(data.listProjectSets().map((s) => [s.id, s.name]));
   const displayStatus = data.computeStatus(project);
-  const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴", "已取消": "⚪" }[displayStatus] || "⚪";
+  const statusIcon = { "预开始": "🟡", "待开始": "⚪", "进行中": "🔵", "预结束": "🟠", "已完成": "🟢", "已延期": "🔴", "已取消": "⚪" }[displayStatus] || "⚪";
   const archivedMark = project.archived ? ` [已归档${project.archivedAt ? ` ${project.archivedAt.slice(0, 10)}` : ""}]` : "";
 
   const lines = [

@@ -22,6 +22,7 @@ import { registerVerificationsRoutes } from "./modules/verifications.js";
 import { registerRequirementsRoutes } from "./modules/requirements.js";
 import { registerMessagesRoutes } from "./modules/messages.js";
 import { registerSearchRoutes } from "./modules/search.js";
+import { registerSettingsRoutes } from "./modules/settings.js";
 
 const __dirname_ui = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname_ui, "..");
@@ -171,6 +172,8 @@ export default function registerPluginUiRoutes(app, ctx) {
  // 消息中心）+ 全文检索）注册链末尾挂载
   registerMessagesRoutes(app, data);
   registerSearchRoutes(app, data);
+  // 通用设置（项目状态分组配置）
+  registerSettingsRoutes(app, data);
 
  // 首次启动后台建 FTS 全量索引（非阻塞；已完成则空跑，脏标记不触发）
   setTimeout(() => {

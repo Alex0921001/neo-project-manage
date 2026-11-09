@@ -1,7 +1,7 @@
 <template>
   <FloatPanel
     :model-value="show"
-    title="已归档项目"
+    :title="title"
     :default-width="920"
     :default-height="560"
     @update:model-value="(v) => { if (!v) emit('close'); }"
@@ -67,7 +67,7 @@
           <span class="arch-at">{{ formatDate(row.archivedAt) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="80" align="center">
+      <el-table-column v-if="showRestore" label="操作" width="80" align="center">
         <template #default="{ row }">
           <button class="arch-restore" @click="emit('restore', row)" title="取消归档">恢复</button>
         </template>
@@ -97,6 +97,8 @@ const props = defineProps({
   show: { type: Boolean, default: false },
   projects: { type: Array, default: () => [] },
   sets: { type: Array, default: () => [] },
+  title: { type: String, default: "已归档项目" },
+  showRestore: { type: Boolean, default: true },
 });
 const emit = defineEmits(["update:modelValue", "close", "open", "restore"]);
 
@@ -104,7 +106,7 @@ const kw = ref("");
 const dateRange = ref(null);
 const filterSetId = ref("");
 const filterStatus = ref("");
-const STATUS_OPTIONS = ["待开始", "进行中", "已完成", "已取消"];
+const STATUS_OPTIONS = ["预开始", "待开始", "进行中", "预结束", "已完成", "已取消"];
 // 分页：一屏展示，翻页查看
 const page = ref(1);
 const pageSize = 10;
@@ -155,7 +157,7 @@ function getSetName(projectSetId) {
 }
 
 function statusKey(s) {
-  return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay", "已取消": "cancel" })[s] || "todo";
+  return ({ "预开始": "pre-start", "待开始": "todo", "进行中": "doing", "预结束": "pre-end", "已完成": "done", "已延期": "delay", "已取消": "cancel" })[s] || "todo";
 }
 
 function formatDate(iso) {
@@ -248,8 +250,10 @@ function formatDate(iso) {
   border-radius: 50%;
   background: currentColor;
 }
+.status-pre-start { color: var(--status-pre-start-text); }
 .status-todo { color: var(--status-todo-text); }
 .status-doing { color: var(--status-doing-text); }
+.status-pre-end { color: var(--status-pre-end-text); }
 .status-done { color: var(--status-done-text); }
 .status-delay { color: var(--status-delay-text); }
 .status-cancel { color: var(--status-cancel-text); }

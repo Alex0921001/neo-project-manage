@@ -30,3 +30,4 @@ dist/
 # 市场交付物：发布包以 GitHub Release 为准，数据备份库不入库
 dist-extensions/*.zip
 dist-extensions/backup/
+.workbuddy/

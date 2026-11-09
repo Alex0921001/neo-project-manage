@@ -12,7 +12,7 @@ export const parameters = {
     members: { type: "array", items: { type: "string" }, description: "成员列表" },
     planStart: { type: "string", description: "计划开始日期（YYYY-MM-DD）" },
     planEnd: { type: "string", description: "计划结束日期（YYYY-MM-DD）" },
-    status: { type: "string", enum: ["待开始", "进行中", "已完成", "已取消"], description: "状态" },
+    status: { type: "string", enum: ["预开始", "待开始", "进行中", "预结束", "已完成", "已取消"], description: "状态" },
     projectSetId: { type: "string", description: "归属项目集 ID（空字符串表示未归类）" },
     archived: { type: "boolean", description: "是否归档（true=归档，false=取消归档）" },
     pinned: { type: "boolean", description: "是否收藏（true=收藏置顶，false=取消收藏）" },

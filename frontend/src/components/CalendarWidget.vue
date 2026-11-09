@@ -118,7 +118,7 @@ watch(() => props.projectId, () => { if (props.taskMode) loadTaskEvents(); });
 // ===== 项目状态筛选（非 taskMode，仅独立页非 compact 生效） =====
 // 规则：全部=待开始+进行中+已完成；未完成=待开始+进行中；已完成=已完成。
 // 始终排除「已取消」与「已归档」项目。compact（侧边小日历）保持原始全部逻辑。
-const STATUS_ALLOWED = ["待开始", "进行中", "已完成"];
+const STATUS_ALLOWED = ["预开始", "待开始", "进行中", "预结束", "已完成"];
 const visibleProjects = computed(() => {
   if (props.compact) return props.projects;
   // 项目集过滤：传了非空 projectSetId 则只留该集下项目

@@ -7,7 +7,7 @@ export const parameters = {
   properties: {
     projectSetId: { type: "string", description: "项目集 ID（可空，传空字符串查未归类项目）" },
     keyword: { type: "string", description: "按项目名模糊匹配（可选）" },
-    status: { type: "string", enum: ["待开始", "进行中", "已完成", "已取消"], description: "按状态过滤（可选）" },
+    status: { type: "string", enum: ["预开始", "待开始", "进行中", "预结束", "已完成", "已取消"], description: "按状态过滤（可选）" },
   },
 };
 
@@ -23,7 +23,7 @@ export async function execute(input, toolCtx) {
   );
   const lines = projects.map((p) => {
     const displayStatus = data.computeStatus(p);
-    const statusIcon = { "待开始": "⚪", "进行中": "🔵", "已完成": "🟢", "已延期": "🔴", "已取消": "⚪" }[displayStatus] || "⚪";
+    const statusIcon = { "预开始": "🟡", "待开始": "⚪", "进行中": "🔵", "预结束": "🟠", "已完成": "🟢", "已延期": "🔴", "已取消": "⚪" }[displayStatus] || "⚪";
     // 已归档标记：图标前缀包裹 + 名称后缀标记，Agent 可一眼区分归档项目
     const archivedMark = p.archived ? " [已归档]" : "";
     // 描述可能含换行，归一化为单行（对齐 list_tasks）

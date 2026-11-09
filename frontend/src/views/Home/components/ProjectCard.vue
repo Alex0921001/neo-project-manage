@@ -172,7 +172,7 @@ function copyProject() {
 
 // ===== 状态 =====
 function statusKey(s) {
-  return ({ "待开始": "todo", "进行中": "doing", "已完成": "done", "已延期": "delay", "已取消": "cancel" })[s] || "todo";
+  return ({ "预开始": "pre-start", "待开始": "todo", "进行中": "doing", "预结束": "pre-end", "已完成": "done", "已延期": "delay", "已取消": "cancel" })[s] || "todo";
 }
 const displayStatus = computed(() => computeDisplayStatus(props.project));
 // 归档入口：未归档且非进行中状态（已取消/待开始/已完成可归档；进行中与已归档不可）
@@ -262,8 +262,10 @@ function fmtDate(d) {
   );
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
+.tape-pre-start { background: var(--status-pre-start-text); }
 .tape-todo { background: var(--status-todo-text); }
 .tape-doing { background: var(--status-doing-text); }
+.tape-pre-end { background: var(--status-pre-end-text); }
 .tape-done { background: var(--status-done-text); }
 .tape-delay { background: var(--status-delay-text); }
 .tape-cancel { background: var(--status-cancel-text); }

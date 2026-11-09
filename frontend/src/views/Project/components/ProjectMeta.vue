@@ -118,8 +118,10 @@ const emit = defineEmits(["edit", "back", "delete", "change-status", "archive", 
 const descText = computed(() => richTextToPlain(props.project?.description || ""));
 
 const statusOptions = [
+  { value: "预开始", label: "预开始" },
   { value: "待开始", label: "待开始" },
   { value: "进行中", label: "进行中" },
+  { value: "预结束", label: "预结束" },
   { value: "已完成", label: "已完成" },
   { value: "已取消", label: "已取消" },
 ];
@@ -161,8 +163,10 @@ function copyProject() {
 
 function statusClass(s) {
   return {
+    "预开始": "status-pre-start",
     "待开始": "status-todo",
     "进行中": "status-doing",
+    "预结束": "status-pre-end",
     "已完成": "status-done",
     "已延期": "status-delay",
     "已取消": "status-cancel",
@@ -317,8 +321,10 @@ const progressPercent = computed(() => {
   background: currentColor;
   box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3px currentColor;
 }
+.status-pre-start { color: var(--status-pre-start-text); }
 .status-todo { color: var(--status-todo-text); }
 .status-doing { color: var(--status-doing-text); }
+.status-pre-end { color: var(--status-pre-end-text); }
 .status-done { color: var(--status-done-text); }
 .status-delay { color: var(--status-delay-text); }
 .status-cancel { color: var(--status-cancel-text); }
@@ -426,8 +432,10 @@ const progressPercent = computed(() => {
   background: var(--accent-warm);
   transition: width 0.3s var(--ease-out);
 }
+.status-pre-start .progress-fill { background: var(--status-pre-start-text); }
 .status-todo .progress-fill { background: var(--status-todo-text); }
 .status-doing .progress-fill { background: var(--status-doing-text); }
+.status-pre-end .progress-fill { background: var(--status-pre-end-text); }
 .status-done .progress-fill { background: var(--status-done-text); }
 .status-delay .progress-fill { background: var(--status-delay-text); }
 .status-cancel .progress-fill { background: var(--status-cancel-text); }

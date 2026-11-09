@@ -55,8 +55,8 @@ step("写入 index.js", () => {
 
 // 4) 运行期源码目录
 // 注意：routes/ 改名为 backend/，因为 v2 约定顶层 routes/*.js 与 ctx.routes.register() 互斥
-step("复制 lib/tools/backend/icons/docs", () => {
-  for (const dir of ["lib", "tools", "icons", "docs"]) {
+step("复制 lib/tools/mcp-server/backend/icons/docs", () => {
+  for (const dir of ["lib", "tools", "mcp-server", "icons", "docs"]) {
     cp(path.join(ROOT, dir), path.join(OUT, dir));
   }
   cp(path.join(ROOT, "routes"), path.join(OUT, "backend"));
