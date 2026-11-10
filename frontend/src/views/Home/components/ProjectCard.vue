@@ -1,5 +1,5 @@
 <template>
-  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @dblclick="$emit('open', project.id)" @contextmenu.prevent="openMenu">
+  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" :title="'双击查看'" @dblclick="$emit('open', project.id)" @contextmenu.prevent="openMenu">
     <!-- 左装订边：虚线撕口 + 装订孔列 -->
     <div class="gutter gutter-left">
       <div class="tear"></div>

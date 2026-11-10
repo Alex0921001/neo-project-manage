@@ -640,7 +640,7 @@ defineExpose({ load });</script>
 }
 .qtp-hole {
   width: 14px; height: 14px; border-radius: 50%;
-  background: #ffffff;
+  background: var(--bg);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.16),
     inset 0 -1px 2px rgba(255, 255, 255, 0.6),
