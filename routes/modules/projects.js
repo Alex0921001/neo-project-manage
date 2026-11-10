@@ -118,4 +118,15 @@ export function registerProjectsRoutes(app, data) {
       return c.json({ ok: false, error: e.message }, 400);
     }
   });
+
+  /** 复制项目：以源项目为模板创建新项目，body.copy 控制复制哪些内容 */
+  app.post("/api/projects/:id/copy", async (c) => {
+    const body = await c.req.json();
+    try {
+      const result = data.copyProject(c.req.param("id"), body);
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
 }

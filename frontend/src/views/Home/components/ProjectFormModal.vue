@@ -1,13 +1,13 @@
 <template>
   <FormDialog
     :show="show"
-    :title="isEdit ? '编辑项目' : '新建项目'"
+    :title="isCopy ? '复制项目' : (isEdit ? '编辑项目' : '新建项目')"
     :width="800"
-    :height="620"
+    :height="isCopy ? 720 : 620"
     :form="form"
     :rules="rules"
     :saving="saving"
-    :save-text="isEdit ? '保存' : '创建'"
+    :save-text="isCopy ? '复制' : (isEdit ? '保存' : '创建')"
     @update:show="(v) => { if (!v) $emit('close') }"
     @cancel="$emit('close')"
     @save="submit"
@@ -66,18 +66,28 @@
         placeholder="一句话描述项目目标（可选）"
       />
     </el-form-item>
+
+    <!-- 复制模式：选择要复制的内容 -->
+    <el-form-item v-if="isCopy" label="复制内容">
+      <div class="copy-options">
+        <label v-for="opt in COPY_ITEMS" :key="opt.key" class="copy-opt">
+          <input type="checkbox" v-model="copyOptions[opt.key]" />
+          <span>{{ opt.label }}</span>
+        </label>
+      </div>
+    </el-form-item>
   </FormDialog>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
-import { normalizeRichText, richTextToPlain } from "../../../utils/text.js";
+import { normalizeRichText, richTextToPlainKeepBreaks } from "../../../utils/text.js";
 import MemberSelect from "../../../components/MemberSelect.vue";
 import FormDialog from "../../../components/FormDialog.vue";
 
 const props = defineProps({
   show: Boolean,
-  mode: { type: String, default: "create" }, // "create" | "edit"
+  mode: { type: String, default: "create" }, // "create" | "edit" | "copy"
   data: { type: Object, default: null },
   defaultSetId: { type: String, default: "" },
   sets: { type: Array, default: () => [] },
@@ -85,6 +95,27 @@ const props = defineProps({
 const emit = defineEmits(["close", "save"]);
 
 const isEdit = computed(() => props.mode === "edit");
+const isCopy = computed(() => props.mode === "copy");
+
+/** 复制模式下的内容勾选（默认全选） */
+const copyOptions = reactive({
+  tasks: true,
+  requirements: true,
+  plans: true,
+  verifications: true,
+  files: true,
+  notes: true,
+});
+
+/** 复选项目定义（顺序即界面展示顺序） */
+const COPY_ITEMS = [
+  { key: "tasks", label: "任务" },
+  { key: "requirements", label: "需求" },
+  { key: "plans", label: "方案" },
+  { key: "verifications", label: "验证" },
+  { key: "files", label: "文件" },
+  { key: "notes", label: "备注" },
+];
 
 const saving = ref(false);
 const form = reactive({
@@ -118,7 +149,7 @@ watch(() => props.show, (v) => {
       const d = props.data;
       form.id = d.id;
       form.name = d.name;
-      form.description = richTextToPlain(d.description || "");
+      form.description = richTextToPlainKeepBreaks(d.description || "");
       form.planStart = d.planStart || "";
       form.planEnd = d.planEnd || "";
       planRangeVal.value = form.planStart || form.planEnd
@@ -128,6 +159,26 @@ watch(() => props.show, (v) => {
       form.status = ["预开始", "待开始", "进行中", "预结束", "已完成", "已取消"].includes(d.status) ? d.status : "待开始";
       form.projectSetId = d.projectSetId || "";
       form.members = Array.isArray(d.members) ? [...d.members] : [];
+    } else if (isCopy.value && props.data) {
+      // 复制：所有字段预填源项目，名称追加「副本」，状态回到待开始
+      const d = props.data;
+      form.id = "";
+      form.name = `${d.name || ""} 副本`.slice(0, 20);
+      form.description = richTextToPlainKeepBreaks(d.description || "");
+      form.planStart = d.planStart || "";
+      form.planEnd = d.planEnd || "";
+      planRangeVal.value = form.planStart || form.planEnd
+        ? [form.planStart || null, form.planEnd || null]
+        : [];
+      form.status = "待开始";
+      form.projectSetId = d.projectSetId || "";
+      form.members = Array.isArray(d.members) ? [...d.members] : [];
+      copyOptions.tasks = true;
+      copyOptions.requirements = true;
+      copyOptions.plans = true;
+      copyOptions.verifications = true;
+      copyOptions.files = true;
+      copyOptions.notes = true;
     } else {
       form.id = "";
       form.name = "";
@@ -146,7 +197,7 @@ async function submit() {
   if (dateRangeErr.value) return;
   saving.value = true;
   try {
-    emit("save", {
+    const payload = {
       id: form.id,
       name: form.name.trim(),
       description: normalizeRichText(form.description),
@@ -154,9 +205,10 @@ async function submit() {
       planEnd: form.planEnd,
       status: form.status,
       projectSetId: form.projectSetId,
-      // P2-2/3：trim + 去重后提交
       members: [...new Set(form.members.map((m) => String(m).trim()).filter(Boolean))],
-    });
+    };
+    if (isCopy.value) payload.copy = { ...copyOptions };
+    emit("save", payload);
   } finally {
     saving.value = false;
   }
@@ -176,5 +228,37 @@ async function submit() {
   margin-top: 6px;
   font-size: 12px;
   color: var(--danger);
+}
+
+/* 复制内容勾选项：横向排列，项间留出呼吸感 */
+.copy-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  padding: 2px 0;
+}
+
+.copy-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s var(--ease-out, ease);
+}
+
+.copy-opt:hover {
+  color: var(--accent);
+}
+
+.copy-opt input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
 }
 </style>

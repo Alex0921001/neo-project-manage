@@ -21,3 +21,8 @@ export function updateProject(id, data, opts = {}) {
 export function deleteProject(id, opts = {}) {
   return http.delete(`api/projects/${id}`, opts);
 }
+
+/** 复制项目：data 为新项目字段，data.copy 控制复制哪些内容 */
+export function copyProject(id, data, opts = {}) {
+  return http.post(`api/projects/${id}/copy`, data, opts);
+}

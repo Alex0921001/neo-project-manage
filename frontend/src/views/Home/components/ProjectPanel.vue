@@ -59,6 +59,8 @@
             @archive="archiveProj"
             @unarchive="unarchiveProj"
             @toggle-pin="togglePin"
+            @copy="copyProj"
+            @update-desc="saveDesc"
           />
         </div>
         <div v-if="group.overflow > 0" class="group-more">
@@ -72,7 +74,7 @@
 
     <ProjectFormModal
       :show="form.show"
-      :mode="form.id ? 'edit' : 'create'"
+      :mode="form.mode"
       :data="form.data"
       :default-set-id="filSetId === null ? '' : filSetId"
       :sets="sets"
@@ -103,7 +105,7 @@
 
 <script setup>
 import { ref, reactive, computed, watch } from "vue";
-import { listProjects, createProject, updateProject } from "../../../api/modules/project.js";
+import { listProjects, createProject, updateProject, copyProject as copyProjectApi } from "../../../api/modules/project.js";
 import { getStatusGroups, updateStatusGroups } from "../../../api/modules/statusGroup.js";
 import { toast } from "../../../toast.js";
 import { computeDisplayStatus } from "../../../utils/status.js";
@@ -255,12 +257,34 @@ function setFilter(id) {
 }
 
 // ===== Project Form =====
-const form = reactive({ show: false, id: "", data: null });
-function openAdd() { form.id = ""; form.data = null; form.show = true; }
-function editProj(p) { form.id = p.id; form.data = p; form.show = true; }
+const form = reactive({ show: false, id: "", data: null, mode: "create" });
+function openAdd() { form.id = ""; form.data = null; form.mode = "create"; form.show = true; }
+function editProj(p) { form.id = p.id; form.data = p; form.mode = "edit"; form.show = true; }
+function copyProj(p) { form.id = ""; form.data = p; form.mode = "copy"; form.show = true; }
+
+// 卡片内描述直接编辑：静默保存后刷新列表
+async function saveDesc({ id, description }) {
+  const res = await updateProject(id, { description }, { silent: true });
+  if (res?.ok) {
+    load();
+    emit("changed");
+  } else toast(res?.error || "描述保存失败", "error");
+}
 async function saveProject(d) {
   if (!d.name.trim()) return toast("请输入项目名称", "error");
   const body = { name: d.name, description: d.description, planStart: d.planStart, planEnd: d.planEnd, status: d.status, projectSetId: d.projectSetId, members: d.members };
+  // 复制：以源项目为模板创建新项目，d.copy 为内容勾选
+  if (form.mode === "copy" && form.data?.id) {
+    const res = await copyProjectApi(form.data.id, { ...body, copy: d.copy }, { silent: true });
+    if (res.ok) {
+      const skipped = res.data?.skippedFiles || [];
+      toast(skipped.length ? `已复制，${skipped.length} 个文件复制失败已跳过` : "已复制");
+      form.show = false;
+      load();
+      emit("changed");
+    } else toast(res.error || "复制失败", "error");
+    return;
+  }
   if (d.id) {
     const res = await updateProject(d.id, body, { silent: true });
     if (res.ok) { toast("已更新"); form.show = false; load(); emit("changed"); }

@@ -39,6 +39,27 @@ export function richTextToPlain(html) {
 }
 
 /**
+ * 保留换行与多次空格的纯文本转换（卡片描述、编辑弹窗预填使用）。
+ * 与 richTextToPlain 的区别：不压缩连续空白，把 <br> 与块级标签边界转成换行。
+ * @param {string} html
+ * @returns {string}
+ */
+export function richTextToPlainKeepBreaks(html) {
+  if (!html) return "";
+  const withBreaks = String(html)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h[1-6]|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "");
+  const el = document.createElement("textarea");
+  el.innerHTML = withBreaks;
+  return el.value
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
  * 富文本 HTML 归一化：去标签后无实质内容且无资源节点（图片/链接）→ 返回空串
  * @param {string} html
  * @returns {string} 空内容返回 ""，否则原样返回（trim 后）

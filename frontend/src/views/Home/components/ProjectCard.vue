@@ -1,5 +1,5 @@
 <template>
-  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @click="$emit('open', project.id)" @contextmenu.prevent="openMenu">
+  <div :class="['project-card', `status-${statusKey(displayStatus)}`]" @dblclick="$emit('open', project.id)" @contextmenu.prevent="openMenu">
     <!-- 左装订边：虚线撕口 + 装订孔列 -->
     <div class="gutter gutter-left">
       <div class="tear"></div>
@@ -30,7 +30,7 @@
         </button>
         <div class="title" :title="project.name">{{ project.name }}</div>
       </div>
-      <div class="no-chip">No.{{ project.id }}</div>
+      <div class="set-chip" :title="setLabel || '未归类'">{{ setLabel || "未归类" }}</div>
     </div>
 
     <!-- 信息区：双栏字段 -->
@@ -63,7 +63,22 @@
     <!-- 手写横格区：默认 4 行，全部展示项目描述；无描述用缺省文案；超过 4 行截断 -->
     <div class="write-area">
       <div class="write-text">
-        <div class="write-row desc" :title="descText">{{ descText || '这个用户很懒，还没有添加描述。' }}</div>
+        <textarea
+          v-if="descEditing"
+          ref="descInput"
+          v-model="descDraft"
+          class="write-row desc desc-input"
+          placeholder="输入项目描述…"
+          @click.stop
+          @blur="onDescBlur"
+          @keydown.esc.stop.prevent="cancelDescEdit"
+        ></textarea>
+        <div
+          v-else
+          class="write-row desc"
+          :title="descText"
+          @click.stop="startDescEdit($event)"
+        >{{ descText || '这个用户很懒，还没有添加描述。' }}</div>
       </div>
     </div>
 
@@ -77,6 +92,10 @@
       <div class="ctx-item" @click="copyProject">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         复制 ID
+      </div>
+      <div class="ctx-item" @click="$emit('copy', project)">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+        复制项目
       </div>
       <div class="ctx-item" @click="$emit('edit', project)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -104,16 +123,16 @@ let activeMenu = null;
 </script>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, nextTick, onMounted, onUnmounted } from "vue";
 import { computeDisplayStatus } from "../../../utils/status.js";
-import { richTextToPlain } from "../../../utils/text.js";
+import { richTextToPlain, richTextToPlainKeepBreaks } from "../../../utils/text.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({
   project: { type: Object, required: true },
   setLabel: { type: String, default: "" },
 });
-defineEmits(["open", "edit", "delete", "archive", "unarchive", "toggle-pin"]);
+const emit = defineEmits(["open", "edit", "delete", "archive", "unarchive", "toggle-pin", "copy", "update-desc"]);
 
 // ===== 右键菜单 =====
 const menuOpen = ref(false);
@@ -208,8 +227,46 @@ const remainingDays = computed(() => {
 const descText = computed(() => {
   const t = (props.project.description || "").trim();
   if (!t) return "";
-  return richTextToPlain(t);
+  return richTextToPlainKeepBreaks(t);
 });
+
+// ===== 描述点击即编辑（交互对齐临时任务：点击定位光标、失焦保存、Esc 取消）=====
+const descEditing = ref(false);
+const descDraft = ref("");
+const descInput = ref(null);
+
+function startDescEdit(e) {
+  if (descEditing.value) return;
+  descDraft.value = descText.value;
+  // 光标位置必须在点击瞬间计算：此刻 DOM 还是显示态，caretRangeFromPoint 才能命中文本节点
+  let pos = descDraft.value.length;
+  try {
+    const range = e ? document.caretRangeFromPoint(e.clientX, e.clientY) : null;
+    if (range && range.startContainer.nodeType === Node.TEXT_NODE) pos = range.startOffset;
+  } catch (_) { /* 降级到末尾 */ }
+  descEditing.value = true;
+  nextTick(() => {
+    const el = descInput.value;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(pos, pos);
+  });
+}
+
+function cancelDescEdit() {
+  descEditing.value = false;
+  descDraft.value = "";
+}
+
+// 失焦：内容变了才提交，未变或空内容静默退出（与临时任务一致）
+function onDescBlur() {
+  if (!descEditing.value) return;
+  const v = descDraft.value.trim();
+  if (v === descText.value) { cancelDescEdit(); return; }
+  descEditing.value = false;
+  descDraft.value = "";
+  emit("update-desc", { id: props.project.id, description: v });
+}
 
 // ===== 日期 =====
 function fmtDate(d) {
@@ -238,7 +295,6 @@ function fmtDate(d) {
   will-change: transform;
 }
 .project-card:hover {
-  transform: rotate(-2deg);
   box-shadow: 0 8px 24px rgba(90, 80, 70, 0.12);
   z-index: 2;
 }
@@ -317,7 +373,7 @@ function fmtDate(d) {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--bg);
   box-shadow:
     inset 0 1px 3px rgba(0, 0, 0, 0.16),
     inset 0 -1px 2px rgba(255, 255, 255, 0.6),
@@ -352,12 +408,14 @@ function fmtDate(d) {
   text-overflow: ellipsis;
   min-width: 0;
 }
-.no-chip {
+.set-chip {
   flex-shrink: 0;
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   color: #7c7367;
-  letter-spacing: 1px;
   line-height: 1.5;
 }
 
@@ -466,7 +524,7 @@ function fmtDate(d) {
 }
 /* 描述：占满可用行，最多 4 行，超长截断；无描述时显示缺省文案 */
 .write-row.desc {
-  white-space: normal;
+  white-space: pre-wrap;
   word-break: break-word;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -475,6 +533,28 @@ function fmtDate(d) {
   text-overflow: ellipsis;
   height: auto;
   max-height: 120px;
+  cursor: text;
+}
+
+/* 描述编辑态：只重置外观，排版（字号/行高/颜色/字距）全部沿用 .write-row */
+.write-row.desc-input {
+  display: block;
+  width: 100%;
+  height: 120px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  overflow-y: auto;
+  caret-color: #7c7367;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+}
+
+.write-row.desc-input::placeholder {
+  color: #b9b1a5;
 }
 
 /* 底部说明 */
