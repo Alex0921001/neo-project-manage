@@ -21,6 +21,11 @@ export function deleteComment(projectId, commentId, opts = {}) {
   return http.delete(`api/projects/${projectId}/comments/${commentId}`, opts);
 }
 
+/** 批量删除评论（上限 50 条/次）；返回 { success, failed } */
+export function deleteComments(projectId, ids, opts = {}) {
+  return http.delete(`api/projects/${projectId}/comments`, { data: { ids }, ...opts });
+}
+
 /** 划词引用标注写入（绕过状态冻结）；cleanup 用于评论已删后的高亮清理 */
 export function applyQuoteAnchor(projectId, commentId, data, opts = {}) {
   return http.post(`api/projects/${projectId}/comments/${commentId}/anchor`, data, opts);

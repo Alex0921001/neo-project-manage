@@ -7,7 +7,15 @@
       @pointerdown="onResizeStart"
       @dblclick="resetWidth"
     ></div>
-    <div class="cp-title">评论（{{ comments.length }}）</div>
+    <div class="cp-head">
+      <div class="cp-title">评论（{{ comments.length }}）</div>
+      <button
+        v-if="comments.length"
+        class="cp-clear"
+        title="删除全部评论"
+        @click="clearAllComments"
+      >全部删除</button>
+    </div>
     <div class="cp-list sb-hover" ref="listEl">
       <div v-if="comments.length === 0" class="cp-empty">暂无评论</div>
       <div
@@ -78,7 +86,8 @@
 
 <script setup>
 import { ref, watch } from "vue";
-import { listComments, addComment, updateComment, deleteComment } from "../../../api/modules/comment.js";
+import { confirmDialog } from "../../../utils/confirm.js";
+import { listComments, addComment, updateComment, deleteComment, deleteComments } from "../../../api/modules/comment.js";
 import { toast } from "../../../toast.js";
 
 const props = defineProps({
@@ -307,25 +316,37 @@ let askHandler = null;
 /** 父级注入删除确认（复用各自弹窗的 ConfirmModal）：fn(comment) => Promise<boolean> */
 function setConfirmHandler(fn) { askHandler = fn; }
 async function askDelete(c) {
-  if (askHandler) {
-    const ok = await askHandler(c);
-    if (!ok) return;
-  }
   const res = await deleteComment(props.projectId, c.id);
-  if (res?.ok) {
-    comments.value = comments.value.filter((x) => x.id !== c.id);
-    emit("loaded", comments.value.length);
-    emit("changed");
- // 删除评论后通知父级清理正文高亮（unwrap + 持久化），避免孤儿引用残留（划词引用）
-    emit("quote-removed", c.id);
-    toast("已删除评论");
-  } else {
-    // 已被删（并发）：提示后本地移除
-    comments.value = comments.value.filter((x) => x.id !== c.id);
-    emit("loaded", comments.value.length);
-    emit("quote-removed", c.id);
-    toast(res?.error || "已删除");
+  // 静默：成功与并发已删都不提示，也无需二次确认
+  comments.value = comments.value.filter((x) => x.id !== c.id);
+  emit("loaded", comments.value.length);
+  emit("quote-removed", c.id);
+  if (res?.ok) emit("changed");
+}
+
+/** 全部删除：二次确认后分批删除（后端单批上限 50），成功后静默 */
+async function clearAllComments() {
+  const total = comments.value.length;
+  if (!total) return;
+  const ok = await confirmDialog({
+    title: "删除全部评论",
+    message: `确定删除全部 ${total} 条评论？此操作不可撤销。`,
+    confirmText: "全部删除",
+  });
+  if (!ok) return;
+  const ids = comments.value.map((c) => c.id);
+  for (let i = 0; i < ids.length; i += 50) {
+    const res = await deleteComments(props.projectId, ids.slice(i, i + 50));
+    if (!res?.ok) {
+      toast(res?.error || "删除失败", "error");
+      return;
+    }
   }
+  // 逐条通知父级清理正文高亮（划词引用），再清空本地
+  for (const id of ids) emit("quote-removed", id);
+  comments.value = [];
+  emit("loaded", 0);
+  emit("changed");
 }
 
 /** 定位到某条评论并闪烁高亮（划词引用反向定位用） */
@@ -374,11 +395,35 @@ defineExpose({ load, scrollToComment, beginQuote, focusInput: () => inputEl.valu
 }
 .cp-resize:hover { background: var(--accent-light); }
 .cp-panel[data-dragging="1"] { user-select: none; }
+.cp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .cp-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+/* 全部删除：无评论时不渲染，二次确认后静默执行 */
+.cp-clear {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s var(--ease-out, ease), border-color 0.15s var(--ease-out, ease);
+}
+.cp-clear:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 /* 引用挂起提示条 */
 .cp-pending {

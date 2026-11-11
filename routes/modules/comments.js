@@ -55,6 +55,17 @@ export function registerCommentsRoutes(app, data) {
     }
   });
 
+  /** 批量删除：body { ids: [...] }，单批上限 50（与 domain 层约束一致） */
+  app.delete("/api/projects/:projectId/comments", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    try {
+      const result = data.deleteComments(c.req.param("projectId"), body.ids || []);
+      return c.json({ ok: true, data: result });
+    } catch (e) {
+      return c.json({ ok: false, error: e.message }, 400);
+    }
+  });
+
  // 评论引用标注写入（划词引用）：前端包裹好高亮 span 的新 HTML，绕过内容编辑状态冻结
   app.post("/api/projects/:projectId/comments/:commentId/anchor", async (c) => {
     const body = await c.req.json();
